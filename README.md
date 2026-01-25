@@ -1,9 +1,3 @@
-Com base na estrutura de arquivos que você enviou (especificamente a pasta com arquivos `.tsx` e `vite.config.ts`), este parece ser o **porte do sistema para React + TypeScript**.
-
-Aqui está um `README.md` profissional e completo para essa versão do projeto.
-
----
-
 # Gestor de Obras (React Version)
 
 O **Gestor de Obras** é uma aplicação web de alta performance para gerenciamento, orçamentação e medição de obras de engenharia civil. O sistema permite criar estruturas analíticas de projeto (EAP) com profundidade infinita, realizar medições acumuladas e calcular custos automaticamente através de uma árvore hierárquica recursiva.
