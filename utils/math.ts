@@ -16,6 +16,35 @@ export const financial = {
     }).format(value);
   },
 
+  /**
+   * Formata um número puro para o padrão visual brasileiro sem o prefixo R$.
+   */
+  formatVisual: (value: number): string => {
+    return new Intl.NumberFormat('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(value);
+  },
+
+  /**
+   * Máscara de digitação: transforma "1234" em "12,34" e "123456" em "1.234,56"
+   */
+  maskCurrency: (value: string): string => {
+    const digits = value.replace(/\D/g, '');
+    if (!digits) return '0,00';
+    const numberValue = parseInt(digits, 10) / 100;
+    return financial.formatVisual(numberValue);
+  },
+
+  /**
+   * Converte uma string formatada (1.234,56) de volta para um número (1234.56)
+   */
+  parseLocaleNumber: (value: string): number => {
+    if (!value) return 0;
+    const cleanValue = value.replace(/\./g, '').replace(',', '.');
+    return parseFloat(cleanValue) || 0;
+  },
+
   sum: (values: number[]): number => {
     return financial.round(values.reduce((acc, val) => acc + val, 0));
   },
@@ -25,7 +54,6 @@ export const financial = {
    */
   formatDate: (dateStr: string | undefined): string => {
     if (!dateStr) return '—';
-    // Se a data vier no formato ISO completo, pegamos apenas a parte da data
     const cleanDate = dateStr.split('T')[0];
     const parts = cleanDate.split('-');
     if (parts.length !== 3) return dateStr;

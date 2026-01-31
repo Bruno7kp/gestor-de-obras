@@ -17,7 +17,8 @@ import {
   ArrowRightLeft,
   Users,
   GripVertical,
-  Clock
+  Clock,
+  Landmark
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
@@ -38,9 +39,10 @@ interface ExpenseTreeTableProps {
 export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({ 
   data, expandedIds, onToggle, onEdit, onDelete, onAddChild, onUpdateTotal, onUpdateUnitPrice, onTogglePaid, onReorder, isReadOnly 
 }) => {
+  const isRevenueTable = data.some(d => d.type === 'revenue');
+
   const handleDragEnd = (result: DropResult) => {
     if (isReadOnly) return;
-    
     const sourceId = result.draggableId;
 
     if (result.combine) {
@@ -60,44 +62,45 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
   };
 
   const totalTable = financial.sum(data.filter(i => i.depth === 0).map(i => i.amount));
-  const isRevenueTable = data.some(d => d.type === 'revenue');
 
   return (
-    <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-3xl bg-white dark:bg-slate-900 shadow-xl">
+    <div className={`overflow-x-auto border rounded-3xl bg-white dark:bg-slate-900 shadow-xl transition-colors ${isRevenueTable ? 'border-emerald-100 dark:border-emerald-900/40' : 'border-slate-200 dark:border-slate-800'}`}>
       <DragDropContext onDragEnd={handleDragEnd}>
         <table className="min-w-full border-collapse text-[11px]">
-          <thead className="bg-slate-900 dark:bg-black text-white sticky top-0 z-20">
+          <thead className={`${isRevenueTable ? 'bg-emerald-950 dark:bg-emerald-900/20' : 'bg-slate-900 dark:bg-black'} text-white sticky top-0 z-20`}>
             <tr className="uppercase tracking-widest font-black text-[9px] opacity-80">
-              <th className="p-4 border-r border-slate-800 dark:border-slate-900 w-12 text-center">Mover</th>
-              <th className="p-4 border-r border-slate-800 dark:border-slate-900 w-16 text-center">Status</th>
-              <th className="p-4 border-r border-slate-800 dark:border-slate-900 w-24 text-center">Ações</th>
-              <th className="p-4 border-r border-slate-800 dark:border-slate-900 w-20 text-center">WBS</th>
-              <th className="p-4 border-r border-slate-800 dark:border-slate-900 text-left min-w-[300px]">Insumo / Despesa</th>
-              <th className="p-4 border-r border-slate-800 dark:border-slate-900 w-44 text-left">Datas (Gasto/Pgto)</th>
-              <th className="p-4 border-r border-slate-800 dark:border-slate-900 w-48 text-left">Entidade</th>
-              <th className="p-4 border-r border-slate-800 dark:border-slate-900 w-16 text-center">Und</th>
-              <th className="p-4 border-r border-slate-800 dark:border-slate-900 w-20 text-center">Qtd</th>
-              <th className="p-4 border-r border-slate-800 dark:border-slate-900 w-32 text-right">Unitário</th>
+              <th className="p-4 border-r border-white/5 w-12 text-center">Mover</th>
+              <th className="p-4 border-r border-white/5 w-16 text-center">Status</th>
+              <th className="p-4 border-r border-white/5 w-24 text-center">Ações</th>
+              <th className="p-4 border-r border-white/5 w-20 text-center">WBS</th>
+              <th className="p-4 border-r border-white/5 text-left min-w-[300px]">
+                {isRevenueTable ? 'Receita / Descritivo' : 'Insumo / Despesa'}
+              </th>
+              <th className="p-4 border-r border-white/5 w-44 text-left">
+                {isRevenueTable ? 'Datas (Emissão/Recebido)' : 'Datas (Gasto/Pgto)'}
+              </th>
+              <th className="p-4 border-r border-white/5 w-48 text-left">
+                {isRevenueTable ? 'Cliente / Origem' : 'Entidade'}
+              </th>
+              <th className="p-4 border-r border-white/5 w-16 text-center">Und</th>
+              <th className="p-4 border-r border-white/5 w-20 text-center">Qtd</th>
+              <th className="p-4 border-r border-white/5 w-32 text-right">Unitário</th>
               <th className="p-4 w-32 text-right">Total</th>
             </tr>
           </thead>
           <Droppable droppableId="expense-tree" direction="vertical" isCombineEnabled={!isReadOnly}>
             {(provided) => (
-              <tbody 
-                {...provided.droppableProps} 
-                ref={provided.innerRef}
-                className="divide-y divide-slate-100 dark:divide-slate-800"
-              >
+              <tbody {...provided.droppableProps} ref={provided.innerRef} className="divide-y divide-slate-100 dark:divide-slate-800">
                 {data.map((item, index) => (
                   <Draggable key={item.id} draggableId={item.id} index={index} isDragDisabled={isReadOnly}>
                     {(provided, snapshot) => (
                       <tr 
                         ref={provided.innerRef}
                         {...provided.draggableProps}
-                        className={`group transition-all ${item.itemType === 'category' ? 'bg-slate-50/80 dark:bg-slate-800/40 font-bold' : 'hover:bg-indigo-50/40 dark:hover:bg-indigo-900/10'} ${item.isPaid ? 'opacity-70 grayscale-[0.3]' : ''} ${snapshot.isDragging ? 'dragging-row' : ''} ${snapshot.combineWith ? 'bg-indigo-100 dark:bg-indigo-900/50' : ''}`}
+                        className={`group transition-all ${item.itemType === 'category' ? (isRevenueTable ? 'bg-emerald-50/30 dark:bg-emerald-900/10' : 'bg-slate-50/80 dark:bg-slate-800/40') : (isRevenueTable ? 'hover:bg-emerald-50/40' : 'hover:bg-indigo-50/40 dark:hover:bg-indigo-900/10')} ${item.itemType === 'category' ? 'font-bold' : ''} ${item.isPaid ? 'opacity-70 grayscale-[0.3]' : ''} ${snapshot.isDragging ? 'dragging-row' : ''}`}
                       >
                         <td className="p-2 border-r border-slate-100 dark:border-slate-800 text-center">
-                          <div {...provided.dragHandleProps} className="inline-flex p-1.5 text-slate-300 hover:text-indigo-500 transition-colors cursor-grab active:cursor-grabbing">
+                          <div {...provided.dragHandleProps} className={`inline-flex p-1.5 transition-colors cursor-grab active:cursor-grabbing ${isRevenueTable ? 'text-emerald-200 hover:text-emerald-500' : 'text-slate-300 hover:text-indigo-500'}`}>
                             <GripVertical size={16} />
                           </div>
                         </td>
@@ -107,7 +110,7 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                               disabled={isReadOnly}
                               onClick={() => onTogglePaid(item.id)}
                               className={`p-2 rounded-xl transition-all ${item.isPaid ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' : 'text-slate-300 hover:text-indigo-500'}`}
-                              title={item.type === 'revenue' ? "Marcar como recebido" : "Marcar como pago"}
+                              title={isRevenueTable ? (item.isPaid ? "Recebido" : "Marcar como Recebido") : (item.isPaid ? "Pago" : "Marcar como Pago")}
                             >
                               {item.isPaid ? <CheckCircle2 size={18} /> : <Circle size={18} />}
                             </button>
@@ -123,13 +126,13 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                         <td className="p-2 border-r border-slate-100 dark:border-slate-800">
                           <div className="flex items-center gap-1" style={{ marginLeft: `${item.depth * 1.5}rem` }}>
                             {item.itemType === 'category' ? (
-                              <button onClick={() => onToggle(item.id)} className={`p-1 rounded-md transition-colors ${expandedIds.has(item.id) ? 'text-indigo-600 bg-indigo-100 dark:bg-indigo-900/40' : 'text-slate-400 bg-slate-100 dark:bg-slate-800'}`}>
+                              <button onClick={() => onToggle(item.id)} className={`p-1 rounded-md transition-colors ${expandedIds.has(item.id) ? (isRevenueTable ? 'text-emerald-600 bg-emerald-100' : 'text-indigo-600 bg-indigo-100 dark:bg-indigo-900/40') : 'text-slate-400 bg-slate-100 dark:bg-slate-800'}`}>
                                 {expandedIds.has(item.id) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                               </button>
                             ) : <div className="w-6 h-px bg-slate-200 dark:bg-slate-700" />}
                             
-                            {item.itemType === 'category' ? <Layers size={14} className="text-indigo-500 flex-shrink-0" /> : (
-                              item.type === 'revenue' ? <ArrowRightLeft size={14} className="text-emerald-500 flex-shrink-0" /> : 
+                            {item.itemType === 'category' ? <Layers size={14} className={isRevenueTable ? 'text-emerald-500' : 'text-indigo-500'} /> : (
+                              item.type === 'revenue' ? <Landmark size={14} className="text-emerald-500 flex-shrink-0" /> : 
                               item.type === 'labor' ? <Users size={14} className="text-blue-400 flex-shrink-0" /> : 
                               <Truck size={14} className="text-slate-300 dark:text-slate-500 flex-shrink-0" />
                             )}
@@ -137,8 +140,8 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                             <span className={`truncate ${item.itemType === 'category' ? 'uppercase text-[10px] font-black dark:text-slate-100' : 'text-slate-600 dark:text-slate-300'} ${item.isPaid ? 'line-through decoration-emerald-500/30' : ''}`}>{item.description}</span>
                             {item.itemType === 'category' && !isReadOnly && (
                               <div className="ml-auto lg:opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
-                                <button onClick={() => onAddChild(item.id, 'category')} className="p-1 text-slate-400 hover:text-indigo-600" title="Add Subcategoria"><FolderPlus size={14} /></button>
-                                <button onClick={() => onAddChild(item.id, 'item')} className="p-1 text-slate-400 hover:text-emerald-600" title="Add Insumo"><FilePlus size={14} /></button>
+                                <button onClick={() => onAddChild(item.id, 'category')} className={`p-1 hover:scale-110 ${isRevenueTable ? 'text-emerald-400' : 'text-slate-400 hover:text-indigo-600'}`} title="Add Subcategoria"><FolderPlus size={14} /></button>
+                                <button onClick={() => onAddChild(item.id, 'item')} className={`p-1 hover:scale-110 ${isRevenueTable ? 'text-emerald-500' : 'text-slate-400 hover:text-emerald-600'}`} title={isRevenueTable ? "Add Receita" : "Add Insumo"}><FilePlus size={14} /></button>
                               </div>
                             )}
                           </div>
@@ -148,12 +151,12 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                             <div className="flex flex-col gap-0.5">
                               <div className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
                                 <Calendar size={10} className="shrink-0" /> 
-                                <span>Gasto: {financial.formatDate(item.date)}</span>
+                                <span>{isRevenueTable ? 'Emissão' : 'Gasto'}: {financial.formatDate(item.date)}</span>
                               </div>
                               {item.paymentDate && (
-                                <div className="flex items-center gap-1 text-[9px] text-emerald-600 dark:text-emerald-500 font-bold">
+                                <div className={`flex items-center gap-1 text-[9px] font-bold ${isRevenueTable ? 'text-emerald-600' : 'text-blue-600'}`}>
                                   <Clock size={9} className="shrink-0" /> 
-                                  <span>Pgto: {financial.formatDate(item.paymentDate)}</span>
+                                  <span>{isRevenueTable ? 'Recebido' : 'Pgto'}: {financial.formatDate(item.paymentDate)}</span>
                                 </div>
                               )}
                             </div>
@@ -181,12 +184,12 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                              <input 
                                disabled={isReadOnly}
                                type="text" 
-                               className={`w-full bg-transparent text-right font-black outline-none focus:ring-1 focus:ring-indigo-500 rounded px-1 ${item.type === 'revenue' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-800 dark:text-slate-100'}`} 
+                               className={`w-full bg-transparent text-right font-black outline-none focus:ring-1 focus:ring-indigo-500 rounded px-1 ${isRevenueTable ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-800 dark:text-slate-100'}`} 
                                key={`${item.id}-amt-${item.amount}`}
                                defaultValue={item.amount.toFixed(2).replace('.', ',')} 
                                onBlur={(e) => onUpdateTotal(item.id, parseFloat(e.target.value.replace(',', '.')) || 0)} 
                              />
-                           ) : <span className="font-black text-slate-800 dark:text-slate-100">{financial.formatBRL(item.amount)}</span>}
+                           ) : <span className={`font-black ${isRevenueTable ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-800 dark:text-slate-100'}`}>{financial.formatBRL(item.amount)}</span>}
                         </td>
                       </tr>
                     )}
@@ -194,12 +197,12 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                 ))}
                 {provided.placeholder}
 
-                <tr className="bg-slate-950 dark:bg-black text-white font-black text-xs sticky bottom-0 z-10 shadow-2xl">
+                <tr className={`${isRevenueTable ? 'bg-emerald-950' : 'bg-slate-950 dark:bg-black'} text-white font-black text-xs sticky bottom-0 z-10 shadow-2xl`}>
                   <td colSpan={5} className="p-4 text-right uppercase tracking-[0.2em] text-[10px] border-r border-white/10">
-                    Total Acumulado ({isRevenueTable ? 'Entradas' : 'Saídas'}):
+                    {isRevenueTable ? 'Total Geral de Entradas' : 'Total Geral de Saídas'}:
                   </td>
                   <td colSpan={5} className="p-4 border-r border-white/10 opacity-30 italic text-[9px]">
-                    Soma de todos os grupos e itens desta categoria
+                    Soma consolidada do grupo financeiro
                   </td>
                   <td className={`p-4 text-right text-base tracking-tighter ${isRevenueTable ? 'text-emerald-400' : 'text-rose-400'}`}>
                     {financial.formatBRL(totalTable)}

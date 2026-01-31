@@ -38,72 +38,55 @@ export const WorkItemModal: React.FC<WorkItemModalProps> = ({
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   
-  const [strQty, setStrQty] = useState('0');
-  const [strPriceNoBdi, setStrPriceNoBdi] = useState('0');
-  const [strPriceWithBdi, setStrPriceWithBdi] = useState('0');
-  const [strTotalWithBdi, setStrTotalWithBdi] = useState('0');
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  const [strQty, setStrQty] = useState('0,00');
+  const [strPriceNoBdi, setStrPriceNoBdi] = useState('0,00');
+  const [strPriceWithBdi, setStrPriceWithBdi] = useState('0,00');
+  const [strTotalWithBdi, setStrTotalWithBdi] = useState('0,00');
 
   useEffect(() => {
     if (editingItem) {
       setFormData(editingItem);
       setActiveType(editingItem.type);
-      setStrQty(String(editingItem.contractQuantity || 0).replace('.', ','));
-      setStrPriceNoBdi(String(editingItem.unitPriceNoBdi || 0).replace('.', ','));
-      setStrPriceWithBdi(String(editingItem.unitPrice || 0).replace('.', ','));
-      setStrTotalWithBdi(String(editingItem.contractTotal || 0).replace('.', ','));
+      setStrQty(financial.formatVisual(editingItem.contractQuantity || 0));
+      setStrPriceNoBdi(financial.formatVisual(editingItem.unitPriceNoBdi || 0));
+      setStrPriceWithBdi(financial.formatVisual(editingItem.unitPrice || 0));
+      setStrTotalWithBdi(financial.formatVisual(editingItem.contractTotal || 0));
     } else {
       setFormData({ name: '', parentId: null, unit: initialType === 'item' ? 'un' : '', contractQuantity: 0, unitPrice: 0, unitPriceNoBdi: 0, cod: '', fonte: 'Próprio' });
       setActiveType(initialType);
-      setStrQty('0'); setStrPriceNoBdi('0'); setStrPriceWithBdi('0'); setStrTotalWithBdi('0');
+      setStrQty('0,00'); setStrPriceNoBdi('0,00'); setStrPriceWithBdi('0,00'); setStrTotalWithBdi('0,00');
     }
     setErrors({});
   }, [editingItem, initialType, isOpen]);
 
-  const parseInput = (val: string): number => {
-    const normalized = val.replace(',', '.');
-    const parsed = parseFloat(normalized);
-    return isNaN(parsed) ? 0 : parsed;
-  };
+  const handleNumericChange = (setter: (v: string) => void, val: string, field: 'qty' | 'priceNoBdi' | 'priceWithBdi' | 'totalWithBdi') => {
+    const masked = financial.maskCurrency(val);
+    setter(masked);
 
-  const handleNumericChange = (setter: (v: string) => void, val: string, field?: 'qty' | 'priceNoBdi' | 'priceWithBdi' | 'totalWithBdi') => {
-    let sanitized = val.replace(/[^0-9.,]/g, '');
-    if (sanitized.length > 1 && sanitized.startsWith('0') && sanitized[1] !== ',' && sanitized[1] !== '.') {
-      sanitized = sanitized.substring(1);
-    }
-    setter(sanitized);
-
-    const num = parseInput(sanitized);
-    const currentQty = field === 'qty' ? num : parseInput(strQty);
+    const num = financial.parseLocaleNumber(masked);
+    const currentQty = field === 'qty' ? num : financial.parseLocaleNumber(strQty);
 
     if (field === 'priceNoBdi') {
       const pWithBdi = financial.round(num * (1 + projectBdi/100));
-      setStrPriceWithBdi(String(pWithBdi).replace('.', ','));
-      setStrTotalWithBdi(String(financial.round(pWithBdi * currentQty)).replace('.', ','));
+      setStrPriceWithBdi(financial.formatVisual(pWithBdi));
+      setStrTotalWithBdi(financial.formatVisual(financial.round(pWithBdi * currentQty)));
     } 
     else if (field === 'priceWithBdi') {
       const pNoBdi = financial.round(num / (1 + projectBdi/100));
-      setStrPriceNoBdi(String(pNoBdi).replace('.', ','));
-      setStrTotalWithBdi(String(financial.round(num * currentQty)).replace('.', ','));
+      setStrPriceNoBdi(financial.formatVisual(pNoBdi));
+      setStrTotalWithBdi(financial.formatVisual(financial.round(num * currentQty)));
     }
     else if (field === 'totalWithBdi') {
       if (currentQty > 0) {
         const pWithBdi = financial.round(num / currentQty);
         const pNoBdi = financial.round(pWithBdi / (1 + projectBdi/100));
-        setStrPriceWithBdi(String(pWithBdi).replace('.', ','));
-        setStrPriceNoBdi(String(pNoBdi).replace('.', ','));
+        setStrPriceWithBdi(financial.formatVisual(pWithBdi));
+        setStrPriceNoBdi(financial.formatVisual(pNoBdi));
       }
     }
     else if (field === 'qty') {
-      const pWithBdi = parseInput(strPriceWithBdi);
-      setStrTotalWithBdi(String(financial.round(pWithBdi * num)).replace('.', ','));
+      const pWithBdi = financial.parseLocaleNumber(strPriceWithBdi);
+      setStrTotalWithBdi(financial.formatVisual(financial.round(pWithBdi * num)));
     }
   };
 
@@ -112,9 +95,9 @@ export const WorkItemModal: React.FC<WorkItemModalProps> = ({
     const finalData = {
       ...formData,
       type: activeType,
-      contractQuantity: parseInput(strQty),
-      unitPriceNoBdi: parseInput(strPriceNoBdi),
-      unitPrice: parseInput(strPriceWithBdi)
+      contractQuantity: financial.parseLocaleNumber(strQty),
+      unitPriceNoBdi: financial.parseLocaleNumber(strPriceNoBdi),
+      unitPrice: financial.parseLocaleNumber(strPriceWithBdi)
     };
     
     const result = WorkItemSchema.safeParse(finalData);
@@ -132,14 +115,8 @@ export const WorkItemModal: React.FC<WorkItemModalProps> = ({
   const isCategory = activeType === 'category';
 
   return (
-    <div 
-      className="fixed inset-0 z-[1000] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300"
-      onClick={onClose}
-    >
-      <div 
-        className="bg-white dark:bg-slate-900 w-full max-w-2xl sm:rounded-[2.5rem] shadow-2xl border-t sm:border border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh] sm:max-h-[85vh] overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 z-[1000] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300" onClick={onClose}>
+      <div className="bg-white dark:bg-slate-900 w-full max-w-2xl sm:rounded-[2.5rem] shadow-2xl border-t sm:border border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh] sm:max-h-[85vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 sm:px-10 py-5 sm:py-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className={`p-2.5 rounded-2xl ${isCategory ? 'bg-indigo-600' : 'bg-emerald-600'} text-white`}>
@@ -150,21 +127,15 @@ export const WorkItemModal: React.FC<WorkItemModalProps> = ({
               <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">Nível de Hierarquia e Valores</p>
             </div>
           </div>
-          <button 
-            type="button"
-            onClick={onClose} 
-            className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
-          >
-            <X size={20} />
-          </button>
+          <button onClick={onClose} className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"><X size={20} /></button>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
           <div className="p-6 sm:p-10 space-y-5 overflow-y-auto custom-scrollbar flex-1">
             {!editingItem && (
               <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl gap-2">
-                <button type="button" onClick={() => setActiveType('category')} className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${activeType === 'category' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-md' : 'text-slate-500 dark:text-slate-400'}`}>Categoria/Grupo</button>
-                <button type="button" onClick={() => setActiveType('item')} className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${activeType === 'item' ? 'bg-white dark:bg-slate-700 text-emerald-600 shadow-md' : 'text-slate-500 dark:text-slate-400'}`}>Serviço/Item</button>
+                <button type="button" onClick={() => setActiveType('category')} className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${activeType === 'category' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}>Categoria/Grupo</button>
+                <button type="button" onClick={() => setActiveType('item')} className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${activeType === 'item' ? 'bg-white dark:bg-slate-700 text-emerald-600 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}>Serviço/Item</button>
               </div>
             )}
 
@@ -174,11 +145,7 @@ export const WorkItemModal: React.FC<WorkItemModalProps> = ({
                   <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase mb-2 block tracking-widest">Pertence ao Grupo (Hierarquia)</label>
                   <div className="relative">
                     <FolderTree className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                    <select 
-                      className="w-full pl-11 pr-4 py-3.5 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white text-xs font-bold outline-none appearance-none focus:border-indigo-500 transition-all"
-                      value={formData.parentId || ''}
-                      onChange={e => setFormData({...formData, parentId: e.target.value || null})}
-                    >
+                    <select className="w-full pl-11 pr-4 py-3.5 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white text-xs font-bold outline-none appearance-none focus:border-indigo-500 transition-all" value={formData.parentId || ''} onChange={e => setFormData({...formData, parentId: e.target.value || null})}>
                       <option value="">Nível Raiz (Principal)</option>
                       {categories.filter(c => c.id !== editingItem?.id).map(cat => (
                         <option key={cat.id} value={cat.id}>{cat.wbs} - {cat.name}</option>
@@ -194,7 +161,7 @@ export const WorkItemModal: React.FC<WorkItemModalProps> = ({
 
               <div>
                 <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase mb-2 block tracking-widest">Descrição do Serviço</label>
-                <textarea autoFocus rows={2} className="w-full px-6 py-3.5 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white text-sm font-semibold outline-none focus:border-indigo-500 transition-all resize-none" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                <textarea rows={2} className="w-full px-6 py-3.5 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white text-sm font-semibold outline-none focus:border-indigo-500 transition-all resize-none" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
                 {errors.name && <p className="text-[10px] text-rose-500 font-bold mt-2 uppercase">{errors.name}</p>}
               </div>
 
@@ -241,17 +208,8 @@ export const WorkItemModal: React.FC<WorkItemModalProps> = ({
           </div>
 
           <div className="px-6 sm:px-10 py-5 sm:py-6 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row justify-end items-stretch gap-3 shrink-0">
-            <button 
-              type="button"
-              onClick={onClose} 
-              className="py-3 px-6 text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
-            >
-              Cancelar
-            </button>
-            <button 
-              type="submit"
-              className={`py-4 px-8 text-[10px] font-black text-white ${isCategory ? 'bg-indigo-600 shadow-indigo-500/30' : 'bg-emerald-600 shadow-emerald-500/30'} rounded-2xl shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all uppercase tracking-[0.1em]`}
-            >
+            <button type="button" onClick={onClose} className="py-3 px-6 text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest hover:text-slate-700 dark:hover:text-slate-200 transition-colors">Cancelar</button>
+            <button type="submit" className={`py-4 px-8 text-[10px] font-black text-white ${isCategory ? 'bg-indigo-600 shadow-indigo-500/30' : 'bg-emerald-600 shadow-emerald-500/30'} rounded-2xl shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all uppercase tracking-[0.1em]`}>
               <Save size={16} /> {editingItem ? 'Salvar Alterações' : 'Confirmar Inclusão'}
             </button>
           </div>
