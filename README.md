@@ -1,104 +1,71 @@
-# Gestor de Obras (React Version)
 
-O **Gestor de Obras** é uma aplicação web de alta performance para gerenciamento, orçamentação e medição de obras de engenharia civil. O sistema permite criar estruturas analíticas de projeto (EAP) com profundidade infinita, realizar medições acumuladas e calcular custos automaticamente através de uma árvore hierárquica recursiva.
+# ProMeasure Pro - Gestão Profissional de Medições de Obras
 
-Esta versão foi construída utilizando **React** e **TypeScript**, focando em tipagem estrita e performance para grandes volumes de dados.
+O **ProMeasure Pro** é uma aplicação de nível SaaS desenvolvida para engenheiros e gestores de obras que necessitam de rigor matemático, controle hierárquico (EAP/WBS) e relatórios institucionais. O sistema permite o acompanhamento físico-financeiro detalhado, desde a importação do orçamento até a geração de boletins de medição para assinatura.
 
-## 🚀 Tecnologias
+## 🚀 Funcionalidades Principais
 
-* **React 18+** (Interface de Usuário)
-* **TypeScript** (Segurança de tipos e Intellisense)
-* **Vite** (Build tool e Dev Server ultra-rápido)
-* **Tailwind CSS** (Estilização utilitária)
-* **Lucide React** (Ícones)
-* **XLSX** (Manipulação de arquivos Excel)
+- **Hierarquia EAP Dinâmica:** Estrutura de árvore multinível com renumeração automática de WBS (ex: 1.1, 1.1.1, 1.2).
+- **Rollups Financeiros Recursivos:** Cálculos automáticos de totais que fluem dos itens de serviço para as categorias superiores em tempo real.
+- **Drag-and-Drop Hierárquico:** Reorganização intuitiva da estrutura da obra mantendo a integridade dos cálculos.
+- **Gestão de BDI:** Aplicação de taxas de Benefícios e Despesas Indiretas com cálculo reverso e atualização em cascata.
+- **Importação/Exportação Excel:** Motor de processamento robusto para migração de dados via planilhas XLSX.
+- **Histórico de Medições (Snapshots):** Sistema de congelamento de períodos para auditoria e acompanhamento de evolução física.
+- **Impressão Profissional:** Layout otimizado para papel A4 em modo paisagem, incluindo cabeçalhos institucionais e campos de assinatura.
+- **Interface SaaS Moderna:** Suporte nativo a Modo Escuro (Dark Mode) e design responsivo.
 
-## 📋 Funcionalidades Principais
+## 🛠️ Stack Tecnológica
 
-* **Estrutura em Árvore (WBS/EAP):** Criação de categorias e subcategorias com numeração automática (1, 1.1, 1.1.1).
-* **Cálculo Recursivo (Rollup):** Os valores das categorias "Pai" são calculados automaticamente somando os valores dos filhos, garantindo integridade matemática.
-* **Gestão de Medições:**
-* Controle de valor contratual.
-* Medição atual vs. Acumulada.
-* Cálculo automático de saldos e porcentagens.
+- **Core:** [React 18](https://reactjs.org/) + [TypeScript](https://www.typescriptlang.org/) (Strict Mode)
+- **Styling:** [Tailwind CSS](https://tailwindcss.com/)
+- **Ícones:** [Lucide React](https://lucide.dev/)
+- **Processamento de Dados:** [SheetJS (XLSX)](https://sheetjs.com/)
+- **Validação:** [Zod](https://zod.dev/)
+- **Interatividade:** [@hello-pangea/dnd](https://github.com/hello-pangea/dnd) (Drag and Drop)
 
+## 📂 Arquitetura do Sistema
 
-* **Importação de Excel:** Capacidade de importar planilhas orçamentárias existentes.
-* **Edição Inline:** Interface tipo planilha para edição rápida de quantidades e valores.
+O projeto segue princípios de **Clean Architecture** e separação de responsabilidades:
 
-## 📂 Estrutura do Projeto
+- `/services`: Lógica de negócio pesada (Serviço de Árvore e Excel).
+- `/components`: Componentes de UI modulares e reutilizáveis.
+- `/hooks`: Gerenciamento de estado complexo e persistência (Undo/Redo, LocalStorage).
+- `/utils`: Utilitários matemáticos para precisão financeira (evitando erros de ponto flutuante).
 
-```bash
-src/
-├── components/
-│   ├── ThemeEditor.tsx    # Controle de temas/visual
-│   ├── TreeTable.tsx      # Componente principal de tabela hierárquica
-│   └── WorkItemModal.tsx  # Modal para edição/criação de itens
-├── services/
-│   ├── excelService.ts    # Lógica de parsing e exportação de planilhas
-│   └── treeService.ts     # Algoritmos de cálculo recursivo e "flattening" da árvore
-├── utils/
-│   └── math.ts            # Helpers para cálculos financeiros precisos
-├── types.ts               # Definições de tipos (WorkItem, Category, etc.)
-└── App.tsx                # Entry point da aplicação
+## 📥 Instalação e Execução
 
-```
+Como o projeto utiliza módulos ES6 nativos e importmaps para máxima compatibilidade e performance sem a necessidade de um bundler complexo no desenvolvimento inicial, siga os passos abaixo:
 
-## 🛠️ Como rodar o projeto
+### Requisitos
+- Um servidor web local (devido às restrições de CORS para módulos ES6).
 
-### Pré-requisitos
+### Passo a Passo
 
-* Node.js (versão 18 ou superior)
-* NPM ou Yarn
+1. **Clonar/Baixar o projeto:**
+   Certifique-se de que todos os arquivos (`index.html`, `index.tsx`, `App.tsx`, etc.) estejam na mesma pasta raiz.
 
-### Instalação
+2. **Executar um servidor local:**
+   Você pode usar qualquer servidor estático. Exemplos comuns:
 
-1. Clone o repositório:
-```bash
-git clone https://github.com/seu-usuario/gestor-de-obras.git
-cd gestor-de-obras
+   **Usando Node.js (npx):**
+   ```bash
+   npx serve .
+   ```
+   **Usando Python:**
+   ```bash
+   python -m http.server 8000
+   ```
+   **Usando VS Code:**
+   Instale a extensão "Live Server" e clique em "Go Live".
 
-```
+3. **Acessar a aplicação:**
+   Abra o navegador e acesse `http://localhost:3000` (ou a porta indicada pelo seu servidor).
 
+## 📝 Notas de Uso
 
-2. Instale as dependências:
-```bash
-npm install
-
-```
-
-
-3. Rode o servidor de desenvolvimento:
-```bash
-npm run dev
-
-```
-
-
-
-O projeto estará disponível em `http://localhost:5173`.
-
-## 🧠 Decisões de Arquitetura
-
-### State Management (Estado Plano vs Árvore)
-
-Para otimizar a performance de renderização e simplificar o CRUD, optamos por manter o estado como uma **lista plana (Flat List)** no React.
-
-* **Armazenamento:** Array linear de objetos com `parentId`.
-* **Renderização:** Uma função no `treeService` converte essa lista plana em uma estrutura visual hierárquica apenas no momento do render, calculando indentação e totais em tempo real.
-
-### Precisão Numérica
-
-Devido aos problemas de ponto flutuante do JavaScript (`0.1 + 0.2 !== 0.3`), todos os cálculos monetários são tratados com funções utilitárias em `src/utils/math.ts` para garantir precisão de centavos.
-
-## 🤝 Contribuição
-
-1. Faça um Fork do projeto
-2. Crie uma Branch para sua Feature (`git checkout -b feature/NovaFeature`)
-3. Faça o Commit (`git commit -m 'Add some NovaFeature'`)
-4. Push para a Branch (`git push origin feature/NovaFeature`)
-5. Abra um Pull Request
+1. **Importação:** Para importar dados, use o botão "Template" para baixar o modelo correto. O sistema possui uma heurística que tenta identificar colunas mesmo em planilhas customizadas.
+2. **Persistência:** Os dados são salvos automaticamente no `localStorage` do navegador. Para produção, recomenda-se a integração com o banco de dados PostgreSQL conforme sugerido no `architecture.md`.
+3. **Impressão:** Use o atalho `Ctrl + P` ou o ícone de impressora na interface. O sistema ocultará automaticamente os elementos de UI e formatará a tabela para o padrão A4 de engenharia.
 
 ---
-
-**Licença:** MIT
+**Desenvolvido com foco em alta performance e experiência do usuário (DX/UX).**

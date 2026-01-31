@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ProMeasure - Construction Engineering System</title>
+    <title>ProMeasure Pro - Gestão de Engenharia SaaS</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -38,30 +38,80 @@
           font-family: 'Inter', sans-serif; 
           -webkit-font-smoothing: antialiased; 
           overflow-x: hidden;
+          background-color: #f8fafc;
         }
 
-        /* Custom Scrollbar for Chrome/Safari */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         .dark ::-webkit-scrollbar-thumb { background: #334155; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-        .glass-panel {
-          background: rgba(255, 255, 255, 0.7);
-          backdrop-filter: blur(10px);
-          border: 1px solid rgba(255, 255, 255, 0.3);
+        .dragging-row {
+          background: white !important;
+          box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1) !important;
+          display: table !important;
+          width: 100% !important;
+          z-index: 100 !important;
+          border-radius: 1rem !important;
         }
-
-        .dark .glass-panel {
-          background: rgba(15, 23, 42, 0.7);
-          backdrop-filter: blur(10px);
-          border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        @media print { .no-print { display: none !important; } }
         
-        * { transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.1s ease; }
+        .dark .dragging-row {
+          background: #1e293b !important;
+          box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.5) !important;
+        }
+
+        .print-only { display: none; }
+
+        @media print {
+          @page {
+            size: A4 landscape;
+            margin: 5mm;
+          }
+          
+          html, body {
+            background-color: #fff !important;
+            color: #000 !important;
+            height: auto !important;
+            overflow: visible !important;
+          }
+
+          .no-print { display: none !important; }
+          .print-only { display: block !important; }
+          
+          .print-table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            table-layout: fixed !important;
+          }
+
+          .print-table th, .print-table td {
+            border: 0.5pt solid #000 !important;
+            padding: 2pt !important;
+            word-break: break-word !important;
+            font-size: 7pt !important;
+          }
+
+          .print-table th {
+            background-color: #e5e7eb !important;
+            color: #000 !important;
+            -webkit-print-color-adjust: exact;
+          }
+
+          .print-header {
+            margin-bottom: 20px !important;
+            border-bottom: 2pt solid #000 !important;
+            padding-bottom: 10px !important;
+          }
+
+          .signature-box {
+            break-inside: avoid;
+          }
+          
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+        }
     </style>
 <script type="importmap">
 {
@@ -72,13 +122,15 @@
     "react-dom/": "https://esm.sh/react-dom@18.3.1/",
     "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
     "lucide-react": "https://esm.sh/lucide-react@0.460.0?external=react,react-dom",
-    "xlsx": "https://esm.sh/xlsx@0.18.5"
+    "xlsx": "https://esm.sh/xlsx@0.18.5",
+    "zod": "https://esm.sh/zod@3.23.8",
+    "@hello-pangea/dnd": "https://esm.sh/@hello-pangea/dnd@17.0.0?external=react,react-dom"
   }
 }
 </script>
 <link rel="stylesheet" href="/index.css">
 </head>
-<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 selection:bg-blue-100 dark:selection:bg-blue-900">
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
     <div id="root"></div>
 <script type="module" src="/index.tsx"></script>
 </body>

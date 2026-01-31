@@ -51,6 +51,18 @@ export interface PDFTheme {
   border: string;
 }
 
+export interface MeasurementSnapshot {
+  measurementNumber: number;
+  date: string;
+  items: WorkItem[];
+  totals: {
+    contract: number;
+    period: number;
+    accumulated: number;
+    progress: number;
+  };
+}
+
 export const DEFAULT_THEME: PDFTheme = {
   primary: '#2563eb',
   secondary: '#64748b',
@@ -70,7 +82,9 @@ export interface Project {
   referenceDate: string;
   logo: string | null;
   items: WorkItem[];
+  history: MeasurementSnapshot[];
   theme: PDFTheme;
+  bdi: number;
   config: {
     strict: boolean;
     printCards: boolean;

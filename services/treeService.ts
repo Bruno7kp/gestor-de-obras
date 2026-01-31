@@ -12,66 +12,77 @@ export const treeService = {
     });
 
     items.forEach(item => {
+      const node = itemMap[item.id];
       if (item.parentId && itemMap[item.parentId]) {
-        itemMap[item.parentId].children!.push(itemMap[item.id]);
+        itemMap[item.parentId].children!.push(node);
       } else {
-        roots.push(itemMap[item.id]);
+        roots.push(node);
       }
     });
 
-    return roots.sort((a, b) => a.order - b.order);
+    // Ordenação consistente por índice 'order'
+    const sortNodes = (nodes: WorkItem[]) => {
+      nodes.sort((a, b) => (a.order || 0) - (b.order || 0));
+      nodes.forEach(n => {
+        if (n.children) sortNodes(n.children);
+      });
+    };
+    
+    sortNodes(roots);
+    return roots;
   },
 
-  processRecursive: (node: WorkItem, prefix: string = ''): WorkItem => {
-    const wbs = prefix ? `${prefix}.${node.order + 1}` : `${node.order + 1}`;
+  processRecursive: (node: WorkItem, prefix: string = '', index: number = 0, projectBdi: number = 0): WorkItem => {
+    const currentPos = index + 1;
+    const wbs = prefix ? `${prefix}.${currentPos}` : `${currentPos}`;
     node.wbs = wbs;
 
-    if (node.type === 'category' && node.children && node.children.length > 0) {
-      node.children = node.children.map(child => treeService.processRecursive(child, wbs));
-      
-      // Rollup Financeiro de Categorias
-      node.contractTotal = financial.sum(node.children.map(c => c.contractTotal));
-      node.previousTotal = financial.sum(node.children.map(c => c.previousTotal));
-      node.currentTotal = financial.sum(node.children.map(c => c.currentTotal));
-      node.accumulatedTotal = financial.sum(node.children.map(c => c.accumulatedTotal));
-      node.balanceTotal = financial.sum(node.children.map(c => c.balanceTotal));
-      
+    if (node.type === 'category') {
+      if (node.children && node.children.length > 0) {
+        node.children.sort((a, b) => (a.order || 0) - (b.order || 0));
+        node.children = node.children.map((child, idx) => 
+          treeService.processRecursive(child, wbs, idx, projectBdi)
+        );
+        
+        node.contractTotal = financial.sum(node.children.map(c => c.contractTotal || 0));
+        node.previousTotal = financial.sum(node.children.map(c => c.previousTotal || 0));
+        node.currentTotal = financial.sum(node.children.map(c => c.currentTotal || 0));
+        node.accumulatedTotal = financial.sum(node.children.map(c => c.accumulatedTotal || 0));
+        node.balanceTotal = financial.sum(node.children.map(c => c.balanceTotal || 0));
+        
+        node.contractQuantity = 0;
+        node.unitPrice = 0;
+        node.unitPriceNoBdi = 0;
+        node.currentQuantity = 0;
+        node.previousQuantity = 0;
+        node.accumulatedQuantity = 0;
+        
+        node.accumulatedPercentage = node.contractTotal > 0 
+          ? financial.round((node.accumulatedTotal / node.contractTotal) * 100) 
+          : 0;
+      } else {
+        node.contractTotal = node.currentTotal = node.accumulatedTotal = node.balanceTotal = node.accumulatedPercentage = 0;
+      }
+    } else {
+      node.unitPrice = financial.round((node.unitPriceNoBdi || 0) * (1 + (projectBdi || 0) / 100));
+      node.contractTotal = financial.round((node.contractQuantity || 0) * node.unitPrice);
+      node.previousTotal = financial.round((node.previousQuantity || 0) * node.unitPrice);
+      node.currentTotal = financial.round((node.currentQuantity || 0) * node.unitPrice);
+      node.accumulatedQuantity = financial.round((node.previousQuantity || 0) + (node.currentQuantity || 0));
+      node.accumulatedTotal = financial.round(node.accumulatedQuantity * node.unitPrice);
+      node.balanceQuantity = financial.round((node.contractQuantity || 0) - node.accumulatedQuantity);
+      node.balanceTotal = financial.round(node.balanceQuantity * node.unitPrice);
+      node.currentPercentage = (node.contractQuantity || 0) > 0 
+        ? financial.round(((node.currentQuantity || 0) / node.contractQuantity) * 100) 
+        : 0;
       node.accumulatedPercentage = node.contractTotal > 0 
         ? financial.round((node.accumulatedTotal / node.contractTotal) * 100) 
         : 0;
-        
-      node.contractQuantity = 0;
-      node.unitPrice = 0;
-      node.unitPriceNoBdi = 0;
-    } else if (node.type === 'item') {
-      // Cálculos Unitários do Item
-      node.contractTotal = financial.round(node.contractQuantity * node.unitPrice);
-      node.previousTotal = financial.round(node.previousQuantity * node.unitPrice);
-      node.currentTotal = financial.round(node.currentQuantity * node.unitPrice);
-      
-      node.accumulatedQuantity = node.previousQuantity + node.currentQuantity;
-      node.accumulatedTotal = financial.round(node.accumulatedQuantity * node.unitPrice);
-      
-      node.balanceQuantity = node.contractQuantity - node.accumulatedQuantity;
-      node.balanceTotal = financial.round(node.balanceQuantity * node.unitPrice);
-      
-      node.currentPercentage = node.contractQuantity > 0 
-        ? financial.round((node.currentQuantity / node.contractQuantity) * 100) 
-        : 0;
-      node.accumulatedPercentage = node.contractQuantity > 0 
-        ? financial.round((node.accumulatedTotal / node.contractTotal) * 100) 
-        : 0;
     }
-
     return node;
   },
 
-  flattenTree: (
-    nodes: WorkItem[], 
-    expandedIds: Set<string>, 
-    depth: number = 0, 
-    results: (WorkItem & { depth: number })[] = []
-  ): (WorkItem & { depth: number })[] => {
+  flattenTree: (nodes: WorkItem[], expandedIds: Set<string>, depth: number = 0, results: (WorkItem & { depth: number })[] = []): (WorkItem & { depth: number })[] => {
     nodes.forEach(node => {
       results.push({ ...node, depth });
       if (node.type === 'category' && expandedIds.has(node.id) && node.children) {
@@ -79,5 +90,51 @@ export const treeService = {
       }
     });
     return results;
+  },
+
+  /**
+   * Move um item na hierarquia, lidando com reordenamento e reparenting
+   */
+  reorderItems: (items: WorkItem[], sourceId: string, targetId: string, position: 'before' | 'after' | 'inside'): WorkItem[] => {
+    const sourceItem = items.find(i => i.id === sourceId);
+    const targetItem = items.find(i => i.id === targetId);
+
+    if (!sourceItem || !targetItem || sourceId === targetId) return items;
+
+    let newParentId: string | null = null;
+    let newOrder: number = 0;
+
+    if (position === 'inside' && targetItem.type === 'category') {
+      newParentId = targetItem.id;
+      // Coloca no final dos filhos
+      const children = items.filter(i => i.parentId === targetItem.id);
+      newOrder = children.length;
+    } else {
+      newParentId = targetItem.parentId;
+      newOrder = position === 'after' ? targetItem.order + 1 : targetItem.order;
+    }
+
+    // Atualiza o item movido e empurra os outros
+    return items.map(item => {
+      if (item.id === sourceId) {
+        return { ...item, parentId: newParentId, order: newOrder };
+      }
+      if (item.parentId === newParentId && item.order >= newOrder && item.id !== sourceId) {
+        return { ...item, order: item.order + 1 };
+      }
+      return item;
+    });
+  },
+
+  calculateBasicStats: (items: WorkItem[], bdi: number) => {
+    const tree = treeService.buildTree(items);
+    const processed = tree.map((r, i) => treeService.processRecursive(r, '', i, bdi));
+    const totals = {
+      contract: financial.sum(processed.map(n => n.contractTotal || 0)),
+      current: financial.sum(processed.map(n => n.currentTotal || 0)),
+      accumulated: financial.sum(processed.map(n => n.accumulatedTotal || 0)),
+      balance: financial.sum(processed.map(n => n.balanceTotal || 0)),
+    };
+    return { ...totals, progress: totals.contract > 0 ? (totals.accumulated / totals.contract) * 100 : 0 };
   }
 };

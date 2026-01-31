@@ -1,6 +1,7 @@
 
 import * as XLSX from 'xlsx';
-import { WorkItem, ItemType } from '../types';
+import { WorkItem, ItemType, Project } from '../types';
+import { financial } from '../utils/math';
 
 export interface ImportResult {
   items: WorkItem[];
@@ -14,138 +15,216 @@ export interface ImportResult {
 export const excelService = {
   downloadTemplate: () => {
     const wb = XLSX.utils.book_new();
-
-    // Aba de Instruções para o Usuário
-    const instructions = [
-      ["MANUAL DE PREENCHIMENTO - PROMEASURE"],
-      ["1. TIPO: Use 'category' para grupos/etapas e 'item' para serviços executáveis."],
-      ["2. PAI: Digite o NOME EXATO da categoria superior (para criar subcategorias)."],
-      ["3. UNIDADE: Obrigatória apenas para linhas do tipo 'item'."],
-      ["4. QTD e PREÇO: Use apenas números. Obrigatórios para 'item'."],
-      ["5. DICA: A ordem das linhas não importa, o sistema vincula pelo nome."],
-      [],
-      ["--- EXEMPLO DE ESTRUTURA ABAIXO ---"]
-    ];
-    const wsInstructions = XLSX.utils.aoa_to_sheet(instructions);
-    XLSX.utils.book_append_sheet(wb, wsInstructions, "Instruções");
-
-    // Dados Exemplo para Aprendizado do Usuário
     const data = [
-      ["Tipo", "Nome", "Pai", "Unidade", "Qtd_Contrato", "Preco_Unitario"],
-      ["category", "1. INFRAESTRUTURA", "", "", "", ""],
-      ["category", "1.1 FUNDAÇÕES", "1.1 INFRAESTRUTURA", "", "", ""], // Exemplo de Subcategoria
-      ["item", "Estaca Escavada Diam=30cm", "1.1 FUNDAÇÕES", "m", "150", "95.50"],
-      ["item", "Bloco de Coroamento", "1.1 FUNDAÇÕES", "m³", "12.5", "1250.00"],
-      ["category", "1.2 MOVIMENTAÇÃO DE TERRA", "1.1 INFRAESTRUTURA", "", "", ""],
-      ["item", "Escavação Mecânica", "1.2 MOVIMENTAÇÃO DE TERRA", "m³", "240", "22.30"],
-      ["category", "2. SUPERESTRUTURA", "", "", "", ""],
-      ["item", "Laje Maciça e=12cm", "2. SUPERESTRUTURA", "m²", "180", "145.00"],
-      ["item", "Pilar P1 a P10", "2. SUPERESTRUTURA", "m³", "8.4", "2100.00"]
+      ["WBS", "TIPO", "CODIGO", "NOME DO SERVICO", "UNIDADE", "QUANTIDADE", "PRECO UNITARIO S/ BDI"],
+      ["1", "category", "INFRA", "1. INFRAESTRUTURA", "", "", ""],
+      ["1.1", "category", "MOV-TERRA", "1.1 Movimentação de Terra", "", "", ""],
+      ["1.1.1", "item", "SIN-93358", "Escavação manual de valas", "m3", "150", "45.50"],
+      ["1.1.2", "item", "SIN-96995", "Reaterro manual de valas", "m3", "80", "28.30"],
+      ["1.2", "category", "FUND", "1.2 Fundações Profundas", "", "", ""],
+      ["1.2.1", "category", "ESTACAS", "1.2.1 Estacas de Concreto", "", "", ""],
+      ["1.2.1.1", "item", "SIN-95892", "Estaca Strauss diâmetro 32cm", "m", "120", "85.00"],
+      ["2", "category", "SUP-EST", "2. SUPERESTRUTURA", "", "", ""],
+      ["2.1", "item", "SIN-92762", "Armação de pilar ou viga", "kg", "850", "12.40"],
+      ["2.2", "item", "SIN-10191", "Concreto usinado fck 30mpa", "m3", "25", "480.00"],
     ];
-
-    // Correção lógica no template para garantir que o exemplo de hierarquia esteja correto
-    data[2][2] = "1. INFRAESTRUTURA"; 
-    data[5][2] = "1. INFRAESTRUTURA";
-
-    const wsData = XLSX.utils.aoa_to_sheet(data);
     
-    // Configuração de largura das colunas
-    wsData['!cols'] = [
-      { wch: 15 }, // Tipo
-      { wch: 45 }, // Nome
-      { wch: 45 }, // Pai
-      { wch: 10 }, // Unidade
-      { wch: 15 }, // Qtd
-      { wch: 15 }, // Preço
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!cols'] = [{ wch: 10 }, { wch: 12 }, { wch: 15 }, { wch: 45 }, { wch: 10 }, { wch: 15 }, { wch: 20 }];
+    
+    XLSX.utils.book_append_sheet(wb, ws, "Planilha_EAP");
+    XLSX.writeFile(wb, "ProMeasure_Template_Profissional.xlsx");
+  },
+
+  exportProjectToExcel: (project: Project, flattenedItems: (WorkItem & { depth: number })[]) => {
+    const wb = XLSX.utils.book_new();
+    
+    const reportHeader = [
+      [project.companyName.toUpperCase()],
+      ["RELATÓRIO DE MEDIÇÃO CONSOLIDADO"],
+      [`Projeto: ${project.name}`],
+      [`Medição: #${project.measurementNumber} | BDI Aplicado: ${project.bdi}%`],
+      [],
+      ["WBS", "CÓD.", "DESCRIÇÃO", "UND", "QTD CONTRATO", "P. UNIT (C/ BDI)", "VALOR TOTAL CONTRATO", "TOTAL NO PERÍODO", "TOTAL ACUMULADO", "% ACUM."]
     ];
 
-    XLSX.utils.book_append_sheet(wb, wsData, "Estrutura");
-    XLSX.writeFile(wb, "Template_Importacao_ProMeasure.xlsx");
+    const rows = flattenedItems.map(item => [
+      item.wbs,
+      item.cod || "",
+      "  ".repeat(item.depth) + item.name,
+      item.unit || "-",
+      item.type === 'item' ? item.contractQuantity : "-",
+      item.type === 'item' ? item.unitPrice : "-",
+      item.contractTotal,
+      item.currentTotal,
+      item.accumulatedTotal,
+      (item.accumulatedPercentage / 100)
+    ]);
+
+    const ws = XLSX.utils.aoa_to_sheet([...reportHeader, ...rows]);
+    XLSX.utils.book_append_sheet(wb, ws, "Planilha_Orcamentaria");
+    XLSX.writeFile(wb, `Medicao_${project.measurementNumber}_${project.name}.xlsx`);
   },
 
   parseAndValidate: async (file: File): Promise<ImportResult> => {
+    console.log("[ExcelImport] Iniciando importação do arquivo:", file.name);
+    
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
+      
+      reader.onerror = (err) => {
+        console.error("[ExcelImport] Erro no FileReader:", err);
+        reject(new Error("Falha ao ler o arquivo físico. O arquivo pode estar corrompido ou em uso."));
+      };
+
       reader.onload = (e) => {
         try {
-          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const buffer = e.target?.result;
+          if (!buffer) throw new Error("O conteúdo do arquivo está vazio.");
+          
+          console.log("[ExcelImport] Arquivo lido. Iniciando processamento XLSX...");
+          const data = new Uint8Array(buffer as ArrayBuffer);
           const workbook = XLSX.read(data, { type: 'array' });
-          const worksheet = workbook.Sheets["Estrutura"] || workbook.Sheets[workbook.SheetNames[0]];
-          const json: any[] = XLSX.utils.sheet_to_json(worksheet);
+          
+          if (!workbook.SheetNames.length) throw new Error("O arquivo Excel não possui planilhas.");
+          
+          const sheetName = workbook.SheetNames[0];
+          console.log("[ExcelImport] Processando planilha:", sheetName);
+          const worksheet = workbook.Sheets[sheetName];
+          
+          const rows: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+          console.log(`[ExcelImport] Total de linhas brutas encontradas: ${rows.length}`);
 
+          if (rows.length < 2) throw new Error("A planilha selecionada não possui dados suficientes (mínimo cabeçalho + 1 linha).");
+
+          const normalize = (val: any) => String(val || "").toLowerCase().trim()
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "_");
+
+          const parseNumber = (val: any): number => {
+            if (typeof val === 'number') return val;
+            let str = String(val || "0").trim();
+            if (!str || str === "0") return 0;
+
+            str = str.replace(/[R$\s]/g, "");
+            const hasComma = str.includes(',');
+            const hasDot = str.includes('.');
+
+            if (hasComma && hasDot) {
+              if (str.lastIndexOf(',') > str.lastIndexOf('.')) {
+                return parseFloat(str.replace(/\./g, "").replace(",", ".")) || 0;
+              } else {
+                return parseFloat(str.replace(/,/g, "")) || 0;
+              }
+            } else if (hasComma) {
+              return parseFloat(str.replace(",", ".")) || 0;
+            } else if (hasDot) {
+              return parseFloat(str) || 0;
+            }
+            return parseFloat(str) || 0;
+          };
+
+          const aliases: Record<string, string[]> = {
+            wbs: ["wbs", "item", "posicao", "nivel", "n_"],
+            name: ["nome", "descricao", "servico", "discriminacao", "item", "nome_do_servico"],
+            qty: ["quantidade", "qtd", "volume", "contrato"],
+            price: ["preco", "unitario", "valor", "pu", "s_bdi", "preco_unitario_s_bdi"],
+            unit: ["unidade", "und", "un"],
+            type: ["tipo", "classe", "categoria"],
+            cod: ["codigo", "ref", "cod", "sinapi"]
+          };
+
+          let colMap: Record<string, number> = { wbs: -1, name: -1, qty: -1, price: -1, unit: -1, type: -1, cod: -1 };
+          let headerIdx = -1;
+
+          // Busca pelo cabeçalho nas primeiras 50 linhas
+          for (let i = 0; i < Math.min(rows.length, 50); i++) {
+            const row = rows[i].map(c => normalize(c));
+            let matches = 0;
+            
+            Object.entries(aliases).forEach(([key, list]) => {
+              const idx = row.findIndex(cell => list.some(a => cell === a || cell.includes(a)));
+              if (idx !== -1) { 
+                colMap[key] = idx; 
+                matches++; 
+              }
+            });
+
+            // Se encontrarmos nome e pelo menos mais um campo, assumimos que é o cabeçalho
+            if (matches >= 2 && colMap.name !== -1) { 
+              headerIdx = i; 
+              console.log(`[ExcelImport] Cabeçalho detectado na linha ${i + 1}. Mapeamento:`, colMap);
+              break; 
+            }
+          }
+
+          if (headerIdx === -1) {
+            throw new Error("Não foi possível identificar as colunas obrigatórias (Nome/Descrição e pelo menos mais uma). Verifique se os cabeçalhos estão na primeira página.");
+          }
+
+          const rawData = rows.slice(headerIdx + 1).filter(r => String(r[colMap.name] || "").trim() !== "");
+          console.log(`[ExcelImport] Total de linhas de dados após filtragem: ${rawData.length}`);
+          
           const items: WorkItem[] = [];
-          const errors: string[] = [];
-          const stats = { categories: 0, items: 0 };
-          const nameToIdMap: Record<string, string> = {};
+          const wbsToId: Record<string, string> = {};
 
-          // Passo 1: Mapear todos os nomes para novos UUIDs
-          json.forEach((row) => {
-            const name = String(row.Nome || '').trim();
-            if (name) nameToIdMap[name] = crypto.randomUUID();
-          });
+          rawData.forEach((row, index) => {
+            const wbs = colMap.wbs !== -1 ? String(row[colMap.wbs] || "").trim() : (index + 1).toString();
+            const id = crypto.randomUUID();
+            wbsToId[wbs] = id;
+            
+            const qty = parseNumber(row[colMap.qty]);
+            const price = parseNumber(row[colMap.price]);
+            const typeRaw = colMap.type !== -1 ? normalize(row[colMap.type]) : "";
+            
+            // Heurística para detectar se é categoria: Tem o tipo explícito ou Qtd e Preço são zero/vazio
+            const type: ItemType = (typeRaw.includes('cat') || typeRaw.includes('grupo') || (qty === 0 && price === 0)) 
+              ? 'category' 
+              : 'item';
 
-          // Passo 2: Construir objetos e validar relações
-          json.forEach((row, index) => {
-            const rowNum = index + 2;
-            const typeRaw = String(row.Tipo || '').toLowerCase().trim();
-            const type: ItemType = (typeRaw === 'category' || typeRaw === 'categoria') ? 'category' : 'item';
-            const name = String(row.Nome || '').trim();
-            const parentName = String(row.Pai || '').trim();
-
-            if (!name) {
-              errors.push(`Linha ${rowNum}: O campo Nome é obrigatório.`);
-              return;
-            }
-
-            const id = nameToIdMap[name];
-            const parentId = parentName ? (nameToIdMap[parentName] || null) : null;
-
-            if (parentName && !nameToIdMap[parentName]) {
-              errors.push(`Linha ${rowNum}: Categoria pai '${parentName}' não encontrada na lista.`);
-            }
-
-            const newItem: WorkItem = {
+            items.push({
               id,
-              parentId,
-              name,
+              parentId: null,
+              name: String(row[colMap.name]).trim(),
               type,
-              wbs: '',
+              wbs: wbs,
               order: index,
-              unit: String(row.Unidade || ''),
-              cod: String(row.Codigo || ''),
-              fonte: 'Importado',
-              contractQuantity: Number(row.Qtd_Contrato || 0),
-              unitPrice: Number(row.Preco_Unitario || 0),
-              unitPriceNoBdi: Number(row.Preco_Unitario || 0),
+              unit: colMap.unit !== -1 ? String(row[colMap.unit] || "un").trim() : (type === 'item' ? 'un' : ''),
+              cod: colMap.cod !== -1 ? String(row[colMap.cod] || "").trim() : "",
+              contractQuantity: qty,
+              unitPrice: 0,
+              unitPriceNoBdi: price,
               contractTotal: 0,
-              previousQuantity: 0,
-              previousTotal: 0,
-              currentQuantity: 0,
-              currentTotal: 0,
-              currentPercentage: 0,
-              accumulatedQuantity: 0,
-              accumulatedTotal: 0,
-              accumulatedPercentage: 0,
-              balanceQuantity: 0,
-              balanceTotal: 0
-            };
-
-            if (type === 'item') {
-              stats.items++;
-              if (!newItem.unit) errors.push(`Linha ${rowNum}: Itens de serviço exigem 'Unidade'.`);
-              if (newItem.contractQuantity <= 0) errors.push(`Linha ${rowNum}: Item '${name}' deve ter quantidade maior que zero.`);
-            } else {
-              stats.categories++;
-            }
-
-            items.push(newItem);
+              previousQuantity: 0, previousTotal: 0, currentQuantity: 0, currentTotal: 0, currentPercentage: 0,
+              accumulatedQuantity: 0, accumulatedTotal: 0, accumulatedPercentage: 0, balanceQuantity: 0, balanceTotal: 0
+            });
           });
 
-          resolve({ items, errors, stats });
-        } catch (err) {
-          reject("Erro ao processar arquivo Excel. Certifique-se de usar o template correto.");
+          // Reconstrução da hierarquia baseada no WBS (ex: 1.1 -> pai é 1)
+          items.forEach(item => {
+            if (item.wbs.includes('.')) {
+              const parts = item.wbs.split('.');
+              const parentWbs = parts.slice(0, -1).join('.');
+              if (wbsToId[parentWbs]) {
+                item.parentId = wbsToId[parentWbs];
+              }
+            }
+          });
+
+          console.log("[ExcelImport] Processamento concluído com sucesso.");
+          resolve({
+            items,
+            errors: [],
+            stats: {
+              items: items.filter(i => i.type === 'item').length,
+              categories: items.filter(i => i.type === 'category').length
+            }
+          });
+        } catch (err: any) {
+          console.error("[ExcelImport] Erro durante o processamento:", err);
+          reject(err);
         }
       };
+      
       reader.readAsArrayBuffer(file);
     });
   }
