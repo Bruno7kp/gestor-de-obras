@@ -76,15 +76,20 @@ export type ExpenseType = 'labor' | 'material';
 
 export interface ProjectExpense {
   id: string;
-  type: ExpenseType;
+  parentId: string | null;
+  type: ExpenseType; // labor ou material
+  itemType: ItemType; // category ou item
+  wbs: string;
+  order: number;
   date: string;
-  description: string; // Descrição do serviço ou material
-  entityName: string; // Nome do Profissional ou Fornecedor
+  description: string; // Nome do gasto ou categoria
+  entityName: string; // Fornecedor ou Profissional
   unit: string;
   quantity: number;
   unitPrice: number;
-  amount: number; // Total (Qtd * UnitPrice)
+  amount: number; // Total acumulado ou calculado
   linkedWorkItemId?: string;
+  children?: ProjectExpense[];
 }
 
 export const DEFAULT_THEME: PDFTheme = {

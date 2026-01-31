@@ -1,11 +1,11 @@
 
-import { WorkItem } from '../types';
+import { WorkItem, ProjectExpense } from '../types';
 import { financial } from '../utils/math';
 
 export const treeService = {
-  buildTree: (items: WorkItem[]): WorkItem[] => {
-    const itemMap: { [key: string]: WorkItem } = {};
-    const roots: WorkItem[] = [];
+  buildTree: <T extends { id: string; parentId: string | null; order: number }>(items: T[]): T[] => {
+    const itemMap: { [key: string]: any } = {};
+    const roots: T[] = [];
 
     items.forEach(item => {
       itemMap[item.id] = { ...item, children: [] };
@@ -20,8 +20,7 @@ export const treeService = {
       }
     });
 
-    // Ordenação consistente por índice 'order'
-    const sortNodes = (nodes: WorkItem[]) => {
+    const sortNodes = (nodes: any[]) => {
       nodes.sort((a, b) => (a.order || 0) - (b.order || 0));
       nodes.forEach(n => {
         if (n.children) sortNodes(n.children);
@@ -39,7 +38,6 @@ export const treeService = {
 
     if (node.type === 'category') {
       if (node.children && node.children.length > 0) {
-        node.children.sort((a, b) => (a.order || 0) - (b.order || 0));
         node.children = node.children.map((child, idx) => 
           treeService.processRecursive(child, wbs, idx, projectBdi)
         );
@@ -49,13 +47,6 @@ export const treeService = {
         node.currentTotal = financial.sum(node.children.map(c => c.currentTotal || 0));
         node.accumulatedTotal = financial.sum(node.children.map(c => c.accumulatedTotal || 0));
         node.balanceTotal = financial.sum(node.children.map(c => c.balanceTotal || 0));
-        
-        node.contractQuantity = 0;
-        node.unitPrice = 0;
-        node.unitPriceNoBdi = 0;
-        node.currentQuantity = 0;
-        node.previousQuantity = 0;
-        node.accumulatedQuantity = 0;
         
         node.accumulatedPercentage = node.contractTotal > 0 
           ? financial.round((node.accumulatedTotal / node.contractTotal) * 100) 
@@ -82,20 +73,39 @@ export const treeService = {
     return node;
   },
 
-  flattenTree: (nodes: WorkItem[], expandedIds: Set<string>, depth: number = 0, results: (WorkItem & { depth: number })[] = []): (WorkItem & { depth: number })[] => {
+  processExpensesRecursive: (node: ProjectExpense, prefix: string = '', index: number = 0): ProjectExpense => {
+    const currentPos = index + 1;
+    const wbs = prefix ? `${prefix}.${currentPos}` : `${currentPos}`;
+    node.wbs = wbs;
+
+    if (node.itemType === 'category') {
+      if (node.children && node.children.length > 0) {
+        node.children = node.children.map((child, idx) => 
+          treeService.processExpensesRecursive(child, wbs, idx)
+        );
+        node.amount = financial.sum(node.children.map(c => c.amount || 0));
+      } else {
+        node.amount = 0;
+      }
+    } else {
+      node.amount = financial.round((node.quantity || 0) * (node.unitPrice || 0));
+    }
+    return node;
+  },
+
+  flattenTree: <T extends { id: string; children?: T[] }>(nodes: T[], expandedIds: Set<string>, depth: number = 0, results: (T & { depth: number })[] = []): (T & { depth: number })[] => {
     nodes.forEach(node => {
       results.push({ ...node, depth });
-      if (node.type === 'category' && expandedIds.has(node.id) && node.children) {
-        treeService.flattenTree(node.children, expandedIds, depth + 1, results);
+      // Verifica se é uma categoria (baseado no tipo de objeto que estamos tratando)
+      const hasChildren = node.children && node.children.length > 0;
+      if (hasChildren && expandedIds.has(node.id)) {
+        treeService.flattenTree(node.children!, expandedIds, depth + 1, results);
       }
     });
     return results;
   },
 
-  /**
-   * Move um item na hierarquia, lidando com reordenamento e reparenting
-   */
-  reorderItems: (items: WorkItem[], sourceId: string, targetId: string, position: 'before' | 'after' | 'inside'): WorkItem[] => {
+  reorderItems: <T extends { id: string; parentId: string | null; order: number }>(items: T[], sourceId: string, targetId: string, position: 'before' | 'after' | 'inside'): T[] => {
     const sourceItem = items.find(i => i.id === sourceId);
     const targetItem = items.find(i => i.id === targetId);
 
@@ -104,9 +114,8 @@ export const treeService = {
     let newParentId: string | null = null;
     let newOrder: number = 0;
 
-    if (position === 'inside' && targetItem.type === 'category') {
+    if (position === 'inside') {
       newParentId = targetItem.id;
-      // Coloca no final dos filhos
       const children = items.filter(i => i.parentId === targetItem.id);
       newOrder = children.length;
     } else {
@@ -114,7 +123,6 @@ export const treeService = {
       newOrder = position === 'after' ? targetItem.order + 1 : targetItem.order;
     }
 
-    // Atualiza o item movido e empurra os outros
     return items.map(item => {
       if (item.id === sourceId) {
         return { ...item, parentId: newParentId, order: newOrder };
