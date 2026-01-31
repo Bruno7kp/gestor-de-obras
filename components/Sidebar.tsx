@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Home, Settings, PlusCircle, Briefcase, Sun, Moon, Menu, HardHat, X } from 'lucide-react';
+import { Home, Cog, PlusCircle, Briefcase, Sun, Moon, Menu, HardHat, X } from 'lucide-react';
 import { Project } from '../types';
 
 interface SidebarProps {
@@ -43,7 +43,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar">
           <NavItem active={viewMode === 'global-dashboard'} onClick={() => { setViewMode('global-dashboard'); setMobileOpen(false); }} icon={<Home size={18}/>} label="Dashboard" />
-          <NavItem active={viewMode === 'system-settings'} onClick={() => { setViewMode('system-settings'); setMobileOpen(false); }} icon={<Settings size={18}/>} label="Configurações" />
+          <NavItem active={viewMode === 'system-settings'} onClick={() => { setViewMode('system-settings'); setMobileOpen(false); }} icon={<Cog size={18}/>} label="Ajustes Globais" />
           
           <div className="py-6 px-3 flex items-center justify-between">
             {isOpen && <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Obras</h3>}

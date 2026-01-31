@@ -9,7 +9,7 @@ import { AssetManager } from './AssetManager';
 // Added missing import for financial utilities
 import { financial } from '../utils/math';
 import { 
-  Layers, BarChart3, DollarSign, FileText, Settings, 
+  Layers, BarChart3, Coins, FileText, Sliders, 
   Printer, Undo2, Redo2, Lock 
 } from 'lucide-react';
 
@@ -50,9 +50,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
             <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl shadow-inner whitespace-nowrap">
               <TabBtn active={tab === 'wbs'} onClick={() => setTab('wbs')} label="Planilha" icon={<Layers size={14}/>} />
               <TabBtn active={tab === 'stats'} onClick={() => setTab('stats')} label="Análise" icon={<BarChart3 size={14}/>} />
-              <TabBtn active={tab === 'expenses'} onClick={() => setTab('expenses')} label="Gastos" icon={<DollarSign size={14}/>} />
+              <TabBtn active={tab === 'expenses'} onClick={() => setTab('expenses')} label="Financeiro" icon={<Coins size={14}/>} />
               <TabBtn active={tab === 'documents'} onClick={() => setTab('documents')} label="Docs" icon={<FileText size={14}/>} />
-              <TabBtn active={tab === 'branding'} onClick={() => setTab('branding')} label="Design" icon={<Settings size={14}/>} />
+              <TabBtn active={tab === 'branding'} onClick={() => setTab('branding')} label="Ajustes Obra" icon={<Sliders size={14}/>} />
             </div>
           </div>
         </div>
@@ -89,8 +89,10 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
           {tab === 'expenses' && (
             <ExpenseManager 
+              project={project}
               expenses={project.expenses} 
               onAdd={e => onUpdateProject({ expenses: [...project.expenses, e] })} 
+              onAddMany={newList => onUpdateProject({ expenses: [...project.expenses, ...newList] })}
               onUpdate={(id, d) => onUpdateProject({ expenses: project.expenses.map(ex => ex.id === id ? {...ex, ...d} : ex) })} 
               onDelete={id => onUpdateProject({ expenses: project.expenses.filter(ex => ex.id !== id) })} 
               workItems={project.items} 

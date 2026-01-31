@@ -72,22 +72,23 @@ export interface ProjectAsset {
   data: string; 
 }
 
-export type ExpenseType = 'labor' | 'material';
+export type ExpenseType = 'labor' | 'material' | 'revenue';
 
 export interface ProjectExpense {
   id: string;
   parentId: string | null;
-  type: ExpenseType; // labor ou material
+  type: ExpenseType; // labor, material ou revenue
   itemType: ItemType; // category ou item
   wbs: string;
   order: number;
   date: string;
-  description: string; // Nome do gasto ou categoria
-  entityName: string; // Fornecedor ou Profissional
+  description: string; // Nome do gasto/receita ou categoria
+  entityName: string; // Fornecedor, Profissional ou Cliente
   unit: string;
   quantity: number;
   unitPrice: number;
   amount: number; // Total acumulado ou calculado
+  isPaid?: boolean; // Status de pagamento/recebimento
   linkedWorkItemId?: string;
   children?: ProjectExpense[];
 }

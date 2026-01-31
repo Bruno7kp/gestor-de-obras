@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Building2, HardDrive, Trash2, ShieldCheck, Globe } from 'lucide-react';
+import { Building2, HardDrive, Trash2, ShieldCheck, Cog } from 'lucide-react';
 import { GlobalSettings } from '../types';
 
 interface SettingsViewProps {
@@ -13,9 +13,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdate, 
   return (
     <div className="flex-1 overflow-y-auto p-6 sm:p-12 animate-in slide-in-from-bottom-4 duration-500">
       <div className="max-w-4xl mx-auto space-y-10">
-        <header>
-          <h1 className="text-3xl font-black tracking-tight text-slate-800 dark:text-white">Configurações Globais</h1>
-          <p className="text-slate-500 font-medium">Personalize seu ambiente de trabalho ProMeasure.</p>
+        <header className="flex items-center gap-4">
+          <div className="p-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl"><Cog size={24}/></div>
+          <div>
+            <h1 className="text-3xl font-black tracking-tight text-slate-800 dark:text-white">Ajustes Globais</h1>
+            <p className="text-slate-500 font-medium">Configurações que afetam todo o sistema e novos projetos.</p>
+          </div>
         </header>
 
         <div className="grid grid-cols-1 gap-8">

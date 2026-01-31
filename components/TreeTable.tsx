@@ -28,6 +28,8 @@ interface TreeTableProps {
   onAddChild: (parentId: string, type: 'category' | 'item') => void;
   onUpdateQuantity: (id: string, qty: number) => void;
   onUpdatePercentage: (id: string, pct: number) => void;
+  onUpdateTotal: (id: string, total: number) => void;
+  onUpdateCurrentTotal: (id: string, total: number) => void;
   onReorder: (sourceId: string, targetId: string, position: 'before' | 'after' | 'inside') => void;
   searchQuery: string;
   isReadOnly?: boolean;
@@ -44,6 +46,8 @@ export const TreeTable: React.FC<TreeTableProps> = ({
   onAddChild,
   onUpdateQuantity,
   onUpdatePercentage,
+  onUpdateTotal,
+  onUpdateCurrentTotal,
   onReorder,
   searchQuery,
   isReadOnly = false
@@ -77,33 +81,34 @@ export const TreeTable: React.FC<TreeTableProps> = ({
           <table className="min-w-[1950px] w-full border-collapse text-[11px]">
             <thead className="bg-slate-900 dark:bg-black text-white sticky top-0 z-20">
               <tr className="uppercase tracking-widest font-black text-[9px] opacity-80">
-                <th rowSpan={2} className="p-4 border-r border-slate-800 w-16 no-print text-center">Mover</th>
-                <th rowSpan={2} className="p-4 border-r border-slate-800 w-24 text-center">Ações</th>
-                <th rowSpan={2} className="p-4 border-r border-slate-800 w-20 text-center">WBS</th>
-                <th rowSpan={2} className="p-4 border-r border-slate-800 w-20 text-center">Código</th>
-                <th rowSpan={2} className="p-4 border-r border-slate-800 text-left min-w-[450px]">Estrutura Analítica do Projeto (EAP)</th>
-                <th rowSpan={2} className="p-4 border-r border-slate-800 w-14 text-center">Und</th>
-                <th colSpan={2} className="p-2 border-r border-slate-800 bg-slate-800/50">Unitário (R$)</th>
-                <th colSpan={2} className="p-2 border-r border-slate-800 bg-slate-800/30">Planilha Contratual</th>
-                <th colSpan={2} className="p-2 border-r border-slate-800 bg-amber-900/20">Anterior</th>
-                <th colSpan={3} className="p-2 border-r border-slate-800 bg-blue-900/20">Período Corrente</th>
-                <th colSpan={3} className="p-2 border-r border-slate-800 bg-emerald-900/20">Acumulado Total</th>
+                <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-16 no-print text-center">Mover</th>
+                <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-24 text-center">Ações</th>
+                <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-20 text-center">WBS</th>
+                <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-20 text-center">Código</th>
+                <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 text-left min-w-[450px]">Estrutura Analítica do Projeto (EAP)</th>
+                <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-14 text-center">Und</th>
+                <th colSpan={2} className="p-2 border-r border-slate-800 dark:border-slate-900 bg-slate-800/50">Unitário (R$)</th>
+                <th colSpan={2} className="p-2 border-r border-slate-800 dark:border-slate-900 bg-slate-800/30">Planilha Contratual</th>
+                <th colSpan={2} className="p-2 border-r border-slate-800 dark:border-slate-900 bg-amber-900/20">Anterior</th>
+                <th colSpan={3} className="p-2 border-r border-slate-800 dark:border-slate-900 bg-blue-900/20">Período Corrente</th>
+                <th colSpan={3} className="p-2 border-r border-slate-800 dark:border-slate-900 bg-emerald-900/20">Acumulado Total</th>
                 <th colSpan={2} className="p-2 bg-rose-900/20">Saldo</th>
+                <th rowSpan={2} className="p-4 w-10 text-center">% EXEC.</th>
               </tr>
               <tr className="text-[8px] bg-slate-800 dark:bg-slate-950 font-bold uppercase">
-                <th className="p-2 border-r border-slate-700 w-24">S/ BDI</th>
-                <th className="p-2 border-r border-slate-700 w-24">C/ BDI</th>
-                <th className="p-2 border-r border-slate-700 w-16 text-center">Qtd</th>
-                <th className="p-2 border-r border-slate-700 w-32 text-right">Total</th>
-                <th className="p-2 border-r border-slate-700 w-16 text-center">Qtd</th>
-                <th className="p-2 border-r border-slate-700 w-32 text-right">Total</th>
-                <th className="p-2 border-r border-slate-700 w-12 text-center">%</th>
-                <th className="p-2 border-r border-slate-700 w-16 text-center">Qtd</th>
-                <th className="p-2 border-r border-slate-700 w-32 text-right">Total</th>
-                <th className="p-2 border-r border-slate-700 w-16 text-center">Qtd</th>
-                <th className="p-2 border-r border-slate-700 w-32 text-right">Total</th>
-                <th className="p-2 border-r border-slate-700 w-12 text-center">%</th>
-                <th className="p-2 border-r border-slate-700 w-16 text-center">Qtd</th>
+                <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-24">S/ BDI</th>
+                <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-24">C/ BDI</th>
+                <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-16 text-center">Qtd</th>
+                <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-32 text-right">Total</th>
+                <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-16 text-center">Qtd</th>
+                <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-32 text-right">Total</th>
+                <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-12 text-center">%</th>
+                <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-16 text-center">Qtd</th>
+                <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-32 text-right">Total</th>
+                <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-16 text-center">Qtd</th>
+                <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-32 text-right">Total</th>
+                <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-12 text-center">%</th>
+                <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-16 text-center">Qtd</th>
                 <th className="p-2 w-32 text-right">Total</th>
               </tr>
             </thead>
@@ -118,7 +123,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                   {filteredData.map((item, index) => (
                     <Draggable key={item.id} draggableId={item.id} index={index} isDragDisabled={isReadOnly}>
                       {(provided, snapshot) => (
-                        <tr ref={provided.innerRef} {...provided.draggableProps} className={`group transition-all duration-150 ${item.type === 'category' ? 'bg-slate-50/80 dark:bg-slate-800/30 font-bold' : 'hover:bg-blue-50/40 dark:hover:bg-blue-900/5'} ${snapshot.isDragging ? 'dragging-row' : ''}`}>
+                        <tr ref={provided.innerRef} {...provided.draggableProps} className={`group transition-all duration-150 ${item.type === 'category' ? 'bg-slate-50/80 dark:bg-slate-800/40 font-bold' : 'hover:bg-blue-50/40 dark:hover:bg-blue-900/10'} ${snapshot.isDragging ? 'dragging-row' : ''}`}>
                           <td className="p-2 border-r border-slate-100 dark:border-slate-800 no-print text-center">
                             <div {...provided.dragHandleProps} className="inline-flex p-1.5 text-slate-300 hover:text-indigo-500 transition-colors cursor-grab active:cursor-grabbing">
                               <GripVertical size={16} />
@@ -130,8 +135,8 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                               <button disabled={isReadOnly} onClick={() => onDelete(item.id)} className="p-1.5 text-rose-300 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg disabled:opacity-20"><Trash2 size={14}/></button>
                             </div>
                           </td>
-                          <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 font-mono text-[10px] text-slate-400">{item.wbs}</td>
-                          <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 text-slate-400 font-mono text-[10px]">{item.cod || '-'}</td>
+                          <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 font-mono text-[10px] text-slate-400 dark:text-slate-500">{item.wbs}</td>
+                          <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-mono text-[10px]">{item.cod || '-'}</td>
                           <td className="p-2 border-r border-slate-100 dark:border-slate-800 relative min-w-[400px]">
                             <div className="flex items-center gap-1 h-full">
                               <div className="flex items-center gap-2" style={{ marginLeft: `${item.depth * 1.5}rem` }}>
@@ -152,31 +157,58 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                             </div>
                           </td>
                           <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 font-black text-slate-400 uppercase text-[9px]">{item.unit || '-'}</td>
-                          <td className="p-2 text-right border-r border-slate-100 dark:border-slate-800 text-slate-400 font-mono text-[10px]">{item.type === 'item' ? financial.formatBRL(item.unitPriceNoBdi) : '-'}</td>
+                          <td className="p-2 text-right border-r border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-mono text-[10px]">{item.type === 'item' ? financial.formatBRL(item.unitPriceNoBdi) : '-'}</td>
                           <td className="p-2 text-right border-r border-slate-100 dark:border-slate-800 font-mono font-bold text-slate-700 dark:text-slate-300">{item.type === 'item' ? financial.formatBRL(item.unitPrice) : '-'}</td>
-                          <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/20 text-slate-500 font-mono">{item.type === 'item' ? item.contractQuantity : '-'}</td>
-                          <td className="p-2 text-right border-r border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/20 font-bold text-slate-900 dark:text-slate-200">{financial.formatBRL(item.contractTotal)}</td>
-                          <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 bg-amber-50/10 dark:bg-amber-900/5 text-slate-400 font-mono">{item.type === 'item' ? item.previousQuantity : '-'}</td>
-                          <td className="p-2 text-right border-r border-slate-100 dark:border-slate-800 bg-amber-50/10 dark:bg-amber-900/5 text-slate-400">{financial.formatBRL(item.previousTotal)}</td>
-                          <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 bg-blue-50/20 dark:bg-blue-900/5">
+                          <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/40 text-slate-500 dark:text-slate-400 font-mono">{item.type === 'item' ? item.contractQuantity : '-'}</td>
+                          
+                          {/* TOTAL CONTRATADO EDITÁVEL */}
+                          <td className="p-2 text-right border-r border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/40">
+                             {item.type === 'item' ? (
+                               <input 
+                                 disabled={isReadOnly} 
+                                 type="text" 
+                                 className="w-full bg-transparent text-right font-bold text-slate-900 dark:text-slate-100 outline-none focus:ring-1 focus:ring-indigo-500 rounded px-1" 
+                                 defaultValue={item.contractTotal.toFixed(2).replace('.', ',')} 
+                                 onBlur={(e) => onUpdateTotal(item.id, parseFloat(e.target.value.replace(',', '.')) || 0)} 
+                               />
+                             ) : <span className="font-bold text-slate-900 dark:text-slate-100">{financial.formatBRL(item.contractTotal)}</span>}
+                          </td>
+
+                          <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 bg-amber-50/10 dark:bg-amber-900/10 text-slate-400 dark:text-slate-500 font-mono">{item.type === 'item' ? item.previousQuantity : '-'}</td>
+                          <td className="p-2 text-right border-r border-slate-100 dark:border-slate-800 bg-amber-50/10 dark:bg-amber-900/10 text-slate-400 dark:text-slate-500">{financial.formatBRL(item.previousTotal)}</td>
+                          <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 bg-blue-50/20 dark:bg-blue-900/10">
                             {item.type === 'item' ? (
                               <div className="flex items-center justify-center gap-1">
-                                <input disabled={isReadOnly} type="number" className="w-12 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 rounded px-1 py-0.5 text-center text-[10px] font-bold text-blue-600" value={item.currentPercentage} onChange={(e) => onUpdatePercentage(item.id, parseFloat(e.target.value) || 0)} />
+                                <input disabled={isReadOnly} type="number" className="w-12 bg-white dark:bg-slate-950 border border-blue-200 dark:border-blue-800 rounded px-1 py-0.5 text-center text-[10px] font-bold text-blue-600 dark:text-blue-400 outline-none" value={item.currentPercentage} onChange={(e) => onUpdatePercentage(item.id, parseFloat(e.target.value) || 0)} />
                                 <span className="text-[8px] text-blue-400 font-black">%</span>
                               </div>
                             ) : '-'}
                           </td>
-                          <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 bg-blue-50/20 dark:bg-blue-900/5">
+                          <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 bg-blue-50/20 dark:bg-blue-900/10">
                             {item.type === 'item' ? (
-                              <input disabled={isReadOnly} type="number" className="w-16 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded px-1 py-0.5 text-center text-[10px] font-bold text-blue-700 focus:ring-2 focus:ring-blue-500/20 outline-none" value={item.currentQuantity} onChange={(e) => onUpdateQuantity(item.id, parseFloat(e.target.value) || 0)} />
+                              <input disabled={isReadOnly} type="number" className="w-16 bg-white dark:bg-slate-950 border border-blue-300 dark:border-blue-700 rounded px-1 py-0.5 text-center text-[10px] font-bold text-blue-700 dark:text-blue-300 focus:ring-2 focus:ring-blue-500/20 outline-none" value={item.currentQuantity} onChange={(e) => onUpdateQuantity(item.id, parseFloat(e.target.value) || 0)} />
                             ) : '-'}
                           </td>
-                          <td className="p-2 text-right border-r border-slate-100 dark:border-slate-800 bg-blue-50/40 dark:bg-blue-900/10 font-black text-blue-700 dark:text-blue-300">{financial.formatBRL(item.currentTotal)}</td>
-                          <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 bg-emerald-50/10 dark:bg-emerald-900/5 font-bold text-slate-500 font-mono">{item.type === 'item' ? item.accumulatedQuantity : '-'}</td>
-                          <td className="p-2 text-right border-r border-slate-100 dark:border-slate-800 bg-emerald-50/10 dark:bg-emerald-900/5 font-black text-emerald-700 dark:text-emerald-400">{financial.formatBRL(item.accumulatedTotal)}</td>
-                          <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 bg-emerald-50/30 dark:bg-emerald-900/10 font-black text-emerald-800 dark:text-emerald-100 text-[10px]">{item.accumulatedPercentage}%</td>
-                          <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 bg-rose-50/10 dark:bg-rose-900/5 font-bold text-rose-600/60 font-mono">{item.type === 'item' ? item.balanceQuantity : '-'}</td>
-                          <td className="p-2 text-right bg-rose-50/20 dark:bg-rose-900/5 font-black text-rose-800 dark:text-rose-300">{financial.formatBRL(item.balanceTotal)}</td>
+
+                          {/* TOTAL PERÍODO EDITÁVEL */}
+                          <td className="p-2 text-right border-r border-slate-100 dark:border-slate-800 bg-blue-50/40 dark:bg-blue-900/20">
+                             {item.type === 'item' ? (
+                               <input 
+                                 disabled={isReadOnly} 
+                                 type="text" 
+                                 className="w-full bg-transparent text-right font-black text-blue-700 dark:text-blue-300 outline-none focus:ring-1 focus:ring-blue-500 rounded px-1" 
+                                 defaultValue={item.currentTotal.toFixed(2).replace('.', ',')} 
+                                 onBlur={(e) => onUpdateCurrentTotal(item.id, parseFloat(e.target.value.replace(',', '.')) || 0)} 
+                               />
+                             ) : <span className="font-black text-blue-700 dark:text-blue-300">{financial.formatBRL(item.currentTotal)}</span>}
+                          </td>
+
+                          <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 bg-emerald-50/10 dark:bg-emerald-900/10 font-bold text-slate-500 dark:text-slate-400 font-mono">{item.type === 'item' ? item.accumulatedQuantity : '-'}</td>
+                          <td className="p-2 text-right border-r border-slate-100 dark:border-slate-800 bg-emerald-50/10 dark:bg-emerald-900/10 font-black text-emerald-700 dark:text-emerald-400">{financial.formatBRL(item.accumulatedTotal)}</td>
+                          <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 bg-emerald-50/30 dark:bg-emerald-900/20 font-black text-emerald-800 dark:text-emerald-100 text-[10px]">{item.accumulatedPercentage}%</td>
+                          <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 bg-rose-50/10 dark:bg-rose-900/10 font-bold text-rose-600/60 dark:text-rose-400/60 font-mono">{item.type === 'item' ? item.balanceQuantity : '-'}</td>
+                          <td className="p-2 text-right bg-rose-50/20 dark:bg-rose-900/10 font-black text-rose-800 dark:text-rose-300">{financial.formatBRL(item.balanceTotal)}</td>
+                          <td className="p-2 text-center font-black text-slate-700 dark:text-slate-200">{item.accumulatedPercentage}%</td>
                         </tr>
                       )}
                     </Draggable>
@@ -184,7 +216,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                   {provided.placeholder}
                   
                   {/* TOTAL GERAL FOOTER */}
-                  <tr className="bg-slate-950 text-white font-black text-xs sticky bottom-0 z-10 shadow-2xl">
+                  <tr className="bg-slate-950 dark:bg-black text-white font-black text-xs sticky bottom-0 z-10 shadow-2xl">
                     <td colSpan={6} className="p-5 text-right uppercase tracking-[0.2em] text-[10px] border-r border-white/10">Consolidado:</td>
                     <td colSpan={2} className="p-4 border-r border-white/10 opacity-30 italic">Preços Médios</td>
                     <td className="p-4 border-r border-white/10"></td>
@@ -196,7 +228,8 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                     <td className="p-4 border-r border-white/10 text-right text-emerald-400 text-base tracking-tighter">{financial.formatBRL(financial.sum(filteredData.filter(i => i.depth === 0).map(i => i.accumulatedTotal)))}</td>
                     <td className="p-4 border-r border-white/10"></td>
                     <td className="p-4 border-r border-white/10"></td>
-                    <td className="p-4 text-right text-rose-400 text-base tracking-tighter">{financial.formatBRL(financial.sum(filteredData.filter(i => i.depth === 0).map(i => i.balanceTotal)))}</td>
+                    <td className="p-4 border-r border-white/10 text-right text-rose-400 text-base tracking-tighter">{financial.formatBRL(financial.sum(filteredData.filter(i => i.depth === 0).map(i => i.balanceTotal)))}</td>
+                    <td className="p-4 text-center">100%</td>
                   </tr>
                 </tbody>
               )}

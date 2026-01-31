@@ -2,7 +2,7 @@
 import React from 'react';
 import { Project, PDFTheme } from '../types';
 import { ThemeEditor } from './ThemeEditor';
-import { Percent, Palette } from 'lucide-react';
+import { Percent, Sliders } from 'lucide-react';
 
 interface BrandingViewProps {
   project: Project;
@@ -15,6 +15,14 @@ export const BrandingView: React.FC<BrandingViewProps> = ({
 }) => {
   return (
     <div className="space-y-12 animate-in fade-in duration-500 pb-10">
+      <header className="max-w-4xl mx-auto flex items-center gap-4">
+        <div className="p-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl"><Sliders size={24}/></div>
+        <div>
+          <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">Configurações da Obra</h2>
+          <p className="text-slate-500 font-medium">Parâmetros financeiros e visuais específicos deste projeto.</p>
+        </div>
+      </header>
+
       {/* CONFIGURAÇÃO DE BDI */}
       <div className="bg-white dark:bg-slate-900 p-10 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-sm max-w-4xl mx-auto">
         <div className="flex items-center gap-4 mb-10">
