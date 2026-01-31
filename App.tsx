@@ -1,6 +1,5 @@
 
-import React, { useState, useMemo, useRef } from 'react';
-// Fixed: Imported DEFAULT_THEME explicitly to avoid using require()
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { ItemType, Project, WorkItem, DEFAULT_THEME } from './types';
 import { treeService } from './services/treeService';
 import { excelService, ImportResult } from './services/excelService';
@@ -26,9 +25,11 @@ const App: React.FC = () => {
     undo, redo, canUndo, canRedo
   } = useProjectState();
 
-  // Estados de UI
+  // Estados de UI com persistência
   const [viewMode, setViewMode] = useState<ViewMode>('global-dashboard');
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return localStorage.getItem('promeasure_theme') === 'dark';
+  });
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
@@ -37,6 +38,16 @@ const App: React.FC = () => {
   const [modalType, setModalType] = useState<ItemType>('item');
   const [editingItem, setEditingItem] = useState<WorkItem | null>(null);
   const [targetParentId, setTargetParentId] = useState<string | null>(null);
+
+  // Efeito para persistir o tema
+  useEffect(() => {
+    localStorage.setItem('promeasure_theme', isDarkMode ? 'dark' : 'light');
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
 
   const handleOpenProject = (id: string) => {
     setActiveProjectId(id);
@@ -54,7 +65,6 @@ const App: React.FC = () => {
       logo: null,
       items: [],
       history: [],
-      // Fixed: Replaced require('./types').DEFAULT_THEME with the imported constant
       theme: { ...DEFAULT_THEME },
       bdi: 25,
       assets: [],

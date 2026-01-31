@@ -16,7 +16,8 @@ import {
   Circle,
   ArrowRightLeft,
   Users,
-  GripVertical
+  GripVertical,
+  Clock
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
@@ -28,20 +29,20 @@ interface ExpenseTreeTableProps {
   onDelete: (id: string) => void;
   onAddChild: (parentId: string, itemType: 'category' | 'item') => void;
   onUpdateTotal: (id: string, amount: number) => void;
+  onUpdateUnitPrice: (id: string, price: number) => void;
   onTogglePaid: (id: string) => void;
   onReorder: (sourceId: string, targetId: string, position: 'before' | 'after' | 'inside') => void;
   isReadOnly?: boolean;
 }
 
 export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({ 
-  data, expandedIds, onToggle, onEdit, onDelete, onAddChild, onUpdateTotal, onTogglePaid, onReorder, isReadOnly 
+  data, expandedIds, onToggle, onEdit, onDelete, onAddChild, onUpdateTotal, onUpdateUnitPrice, onTogglePaid, onReorder, isReadOnly 
 }) => {
   const handleDragEnd = (result: DropResult) => {
     if (isReadOnly) return;
     
     const sourceId = result.draggableId;
 
-    // Caso 1: Soltou sobre uma categoria (Combine)
     if (result.combine) {
       const targetId = result.combine.draggableId;
       const targetItem = data.find(d => d.id === targetId);
@@ -51,7 +52,6 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
       return;
     }
 
-    // Caso 2: Reordenação entre itens
     if (!result.destination) return;
     const targetIdx = result.destination.index;
     const targetItem = data[targetIdx];
@@ -65,12 +65,12 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
         <table className="min-w-full border-collapse text-[11px]">
           <thead className="bg-slate-900 dark:bg-black text-white sticky top-0 z-20">
             <tr className="uppercase tracking-widest font-black text-[9px] opacity-80">
-              <th className="p-4 border-r border-slate-800 dark:border-slate-900 w-12 text-center">Move</th>
+              <th className="p-4 border-r border-slate-800 dark:border-slate-900 w-12 text-center">Mover</th>
               <th className="p-4 border-r border-slate-800 dark:border-slate-900 w-16 text-center">Status</th>
               <th className="p-4 border-r border-slate-800 dark:border-slate-900 w-24 text-center">Ações</th>
               <th className="p-4 border-r border-slate-800 dark:border-slate-900 w-20 text-center">WBS</th>
-              <th className="p-4 border-r border-slate-800 dark:border-slate-900 text-left min-w-[300px]">Descrição / Categoria</th>
-              <th className="p-4 border-r border-slate-800 dark:border-slate-900 w-32 text-center">Data</th>
+              <th className="p-4 border-r border-slate-800 dark:border-slate-900 text-left min-w-[300px]">Insumo / Despesa</th>
+              <th className="p-4 border-r border-slate-800 dark:border-slate-900 w-44 text-left">Datas (Gasto/Pgto)</th>
               <th className="p-4 border-r border-slate-800 dark:border-slate-900 w-48 text-left">Entidade</th>
               <th className="p-4 border-r border-slate-800 dark:border-slate-900 w-16 text-center">Und</th>
               <th className="p-4 border-r border-slate-800 dark:border-slate-900 w-20 text-center">Qtd</th>
@@ -135,26 +135,51 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                             {item.itemType === 'category' && !isReadOnly && (
                               <div className="ml-auto lg:opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
                                 <button onClick={() => onAddChild(item.id, 'category')} className="p-1 text-slate-400 hover:text-indigo-600" title="Add Subcategoria"><FolderPlus size={14} /></button>
-                                <button onClick={() => onAddChild(item.id, 'item')} className="p-1 text-slate-400 hover:text-emerald-600" title="Add Lançamento"><FilePlus size={14} /></button>
+                                <button onClick={() => onAddChild(item.id, 'item')} className="p-1 text-slate-400 hover:text-emerald-600" title="Add Insumo"><FilePlus size={14} /></button>
                               </div>
                             )}
                           </div>
                         </td>
-                        <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500">
-                          {item.itemType === 'item' ? <div className="flex items-center justify-center gap-1"><Calendar size={10}/> {new Date(item.date).toLocaleDateString('pt-BR')}</div> : '-'}
+                        <td className="p-2 border-r border-slate-100 dark:border-slate-800">
+                          {item.itemType === 'item' ? (
+                            <div className="flex flex-col gap-0.5">
+                              <div className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
+                                <Calendar size={10} className="shrink-0" /> 
+                                <span>Gasto: {new Date(item.date).toLocaleDateString('pt-BR')}</span>
+                              </div>
+                              {item.paymentDate && (
+                                <div className="flex items-center gap-1 text-[9px] text-emerald-600 dark:text-emerald-500 font-bold">
+                                  <Clock size={9} className="shrink-0" /> 
+                                  <span>Pgto: {new Date(item.paymentDate).toLocaleDateString('pt-BR')}</span>
+                                </div>
+                              )}
+                            </div>
+                          ) : '-'}
                         </td>
                         <td className="p-2 border-r border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400 truncate">
                           {item.itemType === 'item' ? (item.entityName || '—') : '—'}
                         </td>
                         <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 font-black text-slate-400 dark:text-slate-500 uppercase text-[9px]">{item.unit || '-'}</td>
                         <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 font-mono dark:text-slate-300">{item.itemType === 'item' ? item.quantity : '-'}</td>
-                        <td className="p-2 text-right border-r border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-mono">{item.itemType === 'item' ? financial.formatBRL(item.unitPrice) : '-'}</td>
+                        <td className="p-2 text-right border-r border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-mono">
+                          {item.itemType === 'item' ? (
+                            <input 
+                              disabled={isReadOnly}
+                              type="text" 
+                              className="w-full bg-transparent text-right font-mono outline-none focus:ring-1 focus:ring-indigo-500 rounded px-1" 
+                              key={`${item.id}-up-${item.unitPrice}`}
+                              defaultValue={item.unitPrice.toFixed(2).replace('.', ',')} 
+                              onBlur={(e) => onUpdateUnitPrice(item.id, parseFloat(e.target.value.replace(',', '.')) || 0)} 
+                            />
+                          ) : '-'}
+                        </td>
                         <td className="p-2 text-right">
                            {item.itemType === 'item' ? (
                              <input 
                                disabled={isReadOnly}
                                type="text" 
                                className={`w-full bg-transparent text-right font-black outline-none focus:ring-1 focus:ring-indigo-500 rounded px-1 ${item.type === 'revenue' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-800 dark:text-slate-100'}`} 
+                               key={`${item.id}-amt-${item.amount}`}
                                defaultValue={item.amount.toFixed(2).replace('.', ',')} 
                                onBlur={(e) => onUpdateTotal(item.id, parseFloat(e.target.value.replace(',', '.')) || 0)} 
                              />

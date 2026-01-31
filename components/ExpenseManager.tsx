@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { ProjectExpense, ExpenseType, WorkItem, ItemType, Project } from '../types';
 import { financial } from '../utils/math';
 import { expenseService } from '../services/expenseService';
@@ -26,7 +26,9 @@ import {
   BarChart3,
   PieChart,
   Clock,
-  ArrowUpRight
+  ArrowUpRight,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 
 interface ExpenseManagerProps {
@@ -47,7 +49,13 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<ExpenseType | 'overview'>('overview');
   const [searchQuery, setSearchQuery] = useState('');
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  
+  // Persistência da expansão financeira por projeto
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem(`exp_fin_${project.id}`);
+    return saved ? new Set(JSON.parse(saved)) : new Set();
+  });
+
   const [isImporting, setIsImporting] = useState(false);
   const [importSummary, setImportSummary] = useState<ExpenseImportResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -56,6 +64,10 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
   const [modalItemType, setModalItemType] = useState<ItemType>('item');
   const [editingExpense, setEditingExpense] = useState<ProjectExpense | null>(null);
   const [targetParentId, setTargetParentId] = useState<string | null>(null);
+
+  useEffect(() => {
+    localStorage.setItem(`exp_fin_${project.id}`, JSON.stringify(Array.from(expandedIds)));
+  }, [expandedIds, project.id]);
 
   const stats = useMemo(() => expenseService.getExpenseStats(expenses), [expenses]);
 
@@ -108,7 +120,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
         wbs: '',
         order: (expenses.filter(e => e.parentId === parentId && e.type === typeForNew).length),
         date: data.date || new Date().toISOString().split('T')[0],
-        description: data.description || (typeForNew === 'revenue' ? 'Nova Receita' : 'Novo Gasto'),
+        description: data.description || (typeForNew === 'revenue' ? 'Nova Receita' : 'Insumo / Despesa'),
         entityName: data.entityName || (typeForNew === 'revenue' ? 'Cliente' : 'Fornecedor'),
         unit: data.unit || (typeForNew === 'revenue' ? 'vb' : 'un'),
         quantity: data.quantity || 1,
@@ -154,7 +166,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
         <div className="flex flex-wrap items-center gap-2">
           {activeTab !== 'overview' && (
             <button type="button" onClick={() => { setModalItemType('item'); setEditingExpense(null); setIsModalOpen(true); }} className="px-5 py-3 bg-indigo-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg hover:scale-105 transition-transform active:scale-95">
-               {activeTab === 'revenue' ? 'Nova Receita' : 'Novo Lançamento'}
+               {activeTab === 'revenue' ? 'Nova Receita' : 'Novo Insumo'}
             </button>
           )}
           <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1" />
@@ -175,24 +187,51 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
       {activeTab === 'overview' ? (
         <FinancialOverview stats={stats} />
       ) : (
-        <ExpenseTreeTable 
-          data={flattenedExpenses}
-          expandedIds={expandedIds}
-          onToggle={id => { const n = new Set(expandedIds); n.has(id) ? n.delete(id) : n.add(id); setExpandedIds(n); }}
-          onEdit={expense => { setEditingExpense(expense); setIsModalOpen(true); }}
-          onDelete={onDelete}
-          onAddChild={(pid, itype) => { setTargetParentId(pid); setModalItemType(itype); setIsModalOpen(true); }}
-          onUpdateTotal={(id, total) => {
-            const exp = expenses.find(e => e.id === id);
-            if (exp) onUpdate(id, { amount: total, unitPrice: financial.round(total / (exp.quantity || 1)) });
-          }}
-          onTogglePaid={id => {
-            const exp = expenses.find(e => e.id === id);
-            if (exp) onUpdate(id, { isPaid: !exp.isPaid });
-          }}
-          onReorder={(src, tgt, pos) => onUpdateExpenses(treeService.reorderItems(expenses, src, tgt, pos))}
-          isReadOnly={isReadOnly}
-        />
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 no-print">
+            <button 
+              onClick={() => setExpandedIds(new Set(expenses.filter(e => e.itemType === 'category' && e.type === activeTab).map(e => e.id)))} 
+              className="flex items-center gap-2 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-indigo-600 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg transition-all shadow-sm"
+            >
+              <Maximize2 size={12} /> Expandir Tudo
+            </button>
+            <button 
+              onClick={() => setExpandedIds(new Set())} 
+              className="flex items-center gap-2 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-indigo-600 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg transition-all shadow-sm"
+            >
+              <Minimize2 size={12} /> Recolher Tudo
+            </button>
+          </div>
+          
+          <ExpenseTreeTable 
+            data={flattenedExpenses}
+            expandedIds={expandedIds}
+            onToggle={id => { const n = new Set(expandedIds); n.has(id) ? n.delete(id) : n.add(id); setExpandedIds(n); }}
+            onEdit={expense => { setEditingExpense(expense); setIsModalOpen(true); }}
+            onDelete={onDelete}
+            onAddChild={(pid, itype) => { setTargetParentId(pid); setModalItemType(itype); setIsModalOpen(true); }}
+            onUpdateTotal={(id, total) => {
+              const exp = expenses.find(e => e.id === id);
+              if (exp) onUpdate(id, { 
+                amount: total, 
+                unitPrice: financial.round(total / (exp.quantity || 1)) 
+              });
+            }}
+            onUpdateUnitPrice={(id, price) => {
+              const exp = expenses.find(e => e.id === id);
+              if (exp) onUpdate(id, { 
+                unitPrice: price, 
+                amount: financial.round(price * (exp.quantity || 0)) 
+              });
+            }}
+            onTogglePaid={id => {
+              const exp = expenses.find(e => e.id === id);
+              if (exp) onUpdate(id, { isPaid: !exp.isPaid });
+            }}
+            onReorder={(src, tgt, pos) => onUpdateExpenses(treeService.reorderItems(expenses, src, tgt, pos))}
+            isReadOnly={isReadOnly}
+          />
+        </div>
       )}
 
       {importSummary && (

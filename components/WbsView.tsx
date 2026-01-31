@@ -21,10 +21,21 @@ export const WbsView: React.FC<WbsViewProps> = ({
   project, onUpdateProject, onOpenModal, isReadOnly 
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  
+  // Carrega IDs expandidos salvos no localStorage para este projeto específico
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem(`exp_wbs_${project.id}`);
+    return saved ? new Set(JSON.parse(saved)) : new Set();
+  });
+
   const [isImporting, setIsImporting] = useState(false);
   const [importSummary, setImportSummary] = useState<ImportResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Persiste mudanças na expansão
+  useEffect(() => {
+    localStorage.setItem(`exp_wbs_${project.id}`, JSON.stringify(Array.from(expandedIds)));
+  }, [expandedIds, project.id]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

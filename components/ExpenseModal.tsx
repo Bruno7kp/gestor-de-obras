@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { ProjectExpense, ItemType, ExpenseType } from '../types';
 import { financial } from '../utils/math';
-import { X, Save, Layers, Truck, Users, Calculator, ArrowRightLeft, FolderTree } from 'lucide-react';
+import { X, Save, Layers, Truck, Users, Calculator, ArrowRightLeft, FolderTree, Calendar, Clock } from 'lucide-react';
 
 interface ExpenseModalProps {
   isOpen: boolean;
@@ -19,7 +19,9 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
 }) => {
   const [activeItemType, setActiveItemType] = useState<ItemType>(initialItemType);
   const [formData, setFormData] = useState<Partial<ProjectExpense>>({
-    description: '', parentId: null, unit: 'un', quantity: 1, unitPrice: 0, amount: 0, entityName: '', date: new Date().toISOString().split('T')[0]
+    description: '', parentId: null, unit: 'un', quantity: 1, unitPrice: 0, amount: 0, entityName: '', 
+    date: new Date().toISOString().split('T')[0],
+    paymentDate: ''
   });
 
   const [strQty, setStrQty] = useState('1');
@@ -36,7 +38,10 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
 
   useEffect(() => {
     if (editingItem) {
-      setFormData(editingItem);
+      setFormData({
+        ...editingItem,
+        paymentDate: editingItem.paymentDate || ''
+      });
       setActiveItemType(editingItem.itemType);
       setStrQty(String(editingItem.quantity || 0).replace('.', ','));
       setStrPrice(String(editingItem.unitPrice || 0).replace('.', ','));
@@ -46,7 +51,8 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
         description: '', parentId: null, 
         unit: expenseType === 'labor' ? 'h' : (expenseType === 'revenue' ? 'vb' : 'un'), 
         quantity: 1, unitPrice: 0, amount: 0, entityName: '', 
-        date: new Date().toISOString().split('T')[0] 
+        date: new Date().toISOString().split('T')[0],
+        paymentDate: ''
       });
       setActiveItemType(initialItemType);
       setStrQty('1'); setStrPrice('0'); setStrAmount('0');
@@ -93,7 +99,8 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
       type: expenseType,
       quantity: parseInput(strQty),
       unitPrice: parseInput(strPrice),
-      amount: parseInput(strAmount)
+      amount: parseInput(strAmount),
+      paymentDate: formData.paymentDate || undefined
     };
     onSave(finalData);
     onClose();
@@ -117,7 +124,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
               {isRevenue ? <ArrowRightLeft size={20} /> : (expenseType === 'labor' ? <Users size={20} /> : <Truck size={20} />)}
             </div>
             <div>
-              <h2 className="text-lg font-black dark:text-white tracking-tight leading-tight">{editingItem ? 'Editar' : 'Novo'} {isRevenue ? 'Recebimento' : (expenseType === 'labor' ? 'Gasto de MO' : 'Gasto de Material')}</h2>
+              <h2 className="text-lg font-black dark:text-white tracking-tight leading-tight">{editingItem ? 'Editar' : 'Novo'} {isRevenue ? 'Recebimento' : (expenseType === 'labor' ? 'Gasto de MO' : 'Insumo / Despesa')}</h2>
               <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">Controle de Fluxo Hierárquico</p>
             </div>
           </div>
@@ -135,7 +142,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
             {!editingItem && (
               <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl gap-2">
                 <button type="button" onClick={() => setActiveItemType('category')} className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${activeItemType === 'category' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-md' : 'text-slate-500 dark:text-slate-400'}`}>Categoria/Grupo</button>
-                <button type="button" onClick={() => setActiveItemType('item')} className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${activeItemType === 'item' ? 'bg-white dark:bg-slate-700 text-emerald-600 shadow-md' : 'text-slate-500 dark:text-slate-400'}`}>{isRevenue ? 'Lançar Valor' : 'Gasto Individual'}</button>
+                <button type="button" onClick={() => setActiveItemType('item')} className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${activeItemType === 'item' ? 'bg-white dark:bg-slate-700 text-emerald-600 shadow-md' : 'text-slate-500 dark:text-slate-400'}`}>{isRevenue ? 'Lançar Valor' : 'Insumo / Despesa'}</button>
               </div>
             )}
 
@@ -158,12 +165,39 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
               </div>
 
               <div>
-                <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase mb-2 block tracking-widest">Descrição / Título</label>
+                <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase mb-2 block tracking-widest">Insumo / Despesa (Descrição)</label>
                 <input className="w-full px-6 py-3.5 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white text-sm font-semibold outline-none focus:border-indigo-500 transition-all" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} />
               </div>
 
               {activeItemType === 'item' && (
                 <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2 grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase mb-2 block tracking-widest">Data do Gasto</label>
+                      <div className="relative">
+                        <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                        <input 
+                          type="date"
+                          className="w-full pl-11 pr-4 py-3 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white text-xs font-bold outline-none focus:border-indigo-500 transition-all"
+                          value={formData.date}
+                          onChange={e => setFormData({...formData, date: e.target.value})}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-black text-emerald-600 dark:text-emerald-500 uppercase mb-2 block tracking-widest">Data do Pagamento</label>
+                      <div className="relative">
+                        <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400" size={14} />
+                        <input 
+                          type="date"
+                          className="w-full pl-11 pr-4 py-3 rounded-2xl border-2 border-emerald-100 dark:border-emerald-900/20 bg-emerald-50/20 dark:bg-emerald-950/20 dark:text-white text-xs font-bold outline-none focus:border-emerald-500 transition-all"
+                          value={formData.paymentDate || ''}
+                          onChange={e => setFormData({...formData, paymentDate: e.target.value})}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="col-span-2">
                     <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase mb-2 block tracking-widest">{isRevenue ? 'Pagador / Origem' : 'Fornecedor / Profissional'}</label>
                     <input className="w-full px-6 py-3.5 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white text-xs font-bold outline-none focus:border-indigo-500 transition-all" value={formData.entityName} onChange={e => setFormData({...formData, entityName: e.target.value})} />

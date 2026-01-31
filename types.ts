@@ -81,7 +81,8 @@ export interface ProjectExpense {
   itemType: ItemType; // category ou item
   wbs: string;
   order: number;
-  date: string;
+  date: string; // Data do Gasto/Lançamento
+  paymentDate?: string; // Data do Pagamento efetivo
   description: string; // Nome do gasto/receita ou categoria
   entityName: string; // Fornecedor, Profissional ou Cliente
   unit: string;
