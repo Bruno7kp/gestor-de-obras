@@ -67,8 +67,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ projects, onOpenPr
                   <div className="flex justify-between items-start mb-6">
                     <div className="p-3 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 rounded-2xl transition-colors"><Briefcase size={20}/></div>
                     <div className="flex gap-1 lg:opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={(e) => handleStartRename(e, p)} className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"><Edit2 size={16}/></button>
-                      <button onClick={(e) => handleStartDelete(e, p)} className="p-2 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"><Trash2 size={16}/></button>
+                      <button type="button" onClick={(e) => handleStartRename(e, p)} className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"><Edit2 size={16}/></button>
+                      <button type="button" onClick={(e) => handleStartDelete(e, p)} className="p-2 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"><Trash2 size={16}/></button>
                     </div>
                   </div>
                   <h3 className="text-lg font-black text-slate-800 dark:text-white mb-1 truncate">{p.name}</h3>
@@ -91,8 +91,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ projects, onOpenPr
 
       {/* MODAL DE RENOMEAR OBRA */}
       {editingProject && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden">
+        <div 
+          className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300"
+          onClick={() => setEditingProject(null)}
+        >
+          <div 
+            className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="px-8 pt-8 pb-4 flex items-center justify-between border-b border-slate-50 dark:border-slate-800">
               <div className="flex items-center gap-3">
                 <div className="p-3 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 rounded-2xl">
@@ -103,7 +109,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ projects, onOpenPr
                   <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Identificação da Obra</p>
                 </div>
               </div>
-              <button onClick={() => setEditingProject(null)} className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"><X size={20} /></button>
+              <button 
+                type="button" 
+                onClick={() => setEditingProject(null)} 
+                className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
+              >
+                <X size={20} />
+              </button>
             </div>
             <div className="p-8">
               <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase mb-2 block tracking-widest">Nome do Empreendimento</label>
@@ -116,7 +128,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ projects, onOpenPr
               />
             </div>
             <div className="px-8 py-6 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-3">
-              <button onClick={handleConfirmRename} className="w-full py-5 bg-indigo-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-indigo-500/20 active:scale-95 transition-all flex items-center justify-center gap-2">
+              <button 
+                type="button"
+                onClick={handleConfirmRename} 
+                className="w-full py-5 bg-indigo-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-indigo-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+              >
                 <Save size={18} /> Salvar Alterações
               </button>
             </div>
@@ -126,8 +142,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ projects, onOpenPr
 
       {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO */}
       {deletingProject && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden">
+        <div 
+          className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300"
+          onClick={() => setDeletingProject(null)}
+        >
+          <div 
+            className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-8 text-center flex flex-col items-center">
               <div className="w-20 h-20 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded-[2rem] flex items-center justify-center mb-6">
                 <AlertTriangle size={40} />
@@ -138,10 +160,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ projects, onOpenPr
               </p>
             </div>
             <div className="px-8 py-6 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-3">
-              <button onClick={handleConfirmDelete} className="w-full py-5 bg-rose-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-rose-500/20 active:scale-95 transition-all flex items-center justify-center gap-2">
+              <button 
+                type="button"
+                onClick={handleConfirmDelete} 
+                className="w-full py-5 bg-rose-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-rose-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+              >
                 <Trash2 size={18} /> Sim, Excluir Definitivamente
               </button>
-              <button onClick={() => setDeletingProject(null)} className="w-full py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+              <button 
+                type="button"
+                onClick={() => setDeletingProject(null)} 
+                className="w-full py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+              >
                 Cancelar e Manter
               </button>
             </div>

@@ -153,19 +153,19 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
 
         <div className="flex flex-wrap items-center gap-2">
           {activeTab !== 'overview' && (
-            <button onClick={() => { setModalItemType('item'); setEditingExpense(null); setIsModalOpen(true); }} className="px-5 py-3 bg-indigo-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg hover:scale-105 transition-transform active:scale-95">
+            <button type="button" onClick={() => { setModalItemType('item'); setEditingExpense(null); setIsModalOpen(true); }} className="px-5 py-3 bg-indigo-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg hover:scale-105 transition-transform active:scale-95">
                {activeTab === 'revenue' ? 'Nova Receita' : 'Novo Lançamento'}
             </button>
           )}
           <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1" />
-          <button onClick={() => excelService.downloadExpenseTemplate()} className="p-2.5 text-slate-400 hover:text-indigo-600 transition-colors" title="Template Excel">
+          <button type="button" onClick={() => excelService.downloadExpenseTemplate()} className="p-2.5 text-slate-400 hover:text-indigo-600 transition-colors" title="Template Excel">
             <FileSpreadsheet size={18}/>
           </button>
-          <button disabled={isReadOnly || isImporting} onClick={() => fileInputRef.current?.click()} className="p-2.5 text-slate-400 hover:text-emerald-600 transition-colors disabled:opacity-30" title="Importar">
+          <button type="button" disabled={isReadOnly || isImporting} onClick={() => fileInputRef.current?.click()} className="p-2.5 text-slate-400 hover:text-emerald-600 transition-colors disabled:opacity-30" title="Importar">
             {isImporting ? <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" /> : <UploadCloud size={18}/>}
           </button>
           {activeTab !== 'overview' && (
-            <button onClick={() => excelService.exportExpensesToExcel(project, flattenedExpenses)} className="p-2.5 text-slate-400 hover:text-blue-600 transition-colors" title="Exportar">
+            <button type="button" onClick={() => excelService.exportExpensesToExcel(project, expenses)} className="p-2.5 text-slate-400 hover:text-blue-600 transition-colors" title="Exportar">
               <Download size={18}/>
             </button>
           )}
@@ -196,8 +196,14 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
       )}
 
       {importSummary && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden">
+        <div 
+          className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300"
+          onClick={() => setImportSummary(null)}
+        >
+          <div 
+            className="bg-white dark:bg-slate-900 w-full max-md rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="px-8 pt-8 pb-4 flex items-center justify-between border-b border-slate-50 dark:border-slate-800">
               <div className="flex items-center gap-3">
                 <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-2xl">
@@ -208,7 +214,13 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
                   <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Lançamentos Identificados</p>
                 </div>
               </div>
-              <button onClick={() => setImportSummary(null)} className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"><X size={20} /></button>
+              <button 
+                type="button" 
+                onClick={() => setImportSummary(null)} 
+                className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
+              >
+                <X size={20} />
+              </button>
             </div>
             <div className="p-8 space-y-6">
               <div className="grid grid-cols-2 gap-4">
@@ -225,7 +237,11 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
               </div>
             </div>
             <div className="px-8 py-6 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-3">
-              <button onClick={confirmImport} className="w-full py-5 bg-indigo-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-indigo-500/20 active:scale-95 transition-all flex items-center justify-center gap-2">
+              <button 
+                type="button" 
+                onClick={confirmImport} 
+                className="w-full py-5 bg-indigo-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-indigo-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+              >
                 <CheckCircle2 size={18} /> Confirmar Lançamentos
               </button>
             </div>
@@ -286,7 +302,7 @@ const FinancialOverview = ({ stats }: { stats: any }) => (
 );
 
 const TabTrigger = ({ active, onClick, label, icon }: any) => (
-  <button onClick={onClick} className={`flex items-center gap-2 px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${active ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-md' : 'text-slate-500'}`}>{icon} {label}</button>
+  <button type="button" onClick={onClick} className={`flex items-center gap-2 px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${active ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-md' : 'text-slate-500'}`}>{icon} {label}</button>
 );
 
 const KpiSummary = ({ label, value, icon, color, subText }: any) => {

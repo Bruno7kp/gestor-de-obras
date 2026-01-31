@@ -2,6 +2,7 @@
 import * as XLSX from 'xlsx';
 import { WorkItem, ItemType, Project, ProjectExpense, ExpenseType } from '../types';
 import { financial } from '../utils/math';
+import { treeService } from './treeService';
 
 export interface ImportResult {
   items: WorkItem[];
@@ -21,11 +22,15 @@ export interface ExpenseImportResult {
   };
 }
 
+// Cabeçalhos Padronizados (Snapshot compatível)
+const WBS_HEADERS = ["WBS", "TIPO", "CODIGO", "NOME", "UNIDADE", "QUANTIDADE", "UNITARIO_S_BDI"];
+const EXPENSE_HEADERS = ["WBS", "TIPO", "DATA", "DESCRICAO", "ENTIDADE", "UNIDADE", "QUANTIDADE", "UNITARIO", "TOTAL", "PAGO"];
+
 export const excelService = {
   downloadTemplate: () => {
     const wb = XLSX.utils.book_new();
     const data = [
-      ["WBS", "TIPO", "CODIGO", "NOME DO SERVICO", "UNIDADE", "QUANTIDADE", "PRECO UNITARIO S/ BDI"],
+      WBS_HEADERS,
       ["1", "category", "INFRA", "1. INFRAESTRUTURA", "", "", ""],
       ["1.1", "category", "MOV-TERRA", "1.1 Movimentação de Terra", "", "", ""],
       ["1.1.1", "item", "SIN-93358", "Escavação manual de valas", "m3", "150", "45.50"],
@@ -38,7 +43,7 @@ export const excelService = {
   downloadExpenseTemplate: () => {
     const wb = XLSX.utils.book_new();
     const data = [
-      ["WBS", "TIPO", "DATA", "DESCRICAO", "FORNECEDOR", "UNIDADE", "QUANTIDADE", "UNITARIO", "TOTAL_PAGO", "PAGO(S/N)"],
+      EXPENSE_HEADERS,
       ["1", "category", "", "MATERIAIS DE CONSTRUÇÃO", "", "", "", "", "", ""],
       ["1.1", "category", "", "CIMENTOS E ARGAMASSAS", "", "", "", "", "", ""],
       ["1.1.1", "item", "2024-05-20", "Cimento CP-II 50kg", "Votorantim", "saco", "100", "32.50", "3250.00", "S"],
@@ -50,31 +55,55 @@ export const excelService = {
     XLSX.writeFile(wb, "ProMeasure_Template_Gastos.xlsx");
   },
 
-  exportExpensesToExcel: (project: Project, expenses: ProjectExpense[]) => {
+  exportExpensesToExcel: (project: Project, rawExpenses: ProjectExpense[]) => {
     const wb = XLSX.utils.book_new();
-    const header = [
-      ["PROJETO:", project.name.toUpperCase()],
-      ["RELATÓRIO DE DESPESAS - " + new Date().toLocaleDateString()],
-      [],
-      ["WBS", "TIPO", "DATA", "DESCRIÇÃO", "ENTIDADE/FORNECEDOR", "UNIDADE", "QUANTIDADE", "P. UNITÁRIO", "TOTAL", "STATUS"]
-    ];
+    
+    // Para um snapshot real, processamos a árvore completa sem filtros de expansão
+    const tree = treeService.buildTree(rawExpenses);
+    const processedTree = tree.map((root, idx) => treeService.processExpensesRecursive(root as ProjectExpense, '', idx));
+    const allIds = new Set(rawExpenses.map(e => e.id));
+    const fullFlattened = treeService.flattenTree(processedTree, allIds);
 
-    const rows = expenses.map(e => [
+    const rows = fullFlattened.map(e => [
       e.wbs,
       e.itemType,
       e.itemType === 'item' ? e.date : "",
       e.description,
       e.itemType === 'item' ? e.entityName : "",
-      e.unit || "-",
-      e.itemType === 'item' ? e.quantity : "-",
-      e.itemType === 'item' ? e.unitPrice : "-",
+      e.unit || "",
+      e.itemType === 'item' ? e.quantity : "",
+      e.itemType === 'item' ? e.unitPrice : "",
       e.amount,
-      e.itemType === 'item' ? (e.isPaid ? "PAGO" : "PENDENTE") : "-"
+      e.itemType === 'item' ? (e.isPaid ? "S" : "N") : ""
     ]);
 
-    const ws = XLSX.utils.aoa_to_sheet([...header, ...rows]);
-    XLSX.utils.book_append_sheet(wb, ws, "Gastos");
-    XLSX.writeFile(wb, `Gastos_${project.name}.xlsx`);
+    const ws = XLSX.utils.aoa_to_sheet([EXPENSE_HEADERS, ...rows]);
+    XLSX.utils.book_append_sheet(wb, ws, "Gastos_Snapshot");
+    XLSX.writeFile(wb, `Snapshot_Financeiro_${project.name.replace(/\s+/g, '_')}.xlsx`);
+  },
+
+  exportProjectToExcel: (project: Project) => {
+    const wb = XLSX.utils.book_new();
+    
+    // Snapshot da EAP: Processa a árvore inteira e expande todos os nós para garantir exportação total
+    const tree = treeService.buildTree(project.items);
+    const processedTree = tree.map((root, idx) => treeService.processRecursive(root, '', idx, project.bdi));
+    const allIds = new Set(project.items.map(i => i.id));
+    const fullFlattened = treeService.flattenTree(processedTree, allIds);
+
+    const rows = fullFlattened.map(i => [
+      i.wbs, 
+      i.type,
+      i.cod || "", 
+      i.name, 
+      i.unit, 
+      i.contractQuantity, 
+      i.unitPriceNoBdi
+    ]);
+
+    const ws = XLSX.utils.aoa_to_sheet([WBS_HEADERS, ...rows]);
+    XLSX.utils.book_append_sheet(wb, ws, "EAP_Snapshot");
+    XLSX.writeFile(wb, `Snapshot_EAP_${project.name.replace(/\s+/g, '_')}.xlsx`);
   },
 
   parseExpensesExcel: async (file: File, type: ExpenseType): Promise<ExpenseImportResult> => {
@@ -84,13 +113,12 @@ export const excelService = {
         try {
           const buffer = e.target?.result;
           const data = new Uint8Array(buffer as ArrayBuffer);
-          const workbook = XLSX.read(data, { type: 'array' });
+          const workbook = XLSX.read(data, { type: 'array', cellDates: true });
           const sheet = workbook.Sheets[workbook.SheetNames[0]];
           const raw: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
           const importedExpenses: ProjectExpense[] = [];
           const dataRows = raw.slice(1).filter(r => r.length > 0 && r[0]);
-
           const wbsMap = new Map<string, ProjectExpense>();
 
           dataRows.forEach((row, idx) => {
@@ -101,6 +129,16 @@ export const excelService = {
             const qty = typeof row[6] === 'number' ? row[6] : parseFloat(String(row[6] || "1").replace(',', '.')) || 1;
             const unitPrice = typeof row[7] === 'number' ? row[7] : parseFloat(String(row[7] || "0").replace(',', '.')) || (qty > 0 ? amount / qty : 0);
             
+            let expenseDate = "";
+            if (itemType === 'item') {
+              const rawDate = row[2];
+              if (rawDate instanceof Date) {
+                expenseDate = rawDate.toISOString().split('T')[0];
+              } else {
+                expenseDate = String(rawDate || new Date().toISOString().split('T')[0]);
+              }
+            }
+
             const expense: ProjectExpense = {
               id: crypto.randomUUID(),
               parentId: null,
@@ -108,8 +146,8 @@ export const excelService = {
               itemType,
               wbs,
               order: idx,
-              date: itemType === 'item' ? String(row[2] || new Date().toISOString().split('T')[0]) : "",
-              description: String(row[3] || "Novo Gasto"),
+              date: expenseDate,
+              description: String(row[3] || "Novo Lançamento"),
               entityName: itemType === 'item' ? String(row[4] || "") : "",
               unit: String(row[5] || (itemType === 'category' ? "" : "un")),
               quantity: itemType === 'item' ? qty : 0,
@@ -146,20 +184,6 @@ export const excelService = {
     });
   },
 
-  exportProjectToExcel: (project: Project, flattenedItems: (WorkItem & { depth: number })[]) => {
-    const wb = XLSX.utils.book_new();
-    const header = [
-      [project.companyName.toUpperCase()],
-      ["RELATÓRIO DE MEDIÇÃO"],
-      [],
-      ["WBS", "CÓD.", "DESCRIÇÃO", "UND", "QTD", "P. UNIT", "TOTAL"]
-    ];
-    const rows = flattenedItems.map(i => [i.wbs, i.cod || "", i.name, i.unit, i.contractQuantity, i.unitPrice, i.contractTotal]);
-    const ws = XLSX.utils.aoa_to_sheet([...header, ...rows]);
-    XLSX.utils.book_append_sheet(wb, ws, "Medicao");
-    XLSX.writeFile(wb, `Medicao_${project.name}.xlsx`);
-  },
-
   parseAndValidate: async (file: File): Promise<ImportResult> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -193,7 +217,7 @@ export const excelService = {
               unit: String(row[4] || (type === 'category' ? "" : "un")),
               contractQuantity: qty,
               unitPriceNoBdi: priceNoBdi,
-              unitPrice: 0, // Calculado depois pelo treeService aplicando BDI
+              unitPrice: 0,
               contractTotal: 0,
               previousQuantity: 0,
               previousTotal: 0,
@@ -211,7 +235,6 @@ export const excelService = {
             if (wbs) wbsMap.set(wbs, item);
           });
 
-          // Resolver parentesco via WBS
           importedItems.forEach(item => {
             if (item.wbs.includes('.')) {
               const parts = item.wbs.split('.');

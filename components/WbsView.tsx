@@ -61,10 +61,10 @@ export const WbsView: React.FC<WbsViewProps> = ({
     <div className="space-y-6 animate-in fade-in duration-300">
       <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx, .xls" onChange={handleFileChange} />
 
-      {/* TOOLBAR DA PLANILHA */}
       <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <button 
+            type="button"
             disabled={isReadOnly}
             onClick={() => onOpenModal('item', null, null)} 
             className="px-6 py-3 bg-indigo-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg shadow-indigo-500/10 disabled:opacity-30"
@@ -72,6 +72,7 @@ export const WbsView: React.FC<WbsViewProps> = ({
             <Plus size={14} className="inline mr-1"/> Novo Item
           </button>
           <button 
+            type="button"
             disabled={isReadOnly}
             onClick={() => onOpenModal('category', null, null)} 
             className="px-6 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-black uppercase tracking-widest text-[9px] rounded-xl disabled:opacity-30"
@@ -81,10 +82,11 @@ export const WbsView: React.FC<WbsViewProps> = ({
           
           <div className="hidden sm:block w-px h-6 bg-slate-100 dark:bg-slate-800 mx-1" />
           
-          <button onClick={() => excelService.downloadTemplate()} className="p-2 text-slate-400 hover:text-indigo-600 transition-colors" title="Download Template Excel">
+          <button type="button" onClick={() => excelService.downloadTemplate()} className="p-2 text-slate-400 hover:text-indigo-600 transition-colors" title="Download Template Excel">
             <FileSpreadsheet size={18}/>
           </button>
           <button 
+            type="button"
             disabled={isReadOnly || isImporting}
             onClick={() => fileInputRef.current?.click()} 
             className="p-2 text-slate-400 hover:text-emerald-600 transition-colors disabled:opacity-30" 
@@ -92,7 +94,7 @@ export const WbsView: React.FC<WbsViewProps> = ({
           >
             {isImporting ? <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" /> : <UploadCloud size={18}/>}
           </button>
-          <button onClick={() => excelService.exportProjectToExcel(project, flattenedList)} className="p-2 text-slate-400 hover:text-blue-600 transition-colors" title="Exportar para Excel">
+          <button type="button" onClick={() => excelService.exportProjectToExcel(project)} className="p-2 text-slate-400 hover:text-blue-600 transition-colors" title="Exportar para Excel">
             <Download size={18}/>
           </button>
         </div>
@@ -154,10 +156,15 @@ export const WbsView: React.FC<WbsViewProps> = ({
         />
       </div>
 
-      {/* MODAL DE CONFIRMAÇÃO DE IMPORTAÇÃO */}
       {importSummary && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden">
+        <div 
+          className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300"
+          onClick={() => setImportSummary(null)}
+        >
+          <div 
+            className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="px-8 pt-8 pb-4 flex items-center justify-between border-b border-slate-50 dark:border-slate-800">
               <div className="flex items-center gap-3">
                 <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-2xl">
@@ -168,7 +175,13 @@ export const WbsView: React.FC<WbsViewProps> = ({
                   <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Planilha Processada com Sucesso</p>
                 </div>
               </div>
-              <button onClick={() => setImportSummary(null)} className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"><X size={20} /></button>
+              <button 
+                type="button" 
+                onClick={() => setImportSummary(null)} 
+                className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
+              >
+                <X size={20} />
+              </button>
             </div>
 
             <div className="p-8 space-y-6">
@@ -203,10 +216,18 @@ export const WbsView: React.FC<WbsViewProps> = ({
             </div>
 
             <div className="px-8 py-6 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-3">
-              <button onClick={confirmImport} className="w-full py-5 bg-emerald-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-emerald-500/20 active:scale-95 transition-all flex items-center justify-center gap-2">
+              <button 
+                type="button" 
+                onClick={confirmImport} 
+                className="w-full py-5 bg-emerald-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-emerald-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+              >
                 <CheckCircle2 size={18} /> Confirmar Importação
               </button>
-              <button onClick={() => setImportSummary(null)} className="w-full py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+              <button 
+                type="button" 
+                onClick={() => setImportSummary(null)} 
+                className="w-full py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+              >
                 Cancelar e Descartar
               </button>
             </div>
