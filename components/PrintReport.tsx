@@ -21,153 +21,166 @@ interface PrintReportProps {
 export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, companyCnpj, data, stats }) => {
   const theme = project.theme;
 
-  const dynamicStyles = `
+  // Estilos Injetados para Precisão Milimétrica (PDF Pro)
+  const styles = `
     .print-report-area {
       font-family: '${theme.fontFamily}', sans-serif !important;
-      width: 100% !important;
-      margin: 0 !important;
-      padding: 5mm !important;
-      background: white !important;
-      color: black !important;
-      font-size: 8pt !important;
+      color: #000 !important;
+      line-height: 1.2;
     }
 
-    .print-report-area * {
-      box-sizing: border-box !important;
+    .report-header-title {
+      font-size: 18pt !important;
+      font-weight: 900 !important;
+      letter-spacing: -0.5pt !important;
+      text-transform: uppercase;
     }
 
-    .print-report-area table {
-      width: 100% !important;
-      border-collapse: collapse !important;
-      margin-bottom: 10px !important;
-      table-layout: fixed !important; /* Força ocupação de largura total */
+    .report-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
     }
 
-    .print-report-area th, .print-report-area td {
-      border: 0.5pt solid ${theme.border} !important;
-      padding: 2pt 3pt !important;
-      vertical-align: middle !important;
-      font-size: 6.5pt !important;
-      word-wrap: break-word !important;
+    .report-table th, .report-table td {
+      border: 0.4pt solid #000 !important;
+      padding: 1.5pt 2pt !important;
+      vertical-align: middle;
+      font-size: 5.8pt !important;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
-    .print-header-bg {
+    .report-table thead th {
       background-color: ${theme.header.bg} !important;
       color: ${theme.header.text} !important;
-      -webkit-print-color-adjust: exact !important;
+      font-weight: 900;
+      text-align: center;
+      text-transform: uppercase;
+      font-size: 5pt !important;
     }
 
-    .print-category-bg {
+    .report-table .cat-row {
       background-color: ${theme.category.bg} !important;
       color: ${theme.category.text} !important;
-      -webkit-print-color-adjust: exact !important;
+      font-weight: 800;
     }
 
-    .print-footer-bg {
-      background-color: ${theme.footer.bg} !important;
-      color: ${theme.footer.text} !important;
-      -webkit-print-color-adjust: exact !important;
+    .report-table .accent-cell {
+      background-color: ${theme.accent}15 !important;
+      color: ${theme.accent} !important;
+      font-weight: 900;
     }
 
-    .text-accent { color: ${theme.accent} !important; }
-    .bg-accent { 
-      background-color: ${theme.accent} !important; 
-      color: ${theme.accentText} !important; 
-      -webkit-print-color-adjust: exact !important;
+    .kpi-card {
+      border: 0.8pt solid #000;
+      padding: 6pt;
+      text-align: center;
+      border-radius: 4pt;
     }
 
-    /* Colunas Específicas */
-    .col-wbs { width: 35pt !important; text-align: center; }
-    .col-cod { width: 45pt !important; text-align: center; }
-    .col-fonte { width: 40pt !important; text-align: center; }
-    .col-desc { width: auto !important; text-align: left; }
-    .col-und { width: 30pt !important; text-align: center; }
-    .col-price { width: 55pt !important; text-align: right; }
-    .col-qty { width: 40pt !important; text-align: center; }
-    .col-total { width: 65pt !important; text-align: right; }
-    .col-perc { width: 35pt !important; text-align: center; }
+    .kpi-card .label {
+      font-size: 5pt;
+      font-weight: 900;
+      text-transform: uppercase;
+      color: #666;
+      margin-bottom: 2pt;
+    }
+
+    .kpi-card .value {
+      font-size: 10pt;
+      font-weight: 900;
+    }
+
+    /* Larguras Fixas das Colunas (A4 Paisagem = 277mm área útil) */
+    .col-item { width: 22pt; }
+    .col-cod { width: 35pt; }
+    .col-fonte { width: 30pt; }
+    .col-desc { width: auto; text-align: left !important; white-space: normal !important; }
+    .col-und { width: 18pt; }
+    .col-unit { width: 38pt; }
+    .col-qty { width: 32pt; }
+    .col-total { width: 50pt; }
+    .col-perc { width: 22pt; }
 
     .no-break { page-break-inside: avoid !important; }
-    
-    .border-top-thick { border-top: 2pt solid ${theme.primary} !important; }
   `;
 
   return (
     <div className="print-report-area">
-      <style dangerouslySetInnerHTML={{ __html: dynamicStyles }} />
-      
-      {/* CABEÇALHO GRID 100% LARGURA */}
-      <div className="flex items-start justify-between border-b-2 mb-4 pb-4" style={{ borderColor: theme.primary }}>
-        <div className="flex items-center gap-5">
+      <style dangerouslySetInnerHTML={{ __html: styles }} />
+
+      {/* CABEÇALHO TÉCNICO */}
+      <div className="flex items-center justify-between mb-4 border-b-2 pb-4" style={{ borderColor: theme.primary }}>
+        <div className="flex items-center gap-4">
           {project.logo ? (
-            <img src={project.logo} className="h-16 w-auto object-contain" alt="Logo" />
+            <img src={project.logo} className="h-14 w-auto object-contain" alt="Branding" />
           ) : (
-            <div className="w-14 h-14 bg-black text-white flex items-center justify-center rounded print-header-bg">
-              <HardHat size={32} />
+            <div className="w-12 h-12 bg-black text-white flex items-center justify-center rounded">
+              <HardHat size={24} />
             </div>
           )}
-          <div className="flex flex-col">
-            <h1 className="text-xl font-black uppercase tracking-tight m-0" style={{ color: theme.primary }}>
-              {companyName || project.companyName}
-            </h1>
-            <p className="text-[8pt] font-bold text-slate-600 m-0 uppercase opacity-70">
-              {companyCnpj ? `CNPJ: ${companyCnpj}` : 'Controle de Medição Técnica'}
-            </p>
+          <div>
+            <div className="report-header-title" style={{ color: theme.primary }}>{companyName || project.companyName}</div>
+            <div className="text-[7pt] font-black opacity-60 uppercase tracking-widest">
+              CNPJ: {companyCnpj || '12345232143523'}
+            </div>
           </div>
         </div>
-        
+
         <div className="text-right">
-          <h2 className="text-xl font-black uppercase m-0" style={{ color: theme.primary }}>Planilha de Medição</h2>
-          <div className="mt-2 flex items-center justify-end gap-3">
-             <div className="px-4 py-1 rounded bg-accent font-black text-[9pt]">
-                MEDIÇÃO Nº {project.measurementNumber}
-             </div>
-             <span className="text-slate-500 font-bold text-[8pt] uppercase">Data: {project.referenceDate || '—'}</span>
+          <div className="report-header-title" style={{ color: theme.primary }}>Planilha de Medição</div>
+          <div className="flex items-center justify-end gap-2 mt-1">
+            <span className="bg-black text-white px-3 py-0.5 rounded text-[7pt] font-black uppercase" style={{ backgroundColor: theme.header.bg, color: theme.header.text }}>
+              Medição nº {project.measurementNumber}
+            </span>
+            <span className="text-[7pt] font-bold text-slate-500 uppercase">Data: {project.referenceDate}</span>
           </div>
         </div>
       </div>
 
       {/* QUADRO DE INFOS DA OBRA */}
-      <div className="flex border border-black mb-4 no-break">
+      <div className="flex border border-black mb-4 font-black uppercase text-[6pt]">
         <div className="flex-1 p-2 border-r border-black">
-          <label className="block text-[6pt] font-black text-slate-400 uppercase leading-none mb-1">Obra</label>
-          <span className="text-[9pt] font-black uppercase leading-none">{project.name}</span>
+          <div className="text-[4.5pt] text-slate-400 mb-0.5">Obra</div>
+          <div className="text-[8pt]">{project.name}</div>
         </div>
         <div className="flex-1 p-2 border-r border-black">
-          <label className="block text-[6pt] font-black text-slate-400 uppercase leading-none mb-1">Local da Obra</label>
-          <span className="text-[8pt] font-bold uppercase leading-none">{project.location || 'Não Informada'}</span>
+          <div className="text-[4.5pt] text-slate-400 mb-0.5">Local da Obra</div>
+          <div className="text-[7pt]">{project.location || 'Não Definido'}</div>
         </div>
         <div className="w-48 p-2 text-right">
-          <label className="block text-[6pt] font-black text-slate-400 uppercase leading-none mb-1">Status Físico Global</label>
-          <span className="text-[10pt] font-black text-accent leading-none">{stats.progress.toFixed(2)}% Concluído</span>
+          <div className="text-[4.5pt] text-slate-400 mb-0.5">Status Físico Global</div>
+          <div className="text-[8pt]" style={{ color: theme.accent }}>{stats.progress.toFixed(2)}% Concluído</div>
         </div>
       </div>
 
-      {/* TABELA DE MEDIÇÃO */}
-      <table>
+      {/* TABELA DE MEDIÇÃO (18 COLUNAS) */}
+      <table className="report-table">
         <thead>
-          <tr className="print-header-bg font-black uppercase text-center">
-            <th rowSpan={2} className="col-wbs">ITEM</th>
+          <tr>
+            <th rowSpan={2} className="col-item">ITEM</th>
             <th rowSpan={2} className="col-cod">CÓD</th>
             <th rowSpan={2} className="col-fonte">FONTE</th>
             <th rowSpan={2} className="col-desc">DESCRIÇÃO</th>
             <th rowSpan={2} className="col-und">UND</th>
-            <th colSpan={2} className="col-price">UNITÁRIO (R$)</th>
-            <th rowSpan={2} className="col-qty">QTD. CONTR.</th>
-            <th rowSpan={2} className="col-total">TOTAL CONTRATADO</th>
-            <th colSpan={2} className="col-total">ACUM. ANTERIOR</th>
-            <th colSpan={2} className="col-total bg-accent" style={{ backgroundColor: theme.accent + '22' }}>MEDIÇÃO DO PERÍODO</th>
-            <th colSpan={2} className="col-total">ACUM. TOTAL</th>
-            <th colSpan={2} className="col-total">SALDO A REALIZAR</th>
-            <th rowSpan={2} className="col-perc">% EXEC.</th>
+            <th colSpan={2}>UNITÁRIO (R$)</th>
+            <th rowSpan={2} className="col-qty">QTD. CONTRATADA</th>
+            <th rowSpan={2} className="col-total">TOTAL (R$) CONTRATADO</th>
+            <th colSpan={2}>ACUM. ANTERIOR</th>
+            <th colSpan={2} style={{ backgroundColor: theme.accent }}>MEDIÇÃO DO PERÍODO</th>
+            <th colSpan={2}>ACUM. TOTAL</th>
+            <th colSpan={2}>SALDO A REALIZAR</th>
+            <th rowSpan={2} className="col-perc">% EXEC..</th>
           </tr>
-          <tr className="print-header-bg font-bold text-[5pt] text-center">
-            <th className="col-price">S/ BDI</th>
-            <th className="col-price">C/ BDI</th>
+          <tr style={{ filter: 'brightness(90%)' }}>
+            <th className="col-unit">S/ BDI</th>
+            <th className="col-unit">C/ BDI</th>
             <th className="col-qty">QUANT.</th>
             <th className="col-total">TOTAL (R$)</th>
-            <th className="col-qty text-accent">QUANT.</th>
-            <th className="col-total text-accent">TOTAL (R$)</th>
+            <th className="col-qty">QUANT.</th>
+            <th className="col-total">TOTAL (R$)</th>
             <th className="col-qty">QUANT.</th>
             <th className="col-total">TOTAL (R$)</th>
             <th className="col-qty">QUANT.</th>
@@ -178,92 +191,93 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, 
           {data.map((item) => {
             const isCat = item.type === 'category';
             return (
-              <tr key={item.id} className={`${isCat ? 'print-category-bg font-black' : ''} text-center`}>
-                <td className="col-wbs font-mono">{item.wbs}</td>
-                <td className="col-cod">{item.cod || '-'}</td>
-                <td className="col-fonte">{item.fonte || '-'}</td>
-                <td className="col-desc uppercase" style={{ paddingLeft: isCat ? '3pt' : (item.depth * 5 + 8) + 'pt' }}>
-                  {item.name.trim()}
+              <tr key={item.id} className={isCat ? 'cat-row' : ''}>
+                <td className="text-center font-mono">{item.wbs}</td>
+                <td className="text-center">{item.cod || '-'}</td>
+                <td className="text-center uppercase">{item.fonte || '-'}</td>
+                <td className="col-desc uppercase" style={{ paddingLeft: isCat ? '2pt' : (item.depth * 5 + 6) + 'pt' }}>
+                  {item.name}
                 </td>
-                <td className="col-und">{isCat ? '-' : item.unit}</td>
+                <td className="text-center">{isCat ? '-' : item.unit}</td>
                 
-                <td className="col-price">{!isCat ? financial.formatVisual(item.unitPriceNoBdi) : '-'}</td>
-                <td className="col-price font-bold">{!isCat ? financial.formatVisual(item.unitPrice) : '-'}</td>
+                <td className="text-right">{!isCat ? financial.formatVisual(item.unitPriceNoBdi) : '-'}</td>
+                <td className="text-right font-black">{!isCat ? financial.formatVisual(item.unitPrice) : '-'}</td>
 
-                <td className="col-qty">{!isCat ? item.contractQuantity : '-'}</td>
-                <td className="col-total font-bold">{financial.formatVisual(item.contractTotal)}</td>
+                <td className="text-center">{!isCat ? item.contractQuantity : '-'}</td>
+                <td className="text-right font-black">{financial.formatVisual(item.contractTotal)}</td>
 
-                <td className="col-qty">{!isCat ? item.previousQuantity : '-'}</td>
-                <td className="col-total">{financial.formatVisual(item.previousTotal)}</td>
+                <td className="text-center">{!isCat ? item.previousQuantity : '-'}</td>
+                <td className="text-right">{financial.formatVisual(item.previousTotal)}</td>
 
-                {/* COLUNAS DE MEDIÇÃO ATUAL - DESTAQUE */}
-                <td className="col-qty font-black text-accent" style={{ backgroundColor: theme.accent + '08' }}>
-                  {!isCat ? (item.currentQuantity === 0 ? '-' : item.currentQuantity) : '-'}
-                </td>
-                <td className="col-total font-black text-accent" style={{ backgroundColor: theme.accent + '08' }}>
-                  {financial.formatVisual(item.currentTotal)}
-                </td>
+                <td className="text-center accent-cell">{!isCat ? (item.currentQuantity || '-') : '-'}</td>
+                <td className="text-right accent-cell">{financial.formatVisual(item.currentTotal)}</td>
 
-                <td className="col-qty font-bold">{!isCat ? item.accumulatedQuantity : '-'}</td>
-                <td className="col-total font-bold">{financial.formatVisual(item.accumulatedTotal)}</td>
+                <td className="text-center font-bold">{!isCat ? item.accumulatedQuantity : '-'}</td>
+                <td className="text-right font-bold">{financial.formatVisual(item.accumulatedTotal)}</td>
 
-                <td className="col-qty">{!isCat ? item.balanceQuantity : '-'}</td>
-                <td className="col-total">{financial.formatVisual(item.balanceTotal)}</td>
+                <td className="text-center">{!isCat ? item.balanceQuantity : '-'}</td>
+                <td className="text-right">{financial.formatVisual(item.balanceTotal)}</td>
 
-                <td className="col-perc font-black">{item.accumulatedPercentage.toFixed(1)}%</td>
+                <td className="text-center font-black">{item.accumulatedPercentage.toFixed(1)}%</td>
               </tr>
             );
           })}
         </tbody>
         <tfoot>
-          <tr className="print-footer-bg font-black uppercase text-[7.5pt] text-center">
-            <td colSpan={8} className="text-right py-3 pr-4">TOTAIS GERAIS DA MEDIÇÃO</td>
-            <td className="text-right px-2">{financial.formatVisual(stats.contract)}</td>
+          <tr className="font-black uppercase text-center" style={{ backgroundColor: theme.footer.bg, color: theme.footer.text }}>
+            <td colSpan={8} className="text-right py-2 pr-2">TOTAIS GERAIS DA MEDIÇÃO</td>
+            <td className="text-right">{financial.formatVisual(stats.contract)}</td>
             <td></td>
-            <td className="text-right px-2">{financial.formatVisual(stats.accumulated - stats.current)}</td>
+            <td className="text-right">{financial.formatVisual(stats.accumulated - stats.current)}</td>
             <td></td>
-            <td className="text-right px-2 bg-accent">{financial.formatVisual(stats.current)}</td>
+            <td className="text-right" style={{ color: theme.accentText }}>{financial.formatVisual(stats.current)}</td>
             <td></td>
-            <td className="text-right px-2">{financial.formatVisual(stats.accumulated)}</td>
+            <td className="text-right">{financial.formatVisual(stats.accumulated)}</td>
             <td></td>
-            <td className="text-right px-2">{financial.formatVisual(stats.balance)}</td>
-            <td className="text-center">{stats.progress.toFixed(1)}%</td>
+            <td className="text-right">{financial.formatVisual(stats.balance)}</td>
+            <td>{stats.progress.toFixed(1)}%</td>
           </tr>
         </tfoot>
       </table>
 
-      {/* DASHBOARD DE KPI NO RODAPÉ */}
+      {/* DASHBOARD KPI (RODAPÉ) */}
       <div className="grid grid-cols-4 gap-4 mt-6 no-break">
-        <KpiBox label="Valor Total Contrato" value={financial.formatBRL(stats.contract)} border={theme.border} />
-        <KpiBox label="Medição do Período" value={financial.formatBRL(stats.current)} border={theme.accent} isHighlight color={theme.accent} />
-        <KpiBox label="Acumulado Atual" value={financial.formatBRL(stats.accumulated)} border={theme.border} />
-        <KpiBox label="Saldo a Executar" value={financial.formatBRL(stats.balance)} border={theme.border} />
+        <div className="kpi-card">
+          <div className="label">Valor Total Contrato</div>
+          <div className="value">{financial.formatBRL(stats.contract)}</div>
+        </div>
+        <div className="kpi-card" style={{ borderColor: theme.accent, backgroundColor: theme.accent + '05' }}>
+          <div className="label" style={{ color: theme.accent }}>Medição do Período</div>
+          <div className="value" style={{ color: theme.accent }}>{financial.formatBRL(stats.current)}</div>
+        </div>
+        <div className="kpi-card">
+          <div className="label">Acumulado Atual</div>
+          <div className="value">{financial.formatBRL(stats.accumulated)}</div>
+        </div>
+        <div className="kpi-card">
+          <div className="label">Saldo a Executar</div>
+          <div className="value">{financial.formatBRL(stats.balance)}</div>
+        </div>
       </div>
 
-      {/* BLOCO DE ASSINATURAS */}
-      <div className="mt-12 grid grid-cols-3 gap-12 text-center no-break px-10">
-        <SignatureField label="RESPONSÁVEL TÉCNICO" sub="CREA/CAU" border={theme.border} />
-        <SignatureField label="FISCALIZAÇÃO" sub="Assinatura e Carimbo" border={theme.border} />
-        <SignatureField label="GESTOR DO CONTRATO" sub="Liberação Financeira" border={theme.border} />
+      {/* ASSINATURAS */}
+      <div className="mt-16 grid grid-cols-3 gap-12 text-center no-break px-6">
+        <div>
+          <div className="border-t border-black mb-1"></div>
+          <div className="text-[7pt] font-black uppercase">Responsável Técnico</div>
+          <div className="text-[5pt] font-bold text-slate-400">CREA/CAU / CONTRATADA</div>
+        </div>
+        <div>
+          <div className="border-t border-black mb-1"></div>
+          <div className="text-[7pt] font-black uppercase">Fiscalização</div>
+          <div className="text-[5pt] font-bold text-slate-400">ASSINATURA E CARIMBO / CONTRATANTE</div>
+        </div>
+        <div>
+          <div className="border-t border-black mb-1"></div>
+          <div className="text-[7pt] font-black uppercase">Gestor do Contrato</div>
+          <div className="text-[5pt] font-bold text-slate-400">LIBERAÇÃO FINANCEIRA</div>
+        </div>
       </div>
     </div>
   );
 };
-
-const KpiBox = ({ label, value, border, isHighlight, color }: any) => (
-  <div 
-    className="p-3 text-center rounded flex flex-col items-center justify-center bg-white" 
-    style={{ border: `${isHighlight ? '1.5pt' : '0.5pt'} solid ${border}`, backgroundColor: isHighlight ? color + '05' : 'transparent' }}
-  >
-    <span className={`text-[6pt] font-black uppercase mb-1 ${isHighlight ? '' : 'opacity-60'}`} style={{ color: isHighlight ? color : 'black' }}>{label}</span>
-    <span className="text-[11pt] font-black" style={{ color: isHighlight ? color : 'black' }}>{value}</span>
-  </div>
-);
-
-const SignatureField = ({ label, sub, border }: any) => (
-  <div className="flex flex-col items-center">
-    <div className="w-full border-t border-black mb-2" style={{ borderColor: border }}></div>
-    <p className="text-[7pt] font-black uppercase m-0 leading-tight">{label}</p>
-    <p className="text-[6pt] font-bold text-slate-500 m-0 uppercase opacity-70">{sub}</p>
-  </div>
-);
