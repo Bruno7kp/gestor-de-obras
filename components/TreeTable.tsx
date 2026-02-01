@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { WorkItem } from '../types';
 import { financial } from '../utils/math';

@@ -1,4 +1,3 @@
-
 export const financial = {
   /**
    * Arredondamento financeiro padrão (2 casas decimais).
@@ -21,7 +20,7 @@ export const financial = {
 
   /**
    * Formata um número com símbolo customizado.
-   * Se nenhum símbolo for passado, tenta buscar do contexto ou usa R$.
+   * Se nenhum símbolo for passado, usa R$.
    */
   formatVisual: (value: number, symbol: string = 'R$'): string => {
     const formatted = new Intl.NumberFormat('pt-BR', {

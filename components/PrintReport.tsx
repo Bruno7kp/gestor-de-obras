@@ -19,7 +19,6 @@ interface PrintReportProps {
 }
 
 export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, companyCnpj, data, stats }) => {
-  // Mesclagem segura do tema atual com os padrões para aplicação dinâmica
   const theme = {
     ...DEFAULT_THEME,
     ...project.theme,
@@ -30,6 +29,7 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, 
   };
 
   const REPORT_WIDTH = "800pt";
+  const currencySymbol = theme.currencySymbol || 'R$';
 
   const dynamicStyles = `
     .print-report-area {
@@ -48,6 +48,7 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, 
       background: white !important;
       padding-bottom: 0 !important;
       height: auto !important;
+      min-height: 0 !important;
     }
 
     .report-table {
@@ -170,7 +171,7 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, 
           </div>
         </div>
 
-        {/* TABELA - Onde financial.formatVisual agora retorna R$ automaticamente */}
+        {/* TABELA */}
         <table className="report-table">
           <thead>
             <tr>
@@ -179,7 +180,7 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, 
               <th rowSpan={2} className="col-fonte">FONTE</th>
               <th rowSpan={2} className="col-desc">DESCRIÇÃO</th>
               <th rowSpan={2} className="col-und">UND</th>
-              <th colSpan={2}>UNITÁRIO (R$)</th>
+              <th colSpan={2}>UNITÁRIO ({currencySymbol})</th>
               <th rowSpan={2} className="col-qty">QTD CONTR</th>
               <th rowSpan={2} className="col-total">TOTAL CONTR</th>
               <th colSpan={2}>ACUM. ANTERIOR</th>
@@ -211,18 +212,18 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, 
                   <td className="text-center">{item.fonte || '-'}</td>
                   <td className="col-desc" style={{ paddingLeft: isCat ? '2pt' : (item.depth * 6 + 6) + 'pt' }}>{item.name}</td>
                   <td className="text-center">{isCat ? '-' : item.unit}</td>
-                  <td className="text-right">{!isCat ? financial.formatVisual(item.unitPriceNoBdi) : '-'}</td>
-                  <td className="text-right font-bold">{!isCat ? financial.formatVisual(item.unitPrice) : '-'}</td>
+                  <td className="text-right">{!isCat ? financial.formatVisual(item.unitPriceNoBdi, currencySymbol) : '-'}</td>
+                  <td className="text-right font-bold">{!isCat ? financial.formatVisual(item.unitPrice, currencySymbol) : '-'}</td>
                   <td className="text-center">{!isCat ? item.contractQuantity : '-'}</td>
-                  <td className="text-right font-bold">{financial.formatVisual(item.contractTotal)}</td>
+                  <td className="text-right font-bold">{financial.formatVisual(item.contractTotal, currencySymbol)}</td>
                   <td className="text-center">{!isCat ? item.previousQuantity : '-'}</td>
-                  <td className="text-right">{financial.formatVisual(item.previousTotal)}</td>
+                  <td className="text-right">{financial.formatVisual(item.previousTotal, currencySymbol)}</td>
                   <td className="text-center cell-medi-period">{!isCat ? (item.currentQuantity || '-') : '-'}</td>
-                  <td className="text-right cell-medi-period">{financial.formatVisual(item.currentTotal)}</td>
+                  <td className="text-right cell-medi-period">{financial.formatVisual(item.currentTotal, currencySymbol)}</td>
                   <td className="text-center font-bold">{!isCat ? item.accumulatedQuantity : '-'}</td>
-                  <td className="text-right font-bold">{financial.formatVisual(item.accumulatedTotal)}</td>
+                  <td className="text-right font-bold">{financial.formatVisual(item.accumulatedTotal, currencySymbol)}</td>
                   <td className="text-center">{!isCat ? item.balanceQuantity : '-'}</td>
-                  <td className="text-right">{financial.formatVisual(item.balanceTotal)}</td>
+                  <td className="text-right">{financial.formatVisual(item.balanceTotal, currencySymbol)}</td>
                   <td className="text-center font-bold">{item.accumulatedPercentage.toFixed(1)}%</td>
                 </tr>
               );
@@ -231,15 +232,15 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, 
           <tfoot>
             <tr className="footer-total-row">
               <td colSpan={8} className="p-2 pr-4">TOTAIS CONSOLIDADOS</td>
-              <td className="text-right">{financial.formatVisual(stats.contract)}</td>
+              <td className="text-right">{financial.formatVisual(stats.contract, currencySymbol)}</td>
               <td></td>
-              <td className="text-right">{financial.formatVisual(stats.accumulated - stats.current)}</td>
+              <td className="text-right">{financial.formatVisual(stats.accumulated - stats.current, currencySymbol)}</td>
               <td></td>
-              <td className="text-right" style={{ color: theme.accentText }}>{financial.formatVisual(stats.current)}</td>
+              <td className="text-right" style={{ color: theme.accentText }}>{financial.formatVisual(stats.current, currencySymbol)}</td>
               <td></td>
-              <td className="text-right">{financial.formatVisual(stats.accumulated)}</td>
+              <td className="text-right">{financial.formatVisual(stats.accumulated, currencySymbol)}</td>
               <td></td>
-              <td className="text-right">{financial.formatVisual(stats.balance)}</td>
+              <td className="text-right">{financial.formatVisual(stats.balance, currencySymbol)}</td>
               <td className="text-center">{stats.progress.toFixed(1)}%</td>
             </tr>
           </tfoot>
@@ -249,19 +250,19 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, 
         <div className="grid grid-cols-4 gap-4 mt-6">
           <div className="kpi-box p-3 text-center rounded bg-slate-50">
             <div className="text-[4.5pt] text-slate-400 uppercase font-bold">Valor Contrato</div>
-            <div className="text-[10pt] font-black">{financial.formatVisual(stats.contract)}</div>
+            <div className="text-[10pt] font-black">{financial.formatVisual(stats.contract, currencySymbol)}</div>
           </div>
           <div className="kpi-accent p-3 text-center rounded bg-white">
             <div className="text-[4.5pt] uppercase font-bold">Líquido Medição Período</div>
-            <div className="text-[10pt] font-black">{financial.formatVisual(stats.current)}</div>
+            <div className="text-[10pt] font-black">{financial.formatVisual(stats.current, currencySymbol)}</div>
           </div>
           <div className="kpi-box p-3 text-center rounded">
             <div className="text-[4.5pt] text-slate-400 uppercase font-bold">Acumulado Atual</div>
-            <div className="text-[10pt] font-black">{financial.formatVisual(stats.accumulated)}</div>
+            <div className="text-[10pt] font-black">{financial.formatVisual(stats.accumulated, currencySymbol)}</div>
           </div>
           <div className="kpi-box p-3 text-center rounded">
             <div className="text-[4.5pt] text-slate-400 uppercase font-bold">Saldo a Executar</div>
-            <div className="text-[10pt] font-black">{financial.formatVisual(stats.balance)}</div>
+            <div className="text-[10pt] font-black">{financial.formatVisual(stats.balance, currencySymbol)}</div>
           </div>
         </div>
 
