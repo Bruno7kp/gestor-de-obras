@@ -55,15 +55,19 @@ export const treeService = {
         node.contractTotal = node.currentTotal = node.accumulatedTotal = node.balanceTotal = node.accumulatedPercentage = 0;
       }
     } else {
-      // FIX: Usando truncate em vez de round para evitar que o BDI suba o preço indevidamente
+      // PRECISÃO CRÍTICA: Usando truncate para garantir que o BDI não suba centavos indevidamente
       node.unitPrice = financial.truncate((node.unitPriceNoBdi || 0) * (1 + (projectBdi || 0) / 100));
-      node.contractTotal = financial.round((node.contractQuantity || 0) * node.unitPrice);
-      node.previousTotal = financial.round((node.previousQuantity || 0) * node.unitPrice);
-      node.currentTotal = financial.round((node.currentQuantity || 0) * node.unitPrice);
+      node.contractTotal = financial.truncate((node.contractQuantity || 0) * node.unitPrice);
+      
+      node.previousTotal = financial.truncate((node.previousQuantity || 0) * node.unitPrice);
+      node.currentTotal = financial.truncate((node.currentQuantity || 0) * node.unitPrice);
+      
       node.accumulatedQuantity = financial.round((node.previousQuantity || 0) + (node.currentQuantity || 0));
-      node.accumulatedTotal = financial.round(node.accumulatedQuantity * node.unitPrice);
+      node.accumulatedTotal = financial.truncate(node.accumulatedQuantity * node.unitPrice);
+      
       node.balanceQuantity = financial.round((node.contractQuantity || 0) - node.accumulatedQuantity);
-      node.balanceTotal = financial.round(node.balanceQuantity * node.unitPrice);
+      node.balanceTotal = financial.truncate(node.balanceQuantity * node.unitPrice);
+      
       node.currentPercentage = (node.contractQuantity || 0) > 0 
         ? financial.round(((node.currentQuantity || 0) / node.contractQuantity) * 100) 
         : 0;
@@ -89,7 +93,7 @@ export const treeService = {
         node.amount = 0;
       }
     } else {
-      const baseAmount = financial.round((node.quantity || 0) * (node.unitPrice || 0));
+      const baseAmount = financial.truncate((node.quantity || 0) * (node.unitPrice || 0));
       node.amount = financial.round(baseAmount - (node.discountValue || 0));
     }
     return node;

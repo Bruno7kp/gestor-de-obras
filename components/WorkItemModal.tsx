@@ -49,10 +49,10 @@ export const WorkItemModal: React.FC<WorkItemModalProps> = ({
     if (editingItem) {
       setFormData(editingItem);
       setActiveType(editingItem.type);
-      setStrQty(financial.formatVisual(editingItem.contractQuantity || 0));
-      setStrPriceNoBdi(financial.formatVisual(editingItem.unitPriceNoBdi || 0));
-      setStrPriceWithBdi(financial.formatVisual(editingItem.unitPrice || 0));
-      setStrTotalWithBdi(financial.formatVisual(editingItem.contractTotal || 0));
+      setStrQty(financial.formatVisual(editingItem.contractQuantity || 0).replace('R$', '').trim());
+      setStrPriceNoBdi(financial.formatVisual(editingItem.unitPriceNoBdi || 0).replace('R$', '').trim());
+      setStrPriceWithBdi(financial.formatVisual(editingItem.unitPrice || 0).replace('R$', '').trim());
+      setStrTotalWithBdi(financial.formatVisual(editingItem.contractTotal || 0).replace('R$', '').trim());
     } else {
       setFormData({ name: '', parentId: null, unit: initialType === 'item' ? 'un' : '', contractQuantity: 0, unitPrice: 0, unitPriceNoBdi: 0, cod: '', fonte: 'Próprio' });
       setActiveType(initialType);
@@ -69,26 +69,27 @@ export const WorkItemModal: React.FC<WorkItemModalProps> = ({
     const currentQty = field === 'qty' ? num : financial.parseLocaleNumber(strQty);
 
     if (field === 'priceNoBdi') {
-      const pWithBdi = financial.round(num * (1 + projectBdi/100));
-      setStrPriceWithBdi(financial.formatVisual(pWithBdi));
-      setStrTotalWithBdi(financial.formatVisual(financial.round(pWithBdi * currentQty)));
+      // USANDO TRUNCATE PARA NÃO SUBIR O VALOR
+      const pWithBdi = financial.truncate(num * (1 + projectBdi/100));
+      setStrPriceWithBdi(financial.formatVisual(pWithBdi).replace('R$', '').trim());
+      setStrTotalWithBdi(financial.formatVisual(financial.truncate(pWithBdi * currentQty)).replace('R$', '').trim());
     } 
     else if (field === 'priceWithBdi') {
-      const pNoBdi = financial.round(num / (1 + projectBdi/100));
-      setStrPriceNoBdi(financial.formatVisual(pNoBdi));
-      setStrTotalWithBdi(financial.formatVisual(financial.round(num * currentQty)));
+      const pNoBdi = financial.truncate(num / (1 + projectBdi/100));
+      setStrPriceNoBdi(financial.formatVisual(pNoBdi).replace('R$', '').trim());
+      setStrTotalWithBdi(financial.formatVisual(financial.truncate(num * currentQty)).replace('R$', '').trim());
     }
     else if (field === 'totalWithBdi') {
       if (currentQty > 0) {
-        const pWithBdi = financial.round(num / currentQty);
-        const pNoBdi = financial.round(pWithBdi / (1 + projectBdi/100));
-        setStrPriceWithBdi(financial.formatVisual(pWithBdi));
-        setStrPriceNoBdi(financial.formatVisual(pNoBdi));
+        const pWithBdi = financial.truncate(num / currentQty);
+        const pNoBdi = financial.truncate(pWithBdi / (1 + projectBdi/100));
+        setStrPriceWithBdi(financial.formatVisual(pWithBdi).replace('R$', '').trim());
+        setStrPriceNoBdi(financial.formatVisual(pNoBdi).replace('R$', '').trim());
       }
     }
     else if (field === 'qty') {
       const pWithBdi = financial.parseLocaleNumber(strPriceWithBdi);
-      setStrTotalWithBdi(financial.formatVisual(financial.round(pWithBdi * num)));
+      setStrTotalWithBdi(financial.formatVisual(financial.truncate(pWithBdi * num)).replace('R$', '').trim());
     }
   };
 
@@ -104,7 +105,6 @@ export const WorkItemModal: React.FC<WorkItemModalProps> = ({
     
     const result = WorkItemSchema.safeParse(finalData);
     if (result.success) {
-      // Passamos result.data que agora inclui cod e fonte garantidos pelo schema
       onSave(result.data);
       onClose();
     } else {
