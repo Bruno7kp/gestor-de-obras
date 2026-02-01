@@ -197,8 +197,8 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, 
               <th rowSpan={2} className="col-desc">DESCRIÇÃO</th>
               <th rowSpan={2} className="col-und">UND</th>
               <th colSpan={2}>UNITÁRIO ({currencySymbol})</th>
-              <th rowSpan={2} className="col-qty">QTD CONTR</th>
-              <th rowSpan={2} className="col-total">TOTAL CONTR</th>
+              <th rowSpan={2} className="col-qty">QTD</th>
+              <th rowSpan={2} className="col-total">TOTAL</th>
               <th colSpan={2}>ACUM. ANTERIOR</th>
               <th colSpan={2} className="bg-medi-period">MEDIÇÃO PERÍODO</th>
               <th colSpan={2}>ACUM. TOTAL</th>
@@ -234,8 +234,8 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, 
                   <td className="text-right">{financial.formatVisual(item.contractTotal, currencySymbol)}</td>
                   <td className="text-center">{!isCat ? item.previousQuantity : '-'}</td>
                   <td className="text-right">{financial.formatVisual(item.previousTotal, currencySymbol)}</td>
-                  <td className="text-center cell-medi-period">{!isCat ? (item.currentQuantity || '-') : '-'}</td>
-                  <td className="text-right cell-medi-period">{financial.formatVisual(item.currentTotal, currencySymbol)}</td>
+                  <td className="text-center">{!isCat ? (item.currentQuantity || '-') : '-'}</td>
+                  <td className="text-right">{financial.formatVisual(item.currentTotal, currencySymbol)}</td>
                   <td className="text-center">{!isCat ? item.accumulatedQuantity : '-'}</td>
                   <td className="text-right">{financial.formatVisual(item.accumulatedTotal, currencySymbol)}</td>
                   <td className="text-center">{!isCat ? item.balanceQuantity : '-'}</td>
