@@ -130,7 +130,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
               <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl shadow-inner whitespace-nowrap">
                 <TabBtn active={tab === 'wbs'} onClick={() => setTab('wbs')} label="Planilha" icon={<Layers size={14}/>} />
                 <TabBtn active={tab === 'stats'} onClick={() => setTab('stats')} label="Análise" icon={<BarChart3 size={14}/>} />
-                <TabBtn active={tab === 'expenses'} onClick={() => setTab('expenses'} label="Financeiro" icon={<Coins size={14}/>} />
+                <TabBtn active={tab === 'expenses'} onClick={() => setTab('expenses')} label="Financeiro" icon={<Coins size={14}/>} />
                 <TabBtn active={tab === 'planning'} onClick={() => setTab('planning')} label="Planejamento" icon={<Calendar size={14}/>} />
                 <TabBtn active={tab === 'journal'} onClick={() => setTab('journal')} label="Diário" icon={<BookOpen size={14}/>} />
                 <TabBtn active={tab === 'documents'} onClick={() => setTab('documents')} label="Docs" icon={<FileText size={14}/>} />
@@ -142,7 +142,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           <div className="flex items-center justify-end gap-4">
             <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
               <button disabled={!canUndo || isViewingHistory} onClick={onUndo} className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded-lg disabled:opacity-30 transition-all"><Undo2 size={16}/></button>
-              <button disabled={!canRedo || isViewingHistory} onClick={onUndo} className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded-lg disabled:opacity-30 transition-all"><Redo2 size={16}/></button>
+              <button disabled={!canRedo || isViewingHistory} onClick={onRedo} className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded-lg disabled:opacity-30 transition-all"><Redo2 size={16}/></button>
             </div>
             <button onClick={() => window.print()} title="Gerar PDF" className="p-3 text-white bg-slate-900 dark:bg-slate-700 hover:scale-105 active:scale-95 rounded-2xl transition-all shadow-lg"><Printer size={18}/></button>
             
@@ -224,7 +224,6 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
             {tab === 'journal' && (
               <JournalView 
                 project={project}
-                // Fix: Correctly update the journal in the project state
                 onUpdateJournal={j => onUpdateProject({ journal: j })}
                 allWorkItems={project.items}
               />
@@ -318,7 +317,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                 wbs: '', 
                 order: project.items.filter(i => i.parentId === targetParentId).length,
                 unit: data.unit || 'un', 
-                contractQuantity: data.contractQuantity || 0, 
+                contractQuantity: data.unit === 'un' ? (data.contractQuantity || 0) : (data.contractQuantity || 0),
                 unitPrice: 0, 
                 unitPriceNoBdi: data.unitPriceNoBdi || 0, 
                 contractTotal: 0,

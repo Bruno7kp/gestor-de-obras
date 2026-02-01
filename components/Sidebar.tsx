@@ -75,16 +75,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {mobileOpen && <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[100] lg:hidden" onClick={() => setMobileOpen(false)} />}
       <aside className={`fixed inset-y-0 left-0 z-[110] lg:relative lg:translate-x-0 transition-all duration-300 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col ${isOpen ? 'w-72' : 'w-20'} ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         
-        {/* HEADER COM BOTÃO DE COLAPSO CORRIGIDO */}
-        <div className={`h-20 flex items-center border-b border-slate-100 dark:border-slate-800 shrink-0 px-4 ${isOpen ? 'justify-between' : 'justify-center'}`}>
-          <div className={`flex items-center gap-3 ${isOpen ? '' : 'hidden'}`}>
-            <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg"><HardHat size={20} /></div>
-            <span className="text-sm font-black tracking-tighter uppercase">ProMeasure</span>
-          </div>
+        {/* HEADER COM BOTÃO DE COLAPSO CORRIGIDO PARA MODO RECOLHIDO */}
+        <div className={`h-20 flex items-center border-b border-slate-100 dark:border-slate-800 shrink-0 ${isOpen ? 'justify-between px-6' : 'justify-center px-0'}`}>
+          {isOpen && (
+            <div className="flex items-center gap-3 animate-in fade-in duration-300">
+              <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg"><HardHat size={20} /></div>
+              <span className="text-sm font-black tracking-tighter uppercase">ProMeasure</span>
+            </div>
+          )}
           
           <button 
             onClick={() => setIsOpen(!isOpen)} 
-            className={`p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all ${!isOpen ? 'bg-slate-50 dark:bg-slate-800' : ''}`}
+            className={`p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all ${!isOpen ? 'bg-slate-50 dark:bg-slate-800 ring-1 ring-slate-200 dark:ring-slate-700' : ''}`}
             title={isOpen ? "Recolher Sidebar" : "Expandir Sidebar"}
           >
             {isOpen ? <ChevronLeft size={20}/> : <Menu size={20}/>}
