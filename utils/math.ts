@@ -1,9 +1,17 @@
+
 export const financial = {
   /**
    * Arredondamento financeiro padrão (2 casas decimais).
    */
   round: (value: number): number => {
     return Math.round((value + Number.EPSILON) * 100) / 100;
+  },
+
+  /**
+   * Truncagem financeira (2 casas decimais) - evita arredondar para cima.
+   */
+  truncate: (value: number): number => {
+    return Math.floor((value + Number.EPSILON) * 100) / 100;
   },
   
   /**
@@ -20,8 +28,6 @@ export const financial = {
 
   /**
    * Formata um número com símbolo customizado.
-   * Se nenhum símbolo for passado, usa R$.
-   * Garante que o símbolo sempre acompanhe o valor.
    */
   formatVisual: (value: number, symbol: string = 'R$'): string => {
     const formatted = new Intl.NumberFormat('pt-BR', {
@@ -49,9 +55,8 @@ export const financial = {
    */
   parseLocaleNumber: (value: string): number => {
     if (!value) return 0;
-    // Remove qualquer símbolo de moeda, espaços, pontos de milhar e troca vírgula por ponto
     const cleanValue = value
-      .replace(/[^\d,.-]/g, '') // Mantém apenas números, vírgula, ponto e sinal de menos
+      .replace(/[^\d,.-]/g, '') 
       .replace(/\./g, '')
       .replace(',', '.');
     return parseFloat(cleanValue) || 0;

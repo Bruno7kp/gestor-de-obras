@@ -253,7 +253,7 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, 
             <div className="text-[10pt] font-black">{financial.formatVisual(stats.contract, currencySymbol)}</div>
           </div>
           <div className="kpi-accent p-3 text-center rounded bg-white">
-            <div className="text-[4.5pt] uppercase font-bold">Líquido Medição Período</div>
+            <div className="text-[4.5pt] uppercase font-bold">Medição no Período</div>
             <div className="text-[10pt] font-black">{financial.formatVisual(stats.current, currencySymbol)}</div>
           </div>
           <div className="kpi-box p-3 text-center rounded">

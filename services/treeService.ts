@@ -55,7 +55,8 @@ export const treeService = {
         node.contractTotal = node.currentTotal = node.accumulatedTotal = node.balanceTotal = node.accumulatedPercentage = 0;
       }
     } else {
-      node.unitPrice = financial.round((node.unitPriceNoBdi || 0) * (1 + (projectBdi || 0) / 100));
+      // FIX: Usando truncate em vez de round para evitar que o BDI suba o preço indevidamente
+      node.unitPrice = financial.truncate((node.unitPriceNoBdi || 0) * (1 + (projectBdi || 0) / 100));
       node.contractTotal = financial.round((node.contractQuantity || 0) * node.unitPrice);
       node.previousTotal = financial.round((node.previousQuantity || 0) * node.unitPrice);
       node.currentTotal = financial.round((node.currentQuantity || 0) * node.unitPrice);
