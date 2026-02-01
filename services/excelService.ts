@@ -19,11 +19,33 @@ export interface ExpenseImportResult {
   stats: {
     categories: number;
     items: number;
+    byType: {
+      labor: number;
+      material: number;
+      revenue: number;
+    }
   };
 }
 
-const WBS_HEADERS = ["WBS", "TIPO", "CODIGO", "NOME", "UNIDADE", "QUANTIDADE", "UNITARIO_S_BDI"];
-const EXPENSE_HEADERS = ["WBS", "TIPO", "DATA", "DESCRICAO", "ENTIDADE", "UNIDADE", "QUANTIDADE", "UNITARIO", "DESCONTO", "TOTAL", "PAGO"];
+const WBS_HEADERS = ["WBS", "TIPO_ITEM", "CODIGO", "NOME", "UNIDADE", "QUANTIDADE", "UNITARIO_S_BDI"];
+const EXPENSE_HEADERS = ["WBS", "TIPO_REGISTRO", "CATEGORIA", "DATA", "DESCRICAO", "ENTIDADE", "UNIDADE", "QUANTIDADE", "UNITARIO", "DESCONTO", "TOTAL_LIQUIDO", "PAGO"];
+
+const parseVal = (v: any): number => {
+  if (v === undefined || v === null || v === '') return 0;
+  if (typeof v === 'number') return v;
+  
+  let s = String(v).trim();
+  s = s.replace(/R\$\s?/g, '').replace(/\s/g, '');
+  
+  if (s.includes(',') && s.includes('.')) {
+    s = s.replace(/\./g, '').replace(',', '.');
+  } else if (s.includes(',')) {
+    s = s.replace(',', '.');
+  }
+  
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+};
 
 export const excelService = {
   downloadTemplate: () => {
@@ -41,17 +63,55 @@ export const excelService = {
 
   downloadExpenseTemplate: () => {
     const wb = XLSX.utils.book_new();
+    
+    // Template Complexo de Demonstração
     const data = [
       EXPENSE_HEADERS,
-      ["1", "category", "", "MATERIAIS DE CONSTRUÇÃO", "", "", "", "", "", "", ""],
-      ["1.1", "category", "", "CIMENTOS E ARGAMASSAS", "", "", "", "", "", "", ""],
-      ["1.1.1", "item", "2024-05-20", "Cimento CP-II 50kg", "Votorantim", "saco", "100", "32.50", "0", "3250.00", "S"],
-      ["2", "category", "", "MÃO DE OBRA EXTERNA", "", "", "", "", "", "", ""],
-      ["2.1", "item", "2024-05-21", "Empreitada Pintura", "João Pinturas", "vb", "1", "5000.00", "500", "4500.00", "N"],
+      // GRUPO 1: MATERIAIS (MA)
+      ["1", "category", "MA", "", "01. MATERIAIS DE CONSTRUÇÃO E INSUMOS", "", "", "", "", "", "", ""],
+      ["1.1", "category", "MA", "", "01.1 INFRAESTRUTURA E CIVIL", "", "", "", "", "", "", ""],
+      ["1.1.1", "item", "MA", "2024-06-01", "Cimento CP-II 50kg (Votorantim)", "Depósito Silva", "sc", "100", "34.90", "150.00", "3340.00", "S"],
+      ["1.1.2", "item", "MA", "2024-06-02", "Areia Média Lavada", "Pedreira Vale", "m3", "15", "110.00", "0", "1650.00", "S"],
+      ["1.1.3", "item", "MA", "2024-06-03", "Aço CA-50 10.0mm", "Gerdau Store", "kg", "500", "7.85", "250.00", "3675.00", "N"],
+      ["1.2", "category", "MA", "", "01.2 ELÉTRICA E HIDRÁULICA", "", "", "", "", "", "", ""],
+      ["1.2.1", "item", "MA", "2024-06-05", "Cabo Flexível 2,5mm (Rolo 100m)", "Elétrica Central", "un", "10", "189.90", "100.00", "1799.00", "S"],
+      ["1.2.2", "item", "MA", "2024-06-05", "Tubo PVC 100mm Esgoto", "Tigre Oficial", "un", "25", "45.00", "0", "1125.00", "S"],
+      
+      // GRUPO 2: MÃO DE OBRA (MO)
+      ["2", "category", "MO", "", "02. MÃO DE OBRA E SERVIÇOS TÉCNICOS", "", "", "", "", "", "", ""],
+      ["2.1", "category", "MO", "", "02.1 EQUIPE INTERNA", "", "", "", "", "", "", ""],
+      ["2.1.1", "item", "MO", "2024-06-15", "Folha de Pagamento - Junho", "Colaboradores Diversos", "vb", "1", "12500.00", "0", "12500.00", "S"],
+      ["2.2", "category", "MO", "", "02.2 TERCEIRIZADOS E EMPREITADAS", "", "", "", "", "", "", ""],
+      ["2.2.1", "item", "MO", "2024-06-18", "Instalação de Forro de Gesso", "Gesso Decor Ltda", "m2", "145", "45.00", "500.00", "6025.00", "N"],
+      ["2.2.2", "item", "MO", "2024-06-20", "Pintura Externa - Etapa 01", "Pinturas Rápidas", "vb", "1", "8500.00", "850.00", "7650.00", "S"],
+
+      // GRUPO 3: RECEITAS (RE)
+      ["3", "category", "RE", "", "03. FATURAMENTO E APORTES (RECEITAS)", "", "", "", "", "", "", ""],
+      ["3.1", "item", "RE", "2024-06-10", "Medição #01 - Cliente Residencial", "Família Souza", "vb", "1", "25000.00", "0", "25000.00", "S"],
+      ["3.2", "item", "RE", "2024-06-25", "Adiantamento para Acabamentos", "Família Souza", "vb", "1", "15000.00", "0", "15000.00", "N"],
+      ["3.3", "item", "RE", "2024-06-28", "Reembolso Materiais Extras", "Condomínio Edgard", "vb", "1", "2450.00", "0", "2450.00", "S"]
     ];
+
     const ws = XLSX.utils.aoa_to_sheet(data);
-    XLSX.utils.book_append_sheet(wb, ws, "Template_Gastos");
-    XLSX.writeFile(wb, "ProMeasure_Template_Gastos.xlsx");
+    
+    // Estilização básica de larguras de coluna (apenas para o arquivo gerado)
+    ws['!cols'] = [
+      { wch: 10 }, // WBS
+      { wch: 15 }, // TIPO_REGISTRO
+      { wch: 12 }, // CATEGORIA
+      { wch: 12 }, // DATA
+      { wch: 40 }, // DESCRICAO
+      { wch: 25 }, // ENTIDADE
+      { wch: 8 },  // UNIDADE
+      { wch: 12 }, // QUANTIDADE
+      { wch: 15 }, // UNITARIO
+      { wch: 12 }, // DESCONTO
+      { wch: 15 }, // TOTAL_LIQUIDO
+      { wch: 8 }   // PAGO
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, "Modelo_Financeiro_Completo");
+    XLSX.writeFile(wb, "Template_Financeiro_ProMeasure_PRO.xlsx");
   },
 
   exportExpensesToExcel: (project: Project, rawExpenses: ProjectExpense[], filterType?: ExpenseType) => {
@@ -63,27 +123,31 @@ export const excelService = {
     const allIds = new Set(filtered.map(e => e.id));
     const fullFlattened = treeService.flattenTree(processedTree, allIds);
 
-    const rows = fullFlattened.map(e => [
-      e.wbs,
-      e.itemType,
-      e.itemType === 'item' ? e.date : "",
-      e.description,
-      e.itemType === 'item' ? e.entityName : "",
-      e.unit || "",
-      e.itemType === 'item' ? e.quantity : "",
-      e.itemType === 'item' ? e.unitPrice : "",
-      e.itemType === 'item' ? (e.discountValue || 0) : "",
-      e.amount,
-      e.itemType === 'item' ? (e.isPaid ? "S" : "N") : ""
-    ]);
+    const rows = fullFlattened.map(e => {
+      const typeLabel = e.type === 'labor' ? 'MO' : (e.type === 'revenue' ? 'RE' : 'MA');
+      return [
+        e.wbs,
+        e.itemType,
+        typeLabel,
+        e.itemType === 'item' ? e.date : "",
+        e.description,
+        e.itemType === 'item' ? e.entityName : "",
+        e.unit || "",
+        e.itemType === 'item' ? e.quantity : "",
+        e.itemType === 'item' ? e.unitPrice : "",
+        e.itemType === 'item' ? (e.discountValue || 0) : "",
+        e.amount,
+        e.itemType === 'item' ? (e.isPaid ? "S" : "N") : ""
+      ];
+    });
 
-    const title = filterType ? `Snapshot_${filterType}` : "Snapshot_Financeiro";
+    const title = filterType ? `Export_${filterType}` : "Export_Financeiro_Geral";
     const ws = XLSX.utils.aoa_to_sheet([EXPENSE_HEADERS, ...rows]);
     XLSX.utils.book_append_sheet(wb, ws, title);
     XLSX.writeFile(wb, `${title}_${project.name.replace(/\s+/g, '_')}.xlsx`);
   },
 
-  parseExpensesExcel: async (file: File, type: ExpenseType): Promise<ExpenseImportResult> => {
+  parseExpensesExcel: async (file: File): Promise<ExpenseImportResult> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -98,25 +162,32 @@ export const excelService = {
           const dataRows = raw.slice(1).filter(r => r.length > 0 && r[0]);
           const wbsMap = new Map<string, ProjectExpense>();
 
+          const stats = {
+            categories: 0,
+            items: 0,
+            byType: { labor: 0, material: 0, revenue: 0 }
+          };
+
           dataRows.forEach((row, idx) => {
             const wbs = String(row[0] || "").trim();
             const itemTypeStr = String(row[1] || "item").toLowerCase();
             const itemType = (itemTypeStr === 'category' || itemTypeStr === 'grupo' || itemTypeStr === 'pasta') ? 'category' : 'item';
             
-            const parseVal = (v: any) => typeof v === 'number' ? v : parseFloat(String(v || "0").replace(/\./g, '').replace(',', '.')) || 0;
-
-            const qty = itemType === 'item' ? parseVal(row[6]) || 1 : 0;
-            const unitPrice = itemType === 'item' ? parseVal(row[7]) : 0;
-            const discount = itemType === 'item' ? parseVal(row[8]) : 0;
-            const total = itemType === 'item' ? parseVal(row[9]) : 0;
+            const catLabel = String(row[2] || "MA").toUpperCase();
+            const type: ExpenseType = catLabel === 'MO' ? 'labor' : (catLabel === 'RE' ? 'revenue' : 'material');
+            
+            const qty = itemType === 'item' ? parseVal(row[7]) : 0;
+            const unitPrice = itemType === 'item' ? parseVal(row[8]) : 0;
+            const disc = itemType === 'item' ? parseVal(row[9]) : 0;
+            const total = itemType === 'item' ? parseVal(row[10]) : 0;
 
             let expenseDate = new Date().toISOString().split('T')[0];
             if (itemType === 'item') {
-              const rawDate = row[2];
+              const rawDate = row[3];
               if (rawDate instanceof Date) {
                 expenseDate = rawDate.toISOString().split('T')[0];
               } else if (rawDate) {
-                expenseDate = String(rawDate);
+                expenseDate = String(rawDate).trim();
               }
             }
 
@@ -128,28 +199,29 @@ export const excelService = {
               wbs,
               order: idx,
               date: expenseDate,
-              description: String(row[3] || "Novo Registro"),
-              entityName: itemType === 'item' ? String(row[4] || "") : "",
-              unit: String(row[5] || (itemType === 'category' ? "" : "un")),
-              quantity: qty,
-              unitPrice: unitPrice || (qty > 0 ? (total + discount) / qty : 0),
-              discountValue: discount,
-              discountPercentage: 0, 
-              amount: total || (qty * unitPrice - discount),
-              isPaid: String(row[10] || "").toUpperCase().startsWith('S') || String(row[10] || "").toUpperCase().startsWith('Y')
+              description: String(row[4] || "Importado"),
+              entityName: itemType === 'item' ? String(row[5] || "") : "",
+              unit: String(row[6] || (itemType === 'category' ? "" : "un")),
+              quantity: qty || (itemType === 'item' ? 1 : 0),
+              unitPrice: unitPrice || (total + disc),
+              discountValue: disc,
+              discountPercentage: 0,
+              amount: total || (qty * unitPrice - disc),
+              isPaid: String(row[11] || "").toUpperCase().startsWith('S')
             };
 
-            // Recalcular porcentagem de desconto para consistência
-            if (expense.amount > 0 && expense.discountValue) {
-               const base = expense.amount + expense.discountValue;
-               expense.discountPercentage = financial.round((expense.discountValue / base) * 100);
+            if (expense.unitPrice > 0 && expense.quantity > 0) {
+              const base = expense.unitPrice * expense.quantity;
+              expense.discountPercentage = base > 0 ? financial.round((expense.discountValue! / base) * 100) : 0;
             }
 
             importedExpenses.push(expense);
             if (wbs) wbsMap.set(wbs, expense);
+
+            if (itemType === 'category') stats.categories++; else stats.items++;
+            stats.byType[type]++;
           });
 
-          // Hierarquia baseada em WBS (ex: 1.1 herda de 1)
           importedExpenses.forEach(exp => {
             if (exp.wbs.includes('.')) {
               const parts = exp.wbs.split('.');
@@ -160,14 +232,7 @@ export const excelService = {
             }
           });
 
-          resolve({ 
-            expenses: importedExpenses, 
-            errors: [],
-            stats: {
-              categories: importedExpenses.filter(ex => ex.itemType === 'category').length,
-              items: importedExpenses.filter(ex => ex.itemType === 'item').length
-            }
-          });
+          resolve({ expenses: importedExpenses, errors: [], stats });
         } catch (err) { reject(err); }
       };
       reader.readAsArrayBuffer(file);
@@ -214,7 +279,6 @@ export const excelService = {
           dataRows.forEach((row, idx) => {
             const wbs = String(row[0] || "").trim();
             const type = (String(row[1] || "item").toLowerCase() === 'category' ? 'category' : 'item') as ItemType;
-            const parseVal = (v: any) => typeof v === 'number' ? v : parseFloat(String(v || "0").replace(/\./g, '').replace(',', '.')) || 0;
             
             const qty = parseVal(row[5]);
             const priceNoBdi = parseVal(row[6]);

@@ -108,10 +108,12 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                             <div {...provided.dragHandleProps} className={`p-1 transition-colors cursor-grab active:cursor-grabbing ${isRevenueTable ? 'text-emerald-200 hover:text-emerald-500' : 'text-slate-300 hover:text-indigo-500'}`}>
                               <GripVertical size={14} />
                             </div>
-                            <div className="flex flex-col">
-                              <button onClick={() => onMoveManual(item.id, 'up')} className="text-slate-300 hover:text-indigo-500"><ChevronUp size={12}/></button>
-                              <button onClick={() => onMoveManual(item.id, 'down')} className="text-slate-300 hover:text-indigo-500"><ChevronDown size={12}/></button>
-                            </div>
+                            {!isReadOnly && (
+                              <div className="flex flex-col">
+                                <button onClick={() => onMoveManual(item.id, 'up')} className="text-slate-300 hover:text-indigo-500 transition-colors"><ChevronUp size={12}/></button>
+                                <button onClick={() => onMoveManual(item.id, 'down')} className="text-slate-300 hover:text-indigo-500 transition-colors"><ChevronDown size={12}/></button>
+                              </div>
+                            )}
                           </div>
                         </td>
                         <td className="p-2 border-r border-slate-100 dark:border-slate-800 text-center">
@@ -150,8 +152,8 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                             <span className={`truncate ${item.itemType === 'category' ? 'uppercase text-[10px] font-black dark:text-slate-100' : 'text-slate-600 dark:text-slate-300'} ${item.isPaid ? 'line-through decoration-emerald-500/30' : ''}`}>{item.description}</span>
                             {item.itemType === 'category' && !isReadOnly && (
                               <div className="ml-auto lg:opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
-                                <button onClick={() => onAddChild(item.id, 'category')} className={`p-1.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500 dark:text-indigo-400 rounded-lg hover:bg-indigo-600 hover:text-white transition-all`} title="Nova Subpasta (Agrupador Financeiro)"><FolderPlus size={14} /></button>
-                                <button onClick={() => onAddChild(item.id, 'item')} className={`p-1.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-500 dark:text-emerald-400 rounded-lg hover:bg-emerald-600 hover:text-white transition-all`} title={isRevenueTable ? "Novo Item de Receita" : "Novo Lançamento / Insumo"}><FilePlus size={14} /></button>
+                                <button onClick={() => onAddChild(item.id, 'category')} className={`p-1.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500 dark:text-indigo-400 rounded-lg hover:bg-indigo-600 hover:text-white transition-all`} title="Nova Subpasta"><FolderPlus size={14} /></button>
+                                <button onClick={() => onAddChild(item.id, 'item')} className={`p-1.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-500 dark:text-emerald-400 rounded-lg hover:bg-emerald-600 hover:text-white transition-all`} title="Novo Lançamento / Insumo"><FilePlus size={14} /></button>
                               </div>
                             )}
                           </div>
@@ -192,8 +194,8 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                         <td className="p-2 text-right border-r border-slate-100 dark:border-slate-800 font-mono text-rose-500/80">
                           {item.itemType === 'item' && item.discountValue ? (
                             <div className="flex flex-col items-end">
-                              <span>-{financial.formatBRL(item.discountValue).replace('R$', '')}</span>
-                              <span className="text-[8px] font-black">{item.discountPercentage}%</span>
+                              <span className="font-bold">-{financial.formatBRL(item.discountValue).replace('R$', '')}</span>
+                              <span className="text-[8px] font-black">{item.discountPercentage}% OFF</span>
                             </div>
                           ) : '-'}
                         </td>
@@ -217,10 +219,10 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
 
                 <tr className={`${isRevenueTable ? 'bg-emerald-950' : 'bg-slate-950 dark:bg-black'} text-white font-black text-xs sticky bottom-0 z-10 shadow-2xl`}>
                   <td colSpan={5} className="p-4 text-right uppercase tracking-[0.2em] text-[10px] border-r border-white/10">
-                    {isRevenueTable ? 'Total Geral de Entradas' : 'Total Geral de Saídas'}:
+                    {isRevenueTable ? 'Total de Receitas' : 'Total de Despesas'}:
                   </td>
                   <td colSpan={6} className="p-4 border-r border-white/10 opacity-30 italic text-[9px]">
-                    Soma líquida consolidada (considerando abatimentos)
+                    Soma líquida consolidada (considerando abatimentos e descontos)
                   </td>
                   <td className={`p-4 text-right text-base tracking-tighter ${isRevenueTable ? 'text-emerald-400' : 'text-rose-400'}`}>
                     {financial.formatBRL(totalTable)}
