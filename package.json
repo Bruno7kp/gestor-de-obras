@@ -1,6 +1,6 @@
 {
   "name": "teste---gestor-de-obras-v0.4",
-  "version": "0.0.0",
+  "version": "0.4.24",
   "private": true,
   "scripts": {
     "dev": "vite",
@@ -16,9 +16,10 @@
     "@hello-pangea/dnd": "17.0.0"
   },
   "devDependencies": {
+    "vite": "^5.4.1",
+    "@vitejs/plugin-react": "^4.3.1",
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.1",
     "typescript": "^5.0.0"
   }
 }
-
