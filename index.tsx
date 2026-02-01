@@ -1,11 +1,7 @@
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { initializeApp } from './bootstrap';
-import { ErrorBoundary } from './components/ErrorBoundary';
 import App from './App';
-
-// Inicializar e limpar dados corrompidos ANTES de renderizar
-initializeApp();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -15,8 +11,6 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
+    <App />
   </React.StrictMode>
 );

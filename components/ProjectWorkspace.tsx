@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Project, WorkItem, ItemType, ProjectPlanning, ProjectExpense, ProjectJournal } from '../types';
+import { Project, WorkItem, ItemType, ProjectPlanning, ProjectExpense, ProjectJournal, GlobalSettings } from '../types';
 import { WbsView } from './WbsView';
 import { StatsView } from './StatsView';
 import { BrandingView } from './BrandingView';
@@ -20,6 +20,7 @@ import {
 
 interface ProjectWorkspaceProps {
   project: Project;
+  globalSettings: GlobalSettings;
   onUpdateProject: (data: Partial<Project>) => void;
   onCloseMeasurement: () => void;
   canUndo: boolean;
@@ -29,7 +30,7 @@ interface ProjectWorkspaceProps {
 }
 
 export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
-  project, onUpdateProject, onCloseMeasurement, canUndo, canRedo, onUndo, onRedo
+  project, globalSettings, onUpdateProject, onCloseMeasurement, canUndo, canRedo, onUndo, onRedo
 }) => {
   const [tab, setTab] = useState<'wbs' | 'planning' | 'journal' | 'stats' | 'expenses' | 'documents' | 'branding'>('wbs');
   
@@ -173,7 +174,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         </div>
       </div>
 
-      <PrintReport project={project} data={printData.flattened} expenses={project.expenses} stats={printData.stats as any} />
+      <PrintReport 
+        project={project} 
+        companyName={globalSettings.defaultCompanyName}
+        data={printData.flattened} 
+        expenses={project.expenses} 
+        stats={printData.stats as any} 
+      />
 
       {isModalOpen && (
         <WorkItemModal 

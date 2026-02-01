@@ -6,6 +6,7 @@ import { HardHat, Ruler } from 'lucide-react';
 
 interface PrintReportProps {
   project: Project;
+  companyName: string; // Nome vindo do GlobalSettings
   data: (WorkItem & { depth: number })[];
   expenses: ProjectExpense[];
   stats: {
@@ -17,10 +18,10 @@ interface PrintReportProps {
   };
 }
 
-export const PrintReport: React.FC<PrintReportProps> = ({ project, data, stats }) => {
+export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, data, stats }) => {
   return (
     <div className="print-report-area bg-white text-black p-0 leading-tight">
-      {/* CABEÇALHO INSTITUCIONAL */}
+      {/* CABEÇALHO INSTITUCIONAL - Usando companyName dos Ajustes Globais */}
       <div className="flex items-center justify-between border-b-2 border-black pb-3 mb-4">
         <div className="flex items-center gap-4">
           {project.logo ? (
@@ -31,7 +32,7 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, data, stats }
             </div>
           )}
           <div>
-            <h1 className="text-xl font-black uppercase tracking-tight leading-none">{project.companyName}</h1>
+            <h1 className="text-xl font-black uppercase tracking-tight leading-none">{companyName || project.companyName}</h1>
             <p className="text-[8px] font-bold text-slate-600 uppercase tracking-widest mt-1">Gestão Integrada de Medição de Obras</p>
           </div>
         </div>
@@ -76,7 +77,7 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, data, stats }
             <th colSpan={2} className="border border-black p-1 bg-blue-600">Medição do Período</th>
             <th colSpan={2} className="border border-black p-1 bg-slate-800">Acum. Total</th>
             <th colSpan={2} className="border border-black p-1 bg-slate-800">Saldo a Realizar</th>
-            <th rowSpan={2} className="border border-black p-1 w-8">% Exec.</th>
+            <th rowSpan={2} className="border border-black p-1 w-8">% Exec..</th>
           </tr>
           <tr className="bg-slate-800 text-white font-bold text-[6px] uppercase">
             <th className="border border-black p-0.5 w-14">S/ BDI</th>
@@ -216,10 +217,6 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, data, stats }
           <p className="text-[8px] font-black uppercase">Gestor do Contrato</p>
           <p className="text-[7px] font-bold text-slate-500 tracking-tighter">Liberação Financeira</p>
         </div>
-      </div>
-      
-      <div className="mt-8 text-center text-[6px] text-slate-400 font-bold uppercase">
-        Relatório gerado pelo sistema ProMeasure PRO v4.0 - Documento para fins de medição e faturamento físico-financeiro.
       </div>
     </div>
   );

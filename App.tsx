@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useProjectState } from './hooks/useProjectState';
 import { projectService } from './services/projectService';
@@ -138,6 +139,7 @@ const App: React.FC = () => {
         {viewMode === 'project-workspace' && activeProject && (
           <ProjectWorkspace 
             project={activeProject}
+            globalSettings={safeGlobalSettings}
             onUpdateProject={updateActiveProject}
             onCloseMeasurement={() => {}} // Reservado para versão futura de status de medição
             canUndo={false} 
