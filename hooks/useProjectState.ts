@@ -30,14 +30,6 @@ const INITIAL_JOURNAL: ProjectJournal = {
   entries: []
 };
 
-// hooks/useProjectState.ts
-case 'DELETE_PROJECT':
-  return {
-    ...state,
-    projects: state.projects.filter(p => p.id !== action.payload),
-    currentProject: state.currentProject?.id === action.payload ? null : state.currentProject
-  };
-
 export const useProjectState = () => {
   const [past, setPast] = useState<State[]>([]);
   const [present, setPresent] = useState<State>(() => {
