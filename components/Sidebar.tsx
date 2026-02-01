@@ -1,7 +1,8 @@
 
-import React from 'react';
-import { Home, Cog, PlusCircle, Briefcase, Sun, Moon, Menu, HardHat, X } from 'lucide-react';
-import { Project } from '../types';
+import React, { useState } from 'react';
+import { Home, Cog, PlusCircle, Briefcase, Sun, Moon, Menu, HardHat, X, Folder, ChevronRight, ChevronDown } from 'lucide-react';
+import { Project, ProjectGroup } from '../types';
+import { treeService } from '../services/treeService';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ interface SidebarProps {
   viewMode: string;
   setViewMode: (mode: any) => void;
   projects: Project[];
+  groups: ProjectGroup[];
   activeProjectId: string | null;
   onOpenProject: (id: string) => void;
   onCreateProject: () => void;
@@ -20,14 +22,65 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({
   isOpen, setIsOpen, mobileOpen, setMobileOpen, viewMode, setViewMode,
-  projects, activeProjectId, onOpenProject, onCreateProject, isDarkMode, toggleDarkMode
+  projects, groups, activeProjectId, onOpenProject, onCreateProject, isDarkMode, toggleDarkMode
 }) => {
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  const toggleGroup = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const next = new Set(expandedGroups);
+    next.has(id) ? next.delete(id) : next.add(id);
+    setExpandedGroups(next);
+  };
+
   const NavItem = ({ active, onClick, icon, label }: any) => (
     <button onClick={onClick} className={`w-full flex items-center gap-4 p-3.5 rounded-2xl transition-all ${active ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
       <div className="shrink-0">{icon}</div>
       {isOpen && <span className="text-[11px] font-black uppercase tracking-widest truncate">{label}</span>}
     </button>
   );
+
+  const GroupTreeItem = ({ group, depth }: { group: ProjectGroup, depth: number }) => {
+    const isExpanded = expandedGroups.has(group.id);
+    const subGroups = groups.filter(g => g.parentId === group.id);
+    const groupProjects = projects.filter(p => p.groupId === group.id);
+
+    return (
+      <div className="space-y-1">
+        <button 
+          onClick={(e) => toggleGroup(group.id, e)}
+          className={`w-full flex items-center gap-2 p-2 rounded-xl text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all`}
+          style={{ paddingLeft: `${depth * 12 + 8}px` }}
+        >
+          <div className="shrink-0 text-slate-400">
+            {isExpanded ? <ChevronDown size={14}/> : <ChevronRight size={14}/>}
+          </div>
+          <Folder size={14} className="shrink-0 text-amber-500" />
+          {isOpen && <span className="text-[10px] font-black uppercase tracking-tight truncate">{group.name}</span>}
+        </button>
+        
+        {isExpanded && (
+          <>
+            {subGroups.map(sg => <GroupTreeItem key={sg.id} group={sg} depth={depth + 1} />)}
+            {groupProjects.map(p => (
+              <button 
+                key={p.id} 
+                onClick={() => onOpenProject(p.id)}
+                className={`w-full flex items-center gap-2 p-2 rounded-xl transition-all ${activeProjectId === p.id ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600' : 'text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                style={{ paddingLeft: `${(depth + 1) * 12 + 18}px` }}
+              >
+                <Briefcase size={12} className="shrink-0" />
+                {isOpen && <span className="text-[11px] truncate">{p.name}</span>}
+              </button>
+            ))}
+          </>
+        )}
+      </div>
+    );
+  };
+
+  const rootGroups = groups.filter(g => !g.parentId);
+  const rootProjects = projects.filter(p => !p.groupId);
 
   return (
     <>
@@ -46,12 +99,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <NavItem active={viewMode === 'system-settings'} onClick={() => { setViewMode('system-settings'); setMobileOpen(false); }} icon={<Cog size={18}/>} label="Ajustes Globais" />
           
           <div className="py-6 px-3 flex items-center justify-between">
-            {isOpen && <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Obras</h3>}
-            <button onClick={onCreateProject} className="text-indigo-500 hover:scale-110 transition-transform"><PlusCircle size={16}/></button>
+            {isOpen && <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Obras por Grupo</h3>}
+            <button onClick={onCreateProject} className="text-indigo-500 hover:scale-110 transition-transform" title="Nova Obra na Raiz"><PlusCircle size={16}/></button>
           </div>
 
           <div className="space-y-1">
-            {projects.map(p => (
+            {rootGroups.map(g => <GroupTreeItem key={g.id} group={g} depth={0} />)}
+            {rootProjects.map(p => (
               <button key={p.id} onClick={() => onOpenProject(p.id)} className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${activeProjectId === p.id && viewMode === 'project-workspace' ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
                 <Briefcase size={16} className="shrink-0" />
                 {isOpen && <span className="text-xs truncate text-left">{p.name}</span>}

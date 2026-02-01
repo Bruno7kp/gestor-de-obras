@@ -113,8 +113,17 @@ export interface GlobalSettings {
   language: 'pt-BR' | 'en-US';
 }
 
+export interface ProjectGroup {
+  id: string;
+  parentId: string | null;
+  name: string;
+  order: number;
+  children?: ProjectGroup[];
+}
+
 export interface Project {
   id: string;
+  groupId: string | null; // Vínculo com pastas
   name: string;
   companyName: string;
   measurementNumber: number;

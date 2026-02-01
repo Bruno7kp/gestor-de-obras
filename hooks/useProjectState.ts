@@ -1,10 +1,11 @@
 
 import { useState, useCallback, useEffect } from 'react';
-import { Project, WorkItem, MeasurementSnapshot, DEFAULT_THEME, GlobalSettings } from '../types';
+import { Project, WorkItem, MeasurementSnapshot, DEFAULT_THEME, GlobalSettings, ProjectGroup } from '../types';
 import { treeService } from '../services/treeService';
 
 interface State {
   projects: Project[];
+  groups: ProjectGroup[];
   activeProjectId: string | null;
   globalSettings: GlobalSettings;
 }
@@ -23,8 +24,10 @@ export const useProjectState = () => {
       const parsed = JSON.parse(saved);
       return {
         ...parsed,
+        groups: parsed.groups || [],
         projects: parsed.projects.map((p: any) => ({
           ...p,
+          groupId: p.groupId || null,
           assets: p.assets || [],
           expenses: p.expenses || []
         })),
@@ -32,12 +35,10 @@ export const useProjectState = () => {
       };
     }
     
-    // Fallback para legado v4_projects se existir
-    const legacySaved = localStorage.getItem('promeasure_v4_projects');
-    const legacyParsed = legacySaved ? JSON.parse(legacySaved) : [];
     return {
-      projects: legacyParsed,
-      activeProjectId: legacyParsed.length > 0 ? legacyParsed[0].id : null,
+      projects: [],
+      groups: [],
+      activeProjectId: null,
       globalSettings: INITIAL_SETTINGS
     };
   });
@@ -51,7 +52,7 @@ export const useProjectState = () => {
   const canRedo = future.length > 0;
 
   const saveHistory = useCallback((newState: State) => {
-    setPast(prev => [...prev, present].slice(-20)); // Limite de 20 níveis de undo
+    setPast(prev => [...prev, present].slice(-20));
     setPresent(newState);
     setFuture([]);
   }, [present]);
@@ -59,32 +60,26 @@ export const useProjectState = () => {
   const undo = useCallback(() => {
     if (!canUndo) return;
     const previous = past[past.length - 1];
-    const newPast = past.slice(0, past.length - 1);
     setFuture(prev => [present, ...prev]);
     setPresent(previous);
-    setPast(newPast);
+    setPast(past.slice(0, past.length - 1));
   }, [canUndo, past, present]);
 
   const redo = useCallback(() => {
     if (!canRedo) return;
     const next = future[0];
-    const newFuture = future.slice(1);
     setPast(prev => [...prev, present]);
     setPresent(next);
-    setFuture(newFuture);
+    setFuture(future.slice(1));
   }, [canRedo, future, present]);
 
   const updateProjects = useCallback((newProjects: Project[]) => {
     saveHistory({ ...present, projects: newProjects });
   }, [present, saveHistory]);
 
-  const setGlobalSettings = useCallback((settings: GlobalSettings) => {
-    saveHistory({ ...present, globalSettings: settings });
+  const updateGroups = useCallback((newGroups: ProjectGroup[]) => {
+    saveHistory({ ...present, groups: newGroups });
   }, [present, saveHistory]);
-
-  const setActiveProjectId = useCallback((id: string | null) => {
-    setPresent(prev => ({ ...prev, activeProjectId: id }));
-  }, []);
 
   const updateActiveProject = useCallback((data: Partial<Project>) => {
     const newProjects = present.projects.map(p => 
@@ -97,10 +92,9 @@ export const useProjectState = () => {
     const activeProject = present.projects.find(p => p.id === present.activeProjectId);
     if (!activeProject) return;
 
+    const stats = treeService.calculateBasicStats(activeProject.items, activeProject.bdi);
     const tree = treeService.buildTree(activeProject.items);
     const processedTree = tree.map((r, i) => treeService.processRecursive(r, '', i, activeProject.bdi));
-    const stats = treeService.calculateBasicStats(activeProject.items, activeProject.bdi);
-    
     const processedItemsFlat = treeService.flattenTree(processedTree, new Set(activeProject.items.map(i => i.id)));
 
     const snapshot: MeasurementSnapshot = {
@@ -139,17 +133,16 @@ export const useProjectState = () => {
 
   return {
     projects: present.projects,
+    groups: present.groups,
     activeProjectId: present.activeProjectId,
     activeProject: present.projects.find(p => p.id === present.activeProjectId) || null,
     globalSettings: present.globalSettings,
-    setGlobalSettings,
-    setActiveProjectId,
+    setGlobalSettings: (s: GlobalSettings) => saveHistory({ ...present, globalSettings: s }),
+    setActiveProjectId: (id: string | null) => setPresent(prev => ({ ...prev, activeProjectId: id })),
     updateActiveProject,
     updateProjects,
+    updateGroups,
     finalizeMeasurement,
-    undo,
-    redo,
-    canUndo,
-    canRedo
+    undo, redo, canUndo, canRedo
   };
 };

@@ -1,9 +1,7 @@
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { ItemType, Project, WorkItem, DEFAULT_THEME } from './types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { ItemType, Project, WorkItem, DEFAULT_THEME, ProjectGroup } from './types';
 import { treeService } from './services/treeService';
-import { excelService, ImportResult } from './services/excelService';
-import { financial } from './utils/math';
 import { useProjectState } from './hooks/useProjectState';
 
 // Componentes Modulares
@@ -19,9 +17,9 @@ type ViewMode = 'global-dashboard' | 'project-workspace' | 'system-settings';
 
 const App: React.FC = () => {
   const { 
-    projects, activeProject, activeProjectId, setActiveProjectId, 
+    projects, groups, activeProject, activeProjectId, setActiveProjectId, 
     globalSettings, setGlobalSettings,
-    updateActiveProject, updateProjects, finalizeMeasurement,
+    updateActiveProject, updateProjects, updateGroups, finalizeMeasurement,
     undo, redo, canUndo, canRedo
   } = useProjectState();
 
@@ -68,6 +66,7 @@ const App: React.FC = () => {
   const handleCreateProject = () => {
     const newProj: Project = {
       id: crypto.randomUUID(),
+      groupId: null,
       name: 'Novo Empreendimento',
       companyName: globalSettings.defaultCompanyName,
       measurementNumber: 1,
@@ -91,13 +90,12 @@ const App: React.FC = () => {
         isOpen={sidebarOpen} setIsOpen={setSidebarOpen}
         mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen}
         viewMode={viewMode} setViewMode={setViewMode}
-        projects={projects} activeProjectId={activeProjectId}
+        projects={projects} groups={groups} activeProjectId={activeProjectId}
         onOpenProject={handleOpenProject} onCreateProject={handleCreateProject}
         isDarkMode={isDarkMode} toggleDarkMode={() => setIsDarkMode(!isDarkMode)}
       />
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        {/* HEADER MOBILE - OCULTO NO PRINT */}
         <header className="no-print lg:hidden h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center px-4 shrink-0 z-50">
           <button onClick={() => setMobileMenuOpen(true)} className="p-2 text-slate-600 dark:text-slate-300"><Menu size={24} /></button>
           <span className="ml-4 text-xs font-black uppercase tracking-widest truncate">
@@ -108,9 +106,11 @@ const App: React.FC = () => {
         {viewMode === 'global-dashboard' && (
           <DashboardView 
             projects={projects} 
+            groups={groups}
             onOpenProject={handleOpenProject} 
             onCreateProject={handleCreateProject} 
             onUpdateProjects={updateProjects}
+            onUpdateGroups={updateGroups}
           />
         )}
 
