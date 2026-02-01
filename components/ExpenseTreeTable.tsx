@@ -18,7 +18,9 @@ import {
   Users,
   GripVertical,
   Clock,
-  Landmark
+  Landmark,
+  ChevronUp,
+  Tag
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
@@ -33,11 +35,12 @@ interface ExpenseTreeTableProps {
   onUpdateUnitPrice: (id: string, price: number) => void;
   onTogglePaid: (id: string) => void;
   onReorder: (sourceId: string, targetId: string, position: 'before' | 'after' | 'inside') => void;
+  onMoveManual: (id: string, direction: 'up' | 'down') => void;
   isReadOnly?: boolean;
 }
 
 export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({ 
-  data, expandedIds, onToggle, onEdit, onDelete, onAddChild, onUpdateTotal, onUpdateUnitPrice, onTogglePaid, onReorder, isReadOnly 
+  data, expandedIds, onToggle, onEdit, onDelete, onAddChild, onUpdateTotal, onUpdateUnitPrice, onTogglePaid, onReorder, onMoveManual, isReadOnly 
 }) => {
   const isRevenueTable = data.some(d => d.type === 'revenue');
 
@@ -69,7 +72,7 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
         <table className="min-w-full border-collapse text-[11px]">
           <thead className={`${isRevenueTable ? 'bg-emerald-950 dark:bg-emerald-900/20' : 'bg-slate-900 dark:bg-black'} text-white sticky top-0 z-20`}>
             <tr className="uppercase tracking-widest font-black text-[9px] opacity-80">
-              <th className="p-4 border-r border-white/5 w-12 text-center">Mover</th>
+              <th className="p-4 border-r border-white/5 w-16 text-center">Ordem</th>
               <th className="p-4 border-r border-white/5 w-16 text-center">Status</th>
               <th className="p-4 border-r border-white/5 w-24 text-center">Ações</th>
               <th className="p-4 border-r border-white/5 w-20 text-center">WBS</th>
@@ -84,7 +87,8 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
               </th>
               <th className="p-4 border-r border-white/5 w-16 text-center">Und</th>
               <th className="p-4 border-r border-white/5 w-20 text-center">Qtd</th>
-              <th className="p-4 border-r border-white/5 w-32 text-right">Unitário</th>
+              <th className="p-4 border-r border-white/5 w-28 text-right">Unitário</th>
+              <th className="p-4 border-r border-white/5 w-28 text-right">Desconto</th>
               <th className="p-4 w-32 text-right">Total</th>
             </tr>
           </thead>
@@ -100,8 +104,14 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                         className={`group transition-all ${item.itemType === 'category' ? (isRevenueTable ? 'bg-emerald-50/30 dark:bg-emerald-900/10' : 'bg-slate-50/80 dark:bg-slate-800/40') : (isRevenueTable ? 'hover:bg-emerald-50/40' : 'hover:bg-indigo-50/40 dark:hover:bg-indigo-900/10')} ${item.itemType === 'category' ? 'font-bold' : ''} ${item.isPaid ? 'opacity-70 grayscale-[0.3]' : ''} ${snapshot.isDragging ? 'dragging-row' : ''}`}
                       >
                         <td className="p-2 border-r border-slate-100 dark:border-slate-800 text-center">
-                          <div {...provided.dragHandleProps} className={`inline-flex p-1.5 transition-colors cursor-grab active:cursor-grabbing ${isRevenueTable ? 'text-emerald-200 hover:text-emerald-500' : 'text-slate-300 hover:text-indigo-500'}`}>
-                            <GripVertical size={16} />
+                          <div className="flex items-center justify-center gap-1">
+                            <div {...provided.dragHandleProps} className={`p-1 transition-colors cursor-grab active:cursor-grabbing ${isRevenueTable ? 'text-emerald-200 hover:text-emerald-500' : 'text-slate-300 hover:text-indigo-500'}`}>
+                              <GripVertical size={14} />
+                            </div>
+                            <div className="flex flex-col">
+                              <button onClick={() => onMoveManual(item.id, 'up')} className="text-slate-300 hover:text-indigo-500"><ChevronUp size={12}/></button>
+                              <button onClick={() => onMoveManual(item.id, 'down')} className="text-slate-300 hover:text-indigo-500"><ChevronDown size={12}/></button>
+                            </div>
                           </div>
                         </td>
                         <td className="p-2 border-r border-slate-100 dark:border-slate-800 text-center">
@@ -140,8 +150,8 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                             <span className={`truncate ${item.itemType === 'category' ? 'uppercase text-[10px] font-black dark:text-slate-100' : 'text-slate-600 dark:text-slate-300'} ${item.isPaid ? 'line-through decoration-emerald-500/30' : ''}`}>{item.description}</span>
                             {item.itemType === 'category' && !isReadOnly && (
                               <div className="ml-auto lg:opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
-                                <button onClick={() => onAddChild(item.id, 'category')} className={`p-1 hover:scale-110 ${isRevenueTable ? 'text-emerald-400' : 'text-slate-400 hover:text-indigo-600'}`} title="Add Subcategoria"><FolderPlus size={14} /></button>
-                                <button onClick={() => onAddChild(item.id, 'item')} className={`p-1 hover:scale-110 ${isRevenueTable ? 'text-emerald-500' : 'text-slate-400 hover:text-emerald-600'}`} title={isRevenueTable ? "Add Receita" : "Add Insumo"}><FilePlus size={14} /></button>
+                                <button onClick={() => onAddChild(item.id, 'category')} className={`p-1.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500 dark:text-indigo-400 rounded-lg hover:bg-indigo-600 hover:text-white transition-all`} title="Nova Subpasta (Agrupador Financeiro)"><FolderPlus size={14} /></button>
+                                <button onClick={() => onAddChild(item.id, 'item')} className={`p-1.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-500 dark:text-emerald-400 rounded-lg hover:bg-emerald-600 hover:text-white transition-all`} title={isRevenueTable ? "Novo Item de Receita" : "Novo Lançamento / Insumo"}><FilePlus size={14} /></button>
                               </div>
                             )}
                           </div>
@@ -175,8 +185,16 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                               className="w-full bg-transparent text-right font-mono outline-none focus:ring-1 focus:ring-indigo-500 rounded px-1" 
                               key={`${item.id}-up-${item.unitPrice}`}
                               defaultValue={item.unitPrice.toFixed(2).replace('.', ',')} 
-                              onBlur={(e) => onUpdateUnitPrice(item.id, parseFloat(e.target.value.replace(',', '.')) || 0)} 
+                              onBlur={(e) => onUpdateUnitPrice(item.id, parseFloat(e.target.value.replace(/\./g, '').replace(',', '.')) || 0)} 
                             />
+                          ) : '-'}
+                        </td>
+                        <td className="p-2 text-right border-r border-slate-100 dark:border-slate-800 font-mono text-rose-500/80">
+                          {item.itemType === 'item' && item.discountValue ? (
+                            <div className="flex flex-col items-end">
+                              <span>-{financial.formatBRL(item.discountValue).replace('R$', '')}</span>
+                              <span className="text-[8px] font-black">{item.discountPercentage}%</span>
+                            </div>
                           ) : '-'}
                         </td>
                         <td className="p-2 text-right">
@@ -187,7 +205,7 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                                className={`w-full bg-transparent text-right font-black outline-none focus:ring-1 focus:ring-indigo-500 rounded px-1 ${isRevenueTable ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-800 dark:text-slate-100'}`} 
                                key={`${item.id}-amt-${item.amount}`}
                                defaultValue={item.amount.toFixed(2).replace('.', ',')} 
-                               onBlur={(e) => onUpdateTotal(item.id, parseFloat(e.target.value.replace(',', '.')) || 0)} 
+                               onBlur={(e) => onUpdateTotal(item.id, parseFloat(e.target.value.replace(/\./g, '').replace(',', '.')) || 0)} 
                              />
                            ) : <span className={`font-black ${isRevenueTable ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-800 dark:text-slate-100'}`}>{financial.formatBRL(item.amount)}</span>}
                         </td>
@@ -201,8 +219,8 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                   <td colSpan={5} className="p-4 text-right uppercase tracking-[0.2em] text-[10px] border-r border-white/10">
                     {isRevenueTable ? 'Total Geral de Entradas' : 'Total Geral de Saídas'}:
                   </td>
-                  <td colSpan={5} className="p-4 border-r border-white/10 opacity-30 italic text-[9px]">
-                    Soma consolidada do grupo financeiro
+                  <td colSpan={6} className="p-4 border-r border-white/10 opacity-30 italic text-[9px]">
+                    Soma líquida consolidada (considerando abatimentos)
                   </td>
                   <td className={`p-4 text-right text-base tracking-tighter ${isRevenueTable ? 'text-emerald-400' : 'text-rose-400'}`}>
                     {financial.formatBRL(totalTable)}

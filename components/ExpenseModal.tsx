@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { ProjectExpense, ItemType, ExpenseType } from '../types';
 import { financial } from '../utils/math';
-import { X, Save, Layers, Truck, Users, Calculator, ArrowRightLeft, FolderTree, Calendar, Clock, Landmark, ReceiptText } from 'lucide-react';
+import { X, Save, Layers, Truck, Users, Calculator, ArrowRightLeft, FolderTree, Calendar, Clock, Landmark, ReceiptText, Tag, Percent } from 'lucide-react';
 
 interface ExpenseModalProps {
   isOpen: boolean;
@@ -31,12 +31,16 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
   const [formData, setFormData] = useState<Partial<ProjectExpense>>({
     description: '', parentId: null, unit: 'un', quantity: 1, unitPrice: 0, amount: 0, entityName: '', 
     date: getTodayStr(),
-    paymentDate: ''
+    paymentDate: '',
+    discountValue: 0,
+    discountPercentage: 0
   });
 
   const [strQty, setStrQty] = useState('1,00');
   const [strPrice, setStrPrice] = useState('0,00');
   const [strAmount, setStrAmount] = useState('0,00');
+  const [strDiscVal, setStrDiscVal] = useState('0,00');
+  const [strDiscPct, setStrDiscPct] = useState('0,00');
 
   useEffect(() => {
     if (editingItem) {
@@ -45,38 +49,56 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
       setStrQty(financial.formatVisual(editingItem.quantity || 0));
       setStrPrice(financial.formatVisual(editingItem.unitPrice || 0));
       setStrAmount(financial.formatVisual(editingItem.amount || 0));
+      setStrDiscVal(financial.formatVisual(editingItem.discountValue || 0));
+      setStrDiscPct(financial.formatVisual(editingItem.discountPercentage || 0));
     } else {
       setFormData({ 
         description: '', parentId: null, 
         unit: isRevenue ? 'vb' : (expenseType === 'labor' ? 'h' : 'un'), 
         quantity: 1, unitPrice: 0, amount: 0, entityName: '', 
         date: getTodayStr(),
-        paymentDate: ''
+        paymentDate: '',
+        discountValue: 0,
+        discountPercentage: 0
       });
       setActiveItemType(initialItemType);
       setStrQty('1,00'); setStrPrice('0,00'); setStrAmount('0,00');
+      setStrDiscVal('0,00'); setStrDiscPct('0,00');
     }
   }, [editingItem, initialItemType, isOpen, expenseType, isRevenue]);
 
-  const handleNumericChange = (setter: (v: string) => void, val: string, field: 'qty' | 'price' | 'amount') => {
+  const handleNumericChange = (setter: (v: string) => void, val: string, field: 'qty' | 'price' | 'amount' | 'discVal' | 'discPct') => {
     const masked = financial.maskCurrency(val);
     setter(masked);
 
     const num = financial.parseLocaleNumber(masked);
-    const currentQty = field === 'qty' ? num : financial.parseLocaleNumber(strQty);
-    const currentPrice = field === 'price' ? num : financial.parseLocaleNumber(strPrice);
+    const q = field === 'qty' ? num : financial.parseLocaleNumber(strQty);
+    const p = field === 'price' ? num : financial.parseLocaleNumber(strPrice);
+    const dv = field === 'discVal' ? num : financial.parseLocaleNumber(strDiscVal);
+    const dp = field === 'discPct' ? num : financial.parseLocaleNumber(strDiscPct);
+    
+    const baseTotal = financial.round(q * p);
 
-    if (field === 'qty') {
-      const total = financial.round(num * currentPrice);
-      setStrAmount(financial.formatVisual(total));
-    } else if (field === 'price') {
-      const total = financial.round(num * currentQty);
-      setStrAmount(financial.formatVisual(total));
-    } else if (field === 'amount') {
-      if (currentQty > 0) {
-        const up = financial.round(num / currentQty);
-        setStrPrice(financial.formatVisual(up));
-      }
+    if (field === 'qty' || field === 'price') {
+      const actualDisc = financial.round(baseTotal * (dp / 100));
+      setStrDiscVal(financial.formatVisual(actualDisc));
+      setStrAmount(financial.formatVisual(financial.round(baseTotal - actualDisc)));
+    } 
+    else if (field === 'discVal') {
+      const newPct = baseTotal > 0 ? financial.round((num / baseTotal) * 100) : 0;
+      setStrDiscPct(financial.formatVisual(newPct));
+      setStrAmount(financial.formatVisual(financial.round(baseTotal - num)));
+    }
+    else if (field === 'discPct') {
+      const newVal = financial.round(baseTotal * (num / 100));
+      setStrDiscVal(financial.formatVisual(newVal));
+      setStrAmount(financial.formatVisual(financial.round(baseTotal - newVal)));
+    }
+    else if (field === 'amount') {
+      const newDisc = financial.round(baseTotal - num);
+      setStrDiscVal(financial.formatVisual(newDisc));
+      const newPct = baseTotal > 0 ? financial.round((newDisc / baseTotal) * 100) : 0;
+      setStrDiscPct(financial.formatVisual(newPct));
     }
   };
 
@@ -89,6 +111,8 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
       type: expenseType,
       quantity: financial.parseLocaleNumber(strQty),
       unitPrice: financial.parseLocaleNumber(strPrice),
+      discountValue: financial.parseLocaleNumber(strDiscVal),
+      discountPercentage: financial.parseLocaleNumber(strDiscPct),
       amount: financial.parseLocaleNumber(strAmount),
       paymentDate: formData.paymentDate || undefined
     });
@@ -123,7 +147,6 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
             {!editingItem && (
               <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl gap-2">
                 <button type="button" onClick={() => setActiveItemType('category')} className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeItemType === 'category' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}>Grupo / Pasta</button>
-                {/* Fixed line below: changed setActiveType to setActiveItemType */}
                 <button type="button" onClick={() => setActiveItemType('item')} className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeItemType === 'item' ? 'bg-white dark:bg-slate-700 text-emerald-600 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}>{isRevenue ? 'Receita Unitária' : 'Insumo / Gasto'}</button>
               </div>
             )}
@@ -189,8 +212,28 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                     </div>
                   </div>
 
+                  <div className="col-span-2 grid grid-cols-2 gap-4 p-5 bg-slate-100/50 dark:bg-slate-800/30 rounded-3xl border border-slate-200 dark:border-slate-700">
+                    <div className="col-span-2 text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 ml-1 flex items-center gap-2">
+                       <Tag size={12}/> Descontos / Abatimentos
+                    </div>
+                    <div>
+                      <label className="text-[8px] font-black text-slate-400 uppercase mb-1 block tracking-widest">Desconto Valor</label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">R$</span>
+                        <input type="text" inputMode="decimal" className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs font-bold text-right outline-none focus:border-rose-500 transition-all" value={strDiscVal} onChange={e => handleNumericChange(setStrDiscVal, e.target.value, 'discVal')} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[8px] font-black text-slate-400 uppercase mb-1 block tracking-widest">Desconto %</label>
+                      <div className="relative">
+                        <Percent className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
+                        <input type="text" inputMode="decimal" className="w-full pl-4 pr-8 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs font-bold text-right outline-none focus:border-rose-500 transition-all" value={strDiscPct} onChange={e => handleNumericChange(setStrDiscPct, e.target.value, 'discPct')} />
+                      </div>
+                    </div>
+                  </div>
+
                   <div className={`col-span-2 p-6 rounded-[2rem] border-2 border-dashed ${isRevenue ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800' : 'bg-indigo-50 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-800'}`}>
-                    <label className={`text-[10px] font-black uppercase mb-2 block tracking-widest text-center ${isRevenue ? 'text-emerald-600' : 'text-indigo-600'}`}>{isRevenue ? 'Valor Total a Receber' : 'Valor Total Liquidado'}</label>
+                    <label className={`text-[10px] font-black uppercase mb-2 block tracking-widest text-center ${isRevenue ? 'text-emerald-600' : 'text-indigo-600'}`}>{isRevenue ? 'Valor Total a Receber (Líquido)' : 'Valor Total Líquido Liquidado'}</label>
                     <div className="relative">
                       <Calculator className={`absolute left-5 top-1/2 -translate-y-1/2 ${isRevenue ? 'text-emerald-400' : 'text-indigo-400'}`} size={20} />
                       <input type="text" inputMode="decimal" className={`w-full pl-14 pr-6 py-4 rounded-2xl border-2 bg-white dark:bg-slate-950 text-2xl font-black text-right outline-none transition-all ${isRevenue ? 'border-emerald-100 focus:border-emerald-600 text-emerald-700 dark:text-emerald-300' : 'border-indigo-100 focus:border-indigo-600 text-indigo-700 dark:text-indigo-300'}`} value={strAmount} onChange={e => handleNumericChange(setStrAmount, e.target.value, 'amount')} />

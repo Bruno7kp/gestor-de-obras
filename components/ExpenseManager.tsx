@@ -28,7 +28,8 @@ import {
   Clock,
   ArrowUpRight,
   Maximize2,
-  Minimize2
+  Minimize2,
+  Package
 } from 'lucide-react';
 
 interface ExpenseManagerProps {
@@ -50,7 +51,6 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
   const [activeTab, setActiveTab] = useState<ExpenseType | 'overview'>('overview');
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Persistência da expansão financeira por projeto
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => {
     const saved = localStorage.getItem(`exp_fin_${project.id}`);
     return saved ? new Set(JSON.parse(saved)) : new Set();
@@ -87,11 +87,11 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
     if (!file) return;
     setIsImporting(true);
     try {
-      const typeForImport = activeTab === 'overview' ? 'material' : activeTab;
-      const res = await excelService.parseExpensesExcel(file, typeForImport);
+      const typeForImport = (activeTab === 'overview' || activeTab === 'revenue') ? 'material' : activeTab;
+      const res = await excelService.parseExpensesExcel(file, typeForImport as ExpenseType);
       setImportSummary(res);
     } catch (err) {
-      alert("Erro ao importar despesas. Verifique o arquivo.");
+      alert("Erro ao importar despesas.");
     } finally {
       setIsImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -116,7 +116,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
         id: crypto.randomUUID(),
         parentId,
         type: typeForNew,
-        itemType: data.itemType || 'item',
+        itemType: data.itemType || modalItemType,
         wbs: '',
         order: (expenses.filter(e => e.parentId === parentId && e.type === typeForNew).length),
         date: data.date || new Date().toISOString().split('T')[0],
@@ -125,6 +125,8 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
         unit: data.unit || (typeForNew === 'revenue' ? 'vb' : 'un'),
         quantity: data.quantity || 1,
         unitPrice: data.unitPrice || 0,
+        discountValue: data.discountValue || 0,
+        discountPercentage: data.discountPercentage || 0,
         amount: (data.amount || 0),
         isPaid: data.isPaid || false
       };
@@ -165,7 +167,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
 
         <div className="flex flex-wrap items-center gap-2">
           {activeTab !== 'overview' && (
-            <button type="button" onClick={() => { setModalItemType('item'); setEditingExpense(null); setIsModalOpen(true); }} className="px-5 py-3 bg-indigo-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg hover:scale-105 transition-transform active:scale-95">
+            <button type="button" onClick={() => { setModalItemType('item'); setEditingExpense(null); setTargetParentId(null); setIsModalOpen(true); }} className="px-5 py-3 bg-indigo-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg hover:scale-105 transition-transform active:scale-95">
                {activeTab === 'revenue' ? 'Nova Receita' : 'Novo Insumo'}
             </button>
           )}
@@ -177,7 +179,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
             {isImporting ? <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" /> : <UploadCloud size={18}/>}
           </button>
           {activeTab !== 'overview' && (
-            <button type="button" onClick={() => excelService.exportExpensesToExcel(project, expenses)} className="p-2.5 text-slate-400 hover:text-blue-600 transition-colors" title="Exportar">
+            <button type="button" onClick={() => excelService.exportExpensesToExcel(project, expenses, activeTab as ExpenseType)} className="p-2.5 text-slate-400 hover:text-blue-600 transition-colors" title="Exportar Aba Atual">
               <Download size={18}/>
             </button>
           )}
@@ -209,19 +211,19 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
             onToggle={id => { const n = new Set(expandedIds); n.has(id) ? n.delete(id) : n.add(id); setExpandedIds(n); }}
             onEdit={expense => { setEditingExpense(expense); setIsModalOpen(true); }}
             onDelete={onDelete}
-            onAddChild={(pid, itype) => { setTargetParentId(pid); setModalItemType(itype); setIsModalOpen(true); }}
+            onAddChild={(pid, itype) => { setTargetParentId(pid); setModalItemType(itype); setEditingExpense(null); setIsModalOpen(true); }}
             onUpdateTotal={(id, total) => {
               const exp = expenses.find(e => e.id === id);
               if (exp) onUpdate(id, { 
                 amount: total, 
-                unitPrice: financial.round(total / (exp.quantity || 1)) 
+                unitPrice: financial.round((total + (exp.discountValue || 0)) / (exp.quantity || 1)) 
               });
             }}
             onUpdateUnitPrice={(id, price) => {
               const exp = expenses.find(e => e.id === id);
               if (exp) onUpdate(id, { 
                 unitPrice: price, 
-                amount: financial.round(price * (exp.quantity || 0)) 
+                amount: financial.round((price * (exp.quantity || 0)) - (exp.discountValue || 0)) 
               });
             }}
             onTogglePaid={id => {
@@ -229,59 +231,53 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
               if (exp) onUpdate(id, { isPaid: !exp.isPaid });
             }}
             onReorder={(src, tgt, pos) => onUpdateExpenses(treeService.reorderItems(expenses, src, tgt, pos))}
+            onMoveManual={(id, dir) => onUpdateExpenses(treeService.moveInSiblings(expenses, id, dir))}
             isReadOnly={isReadOnly}
           />
         </div>
       )}
 
+      {/* MODAL DE REVISÃO DE IMPORTAÇÃO (ESTE BLOCO ESTAVA FALTANDO) */}
       {importSummary && (
-        <div 
-          className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300"
-          onClick={() => setImportSummary(null)}
-        >
-          <div 
-            className="bg-white dark:bg-slate-900 w-full max-md rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="px-8 pt-8 pb-4 flex items-center justify-between border-b border-slate-50 dark:border-slate-800">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh] overflow-hidden">
+            <div className="px-8 pt-8 pb-4 flex items-center justify-between border-b border-slate-50 dark:border-slate-800 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-2xl">
-                  <FileSpreadsheet size={24} />
+                  <UploadCloud size={24} />
                 </div>
                 <div>
-                  <h2 className="text-xl font-black dark:text-white tracking-tight">Revisar Gastos</h2>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Lançamentos Identificados</p>
+                  <h2 className="text-xl font-black dark:text-white tracking-tight">Revisar Importação</h2>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Excel Financeiro Processado</p>
                 </div>
               </div>
-              <button 
-                type="button" 
-                onClick={() => setImportSummary(null)} 
-                className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
-              >
+              <button onClick={() => setImportSummary(null)} className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all">
                 <X size={20} />
               </button>
             </div>
-            <div className="p-8 space-y-6">
+            <div className="p-8 space-y-6 overflow-y-auto flex-1">
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 text-center">
                   <div className="flex justify-center mb-2 text-indigo-500"><Layers size={20}/></div>
                   <p className="text-2xl font-black text-slate-800 dark:text-white">{importSummary.stats.categories}</p>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Categorias</p>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Pastas/Grupos</p>
                 </div>
                 <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 text-center">
-                  <div className="flex justify-center mb-2 text-emerald-500"><DollarSign size={20}/></div>
+                  <div className="flex justify-center mb-2 text-emerald-500"><Package size={20}/></div>
                   <p className="text-2xl font-black text-slate-800 dark:text-white">{importSummary.stats.items}</p>
                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Lançamentos</p>
                 </div>
               </div>
+              <p className="text-xs text-slate-500 font-medium text-center px-4">
+                Estes dados serão mesclados aos lançamentos atuais da aba <b>{activeTab !== 'overview' ? activeTab : 'materiais'}</b>.
+              </p>
             </div>
-            <div className="px-8 py-6 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-3">
-              <button 
-                type="button" 
-                onClick={confirmImport} 
-                className="w-full py-5 bg-indigo-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-indigo-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
-              >
-                <CheckCircle2 size={18} /> Confirmar Lançamentos
+            <div className="px-8 py-6 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-3 shrink-0">
+              <button onClick={confirmImport} className="w-full py-5 bg-emerald-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-emerald-500/20 active:scale-95 transition-all flex items-center justify-center gap-2">
+                <CheckCircle2 size={18} /> Efetivar Importação
+              </button>
+              <button onClick={() => setImportSummary(null)} className="w-full py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                Cancelar
               </button>
             </div>
           </div>
@@ -289,7 +285,13 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
       )}
 
       <ExpenseModal 
-        isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSaveExpense} editingItem={editingExpense} expenseType={activeTab === 'overview' ? 'material' : activeTab} itemType={modalItemType} categories={expenses.filter(e => e.type === (activeTab === 'overview' ? 'material' : activeTab) && e.itemType === 'category')}
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onSave={handleSaveExpense} 
+        editingItem={editingExpense} 
+        expenseType={activeTab === 'overview' ? 'material' : (activeTab as ExpenseType)} 
+        itemType={modalItemType} 
+        categories={expenses.filter(e => e.type === (activeTab === 'overview' ? 'material' : activeTab) && e.itemType === 'category')}
       />
     </div>
   );
@@ -317,7 +319,6 @@ const FinancialOverview = ({ stats }: { stats: any }) => (
           </div>
         </div>
 
-        {/* LEGENDA DE CORES ADICIONADA */}
         <div className="flex flex-wrap justify-center gap-6 mt-2">
           <div className="flex items-center gap-3">
             <div className="w-3 h-3 rounded-full bg-blue-500 shadow-sm" />
@@ -338,7 +339,7 @@ const FinancialOverview = ({ stats }: { stats: any }) => (
     </div>
     <div className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col">
       <div className="flex items-center gap-3 mb-8">
-        <div className="p-3 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-2xl"><BarChart3 size={20} /></div>
+        <div className="p-3 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-indigo-400 rounded-2xl"><BarChart3 size={20} /></div>
         <div>
           <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 dark:text-white">Saúde Financeira</h3>
           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Entradas vs Saídas</p>

@@ -88,7 +88,8 @@ export const treeService = {
         node.amount = 0;
       }
     } else {
-      node.amount = financial.round((node.quantity || 0) * (node.unitPrice || 0));
+      const baseAmount = financial.round((node.quantity || 0) * (node.unitPrice || 0));
+      node.amount = financial.round(baseAmount - (node.discountValue || 0));
     }
     return node;
   },
@@ -115,7 +116,6 @@ export const treeService = {
 
     if (position === 'inside') {
       newParentId = targetItem.id;
-      // Coloca no final da lista de filhos do novo pai
       const children = items.filter(i => i.parentId === targetItem.id);
       newOrder = children.length;
     } else {
@@ -131,6 +131,28 @@ export const treeService = {
         return { ...item, order: item.order + 1 };
       }
       return item;
+    });
+  },
+
+  moveInSiblings: <T extends { id: string; parentId: string | null; order: number }>(items: T[], id: string, direction: 'up' | 'down'): T[] => {
+    const item = items.find(i => i.id === id);
+    if (!item) return items;
+
+    const siblings = items
+      .filter(i => i.parentId === item.parentId)
+      .sort((a, b) => a.order - b.order);
+
+    const idx = siblings.findIndex(s => s.id === id);
+    if (direction === 'up' && idx === 0) return items;
+    if (direction === 'down' && idx === siblings.length - 1) return items;
+
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    const targetItem = siblings[targetIdx];
+
+    return items.map(i => {
+      if (i.id === item.id) return { ...i, order: targetItem.order };
+      if (i.id === targetItem.id) return { ...i, order: item.order };
+      return i;
     });
   },
 
