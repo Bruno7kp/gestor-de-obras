@@ -80,7 +80,7 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                 {isRevenueTable ? 'Datas (Emissão/Recebido)' : 'Datas (Gasto/Pgto)'}
               </th>
               <th className="p-4 border-r border-white/5 w-48 text-left">
-                {isRevenueTable ? 'Cliente / Origem' : 'Entidade'}
+                {isRevenueTable ? 'Origem' : 'Entidade'}
               </th>
               <th className="p-4 border-r border-white/5 w-16 text-center">Und</th>
               <th className="p-4 border-r border-white/5 w-20 text-center">Qtd</th>

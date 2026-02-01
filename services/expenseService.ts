@@ -13,7 +13,9 @@ export const expenseService = {
     
     const labor = financial.sum(items.filter(e => e.type === 'labor').map(e => e.amount));
     const material = financial.sum(items.filter(e => e.type === 'material').map(e => e.amount));
-    const revenue = financial.sum(items.filter(e => e.type === 'revenue').map(e => e.amount));
+    
+    // Somente receitas MARCADAS COMO RECEBIDAS (isPaid === true) entram na conta do sistema
+    const revenue = financial.sum(items.filter(e => e.type === 'revenue' && e.isPaid).map(e => e.amount));
     
     const totalOut = financial.round(labor + material);
     
