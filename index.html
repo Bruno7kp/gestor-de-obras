@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -22,7 +23,7 @@
       }
     </script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Roboto:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;700;800&family=Merriweather:wght@300;400;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
         
         body { 
           font-family: 'Inter', sans-serif; 
@@ -36,52 +37,50 @@
         @media print {
           @page { 
             size: A4 landscape; 
-            margin: 5mm !important; 
+            margin: 10mm; 
           }
 
-          /* Oculta elementos da interface sem destruir o Root */
-          aside, header.no-print, main > div:not(.print-report-area), .no-print {
-            display: none !important;
-            visibility: hidden !important;
+          /* TÉCNICA DE ISOLAMENTO: Esconde tudo, mostra apenas o report */
+          body * {
+            visibility: hidden;
           }
 
-          html, body {
-            width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            background: white !important;
-          }
-
-          #root {
-            display: block !important;
-            width: 100% !important;
-          }
-
-          main {
-            display: block !important;
-            width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
+          #root, .print-report-area, .print-report-area * {
+            visibility: visible;
           }
 
           .print-report-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
             display: block !important;
-            visibility: visible !important;
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            padding: 5mm !important;
+            background: white !important;
+            color: black !important;
           }
 
-          table {
-            width: 100% !important;
-            border-collapse: collapse !important;
-            table-layout: fixed !important;
+          /* Remove elementos de UI que podem vazar via visibilidade herdada */
+          aside, nav, header, button, .no-print {
+            display: none !important;
+            height: 0 !important;
+            overflow: hidden !important;
           }
+
+          /* Força o layout da tabela */
+          table {
+            page-break-inside: auto;
+            border-collapse: collapse !important;
+            width: 100% !important;
+          }
+          thead { display: table-header-group !important; }
+          tr { page-break-inside: avoid !important; page-break-after: auto !important; }
+          
+          /* Estética do PDF */
+          .bg-slate-900 { background-color: #0f172a !important; color: white !important; }
+          .bg-slate-50 { background-color: #f8fafc !important; }
+          .border-black { border-color: #000000 !important; }
         }
 
-        /* Oculta o relatório na visualização do sistema */
         .print-report-area {
           display: none;
         }

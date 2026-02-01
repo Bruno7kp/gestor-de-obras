@@ -1,3 +1,4 @@
+
 export type ItemType = 'category' | 'item';
 
 export interface WorkItem {
@@ -46,8 +47,8 @@ export type PDFBoxTheme = {
 
 export interface PDFTheme {
   fontFamily: 'Inter' | 'Roboto' | 'JetBrains Mono' | 'Merriweather';
-  primary: string;
-  accent: string;
+  primary: string; // Cor de destaque principal
+  accent: string;  // Cor das colunas de medição (era azul)
   accentText: string;
   border: string;
   header: PDFBoxTheme;
@@ -55,18 +56,6 @@ export interface PDFTheme {
   footer: PDFBoxTheme;
   kpiHighlight: PDFBoxTheme;
 }
-
-export const DEFAULT_THEME: PDFTheme = {
-  fontFamily: 'Inter',
-  primary: '#000000',
-  accent: '#2563eb',
-  accentText: '#ffffff',
-  border: '#000000',
-  header: { bg: '#0f172a', text: '#ffffff' },
-  category: { bg: '#f1f5f9', text: '#000000' },
-  footer: { bg: '#0f172a', text: '#ffffff' },
-  kpiHighlight: { bg: '#eff6ff', text: '#1d4ed8' }
-};
 
 export interface MeasurementSnapshot {
   measurementNumber: number;
@@ -113,6 +102,8 @@ export interface ProjectExpense {
   children?: ProjectExpense[];
 }
 
+// --- MÓDULO DE PLANEJAMENTO ---
+
 export interface PlanningTask {
   id: string;
   categoryId: string | null;
@@ -147,6 +138,8 @@ export interface ProjectPlanning {
   milestones: Milestone[];
 }
 
+// --- NOVO MÓDULO: DIÁRIO DE OBRA ---
+
 export type JournalCategory = 'PROGRESS' | 'FINANCIAL' | 'INCIDENT' | 'WEATHER';
 export type WeatherType = 'sunny' | 'rainy' | 'cloudy' | 'storm';
 
@@ -165,6 +158,49 @@ export interface JournalEntry {
 export interface ProjectJournal {
   entries: JournalEntry[];
 }
+
+// --- NOVO MÓDULO: LICITAÇÕES (BIDDING) ---
+
+export type BiddingStatus = 'PROSPECTING' | 'DRAFTING' | 'SUBMITTED' | 'WON' | 'LOST';
+
+export interface BiddingProcess {
+  id: string;
+  tenderNumber: string; // Número do Edital
+  clientName: string;   // Órgão ou Cliente
+  object: string;       // Descrição do objeto
+  openingDate: string;  // Abertura
+  visitDate?: string;   // Visita Técnica
+  expirationDate: string; // Validade da Proposta
+  estimatedValue: number; // Valor Edital
+  ourProposalValue: number; // Valor Calculado
+  status: BiddingStatus;
+  items: WorkItem[];    // Orçamento da Proposta
+  assets: ProjectAsset[]; // Documentos do Edital
+  bdi: number;
+}
+
+export interface CompanyCertificate {
+  id: string;
+  name: string;
+  issuer: string;
+  expirationDate: string;
+  fileData?: string;
+  status: 'valid' | 'warning' | 'expired';
+}
+
+// --- FIM LICITAÇÕES ---
+
+export const DEFAULT_THEME: PDFTheme = {
+  fontFamily: 'Inter',
+  primary: '#000000',
+  accent: '#2563eb', // Azul padrão
+  accentText: '#ffffff',
+  border: '#000000',
+  header: { bg: '#0f172a', text: '#ffffff' },
+  category: { bg: '#f1f5f9', text: '#000000' },
+  footer: { bg: '#0f172a', text: '#ffffff' },
+  kpiHighlight: { bg: '#eff6ff', text: '#1d4ed8' }
+};
 
 export interface GlobalSettings {
   defaultCompanyName: string;
@@ -204,31 +240,4 @@ export interface Project {
     printCards: boolean;
     printSubtotals: boolean;
   };
-}
-
-export interface CompanyCertificate {
-  id: string;
-  name: string;
-  issuer: string;
-  expirationDate: string;
-  fileData?: string;
-  status: 'valid' | 'warning' | 'expired';
-}
-
-export type BiddingStatus = 'PROSPECTING' | 'DRAFTING' | 'SUBMITTED' | 'WON' | 'LOST';
-
-export interface BiddingProcess {
-  id: string;
-  tenderNumber: string; 
-  clientName: string;   
-  object: string;       
-  openingDate: string;  
-  visitDate?: string;   
-  expirationDate: string; 
-  estimatedValue: number; 
-  ourProposalValue: number; 
-  status: BiddingStatus;
-  items: WorkItem[];    
-  assets: ProjectAsset[]; 
-  bdi: number;
 }

@@ -1,7 +1,8 @@
+
 import React, { useRef } from 'react';
 import { Project, PDFTheme } from '../types';
 import { ThemeEditor } from './ThemeEditor';
-import { Percent, Sliders, MapPin, Upload, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { Percent, Sliders, AlertTriangle, ShieldCheck, MapPin, Upload, Image as ImageIcon, Trash2 } from 'lucide-react';
 
 interface BrandingViewProps {
   project: Project;
@@ -33,12 +34,10 @@ export const BrandingView: React.FC<BrandingViewProps> = ({
   return (
     <div className="space-y-12 animate-in fade-in duration-500 pb-20">
       <header className="max-w-4xl mx-auto flex items-center gap-4 px-4">
-        <div className="p-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl">
-          <Sliders size={24}/>
-        </div>
+        <div className="p-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl"><Sliders size={24}/></div>
         <div>
           <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">Identidade Visual & Parâmetros</h2>
-          <p className="text-slate-500 font-medium">Configure a marca e o estilo técnico dos relatórios.</p>
+          <p className="text-slate-500 font-medium">Configure a marca da empresa e o estilo dos relatórios.</p>
         </div>
       </header>
 
@@ -97,7 +96,7 @@ export const BrandingView: React.FC<BrandingViewProps> = ({
               placeholder="Ex: São Paulo - SP / Rua Exemplo, 123"
               onChange={(e) => onUpdateProject({ location: e.target.value })} 
             />
-            <p className="text-[10px] font-bold text-slate-400 mt-4 text-center uppercase tracking-widest italic">Visível no quadro de dados do relatório.</p>
+            <p className="text-[10px] font-bold text-slate-400 mt-4 text-center uppercase tracking-widest italic">Visível no quadro de dados do empreendimento.</p>
           </div>
         </div>
 
@@ -107,7 +106,7 @@ export const BrandingView: React.FC<BrandingViewProps> = ({
             <div className="p-3 bg-emerald-600 rounded-xl text-white shadow-lg"><Percent size={20} /></div>
             <div>
               <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest">Taxa de BDI</h3>
-              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Fator Multiplicador (%)</p>
+              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Despesas Indiretas (%)</p>
             </div>
           </div>
           <div className="flex-1 flex flex-col justify-center">
@@ -122,7 +121,7 @@ export const BrandingView: React.FC<BrandingViewProps> = ({
               />
               <span className="absolute right-6 top-1/2 -translate-y-1/2 text-xl font-black text-slate-300">%</span>
             </div>
-            <p className="text-[10px] font-bold text-slate-400 mt-4 text-center uppercase tracking-widest">Fator Real: <span className="text-indigo-600">{(1 + project.bdi/100).toFixed(4)}x</span></p>
+            <p className="text-[10px] font-bold text-slate-400 mt-4 text-center uppercase tracking-widest">Fator Multiplicador: <span className="text-indigo-600">{(1 + project.bdi/100).toFixed(4)}x</span></p>
           </div>
         </div>
       </div>
