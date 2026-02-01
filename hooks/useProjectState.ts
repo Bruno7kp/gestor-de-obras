@@ -1,6 +1,6 @@
 
 import { useState, useCallback, useEffect } from 'react';
-import { Project, ProjectGroup, MeasurementSnapshot, GlobalSettings, ProjectPlanning, ProjectJournal, WorkItem, ProjectExpense, BiddingProcess, CompanyCertificate } from '../types';
+import { Project, ProjectGroup, MeasurementSnapshot, GlobalSettings, ProjectPlanning, ProjectJournal, WorkItem, ProjectExpense, BiddingProcess, CompanyCertificate, DEFAULT_THEME } from '../types';
 import { treeService } from '../services/treeService';
 import { journalService } from '../services/journalService';
 import { financial } from '../utils/math';
@@ -44,7 +44,16 @@ export const useProjectState = () => {
           ...p,
           location: p.location || '',
           planning: p.planning || { ...INITIAL_PLANNING },
-          journal: p.journal || { ...INITIAL_JOURNAL }
+          journal: p.journal || { ...INITIAL_JOURNAL },
+          // Migração profunda do tema para evitar erro de undefined em propriedades novas
+          theme: {
+            ...DEFAULT_THEME,
+            ...(p.theme || {}),
+            header: { ...DEFAULT_THEME.header, ...(p.theme?.header || {}) },
+            category: { ...DEFAULT_THEME.category, ...(p.theme?.category || {}) },
+            footer: { ...DEFAULT_THEME.footer, ...(p.theme?.footer || {}) },
+            kpiHighlight: { ...DEFAULT_THEME.kpiHighlight, ...(p.theme?.kpiHighlight || {}) }
+          }
         })),
         biddings: parsed.biddings || [],
         globalSettings: parsed.globalSettings || INITIAL_SETTINGS
@@ -112,6 +121,6 @@ export const useProjectState = () => {
     updateBiddings,
     updateCertificates,
     bulkUpdate,
-    undo: () => {}, redo: () => {}, canUndo: false, canRedo: false // Implementação simplificada para este módulo
+    undo: () => {}, redo: () => {}, canUndo: false, canRedo: false 
   };
 };
