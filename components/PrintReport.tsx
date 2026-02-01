@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Project, WorkItem, ProjectExpense } from '../types';
 import { financial } from '../utils/math';
@@ -68,7 +67,7 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, 
       <table className="w-full text-[6.5px] border-collapse border border-black mb-6">
         <thead>
           <tr className="bg-slate-900 text-white font-black uppercase text-center">
-            <th rowSpan={2} className="border border-black p-1 w-8">Item</th>
+            <th rowSpan={2} className="border border-black p-1 w-8">ITEM</th>
             <th rowSpan={2} className="border border-black p-1 w-10">Cód</th>
             <th rowSpan={2} className="border border-black p-1 w-10">Fonte</th>
             <th rowSpan={2} className="border border-black p-1 text-left min-w-[150px]">Descrição</th>

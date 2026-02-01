@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { WorkItem } from '../types';
 import { financial } from '../utils/math';
@@ -89,12 +88,13 @@ export const TreeTable: React.FC<TreeTableProps> = ({
 
       <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 shadow-xl">
         <DragDropContext onDragEnd={handleDragEnd}>
-          <table className="min-w-[1950px] w-full border-collapse text-[11px]">
+          <table className="min-w-[2050px] w-full border-collapse text-[11px]">
             <thead className="bg-slate-900 dark:bg-black text-white sticky top-0 z-20">
               <tr className="uppercase tracking-widest font-black text-[9px] opacity-80">
                 <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-16 no-print text-center">Mover</th>
                 <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-24 text-center">Ações</th>
-                <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-20 text-center">WBS</th>
+                <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-16 text-center">ITEM</th>
+                <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-20 text-center">FONTE</th>
                 <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-20 text-center">Código</th>
                 <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 text-left min-w-[450px]">Estrutura Analítica do Projeto (EAP)</th>
                 <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-14 text-center">Und</th>
@@ -147,6 +147,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                             </div>
                           </td>
                           <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 font-mono text-[10px] text-slate-400 dark:text-slate-500">{item.wbs}</td>
+                          <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 text-[9px] font-black uppercase text-slate-400 dark:text-slate-500">{item.fonte || '-'}</td>
                           <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-mono text-[10px]">{item.cod || '-'}</td>
                           <td className="p-2 border-r border-slate-100 dark:border-slate-800 relative min-w-[400px]">
                             <div className="flex items-center gap-1 h-full">
@@ -225,7 +226,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                   {provided.placeholder}
                   
                   <tr className="bg-slate-950 dark:bg-black text-white font-black text-xs sticky bottom-0 z-10 shadow-2xl">
-                    <td colSpan={6} className="p-5 text-right uppercase tracking-[0.2em] text-[10px] border-r border-white/10">Consolidado:</td>
+                    <td colSpan={7} className="p-5 text-right uppercase tracking-[0.2em] text-[10px] border-r border-white/10">Consolidado:</td>
                     <td colSpan={2} className="p-4 border-r border-white/10 opacity-30 italic">Preços Médios</td>
                     <td className="p-4 border-r border-white/10"></td>
                     <td className="p-4 border-r border-white/10 text-right text-base tracking-tighter">{financial.formatBRL(financial.sum(filteredData.filter(i => i.depth === 0).map(i => i.contractTotal)))}</td>
