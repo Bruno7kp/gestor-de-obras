@@ -16,15 +16,6 @@ type ViewMode = 'global-dashboard' | 'project-workspace' | 'system-settings' | '
 const App: React.FC = () => {
   const hookResult = useProjectState();
   
-  // DEBUG: Log para verificar o estado retornado do hook
-  if (typeof hookResult.updateProjects !== 'function') {
-    console.error('ERRO CRÍTICO: updateProjects não é uma função!', {
-      type: typeof hookResult.updateProjects,
-      value: hookResult.updateProjects,
-      hookResult
-    });
-  }
-  
   const { 
     projects, biddings, groups, activeProject, activeProjectId, setActiveProjectId, 
     globalSettings, setGlobalSettings,
@@ -68,7 +59,8 @@ const App: React.FC = () => {
         mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen}
         viewMode={viewMode} setViewMode={setViewMode}
         projects={projects} groups={groups} activeProjectId={activeProjectId}
-        onOpenProject={handleOpenProject} onCreateProject={(gid) => {
+        onOpenProject={handleOpenProject} 
+        onCreateProject={(gid) => {
           const np = projectService.createProject('Nova Obra', safeGlobalSettings.defaultCompanyName, gid || null);
           updateProjects([...projects, np]);
           handleOpenProject(np.id);
@@ -86,11 +78,20 @@ const App: React.FC = () => {
         </header>
 
         {viewMode === 'global-dashboard' && (
-          <DashboardView projects={projects} groups={groups} onOpenProject={handleOpenProject} onCreateProject={(gid) => {
-            const np = projectService.createProject('Nova Obra', safeGlobalSettings.defaultCompanyName, gid || null);
-            updateProjects([...projects, np]);
-            handleOpenProject(np.id);
-          }} onUpdateProjects={updateProjects} onUpdateGroups={updateGroups} onBulkUpdate={bulkUpdate} />
+          <DashboardView 
+            projects={projects} 
+            groups={groups} 
+            onOpenProject={handleOpenProject} 
+            onCreateProject={(gid) => {
+              const np = projectService.createProject('Nova Obra', safeGlobalSettings.defaultCompanyName, gid || null);
+              updateProjects([...projects, np]);
+              handleOpenProject(np.id);
+            }} 
+            // CORREÇÃO: Passando os nomes exatos das funções que o Dashboard espera
+            onUpdateProject={updateProjects} 
+            onUpdateGroups={updateGroups} 
+            onBulkUpdate={bulkUpdate} 
+          />
         )}
 
         {viewMode === 'bidding-view' && (
@@ -111,7 +112,7 @@ const App: React.FC = () => {
           <ProjectWorkspace 
             project={activeProject}
             onUpdateProject={updateActiveProject}
-            onCloseMeasurement={() => {}} // Simplificado
+            onCloseMeasurement={() => {}} 
             canUndo={false} canRedo={false} onUndo={() => {}} onRedo={() => {}}
           />
         )}

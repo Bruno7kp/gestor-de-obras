@@ -62,22 +62,31 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
   };
 
   const handleConfirmDelete = () => {
-    if (!isDeleting) return;
+  if (!isDeleting) return;
 
-    if (isDeleting.type === 'group') {
-      const { updatedGroups, updatedProjects, newParentId } = projectService.getReassignedItems(isDeleting.id, props.groups, props.projects);
-      
-      // Usa o bulkUpdate do seu hook para atualizar as duas listas de uma vez
-      bulkUpdate({ groups: updatedGroups, projects: updatedProjects });
-      
-      if (currentGroupId === isDeleting.id) setCurrentGroupId(newParentId);
-    } else {
-      // Exclui o projeto filtrando a lista atual
-      const updatedProjects = props.projects.filter(p => p.id !== isDeleting.id);
-      updateProjects(updatedProjects);
-    }
-    setIsDeleting(null);
-  };
+  if (isDeleting.type === 'group') {
+    const { updatedGroups, updatedProjects, newParentId } = projectService.getReassignedItems(isDeleting.id, props.groups, props.projects);
+    
+    // Atualiza o estado persistente
+    bulkUpdate({ groups: updatedGroups, projects: updatedProjects });
+    
+    // IMPORTANTE: Se o seu App.tsx depende de props, você precisa 
+    // garantir que o estado do App seja sincronizado.
+    if (currentGroupId === isDeleting.id) setCurrentGroupId(newParentId);
+  } else {
+    // Filtra a lista removendo o projeto selecionado
+    const updatedProjectsList = props.projects.filter(p => p.id !== isDeleting.id);
+    
+    // Chama a função de atualização do seu hook
+    updateProjects(updatedProjectsList);
+  }
+
+  // Fecha o estado de deleção do modal
+  setIsDeleting(null);
+  
+  // DICA: Como você está usando localStorage, force uma atualização se necessário
+  // ou verifique se o componente App.tsx está re-renderizando ao mudar o localStorage.
+};
 
   const filteredItems = useMemo(() => {
     if (!searchQuery.trim()) return null;
