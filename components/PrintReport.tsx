@@ -1,8 +1,8 @@
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Project, WorkItem, ProjectExpense } from '../types';
 import { financial } from '../utils/math';
-import { HardHat, Ruler, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react';
+import { HardHat, Ruler } from 'lucide-react';
 
 interface PrintReportProps {
   project: Project;
@@ -17,115 +17,145 @@ interface PrintReportProps {
   };
 }
 
-export const PrintReport: React.FC<PrintReportProps> = ({ project, data, expenses, stats }) => {
-  // Mapeia gastos por WBS para comparação técnica
-  const expensesByWbs = useMemo(() => {
-    const map: Record<string, number> = {};
-    expenses.forEach(exp => {
-      if (!exp.wbs) return;
-      // Registra no WBS exato
-      map[exp.wbs] = (map[exp.wbs] || 0) + exp.amount;
-      
-      // Propaga para os níveis superiores (1.1.1 -> 1.1 -> 1)
-      const parts = exp.wbs.split('.');
-      while (parts.length > 1) {
-        parts.pop();
-        const parentWbs = parts.join('.');
-        map[parentWbs] = (map[parentWbs] || 0) + exp.amount;
-      }
-    });
-    return map;
-  }, [expenses]);
-
-  const totalRealCost = financial.sum(expenses.filter(e => e.itemType === 'item').map(e => e.amount));
-  const globalMargin = stats.accumulated - totalRealCost;
-
+export const PrintReport: React.FC<PrintReportProps> = ({ project, data, stats }) => {
   return (
     <div className="print-report-area bg-white text-black p-0 leading-tight">
-      {/* CABEÇALHO PADRÃO ENGENHARIA */}
-      <div className="flex items-start justify-between border-b-4 border-slate-900 pb-4 mb-6">
-        <div className="flex items-center gap-6">
-          <div className="w-20 h-20 bg-slate-900 text-white flex items-center justify-center rounded-xl">
-             <HardHat size={48} />
-          </div>
-          <div>
-            <h1 className="text-2xl font-black uppercase tracking-tighter leading-none">{project.companyName}</h1>
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Gestão de Obras e Auditoria de Custos</p>
-            <div className="flex items-center gap-3 mt-3 text-[9px] font-black text-slate-400">
-               <span className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded"><Ruler size={10}/> ProMeasure ERP v4.0</span>
-               <span>Relatório Gerencial de Medição e Resultado Financeiro</span>
+      {/* CABEÇALHO INSTITUCIONAL */}
+      <div className="flex items-center justify-between border-b-2 border-black pb-3 mb-4">
+        <div className="flex items-center gap-4">
+          {project.logo ? (
+            <img src={project.logo} className="w-16 h-16 object-contain" />
+          ) : (
+            <div className="w-12 h-12 bg-black text-white flex items-center justify-center rounded">
+              <HardHat size={32} />
             </div>
+          )}
+          <div>
+            <h1 className="text-xl font-black uppercase tracking-tight leading-none">{project.companyName}</h1>
+            <p className="text-[8px] font-bold text-slate-600 uppercase tracking-widest mt-1">Gestão Integrada de Medição de Obras</p>
           </div>
         </div>
         <div className="text-right">
-          <h2 className="text-2xl font-black uppercase mb-1">Planilha de Medição</h2>
-          <div className="inline-block bg-slate-900 text-white px-4 py-1 text-xs font-black rounded-full mb-1">
-            BOLETIM Nº {project.measurementNumber}
+          <h2 className="text-lg font-black uppercase">Planilha de Medição</h2>
+          <div className="text-[9px] font-bold">
+            <span className="bg-black text-white px-2 py-0.5 rounded mr-2 uppercase">Medição Nº {project.measurementNumber}</span>
+            <span className="text-slate-500 uppercase">Data: {project.referenceDate}</span>
           </div>
-          <p className="text-[10px] font-bold text-slate-500 uppercase">Período: {project.referenceDate}</p>
         </div>
       </div>
 
-      {/* QUADRO DE RESUMO TÉCNICO */}
-      <div className="grid grid-cols-4 gap-0 border border-black mb-8 bg-slate-50 rounded-xl overflow-hidden">
-        <div className="p-4 border-r border-black">
-          <label className="text-[8px] font-black uppercase text-slate-400 block mb-1">Empreendimento</label>
-          <span className="text-sm font-black uppercase">{project.name}</span>
+      {/* DADOS DO EMPREENDIMENTO */}
+      <div className="grid grid-cols-3 gap-2 mb-4 text-[9px] border border-black p-2 bg-slate-50 rounded">
+        <div>
+          <label className="block text-[7px] font-black text-slate-400 uppercase">Empreendimento</label>
+          <span className="font-bold uppercase">{project.name}</span>
         </div>
-        <div className="p-4 border-r border-black">
-          <label className="text-[8px] font-black uppercase text-slate-400 block mb-1">Data de Referência</label>
-          <span className="text-sm font-black uppercase">{project.referenceDate}</span>
+        <div className="text-center">
+          <label className="block text-[7px] font-black text-slate-400 uppercase">Data de Referência</label>
+          <span className="font-bold">{project.referenceDate}</span>
         </div>
-        <div className="p-4 border-r border-black bg-slate-100">
-          <label className="text-[8px] font-black uppercase text-slate-400 block mb-1">Execução Física</label>
-          <span className="text-lg font-black text-indigo-700">{stats.progress.toFixed(2)}%</span>
-        </div>
-        <div className="p-4">
-          <label className="text-[8px] font-black uppercase text-slate-400 block mb-1">Status Financeiro</label>
-          <span className="text-xs font-black uppercase px-2 py-1 bg-emerald-100 text-emerald-700 rounded">Em Conformidade</span>
+        <div className="text-right">
+          <label className="block text-[7px] font-black text-slate-400 uppercase">Status Físico Global</label>
+          <span className="font-black text-blue-700">{stats.progress.toFixed(2)}% Concluído</span>
         </div>
       </div>
 
-      {/* TABELA DE MEDIÇÃO EXECUTIVA */}
-      <table className="w-full text-[8px] mb-10 border-collapse">
+      {/* TABELA DE MEDIÇÃO PADRÃO ANEXO */}
+      <table className="w-full text-[6.5px] border-collapse border border-black mb-6">
         <thead>
           <tr className="bg-slate-900 text-white font-black uppercase text-center">
-            <th className="border border-black p-2 w-12">WBS</th>
-            <th className="border border-black p-2 text-left">DESCRIÇÃO DOS SERVIÇOS</th>
-            <th className="border border-black p-2 w-10">UND</th>
-            <th className="border border-black p-2 w-28 bg-slate-800">ORÇADO (TOTAL)</th>
-            <th className="border border-black p-2 w-28 bg-blue-800">MEDIDO (ACUM.)</th>
-            <th className="border border-black p-2 w-28 bg-amber-700">GASTO REAL (FIN)</th>
-            <th className="border border-black p-2 w-28 bg-emerald-800">MARGEM / DESVIO</th>
-            <th className="border border-black p-2 w-12">% EXEC</th>
+            <th rowSpan={2} className="border border-black p-1 w-8">Item</th>
+            <th rowSpan={2} className="border border-black p-1 w-10">Cód</th>
+            <th rowSpan={2} className="border border-black p-1 w-10">Fonte</th>
+            <th rowSpan={2} className="border border-black p-1 text-left min-w-[150px]">Descrição</th>
+            <th rowSpan={2} className="border border-black p-1 w-8">Und</th>
+            <th colSpan={2} className="border border-black p-1">Unitário (R$)</th>
+            <th rowSpan={2} className="border border-black p-1 w-12">Qtd. Contratado</th>
+            <th rowSpan={2} className="border border-black p-1 w-20">Total (R$) Contratado</th>
+            <th colSpan={2} className="border border-black p-1 bg-slate-800">Acum. Anterior</th>
+            <th colSpan={2} className="border border-black p-1 bg-blue-600">Medição do Período</th>
+            <th colSpan={2} className="border border-black p-1 bg-slate-800">Acum. Total</th>
+            <th colSpan={2} className="border border-black p-1 bg-slate-800">Saldo a Realizar</th>
+            <th rowSpan={2} className="border border-black p-1 w-8">% Exec.</th>
+          </tr>
+          <tr className="bg-slate-800 text-white font-bold text-[6px] uppercase">
+            <th className="border border-black p-0.5 w-14">S/ BDI</th>
+            <th className="border border-black p-0.5 w-14">C/ BDI</th>
+            <th className="border border-black p-0.5 w-10">Quant.</th>
+            <th className="border border-black p-0.5 w-16">Total (R$)</th>
+            <th className="border border-black p-0.5 w-10 bg-blue-500">Quant.</th>
+            <th className="border border-black p-0.5 w-16 bg-blue-500">Total (R$)</th>
+            <th className="border border-black p-0.5 w-10">Quant.</th>
+            <th className="border border-black p-0.5 w-16">Total (R$)</th>
+            <th className="border border-black p-0.5 w-10">Quant.</th>
+            <th className="border border-black p-0.5 w-16">Total (R$)</th>
           </tr>
         </thead>
         <tbody>
-          {data.map(item => {
-            const realCost = expensesByWbs[item.wbs] || 0;
-            const deviation = (item.accumulatedTotal || 0) - realCost;
+          {data.map((item) => {
             const isCategory = item.type === 'category';
+            const rowClass = isCategory ? 'bg-slate-100 font-bold' : '';
 
             return (
-              <tr key={item.id} className={`${isCategory ? 'bg-slate-100 font-bold' : ''} border-b border-black`}>
-                <td className="border border-black p-1.5 text-center font-mono">{item.wbs}</td>
-                <td className="border border-black p-1.5 uppercase" style={{ paddingLeft: `${item.depth * 10 + 6}px` }}>
+              <tr key={item.id} className={`${rowClass} border-b border-black text-center`}>
+                <td className="border border-black p-1 font-mono text-[7px]">{item.wbs}</td>
+                <td className="border border-black p-1">{item.cod || '-'}</td>
+                <td className="border border-black p-1 uppercase">{item.fonte || '-'}</td>
+                <td className="border border-black p-1 text-left uppercase" style={{ paddingLeft: `${item.depth * 8 + 4}px` }}>
                   {item.name}
                 </td>
-                <td className="border border-black p-1.5 text-center">{item.unit || '—'}</td>
-                <td className="border border-black p-1.5 text-right font-bold">
-                  {financial.formatBRL(item.contractTotal).replace('R$', '')}
+                <td className="border border-black p-1 font-bold">{item.unit || '-'}</td>
+                
+                {/* PREÇOS UNITÁRIOS */}
+                <td className="border border-black p-1 text-right">
+                  {!isCategory ? financial.formatVisual(item.unitPriceNoBdi) : '-'}
                 </td>
-                <td className="border border-black p-1.5 text-right text-blue-800 font-bold">
-                  {financial.formatBRL(item.accumulatedTotal || 0).replace('R$', '')}
+                <td className="border border-black p-1 text-right font-bold">
+                  {!isCategory ? financial.formatVisual(item.unitPrice) : '-'}
                 </td>
-                <td className="border border-black p-1.5 text-right text-amber-900 font-bold">
-                  {financial.formatBRL(realCost).replace('R$', '')}
+
+                {/* CONTRATO */}
+                <td className="border border-black p-1">
+                  {!isCategory ? item.contractQuantity : '-'}
                 </td>
-                <td className={`border border-black p-1.5 text-right font-black ${deviation >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                  {financial.formatBRL(deviation).replace('R$', '')}
+                <td className="border border-black p-1 text-right font-bold">
+                  {financial.formatVisual(item.contractTotal)}
                 </td>
-                <td className="border border-black p-1.5 text-center font-black">
+
+                {/* ANTERIOR */}
+                <td className="border border-black p-1 bg-slate-50">
+                  {!isCategory ? item.previousQuantity : '-'}
+                </td>
+                <td className="border border-black p-1 text-right bg-slate-50">
+                  {financial.formatVisual(item.previousTotal)}
+                </td>
+
+                {/* PERÍODO CORRENTE (Destaque Azul) */}
+                <td className="border border-black p-1 bg-blue-50 font-black text-blue-700">
+                  {!isCategory ? item.currentQuantity : '-'}
+                </td>
+                <td className="border border-black p-1 text-right bg-blue-50 font-black text-blue-700">
+                  {financial.formatVisual(item.currentTotal)}
+                </td>
+
+                {/* ACUMULADO TOTAL */}
+                <td className="border border-black p-1 bg-slate-50 font-bold">
+                  {!isCategory ? item.accumulatedQuantity : '-'}
+                </td>
+                <td className="border border-black p-1 text-right bg-slate-50 font-bold">
+                  {financial.formatVisual(item.accumulatedTotal)}
+                </td>
+
+                {/* SALDO A REALIZAR */}
+                <td className="border border-black p-1">
+                  {!isCategory ? item.balanceQuantity : '-'}
+                </td>
+                <td className="border border-black p-1 text-right">
+                  {financial.formatVisual(item.balanceTotal)}
+                </td>
+
+                {/* % EXEC */}
+                <td className="border border-black p-1 font-black">
                   {item.accumulatedPercentage.toFixed(1)}%
                 </td>
               </tr>
@@ -133,65 +163,64 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, data, expense
           })}
         </tbody>
         <tfoot>
-          <tr className="bg-slate-900 text-white font-black uppercase text-[10px]">
-            <td colSpan={3} className="border border-black p-3 text-right">Totais Gerais Consolidados:</td>
-            <td className="border border-black p-3 text-right">{financial.formatBRL(stats.contract).replace('R$', '')}</td>
-            <td className="border border-black p-3 text-right">{financial.formatBRL(stats.accumulated).replace('R$', '')}</td>
-            <td className="border border-black p-3 text-right text-amber-300">{financial.formatBRL(totalRealCost).replace('R$', '')}</td>
-            <td className={`border border-black p-3 text-right ${globalMargin >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-              {financial.formatBRL(globalMargin).replace('R$', '')}
-            </td>
-            <td className="border border-black p-3 text-center">{stats.progress.toFixed(1)}%</td>
+          <tr className="bg-slate-900 text-white font-black uppercase text-[8px]">
+            <td colSpan={8} className="border border-black p-2 text-right">Totais Gerais da Medição</td>
+            <td className="border border-black p-2 text-right">{financial.formatVisual(stats.contract)}</td>
+            <td className="border border-black p-2"></td>
+            <td className="border border-black p-2 text-right">{financial.formatVisual(stats.accumulated - stats.current)}</td>
+            <td className="border border-black p-2 bg-blue-700"></td>
+            <td className="border border-black p-2 text-right bg-blue-700">{financial.formatVisual(stats.current)}</td>
+            <td className="border border-black p-2"></td>
+            <td className="border border-black p-2 text-right">{financial.formatVisual(stats.accumulated)}</td>
+            <td className="border border-black p-2"></td>
+            <td className="border border-black p-2 text-right">{financial.formatVisual(stats.balance)}</td>
+            <td className="border border-black p-2 text-center">{stats.progress.toFixed(1)}%</td>
           </tr>
         </tfoot>
       </table>
 
-      {/* DASHBOARD DE KPI EXECUTIVO */}
-      <div className="grid grid-cols-4 gap-6 mb-16">
-        <SummaryBox label="Orçado Total" value={financial.formatBRL(stats.contract)} color="slate" />
-        <SummaryBox label="Medido Técnico" value={financial.formatBRL(stats.accumulated)} color="blue" />
-        <SummaryBox label="Desembolso Real" value={financial.formatBRL(totalRealCost)} color="amber" />
-        <SummaryBox label="Eficiência Obra" value={financial.formatBRL(globalMargin)} color={globalMargin >= 0 ? 'emerald' : 'rose'} />
+      {/* DASHBOARD DE KPI RESUMIDO NO RODAPÉ */}
+      <div className="grid grid-cols-4 gap-4 mb-8 no-break">
+        <div className="p-3 border-2 border-black rounded flex flex-col items-center">
+          <span className="text-[7px] font-black uppercase opacity-60">Valor Total Contrato</span>
+          <span className="text-xs font-black">{financial.formatBRL(stats.contract)}</span>
+        </div>
+        <div className="p-3 border-2 border-blue-600 bg-blue-50 rounded flex flex-col items-center">
+          <span className="text-[7px] font-black uppercase text-blue-600">Medição do Período</span>
+          <span className="text-xs font-black text-blue-700">{financial.formatBRL(stats.current)}</span>
+        </div>
+        <div className="p-3 border-2 border-black rounded flex flex-col items-center">
+          <span className="text-[7px] font-black uppercase opacity-60">Acumulado Atual</span>
+          <span className="text-xs font-black">{financial.formatBRL(stats.accumulated)}</span>
+        </div>
+        <div className="p-3 border-2 border-black rounded flex flex-col items-center">
+          <span className="text-[7px] font-black uppercase opacity-60">Saldo a Executar</span>
+          <span className="text-xs font-black">{financial.formatBRL(stats.balance)}</span>
+        </div>
       </div>
 
-      {/* ASSINATURAS */}
-      <div className="grid grid-cols-3 gap-12 text-center">
-        <div>
-          <div className="border-t-2 border-black mb-1 mx-6"></div>
-          <p className="text-[10px] font-black uppercase tracking-tighter">Responsável Técnico</p>
-          <p className="text-[8px] uppercase text-slate-500 font-bold">{project.companyName}</p>
+      {/* CAMPOS DE ASSINATURA */}
+      <div className="mt-12 grid grid-cols-3 gap-8 text-center no-break">
+        <div className="space-y-1">
+          <div className="border-t border-black w-48 mx-auto"></div>
+          <p className="text-[8px] font-black uppercase">Responsável Técnico</p>
+          <p className="text-[7px] font-bold text-slate-500 tracking-tighter">CREA/CAU: __________________</p>
         </div>
-        <div>
-          <div className="border-t-2 border-black mb-1 mx-6"></div>
-          <p className="text-[10px] font-black uppercase tracking-tighter">Fiscalização / Cliente</p>
-          <p className="text-[8px] uppercase text-slate-500 font-bold">Aprovação de Campo</p>
+        <div className="space-y-1">
+          <div className="border-t border-black w-48 mx-auto"></div>
+          <p className="text-[8px] font-black uppercase">Fiscalização</p>
+          <p className="text-[7px] font-bold text-slate-500 tracking-tighter">Assinatura e Carimbo</p>
         </div>
-        <div>
-          <div className="border-t-2 border-black mb-1 mx-6"></div>
-          <p className="text-[10px] font-black uppercase tracking-tighter">Diretoria Executiva</p>
-          <p className="text-[8px] uppercase text-slate-500 font-bold">Liberação de Pagamento</p>
+        <div className="space-y-1">
+          <div className="border-t border-black w-48 mx-auto"></div>
+          <p className="text-[8px] font-black uppercase">Gestor do Contrato</p>
+          <p className="text-[7px] font-bold text-slate-500 tracking-tighter">Liberação Financeira</p>
         </div>
       </div>
       
-      <div className="mt-10 text-center text-[7px] text-slate-400 font-black uppercase tracking-[0.3em]">
-        Emitido pelo ProMeasure ERP em {new Date().toLocaleString('pt-BR')} - Documento Auditável
+      <div className="mt-8 text-center text-[6px] text-slate-400 font-bold uppercase">
+        Relatório gerado pelo sistema ProMeasure PRO v4.0 - Documento para fins de medição e faturamento físico-financeiro.
       </div>
-    </div>
-  );
-};
-
-const SummaryBox = ({ label, value, color }: any) => {
-  const themes: any = {
-    slate: 'bg-slate-50 border-slate-900',
-    blue: 'bg-blue-50 border-blue-900',
-    amber: 'bg-amber-50 border-amber-900',
-    emerald: 'bg-emerald-50 border-emerald-900',
-    rose: 'bg-rose-50 border-rose-900'
-  };
-  return (
-    <div className={`p-4 border-2 rounded-2xl ${themes[color]}`}>
-      <p className="text-[8px] font-black uppercase text-slate-500 tracking-widest mb-1">{label}</p>
-      <p className="text-base font-black tracking-tighter">{value}</p>
     </div>
   );
 };
