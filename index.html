@@ -28,54 +28,57 @@
         body { 
           font-family: 'Inter', sans-serif; 
           background-color: #f8fafc;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
         }
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
         
-        /* Estilos de Impressão - REFEITOS DO ZERO */
         @media print {
           @page { 
             size: A4 landscape; 
-            margin: 8mm; 
+            margin: 10mm; 
           }
 
-          /* Reset de visualização para evitar página em branco */
-          html, body {
-            height: auto !important;
-            overflow: visible !important;
+          /* TÉCNICA DE ISOLAMENTO: Esconde tudo, mostra apenas o report */
+          body * {
+            visibility: hidden;
+          }
+
+          #root, .print-report-area, .print-report-area * {
+            visibility: visible;
+          }
+
+          .print-report-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            display: block !important;
             background: white !important;
             color: black !important;
-            margin: 0 !important;
-            padding: 0 !important;
           }
 
-          /* Esconde a aplicação inteira */
-          #root {
+          /* Remove elementos de UI que podem vazar via visibilidade herdada */
+          aside, nav, header, button, .no-print {
             display: none !important;
+            height: 0 !important;
+            overflow: hidden !important;
           }
 
-          /* Mostra apenas o componente de impressão */
-          .print-report-area {
-            display: block !important;
-            visibility: visible !important;
-            position: static !important;
-            width: 100% !important;
-          }
-
-          /* Garantia de repetição de cabeçalho em tabelas longas */
+          /* Força o layout da tabela */
           table {
-            width: 100% !important;
+            page-break-inside: auto;
             border-collapse: collapse !important;
-            page-break-inside: auto !important;
+            width: 100% !important;
           }
           thead { display: table-header-group !important; }
           tr { page-break-inside: avoid !important; page-break-after: auto !important; }
           
-          /* Forçar cores no print */
-          * {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
+          /* Estética do PDF */
+          .bg-slate-900 { background-color: #0f172a !important; color: white !important; }
+          .bg-slate-50 { background-color: #f8fafc !important; }
+          .border-black { border-color: #000000 !important; }
         }
 
         .print-report-area {
