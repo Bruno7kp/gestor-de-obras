@@ -92,27 +92,27 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, 
     .cell-medi-period {
       background-color: ${theme.accent}10 !important;
       color: ${theme.accent} !important;
-      font-weight: 900;
+      font-weight: 700;
     }
 
     .row-category {
       background-color: ${theme.category.bg} !important;
       color: ${theme.category.text} !important;
-      font-weight: 900;
+      font-weight: 700;
     }
 
     /* Estilo de fonte para itens vs categorias */
     .row-item td {
-      font-weight: 300 !important;
+      font-weight: 400 !important;
     }
     .row-category td {
-      font-weight: 900 !important;
+      font-weight: 700 !important;
     }
 
     .footer-total-row {
       background-color: ${theme.footer.bg} !important;
       color: ${theme.footer.text} !important;
-      font-weight: 900;
+      font-weight: 700;
       text-align: right;
     }
 
