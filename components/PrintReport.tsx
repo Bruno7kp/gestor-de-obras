@@ -21,10 +21,15 @@ interface PrintReportProps {
 export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, companyCnpj, data, stats }) => {
   const theme = project.theme;
 
-  // Motor de CSS Dinâmico para aplicação de Branding
+  // Motor de CSS Dinâmico para aplicação de Branding e ocupação total de página
   const dynamicStyles = `
     .print-report-area {
       font-family: '${theme.fontFamily}', sans-serif !important;
+      width: 100% !important;
+      max-width: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      box-sizing: border-box !important;
     }
     
     .print-report-area h1, .print-report-area h2, .print-report-area h3 {
@@ -61,6 +66,13 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, 
     .kpi-highlight-border { border-color: ${theme.accent} !important; }
     .kpi-highlight-bg { background-color: ${theme.accent}08 !important; }
     .kpi-highlight-text { color: ${theme.accent} !important; }
+
+    /* Garantia de ocupação total de tabela */
+    .print-report-area table {
+      width: 100% !important;
+      max-width: 100% !important;
+      table-layout: auto !important;
+    }
 
     /* Garantia contra cortes de página */
     table tr { page-break-inside: avoid !important; }
