@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Project, ProjectGroup } from '../types';
 import { 
@@ -7,18 +6,21 @@ import {
 } from 'lucide-react';
 import { treeService } from '../services/treeService';
 import { projectService } from '../services/projectService';
+// 1. Importe o hook de estado global
+import { useProjectState } from '../hooks/useProjectState';
 
 interface DashboardViewProps {
   projects: Project[];
   groups: ProjectGroup[];
   onOpenProject: (id: string) => void;
   onCreateProject: (groupId?: string | null) => void;
-  onUpdateProject: (p: Project[]) => void;
-  onUpdateGroups: (g: ProjectGroup[]) => void;
-  onBulkUpdate: (updates: { projects?: Project[], groups?: ProjectGroup[] }) => void;
+  // Note que onUpdateProject e outros podem ser removidos das props se você usar o dispatch direto
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = (props) => {
+  // 2. Acesse o dispatch global
+  const { dispatch } = useProjectState();
+  
   const [currentGroupId, setCurrentGroupId] = useState<string | null>(null);
   const [editingGroup, setEditingGroup] = useState<ProjectGroup | null>(null);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
@@ -44,28 +46,38 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
 
   const handleCreateFolder = () => {
     const newGroup = projectService.createGroup('Nova Pasta', currentGroupId, currentGroups.length);
-    props.onUpdateGroups([...props.groups, newGroup]);
+    // 3. Use dispatch para atualizar grupos
+    dispatch({ type: 'SET_GROUPS', payload: [...props.groups, newGroup] });
   };
 
   const handleConfirmRename = () => {
     if (!newName.trim()) return;
     if (editingGroup) {
-      props.onUpdateGroups(props.groups.map(g => g.id === editingGroup.id ? { ...g, name: newName.trim() } : g));
+      const updatedGroups = props.groups.map(g => g.id === editingGroup.id ? { ...g, name: newName.trim() } : g);
+      dispatch({ type: 'SET_GROUPS', payload: updatedGroups });
       setEditingGroup(null);
     } else if (editingProject) {
-      props.onUpdateProject(props.projects.map(p => p.id === editingProject.id ? { ...p, name: newName.trim() } : p));
+      const updatedProjects = props.projects.map(p => p.id === editingProject.id ? { ...p, name: newName.trim() } : p);
+      // 4. Use dispatch para atualizar projetos
+      dispatch({ type: 'SET_PROJECTS', payload: updatedProjects });
       setEditingProject(null);
     }
   };
 
   const handleConfirmDelete = () => {
     if (!isDeleting) return;
+
     if (isDeleting.type === 'group') {
       const { updatedGroups, updatedProjects, newParentId } = projectService.getReassignedItems(isDeleting.id, props.groups, props.projects);
-      props.onBulkUpdate({ groups: updatedGroups, projects: updatedProjects });
+      
+      // 5. Atualização em massa via dispatch
+      dispatch({ type: 'SET_GROUPS', payload: updatedGroups });
+      dispatch({ type: 'SET_PROJECTS', payload: updatedProjects });
+      
       if (currentGroupId === isDeleting.id) setCurrentGroupId(newParentId);
     } else {
-      props.onUpdateProject(props.projects.filter(p => p.id !== isDeleting.id));
+      // 6. Exclusão de projeto individual via dispatch
+      dispatch({ type: 'DELETE_PROJECT', payload: isDeleting.id });
     }
     setIsDeleting(null);
   };
