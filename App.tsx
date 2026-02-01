@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useProjectState } from './hooks/useProjectState';
 import { projectService } from './services/projectService';
@@ -18,8 +17,16 @@ const App: React.FC = () => {
   const { 
     projects, biddings, groups, activeProject, activeProjectId, setActiveProjectId, 
     globalSettings, setGlobalSettings,
-    updateActiveProject, updateProject, updateGroups, updateBiddings, updateCertificates, bulkUpdate
+    updateActiveProject, updateProjects, updateGroups, updateBiddings, updateCertificates, bulkUpdate
   } = useProjectState();
+
+  // Garantir que globalSettings sempre existe com valores padrão
+  const safeGlobalSettings = globalSettings || {
+    defaultCompanyName: 'Sua Empresa de Engenharia',
+    userName: 'Usuário ProMeasure',
+    language: 'pt-BR' as const,
+    certificates: []
+  };
 
   const [viewMode, setViewMode] = useState<ViewMode>('global-dashboard');
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('promeasure_theme') === 'dark');
@@ -38,8 +45,8 @@ const App: React.FC = () => {
   };
 
   const handleCreateProjectFromBidding = (bidding: any) => {
-    const newProj = biddingService.convertToProject(bidding, globalSettings.defaultCompanyName);
-    updateProject([...projects, newProj]);
+    const newProj = biddingService.convertToProject(bidding, safeGlobalSettings.defaultCompanyName);
+    updateProjects([...projects, newProj]);
     handleOpenProject(newProj.id);
   };
 
@@ -51,12 +58,12 @@ const App: React.FC = () => {
         viewMode={viewMode} setViewMode={setViewMode}
         projects={projects} groups={groups} activeProjectId={activeProjectId}
         onOpenProject={handleOpenProject} onCreateProject={(gid) => {
-          const np = projectService.createProject('Nova Obra', globalSettings.defaultCompanyName, gid || null);
-          updateProject([...projects, np]);
+          const np = projectService.createProject('Nova Obra', safeGlobalSettings.defaultCompanyName, gid || null);
+          updateProjects([...projects, np]);
           handleOpenProject(np.id);
         }}
         isDarkMode={isDarkMode} toggleDarkMode={() => setIsDarkMode(!isDarkMode)}
-        certificates={globalSettings.certificates}
+        certificates={safeGlobalSettings.certificates}
       />
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
@@ -69,16 +76,16 @@ const App: React.FC = () => {
 
         {viewMode === 'global-dashboard' && (
           <DashboardView projects={projects} groups={groups} onOpenProject={handleOpenProject} onCreateProject={(gid) => {
-            const np = projectService.createProject('Nova Obra', globalSettings.defaultCompanyName, gid || null);
-            updateProject([...projects, np]);
+            const np = projectService.createProject('Nova Obra', safeGlobalSettings.defaultCompanyName, gid || null);
+            updateProjects([...projects, np]);
             handleOpenProject(np.id);
-          }} onupdateProject={updateProject} onUpdateGroups={updateGroups} onBulkUpdate={bulkUpdate} />
+          }} onUpdateProjects={updateProjects} onUpdateGroups={updateGroups} onBulkUpdate={bulkUpdate} />
         )}
 
         {viewMode === 'bidding-view' && (
           <BiddingView 
             biddings={biddings} 
-            certificates={globalSettings.certificates} 
+            certificates={safeGlobalSettings.certificates} 
             onUpdateBiddings={updateBiddings} 
             onUpdateCertificates={updateCertificates}
             onCreateProjectFromBidding={handleCreateProjectFromBidding}
@@ -86,7 +93,7 @@ const App: React.FC = () => {
         )}
 
         {viewMode === 'system-settings' && (
-          <SettingsView settings={globalSettings} onUpdate={setGlobalSettings} projectCount={projects.length} />
+          <SettingsView settings={safeGlobalSettings} onUpdate={setGlobalSettings} projectCount={projects.length} />
         )}
 
         {viewMode === 'project-workspace' && activeProject && (
