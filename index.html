@@ -17,9 +17,6 @@
             borderRadius: {
               '3xl': '1.5rem',
               '4xl': '2rem',
-            },
-            screens: {
-              'xs': '475px',
             }
           },
         },
@@ -28,107 +25,61 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
         
-        :root {
-            scrollbar-width: thin;
-            scrollbar-color: #cbd5e1 #f8fafc;
-        }
-
-        .dark {
-            scrollbar-color: #334155 #0f172a;
-        }
-
         body { 
           font-family: 'Inter', sans-serif; 
-          -webkit-font-smoothing: antialiased; 
           background-color: #f8fafc;
-          touch-action: manipulation;
         }
 
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .dark ::-webkit-scrollbar-thumb { background: #334155; }
-
-        .table-container {
-          -webkit-overflow-scrolling: touch;
-          overflow-x: auto;
-          scrollbar-width: none;
-        }
-        .table-container::-webkit-scrollbar {
-          display: none;
-        }
-
-        .dragging-row {
-          background: white !important;
-          box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1) !important;
-          display: table !important;
-          width: 100% !important;
-          z-index: 100 !important;
-          border-radius: 1rem !important;
-        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
         
-        .dark .dragging-row {
-          background: #1e293b !important;
-        }
-
-        .print-only { display: none; }
-
+        /* Estilos de Impressão - REFEITOS DO ZERO */
         @media print {
           @page { 
             size: A4 landscape; 
-            margin: 10mm; 
-          }
-          
-          /* Esconde absolutamente tudo que não for o relatório */
-          body * {
-            visibility: hidden;
-            background: none !important;
-            box-shadow: none !important;
+            margin: 8mm; 
           }
 
-          /* Reset de layout para o container principal */
-          #root, #root > div, main {
-            display: block !important;
-            padding: 0 !important;
+          /* Reset de visualização para evitar página em branco */
+          html, body {
+            height: auto !important;
+            overflow: visible !important;
+            background: white !important;
+            color: black !important;
             margin: 0 !important;
-            border: none !important;
+            padding: 0 !important;
           }
 
-          /* Elementos que devem sumir no print */
-          .no-print, 
-          header, 
-          aside, 
-          nav, 
-          button, 
-          input[type="file"],
-          .sidebar-container {
+          /* Esconde a aplicação inteira */
+          #root {
             display: none !important;
           }
 
-          /* Torna o relatório e seus filhos visíveis */
-          .print-only, 
-          .print-only * {
-            visibility: visible;
-          }
-
-          .print-only {
+          /* Mostra apenas o componente de impressão */
+          .print-report-area {
             display: block !important;
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
+            visibility: visible !important;
+            position: static !important;
             width: 100% !important;
-            background: white !important;
-            color: black !important;
           }
 
+          /* Garantia de repetição de cabeçalho em tabelas longas */
           table {
-            border-collapse: collapse !important;
             width: 100% !important;
+            border-collapse: collapse !important;
+            page-break-inside: auto !important;
           }
+          thead { display: table-header-group !important; }
+          tr { page-break-inside: avoid !important; page-break-after: auto !important; }
           
-          th, td {
-            border: 1px solid black !important;
+          /* Forçar cores no print */
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
+        }
+
+        .print-report-area {
+          display: none;
         }
     </style>
 <script type="importmap">
