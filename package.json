@@ -1,8 +1,7 @@
 {
   "name": "teste---gestor-de-obras-v0.4",
-  "private": true,
   "version": "0.0.0",
-  "type": "module",
+  "private": true,
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -10,16 +9,16 @@
   },
   "dependencies": {
     "react": "18.3.1",
-    "react-dom": "^19.2.4",
+    "react-dom": "18.3.1",
     "lucide-react": "0.460.0",
     "xlsx": "0.18.5",
     "zod": "3.23.8",
     "@hello-pangea/dnd": "17.0.0"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.1",
+    "typescript": "^5.0.0"
   }
 }
+
