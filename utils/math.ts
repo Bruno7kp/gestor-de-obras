@@ -63,8 +63,12 @@ export const financial = {
     return parseFloat(cleanValue) || 0;
   },
 
+  /**
+   * Soma valores garantindo truncagem no resultado final para precisão de centavos.
+   */
   sum: (values: number[]): number => {
-    return financial.round(values.reduce((acc, val) => acc + val, 0));
+    const total = values.reduce((acc, val) => acc + (val || 0), 0);
+    return financial.truncate(total);
   },
 
   /**

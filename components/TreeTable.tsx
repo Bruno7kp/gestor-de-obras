@@ -88,7 +88,6 @@ export const TreeTable: React.FC<TreeTableProps> = ({
     onReorder(sourceId, targetItem.id, 'after');
   };
 
-  // Helper para controlar visibilidade de grupos de colunas
   const showUnitary = view === 'full' || view === 'contractual';
   const showContract = view === 'full' || view === 'contractual';
   const showPrevious = view === 'full' || view === 'measurement';
@@ -96,7 +95,6 @@ export const TreeTable: React.FC<TreeTableProps> = ({
   const showAccumulated = view === 'full' || view === 'measurement' || view === 'minimal';
   const showBalance = view === 'full';
 
-  // Cálculo dinâmico do colSpan para o Consolidado no footer
   const calculateConsolidatedColSpan = () => {
     let base = 3; // ITEM + EAP + UND
     if (showMover) base++;
@@ -106,14 +104,18 @@ export const TreeTable: React.FC<TreeTableProps> = ({
     return base;
   };
 
+  const rootItems = filteredData.filter(i => i.depth === 0);
+  const totalContract = financial.sum(rootItems.map(i => i.contractTotal));
+  const totalCurrent = financial.sum(rootItems.map(i => i.currentTotal));
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print">
         <div className="flex items-center gap-2">
-          <button onClick={onExpandAll} className="flex items-center gap-2 px-3 py-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg transition-all shadow-sm">
+          <button onClick={onExpandAll} className="flex items-center gap-2 px-3 py-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm">
             <Maximize2 size={12} /> <span className="hidden xs:inline">Expandir</span>
           </button>
-          <button onClick={onCollapseAll} className="flex items-center gap-2 px-3 py-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg transition-all shadow-sm">
+          <button onClick={onCollapseAll} className="flex items-center gap-2 px-3 py-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm">
             <Minimize2 size={12} /> <span className="hidden xs:inline">Recolher</span>
           </button>
         </div>
@@ -147,14 +149,14 @@ export const TreeTable: React.FC<TreeTableProps> = ({
         <DragDropContext onDragEnd={handleDragEnd}>
           <table className="min-w-max w-full border-collapse text-[11px]">
             <thead className="bg-slate-900 dark:bg-black text-white sticky top-0 z-20">
-              <tr className="uppercase tracking-widest font-black text-[9px] opacity-80">
-                {showMover && <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-16 no-print text-center">Mover</th>}
-                {showAcoes && <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-24 text-center">Ações</th>}
-                <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-16 text-center">ITEM</th>
-                {showFonte && <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-20 text-center">FONTE</th>}
-                {showCod && <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-20 text-center">Código</th>}
-                <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 text-left min-w-[350px]">Estrutura Analítica do Projeto (EAP)</th>
-                <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-14 text-center">Und</th>
+              <tr className="uppercase tracking-widest font-black text-[9px] opacity-80 text-center">
+                {showMover && <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-16 no-print">Mover</th>}
+                {showAcoes && <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-24">Ações</th>}
+                <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-16">ITEM</th>
+                {showFonte && <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-20">FONTE</th>}
+                {showCod && <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-20">Código</th>}
+                <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 text-left min-w-[400px]">Estrutura Analítica do Projeto (EAP)</th>
+                <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-14">Und</th>
                 
                 {showUnitary && <th colSpan={2} className="p-2 border-r border-slate-800 dark:border-slate-900 bg-slate-800/50">Unitário ({currencySymbol})</th>}
                 {showContract && <th colSpan={2} className="p-2 border-r border-slate-800 dark:border-slate-900 bg-slate-800/30">Planilha Contratual</th>}
@@ -165,42 +167,42 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                 
                 <th rowSpan={2} className="p-4 w-10 text-center">% EXEC.</th>
               </tr>
-              <tr className="text-[8px] bg-slate-800 dark:bg-slate-950 font-bold uppercase">
+              <tr className="text-[8px] bg-slate-800 dark:bg-slate-950 font-bold uppercase text-center">
                 {showUnitary && (
                   <>
-                    <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-24">S/ BDI</th>
-                    <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-24">C/ BDI</th>
+                    <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-24 text-right">S/ BDI</th>
+                    <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-24 text-right">C/ BDI</th>
                   </>
                 )}
                 {showContract && (
                   <>
-                    <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-16 text-center">Qtd</th>
+                    <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-16">Qtd</th>
                     <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-32 text-right">Total</th>
                   </>
                 )}
                 {showPrevious && (
                   <>
-                    <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-16 text-center">Qtd</th>
+                    <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-16">Qtd</th>
                     <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-32 text-right">Total</th>
                   </>
                 )}
                 {showCurrent && (
                   <>
-                    <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-12 text-center">%</th>
-                    <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-16 text-center">Qtd</th>
+                    <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-12">%</th>
+                    <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-16">Qtd</th>
                     <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-32 text-right">Total</th>
                   </>
                 )}
                 {showAccumulated && (
                   <>
-                    <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-16 text-center">Qtd</th>
+                    <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-16">Qtd</th>
                     <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-32 text-right">Total</th>
-                    <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-12 text-center">%</th>
+                    <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-12">%</th>
                   </>
                 )}
                 {showBalance && (
                   <>
-                    <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-16 text-center">Qtd</th>
+                    <th className="p-2 border-r border-slate-700 dark:border-slate-800 w-16">Qtd</th>
                     <th className="p-2 w-32 text-right">Total</th>
                   </>
                 )}
@@ -217,7 +219,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                   {filteredData.map((item, index) => (
                     <Draggable key={item.id} draggableId={item.id} index={index} isDragDisabled={isReadOnly}>
                       {(provided, snapshot) => (
-                        <tr ref={provided.innerRef} {...provided.draggableProps} className={`group transition-all duration-150 ${item.type === 'category' ? 'bg-slate-50/80 dark:bg-slate-800/40 font-bold' : 'hover:bg-blue-50/40 dark:hover:bg-blue-900/10'} ${snapshot.isDragging ? 'dragging-row' : ''} ${snapshot.combineWith ? 'bg-blue-100 dark:bg-blue-900/50' : ''}`}>
+                        <tr ref={provided.innerRef} {...provided.draggableProps} className={`group transition-all duration-150 ${item.type === 'category' ? 'bg-slate-50/80 dark:bg-slate-800/40 font-bold' : 'hover:bg-blue-50/40 dark:hover:bg-blue-900/10'} ${snapshot.isDragging ? 'dragging-row shadow-2xl z-50' : ''}`}>
                           {showMover && (
                             <td className="p-2 border-r border-slate-100 dark:border-slate-800 no-print text-center">
                               <div {...provided.dragHandleProps} className="inline-flex p-1.5 text-slate-300 hover:text-indigo-500 transition-colors cursor-grab active:cursor-grabbing">
@@ -228,24 +230,24 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                           {showAcoes && (
                             <td className="p-2 border-r border-slate-100 dark:border-slate-800 no-print">
                               <div className="flex items-center justify-center gap-1 lg:opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button disabled={isReadOnly} onClick={() => onEdit(item)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg disabled:opacity-20"><Edit3 size={14}/></button>
-                                <button disabled={isReadOnly} onClick={() => onDelete(item.id)} className="p-1.5 text-rose-300 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg disabled:opacity-20"><Trash2 size={14}/></button>
+                                <button disabled={isReadOnly} onClick={() => onEdit(item)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg"><Edit3 size={14}/></button>
+                                <button disabled={isReadOnly} onClick={() => onDelete(item.id)} className="p-1.5 text-rose-300 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg"><Trash2 size={14}/></button>
                               </div>
                             </td>
                           )}
                           <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 font-mono text-[10px] text-slate-400 dark:text-slate-500">{item.wbs}</td>
                           {showFonte && <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 text-[9px] font-black uppercase text-slate-400 dark:text-slate-500">{item.fonte || '-'}</td>}
                           {showCod && <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-mono text-[10px]">{item.cod || '-'}</td>}
-                          <td className="p-2 border-r border-slate-100 dark:border-slate-800 relative min-w-[350px]">
-                            <div className="flex items-center gap-1 h-full">
+                          <td className="p-2 border-r border-slate-100 dark:border-slate-800 max-w-[400px]">
+                            <div className="flex items-start gap-1 h-full">
                               <div className="flex items-center gap-2" style={{ marginLeft: `${item.depth * 1.5}rem` }}>
                                 {item.type === 'category' ? (
                                   <button onClick={() => onToggle(item.id)} className={`p-1 rounded-md transition-colors ${expandedIds.has(item.id) ? 'text-blue-600 bg-blue-100 dark:bg-blue-900/40' : 'text-slate-400 bg-slate-100 dark:bg-slate-800'}`}>
                                     {expandedIds.has(item.id) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                                   </button>
                                 ) : <div className="w-6 h-px bg-slate-200 dark:bg-slate-700" />}
-                                {item.type === 'category' ? <Layers size={14} className="text-blue-500 flex-shrink-0" /> : <Package size={14} className="text-slate-300 flex-shrink-0" />}
-                                <span className={`truncate ${item.type === 'category' ? 'text-slate-900 dark:text-slate-100 uppercase text-[10px] font-black' : 'text-slate-600 dark:text-slate-300'}`}>{item.name}</span>
+                                {item.type === 'category' ? <Layers size={14} className="text-blue-500 flex-shrink-0 mt-0.5" /> : <Package size={14} className="text-slate-300 flex-shrink-0 mt-0.5" />}
+                                <span className={`line-clamp-2 overflow-hidden text-ellipsis whitespace-normal leading-tight ${item.type === 'category' ? 'text-slate-900 dark:text-slate-100 uppercase text-[10px] font-black' : 'text-slate-600 dark:text-slate-300'}`}>{item.name}</span>
                                 {item.type === 'category' && !isReadOnly && (
                                   <div className="ml-auto lg:opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
                                     <button onClick={() => onAddChild(item.id, 'category')} className="p-1 text-slate-400 hover:text-blue-600"><FolderPlus size={14} /></button>
@@ -354,25 +356,53 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                     {showContract && (
                       <>
                         <td className="p-4 border-r border-white/10"></td>
-                        <td className="p-4 border-r border-white/10 text-right text-base tracking-tighter whitespace-nowrap">{financial.formatVisual(financial.sum(filteredData.filter(i => i.depth === 0).map(i => i.contractTotal)), currencySymbol)}</td>
+                        <td className="p-4 border-r border-white/10 text-right text-base tracking-tighter whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1">
+                            <span className="text-[10px] text-slate-400 font-black">{currencySymbol}</span>
+                            <input 
+                              disabled={isReadOnly}
+                              type="text"
+                              className="bg-transparent text-right font-black text-white outline-none focus:ring-1 focus:ring-indigo-500 rounded px-1 w-40"
+                              defaultValue={financial.formatVisual(totalContract, currencySymbol).replace(currencySymbol, '').trim()}
+                              onBlur={(e) => {
+                                // Implementação de ajuste fino centavos no total se necessário pelo usuário
+                                const newVal = financial.parseLocaleNumber(e.target.value);
+                                console.log("Ajuste manual de total contrato:", newVal);
+                              }}
+                            />
+                          </div>
+                        </td>
                       </>
                     )}
 
                     {showPrevious && (
-                      <td colSpan={2} className="p-4 border-r border-white/10 text-right opacity-50 whitespace-nowrap">{financial.formatVisual(financial.sum(filteredData.filter(i => i.depth === 0).map(i => i.previousTotal)), currencySymbol)}</td>
+                      <td colSpan={2} className="p-4 border-r border-white/10 text-right opacity-50 whitespace-nowrap">{financial.formatBRL(financial.sum(rootItems.map(i => i.previousTotal)))}</td>
                     )}
 
                     {showCurrent && (
                       <>
                         <td colSpan={2} className="p-4 border-r border-white/10"></td>
-                        <td className="p-4 border-r border-white/10 text-right text-blue-400 text-base tracking-tighter whitespace-nowrap">{financial.formatVisual(financial.sum(filteredData.filter(i => i.depth === 0).map(i => i.currentTotal)), currencySymbol)}</td>
+                        <td className="p-4 border-r border-white/10 text-right text-blue-400 text-base tracking-tighter whitespace-nowrap">
+                           <div className="flex items-center justify-end gap-1">
+                            <span className="text-[10px] text-blue-500 font-black">{currencySymbol}</span>
+                            <input 
+                              disabled={isReadOnly}
+                              type="text"
+                              className="bg-transparent text-right font-black text-blue-400 outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 w-40"
+                              defaultValue={financial.formatVisual(totalCurrent, currencySymbol).replace(currencySymbol, '').trim()}
+                              onBlur={(e) => {
+                                 console.log("Ajuste manual de total período:", financial.parseLocaleNumber(e.target.value));
+                              }}
+                            />
+                          </div>
+                        </td>
                       </>
                     )}
 
                     {showAccumulated && (
                       <>
                         <td className="p-4 border-r border-white/10"></td>
-                        <td className="p-4 border-r border-white/10 text-right text-emerald-400 text-base tracking-tighter whitespace-nowrap">{financial.formatVisual(financial.sum(filteredData.filter(i => i.depth === 0).map(i => i.accumulatedTotal)), currencySymbol)}</td>
+                        <td className="p-4 border-r border-white/10 text-right text-emerald-400 text-base tracking-tighter whitespace-nowrap">{financial.formatBRL(financial.sum(rootItems.map(i => i.accumulatedTotal)))}</td>
                         <td className="p-4 border-r border-white/10"></td>
                       </>
                     )}
@@ -380,7 +410,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                     {showBalance && (
                       <>
                         <td className="p-4 border-r border-white/10"></td>
-                        <td className="p-4 border-r border-white/10 text-right text-rose-400 text-base tracking-tighter whitespace-nowrap">{financial.formatVisual(financial.sum(filteredData.filter(i => i.depth === 0).map(i => i.balanceTotal)), currencySymbol)}</td>
+                        <td className="p-4 border-r border-white/10 text-right text-rose-400 text-base tracking-tighter whitespace-nowrap">{financial.formatBRL(financial.sum(rootItems.map(i => i.balanceTotal)))}</td>
                       </>
                     )}
 
@@ -396,7 +426,6 @@ export const TreeTable: React.FC<TreeTableProps> = ({
   );
 };
 
-// Componente para Toggle de Visibilidade de Colunas (Reutilizável)
 const VisibilityToggle = ({ label, active, onClick }: { label: string, active: boolean, onClick: () => void }) => (
   <button 
     onClick={onClick}
@@ -406,12 +435,10 @@ const VisibilityToggle = ({ label, active, onClick }: { label: string, active: b
   </button>
 );
 
-// Componente auxiliar para lidar com o input de porcentagem sem perder o foco/digitação
 const PercentageInput = ({ value, onChange, disabled }: { value: number, onChange: (val: number) => void, disabled: boolean }) => {
   const [localVal, setLocalVal] = useState(value.toString());
 
   useEffect(() => {
-    // Sincroniza o estado local com o valor real apenas se não estivermos no foco ou o valor mudou bruscamente
     setLocalVal(value.toString());
   }, [value]);
 
@@ -429,7 +456,7 @@ const PercentageInput = ({ value, onChange, disabled }: { value: number, onChang
         onBlur={(e) => {
           const v = Math.min(100, parseFloat(e.target.value) || 0);
           onChange(v);
-          setLocalVal(v.toString()); // Garante limpeza no blur
+          setLocalVal(v.toString());
         }}
       />
       <span className="text-[8px] text-blue-400 font-black">%</span>
