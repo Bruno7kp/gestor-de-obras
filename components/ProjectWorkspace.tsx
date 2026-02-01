@@ -1,11 +1,13 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Project, WorkItem, ItemType } from '../types';
 import { WbsView } from './WbsView';
 import { StatsView } from './StatsView';
 import { BrandingView } from './BrandingView';
 import { ExpenseManager } from './ExpenseManager';
 import { AssetManager } from './AssetManager';
+import { PrintReport } from './PrintReport';
+import { treeService } from '../services/treeService';
 import { financial } from '../utils/math';
 import { 
   Layers, BarChart3, Coins, FileText, Sliders, 
@@ -27,6 +29,16 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   project, onUpdateProject, onCloseMeasurement, canUndo, canRedo, onUndo, onRedo, onOpenModal
 }) => {
   const [tab, setTab] = useState<'wbs' | 'stats' | 'expenses' | 'documents' | 'branding'>('wbs');
+
+  // Calcula os dados de impressão em tempo real
+  const printData = useMemo(() => {
+    const tree = treeService.buildTree(project.items);
+    const processed = tree.map((root, idx) => treeService.processRecursive(root, '', idx, project.bdi));
+    const allIds = new Set(project.items.map(i => i.id));
+    const flattened = treeService.flattenTree(processed, allIds);
+    const stats = treeService.calculateBasicStats(project.items, project.bdi);
+    return { flattened, stats };
+  }, [project.items, project.bdi]);
 
   const TabBtn = ({ active, onClick, label, icon }: any) => (
     <button 
@@ -70,7 +82,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-10 bg-slate-50 dark:bg-slate-950">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-10 bg-slate-50 dark:bg-slate-950 no-print">
         <div className="max-w-[1600px] mx-auto">
           {tab === 'wbs' && (
             <WbsView 
@@ -114,6 +126,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           )}
         </div>
       </div>
+
+      {/* COMPONENTE DE IMPRESSÃO - SEMPRE PRESENTE MAS SÓ VISÍVEL NO PRINT */}
+      <PrintReport 
+        project={project} 
+        data={printData.flattened} 
+        stats={printData.stats as any} 
+      />
     </div>
   );
 };

@@ -49,14 +49,13 @@
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         .dark ::-webkit-scrollbar-thumb { background: #334155; }
 
-        /* Estilo para garantir que o scroll horizontal de tabelas seja suave no mobile */
         .table-container {
           -webkit-overflow-scrolling: touch;
           overflow-x: auto;
-          scrollbar-width: none; /* Firefox */
+          scrollbar-width: none;
         }
         .table-container::-webkit-scrollbar {
-          display: none; /* Chrome/Safari */
+          display: none;
         }
 
         .dragging-row {
@@ -75,11 +74,51 @@
         .print-only { display: none; }
 
         @media print {
-          @page { size: A4 landscape; margin: 5mm; }
-          .no-print { display: none !important; }
-          .print-only { display: block !important; }
-          .print-table { width: 100% !important; border-collapse: collapse !important; table-layout: fixed !important; }
-          .print-table th, .print-table td { border: 0.5pt solid #000 !important; padding: 2pt !important; font-size: 7pt !important; }
+          @page { 
+            size: A4 landscape; 
+            margin: 10mm; 
+          }
+          
+          html, body {
+            background: white !important;
+            color: black !important;
+            height: auto !important;
+            overflow: visible !important;
+          }
+
+          #root > div {
+            display: block !important;
+          }
+
+          .no-print { 
+            display: none !important; 
+          }
+
+          .print-only { 
+            display: block !important; 
+            width: 100% !important;
+            position: relative !important;
+          }
+
+          .print-report-container {
+            background: white !important;
+            color: black !important;
+          }
+
+          table {
+            page-break-inside: auto;
+            border-collapse: collapse !important;
+          }
+          tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+          }
+          thead {
+            display: table-header-group;
+          }
+          tfoot {
+            display: table-footer-group;
+          }
         }
     </style>
 <script type="importmap">
