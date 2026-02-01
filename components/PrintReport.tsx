@@ -50,7 +50,7 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, 
       {/* DADOS DO EMPREENDIMENTO */}
       <div className="grid grid-cols-3 gap-2 mb-4 text-[9px] border border-black p-2 bg-slate-50 rounded">
         <div>
-          <label className="block text-[7px] font-black text-slate-400 uppercase">Empreendimento</label>
+          <label className="block text-[7px] font-black text-slate-400 uppercase">Obra</label>
           <span className="font-bold uppercase">{project.name}</span>
         </div>
         <div className="text-center">

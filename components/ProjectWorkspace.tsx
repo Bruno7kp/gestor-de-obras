@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Project, WorkItem, ItemType, GlobalSettings, MeasurementSnapshot } from '../types';
 import { WbsView } from './WbsView';
@@ -11,12 +10,14 @@ import { JournalView } from './JournalView';
 import { PrintReport } from './PrintReport';
 import { WorkItemModal } from './WorkItemModal';
 import { treeService } from '../services/treeService';
+import { projectService } from '../services/projectService';
 import { planningService } from '../services/planningService';
 import { financial } from '../utils/math';
 import { 
   Layers, BarChart3, Coins, FileText, Sliders, 
   Printer, Undo2, Redo2, Lock, Calendar, BookOpen,
-  CheckCircle2, ArrowRight, History, ChevronDown, LockOpen, Target, HardHat
+  CheckCircle2, ArrowRight, History, ChevronDown, LockOpen, Target, HardHat,
+  RotateCcw, AlertTriangle, X as CloseIcon
 } from 'lucide-react';
 
 interface ProjectWorkspaceProps {
@@ -33,27 +34,21 @@ interface ProjectWorkspaceProps {
 export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   project, globalSettings, onUpdateProject, onCloseMeasurement, canUndo, canRedo, onUndo, onRedo
 }) => {
-  // Sequência de abas atualizada conforme solicitação: Planilha, Analise, Financeiro, Planejamento, Diário, Docs, Ajustes
   const [tab, setTab] = useState<'wbs' | 'stats' | 'expenses' | 'planning' | 'journal' | 'documents' | 'branding'>('wbs');
-  
-  // Controle de Navegação por Histórico
   const [viewingHistoryIndex, setViewingHistoryIndex] = useState<number | null>(null);
-  
-  // Modais
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showConfirmClose, setShowConfirmClose] = useState(false);
+  const [showConfirmReopen, setShowConfirmReopen] = useState(false);
   
   const [modalType, setModalType] = useState<ItemType>('item');
   const [editingItem, setEditingItem] = useState<WorkItem | null>(null);
   const [targetParentId, setTargetParentId] = useState<string | null>(null);
 
-  // Determina quais itens exibir (os atuais ou os de um snapshot histórico)
   const activeItems = useMemo(() => {
     if (viewingHistoryIndex === null) return project.items;
     return project.history[viewingHistoryIndex].items;
   }, [project, viewingHistoryIndex]);
 
-  // Calcula estatísticas para o período selecionado
   const printData = useMemo(() => {
     const tree = treeService.buildTree(activeItems);
     const processed = tree.map((root, idx) => treeService.processRecursive(root, '', idx, project.bdi));
@@ -65,7 +60,6 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
   const isViewingHistory = viewingHistoryIndex !== null;
 
-  // Habilitar botão fechar apenas na medição atual e se houver produção
   const canCloseMeasurement = useMemo(() => {
     return !isViewingHistory && project.items.some(it => it.type === 'item' && (it.currentQuantity !== 0 || it.currentTotal !== 0));
   }, [isViewingHistory, project.items]);
@@ -88,6 +82,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     onUpdateProject({ items: newItems, planning: cleanedPlanning });
   };
 
+  const handleReopenMeasurement = () => {
+    const reopenedProject = projectService.reopenLatestMeasurement(project);
+    onUpdateProject(reopenedProject);
+    setViewingHistoryIndex(null);
+    setShowConfirmReopen(false);
+  };
+
   const TabBtn = ({ active, onClick, label, icon }: any) => (
     <button 
       onClick={onClick} 
@@ -100,13 +101,10 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   return (
     <>
       <div className="flex-1 flex flex-col overflow-hidden no-print">
-        {/* HEADER PRINCIPAL */}
         <header className="min-h-24 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex flex-col md:flex-row items-stretch md:items-center justify-between px-6 md:px-10 py-4 md:py-0 shrink-0 z-40 gap-4">
           <div className="flex flex-col gap-1 overflow-hidden text-left">
             <div className="flex items-center gap-3">
               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 truncate max-w-[150px]">{project.name}</span>
-              
-              {/* SELETOR DE PERÍODO (TIME MACHINE) */}
               <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 shadow-inner">
                 <select 
                   className="bg-transparent text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 outline-none px-3 py-1 cursor-pointer"
@@ -165,9 +163,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         </header>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-10 bg-slate-50 dark:bg-slate-950">
-          {/* BANNER DE AVISO DE HISTÓRICO */}
           {isViewingHistory && (
-            <div className="max-w-[1600px] mx-auto mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-3xl flex items-center justify-between animate-in slide-in-from-top-4 duration-500 shadow-sm">
+            <div className="max-w-[1600px] mx-auto mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-3xl flex flex-col md:flex-row items-center justify-between animate-in slide-in-from-top-4 duration-500 shadow-sm gap-4">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-amber-500 text-white rounded-2xl shadow-lg shadow-amber-500/20">
                   <History size={20} />
@@ -177,12 +174,22 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                   <p className="text-[10px] text-amber-600 font-bold uppercase tracking-widest mt-0.5">Congelado em {project.history[viewingHistoryIndex].date} • Somente Leitura</p>
                 </div>
               </div>
-              <button 
-                onClick={() => setViewingHistoryIndex(null)}
-                className="flex items-center gap-2 px-6 py-2.5 bg-white dark:bg-slate-800 text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-400 rounded-xl hover:bg-amber-100 dark:hover:bg-slate-700 transition-all shadow-sm border border-amber-100 dark:border-amber-800"
-              >
-                <LockOpen size={14} /> Voltar para Edição Atual
-              </button>
+              <div className="flex items-center gap-3">
+                {viewingHistoryIndex === 0 && (
+                  <button 
+                    onClick={() => setShowConfirmReopen(true)}
+                    className="flex items-center gap-2 px-6 py-2.5 bg-rose-50 dark:bg-rose-900/20 text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 rounded-xl hover:bg-rose-600 hover:text-white transition-all shadow-sm border border-rose-100 dark:border-rose-800"
+                  >
+                    <RotateCcw size={14} /> Reabrir para Correção
+                  </button>
+                )}
+                <button 
+                  onClick={() => setViewingHistoryIndex(null)}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-white dark:bg-slate-800 text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-all shadow-sm border border-slate-200 dark:border-slate-700"
+                >
+                  <LockOpen size={14} /> Voltar para Edição Atual
+                </button>
+              </div>
             </div>
           )}
 
@@ -295,6 +302,43 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                 className="flex-1 py-4 px-6 bg-indigo-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-indigo-500/20 active:scale-95 transition-all"
               >
                 Confirmar e Rotacionar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CONFIRMAÇÃO DE REABERTURA */}
+      {showConfirmReopen && (
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 p-8 sm:p-10 text-center">
+            <div className="w-20 h-20 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
+              <RotateCcw size={36} />
+            </div>
+            <h2 className="text-2xl font-black text-slate-800 dark:text-white mb-2 tracking-tight">Reabrir Medição Nº {project.history[0].measurementNumber}?</h2>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mb-8 leading-relaxed px-4">
+              <strong>CUIDADO:</strong> Se você já iniciou a digitação de dados na medição atual (Nº {project.measurementNumber}), esses dados serão <strong>PERDIDOS</strong> para restaurar o estado da medição anterior.
+            </p>
+
+            <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-2xl border border-amber-100 dark:border-amber-800 text-left mb-8 flex gap-3">
+               <AlertTriangle className="text-amber-500 shrink-0" size={20} />
+               <p className="text-[11px] font-medium text-amber-700 dark:text-amber-400 leading-tight">
+                 Use esta função apenas para corrigir glosas ou erros de digitação apontados pela fiscalização. Após a correção, você deverá fechar a medição novamente.
+               </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button 
+                onClick={() => setShowConfirmReopen(false)} 
+                className="flex-1 py-4 px-6 text-slate-400 font-black uppercase text-[10px] tracking-widest hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+              >
+                Desistir
+              </button>
+              <button 
+                onClick={handleReopenMeasurement} 
+                className="flex-1 py-4 px-6 bg-rose-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-rose-500/20 active:scale-95 transition-all"
+              >
+                Sim, Restaurar para Edição
               </button>
             </div>
           </div>

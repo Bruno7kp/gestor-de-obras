@@ -1,4 +1,3 @@
-
 import { Project, ProjectGroup, DEFAULT_THEME, MeasurementSnapshot } from '../types';
 import { treeService } from './treeService';
 
@@ -95,6 +94,27 @@ export const projectService = {
       console.error("Erro crítico ao rotacionar medição:", error);
       throw error;
     }
+  },
+
+  /**
+   * reopenLatestMeasurement
+   * Permite reabrir a última medição para correções.
+   * Recupera o snapshot mais recente e o torna o estado atual.
+   */
+  reopenLatestMeasurement: (project: Project): Project => {
+    if (!project.history || project.history.length === 0) return project;
+
+    // Remove o snapshot mais recente do histórico
+    const [latestSnapshot, ...remainingHistory] = project.history;
+
+    return {
+      ...project,
+      measurementNumber: latestSnapshot.measurementNumber,
+      referenceDate: latestSnapshot.date,
+      // Restaura os itens com os valores medidos que estavam salvos no snapshot
+      items: JSON.parse(JSON.stringify(latestSnapshot.items)),
+      history: remainingHistory
+    };
   },
 
   /**
