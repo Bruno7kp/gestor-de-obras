@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Project, WorkItem, ProjectExpense, DEFAULT_THEME } from '../types';
 import { financial } from '../utils/math';
@@ -30,6 +31,13 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, 
 
   const REPORT_WIDTH = "800pt";
   const currencySymbol = theme.currencySymbol || 'R$';
+
+  // Usar overrides do projeto para os totais consolidados se existirem
+  const finalStats = {
+    ...stats,
+    contract: project.contractTotalOverride ?? stats.contract,
+    current: project.currentTotalOverride ?? stats.current,
+  };
 
   const dynamicStyles = `
     .print-report-area {
@@ -167,7 +175,7 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, 
           </div>
           <div className="w-32 p-2 text-right">
             <div className="text-[4.5pt] text-slate-400">Progresso Físico</div>
-            <div style={{ color: theme.accent }}>{stats.progress.toFixed(2)}% Concluído</div>
+            <div style={{ color: theme.accent }}>{finalStats.progress.toFixed(2)}% Concluído</div>
           </div>
         </div>
 
@@ -232,16 +240,16 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, 
           <tfoot>
             <tr className="footer-total-row">
               <td colSpan={8} className="p-2 pr-4">TOTAIS CONSOLIDADOS</td>
-              <td className="text-right">{financial.formatVisual(stats.contract, currencySymbol)}</td>
+              <td className="text-right">{financial.formatVisual(finalStats.contract, currencySymbol)}</td>
               <td></td>
-              <td className="text-right">{financial.formatVisual(stats.accumulated - stats.current, currencySymbol)}</td>
+              <td className="text-right">{financial.formatVisual(finalStats.accumulated - finalStats.current, currencySymbol)}</td>
               <td></td>
-              <td className="text-right" style={{ color: theme.accentText }}>{financial.formatVisual(stats.current, currencySymbol)}</td>
+              <td className="text-right" style={{ color: theme.accentText }}>{financial.formatVisual(finalStats.current, currencySymbol)}</td>
               <td></td>
-              <td className="text-right">{financial.formatVisual(stats.accumulated, currencySymbol)}</td>
+              <td className="text-right">{financial.formatVisual(finalStats.accumulated, currencySymbol)}</td>
               <td></td>
-              <td className="text-right">{financial.formatVisual(stats.balance, currencySymbol)}</td>
-              <td className="text-center">{stats.progress.toFixed(1)}%</td>
+              <td className="text-right">{financial.formatVisual(finalStats.balance, currencySymbol)}</td>
+              <td className="text-center">{finalStats.progress.toFixed(1)}%</td>
             </tr>
           </tfoot>
         </table>
@@ -250,19 +258,19 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, 
         <div className="grid grid-cols-4 gap-4 mt-6">
           <div className="kpi-box p-3 text-center rounded bg-slate-50">
             <div className="text-[4.5pt] text-slate-400 uppercase font-bold">Valor Contrato</div>
-            <div className="text-[10pt] font-black">{financial.formatVisual(stats.contract, currencySymbol)}</div>
+            <div className="text-[10pt] font-black">{financial.formatVisual(finalStats.contract, currencySymbol)}</div>
           </div>
           <div className="kpi-accent p-3 text-center rounded bg-white">
             <div className="text-[4.5pt] uppercase font-bold">Medição no Período</div>
-            <div className="text-[10pt] font-black">{financial.formatVisual(stats.current, currencySymbol)}</div>
+            <div className="text-[10pt] font-black">{financial.formatVisual(finalStats.current, currencySymbol)}</div>
           </div>
           <div className="kpi-box p-3 text-center rounded">
             <div className="text-[4.5pt] text-slate-400 uppercase font-bold">Acumulado Atual</div>
-            <div className="text-[10pt] font-black">{financial.formatVisual(stats.accumulated, currencySymbol)}</div>
+            <div className="text-[10pt] font-black">{financial.formatVisual(finalStats.accumulated, currencySymbol)}</div>
           </div>
           <div className="kpi-box p-3 text-center rounded">
             <div className="text-[4.5pt] text-slate-400 uppercase font-bold">Saldo a Executar</div>
-            <div className="text-[10pt] font-black">{financial.formatVisual(stats.balance, currencySymbol)}</div>
+            <div className="text-[10pt] font-black">{financial.formatVisual(finalStats.balance, currencySymbol)}</div>
           </div>
         </div>
 

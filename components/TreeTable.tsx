@@ -32,10 +32,13 @@ interface TreeTableProps {
   onUpdatePercentage: (id: string, pct: number) => void;
   onUpdateTotal: (id: string, total: number) => void;
   onUpdateCurrentTotal: (id: string, total: number) => void;
+  onUpdateGrandTotal: (overrides: { contract?: number; current?: number }) => void;
   onReorder: (sourceId: string, targetId: string, position: 'before' | 'after' | 'inside') => void;
   searchQuery: string;
   isReadOnly?: boolean;
   currencySymbol?: string;
+  contractTotalOverride?: number;
+  currentTotalOverride?: number;
 }
 
 type ColumnView = 'full' | 'contractual' | 'measurement' | 'minimal';
@@ -53,10 +56,13 @@ export const TreeTable: React.FC<TreeTableProps> = ({
   onUpdatePercentage,
   onUpdateTotal,
   onUpdateCurrentTotal,
+  onUpdateGrandTotal,
   onReorder,
   searchQuery,
   isReadOnly = false,
-  currencySymbol = 'R$'
+  currencySymbol = 'R$',
+  contractTotalOverride,
+  currentTotalOverride
 }) => {
   const [view, setView] = useState<ColumnView>('full');
   const [showMover, setShowMover] = useState(true);
@@ -105,8 +111,11 @@ export const TreeTable: React.FC<TreeTableProps> = ({
   };
 
   const rootItems = filteredData.filter(i => i.depth === 0);
-  const totalContract = financial.sum(rootItems.map(i => i.contractTotal));
-  const totalCurrent = financial.sum(rootItems.map(i => i.currentTotal));
+  const totalContractCalculated = financial.sum(rootItems.map(i => i.contractTotal));
+  const totalCurrentCalculated = financial.sum(rootItems.map(i => i.currentTotal));
+
+  const totalContract = contractTotalOverride ?? totalContractCalculated;
+  const totalCurrent = currentTotalOverride ?? totalCurrentCalculated;
 
   return (
     <div className="flex flex-col gap-4">
@@ -155,7 +164,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                 <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-16">ITEM</th>
                 {showFonte && <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-20">FONTE</th>}
                 {showCod && <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-20">Código</th>}
-                <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 text-left min-w-[400px]">Estrutura Analítica do Projeto (EAP)</th>
+                <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 text-left w-[400px] min-w-[400px] max-w-[400px]">Estrutura Analítica do Projeto (EAP)</th>
                 <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-14">Und</th>
                 
                 {showUnitary && <th colSpan={2} className="p-2 border-r border-slate-800 dark:border-slate-900 bg-slate-800/50">Unitário ({currencySymbol})</th>}
@@ -238,7 +247,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                           <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 font-mono text-[10px] text-slate-400 dark:text-slate-500">{item.wbs}</td>
                           {showFonte && <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 text-[9px] font-black uppercase text-slate-400 dark:text-slate-500">{item.fonte || '-'}</td>}
                           {showCod && <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-mono text-[10px]">{item.cod || '-'}</td>}
-                          <td className="p-2 border-r border-slate-100 dark:border-slate-800 max-w-[400px]">
+                          <td className="p-2 border-r border-slate-100 dark:border-slate-800 w-[400px] min-w-[400px] max-w-[400px]">
                             <div className="flex items-start gap-1 h-full">
                               <div className="flex items-center gap-2" style={{ marginLeft: `${item.depth * 1.5}rem` }}>
                                 {item.type === 'category' ? (
@@ -273,12 +282,11 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                                 {item.type === 'item' ? (
                                   <div className="flex items-center justify-end gap-1">
                                     <span className="text-[8px] text-slate-400 font-black">{currencySymbol}</span>
-                                    <input 
-                                      disabled={isReadOnly} 
-                                      type="text" 
-                                      className="w-full bg-transparent text-right font-bold text-slate-900 dark:text-slate-100 outline-none focus:ring-1 focus:ring-indigo-500 rounded px-1" 
-                                      defaultValue={financial.formatVisual(item.contractTotal, currencySymbol).replace(currencySymbol, '').trim()} 
-                                      onBlur={(e) => onUpdateTotal(item.id, financial.parseLocaleNumber(e.target.value))} 
+                                    <ItemTotalInput 
+                                      value={item.contractTotal} 
+                                      onUpdate={(val: number) => onUpdateTotal(item.id, val)} 
+                                      disabled={isReadOnly}
+                                      currencySymbol={currencySymbol}
                                     />
                                   </div>
                                 ) : <span className="font-bold text-slate-900 dark:text-slate-100">{financial.formatVisual(item.contractTotal, currencySymbol)}</span>}
@@ -313,12 +321,12 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                                 {item.type === 'item' ? (
                                   <div className="flex items-center justify-end">
                                     <span className="text-[9px] text-blue-300 mr-1">{currencySymbol}</span>
-                                    <input 
-                                      disabled={isReadOnly} 
-                                      type="text" 
-                                      className="w-full bg-transparent text-right font-black text-blue-700 dark:text-blue-300 outline-none focus:ring-1 focus:ring-blue-500 rounded px-1" 
-                                      defaultValue={financial.formatVisual(item.currentTotal, currencySymbol).replace(currencySymbol, '').trim()} 
-                                      onBlur={(e) => onUpdateCurrentTotal(item.id, financial.parseLocaleNumber(e.target.value))} 
+                                    <ItemTotalInput 
+                                      value={item.currentTotal} 
+                                      onUpdate={(val: number) => onUpdateCurrentTotal(item.id, val)} 
+                                      disabled={isReadOnly}
+                                      currencySymbol={currencySymbol}
+                                      textColorClass="text-blue-700 dark:text-blue-300"
                                     />
                                   </div>
                                 ) : <span className="font-black text-blue-700 dark:text-blue-300">{financial.formatVisual(item.currentTotal, currencySymbol)}</span>}
@@ -359,16 +367,10 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                         <td className="p-4 border-r border-white/10 text-right text-base tracking-tighter whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1">
                             <span className="text-[10px] text-slate-400 font-black">{currencySymbol}</span>
-                            <input 
+                            <GrandTotalInput 
+                              initialValue={totalContract} 
+                              onUpdate={(val: number) => onUpdateGrandTotal({ contract: val })}
                               disabled={isReadOnly}
-                              type="text"
-                              className="bg-transparent text-right font-black text-white outline-none focus:ring-1 focus:ring-indigo-500 rounded px-1 w-40"
-                              defaultValue={financial.formatVisual(totalContract, currencySymbol).replace(currencySymbol, '').trim()}
-                              onBlur={(e) => {
-                                // Implementação de ajuste fino centavos no total se necessário pelo usuário
-                                const newVal = financial.parseLocaleNumber(e.target.value);
-                                console.log("Ajuste manual de total contrato:", newVal);
-                              }}
                             />
                           </div>
                         </td>
@@ -376,7 +378,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                     )}
 
                     {showPrevious && (
-                      <td colSpan={2} className="p-4 border-r border-white/10 text-right opacity-50 whitespace-nowrap">{financial.formatBRL(financial.sum(rootItems.map(i => i.previousTotal)))}</td>
+                      <td colSpan={2} className="p-4 border-r border-white/10 text-right opacity-50 whitespace-nowrap">{financial.formatVisual(financial.sum(rootItems.map(i => i.previousTotal)), currencySymbol)}</td>
                     )}
 
                     {showCurrent && (
@@ -385,14 +387,11 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                         <td className="p-4 border-r border-white/10 text-right text-blue-400 text-base tracking-tighter whitespace-nowrap">
                            <div className="flex items-center justify-end gap-1">
                             <span className="text-[10px] text-blue-500 font-black">{currencySymbol}</span>
-                            <input 
+                            <GrandTotalInput 
+                              initialValue={totalCurrent} 
+                              onUpdate={(val: number) => onUpdateGrandTotal({ current: val })}
                               disabled={isReadOnly}
-                              type="text"
-                              className="bg-transparent text-right font-black text-blue-400 outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 w-40"
-                              defaultValue={financial.formatVisual(totalCurrent, currencySymbol).replace(currencySymbol, '').trim()}
-                              onBlur={(e) => {
-                                 console.log("Ajuste manual de total período:", financial.parseLocaleNumber(e.target.value));
-                              }}
+                              textColorClass="text-blue-400"
                             />
                           </div>
                         </td>
@@ -402,7 +401,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                     {showAccumulated && (
                       <>
                         <td className="p-4 border-r border-white/10"></td>
-                        <td className="p-4 border-r border-white/10 text-right text-emerald-400 text-base tracking-tighter whitespace-nowrap">{financial.formatBRL(financial.sum(rootItems.map(i => i.accumulatedTotal)))}</td>
+                        <td className="p-4 border-r border-white/10 text-right text-emerald-400 text-base tracking-tighter whitespace-nowrap">{financial.formatVisual(financial.sum(rootItems.map(i => i.accumulatedTotal)), currencySymbol)}</td>
                         <td className="p-4 border-r border-white/10"></td>
                       </>
                     )}
@@ -410,7 +409,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                     {showBalance && (
                       <>
                         <td className="p-4 border-r border-white/10"></td>
-                        <td className="p-4 border-r border-white/10 text-right text-rose-400 text-base tracking-tighter whitespace-nowrap">{financial.formatBRL(financial.sum(rootItems.map(i => i.balanceTotal)))}</td>
+                        <td className="p-4 border-r border-white/10 text-right text-rose-400 text-base tracking-tighter whitespace-nowrap">{financial.formatVisual(financial.sum(rootItems.map(i => i.balanceTotal)), currencySymbol)}</td>
                       </>
                     )}
 
@@ -426,6 +425,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
   );
 };
 
+// Componente para Toggle de Visibilidade de Colunas
 const VisibilityToggle = ({ label, active, onClick }: { label: string, active: boolean, onClick: () => void }) => (
   <button 
     onClick={onClick}
@@ -435,12 +435,10 @@ const VisibilityToggle = ({ label, active, onClick }: { label: string, active: b
   </button>
 );
 
+// Componente auxiliar para lidar com o input de porcentagem
 const PercentageInput = ({ value, onChange, disabled }: { value: number, onChange: (val: number) => void, disabled: boolean }) => {
   const [localVal, setLocalVal] = useState(value.toString());
-
-  useEffect(() => {
-    setLocalVal(value.toString());
-  }, [value]);
+  useEffect(() => { setLocalVal(value.toString()); }, [value]);
 
   return (
     <div className="flex items-center justify-center gap-1">
@@ -449,10 +447,7 @@ const PercentageInput = ({ value, onChange, disabled }: { value: number, onChang
         type="text" 
         className="w-12 bg-white dark:bg-slate-950 border border-blue-200 dark:border-blue-800 rounded px-1 py-0.5 text-center text-[10px] font-bold text-blue-600 dark:text-blue-400 outline-none focus:ring-1 focus:ring-blue-500" 
         value={localVal} 
-        onChange={(e) => {
-          const v = e.target.value.replace(/[^0-9.]/g, '');
-          setLocalVal(v);
-        }}
+        onChange={(e) => setLocalVal(e.target.value.replace(/[^0-9.]/g, ''))}
         onBlur={(e) => {
           const v = Math.min(100, parseFloat(e.target.value) || 0);
           onChange(v);
@@ -461,5 +456,39 @@ const PercentageInput = ({ value, onChange, disabled }: { value: number, onChang
       />
       <span className="text-[8px] text-blue-400 font-black">%</span>
     </div>
+  );
+};
+
+// Componente para input de total de item com sincronização manual
+const ItemTotalInput = ({ value, onUpdate, disabled, currencySymbol, textColorClass = "text-slate-900 dark:text-slate-100" }: any) => {
+  const [localVal, setLocalVal] = useState(financial.formatVisual(value, currencySymbol).replace(currencySymbol, '').trim());
+  useEffect(() => { setLocalVal(financial.formatVisual(value, currencySymbol).replace(currencySymbol, '').trim()); }, [value, currencySymbol]);
+
+  return (
+    <input 
+      disabled={disabled} 
+      type="text" 
+      className={`w-full bg-transparent text-right font-bold ${textColorClass} outline-none focus:ring-1 focus:ring-indigo-500 rounded px-1`} 
+      value={localVal}
+      onChange={(e) => setLocalVal(financial.maskCurrency(e.target.value))}
+      onBlur={(e) => onUpdate(financial.parseLocaleNumber(e.target.value))}
+    />
+  );
+};
+
+// Componente para input de total consolidado (rodapé)
+const GrandTotalInput = ({ initialValue, onUpdate, disabled, textColorClass = "text-white" }: any) => {
+  const [localVal, setLocalVal] = useState(financial.formatVisual(initialValue, '').trim());
+  useEffect(() => { setLocalVal(financial.formatVisual(initialValue, '').trim()); }, [initialValue]);
+
+  return (
+    <input 
+      disabled={disabled}
+      type="text"
+      className={`bg-transparent text-right font-black ${textColorClass} outline-none focus:ring-1 focus:ring-indigo-500 rounded px-1 w-40`}
+      value={localVal}
+      onChange={(e) => setLocalVal(financial.maskCurrency(e.target.value))}
+      onBlur={(e) => onUpdate(financial.parseLocaleNumber(e.target.value))}
+    />
   );
 };

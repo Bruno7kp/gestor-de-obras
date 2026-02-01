@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Project, WorkItem, ItemType, GlobalSettings, MeasurementSnapshot } from '../types';
 import { WbsView } from './WbsView';
@@ -54,9 +55,10 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     const processed = tree.map((root, idx) => treeService.processRecursive(root, '', idx, project.bdi));
     const allIds = new Set(activeItems.map(i => i.id));
     const flattened = treeService.flattenTree(processed, allIds);
-    const stats = treeService.calculateBasicStats(activeItems, project.bdi);
+    // Aplica o projeto para considerar overrides manuais de centavos
+    const stats = treeService.calculateBasicStats(activeItems, project.bdi, project);
     return { flattened, stats };
-  }, [activeItems, project.bdi]);
+  }, [activeItems, project, project.bdi]);
 
   const isViewingHistory = viewingHistoryIndex !== null;
 

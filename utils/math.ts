@@ -8,8 +8,7 @@ export const financial = {
   },
 
   /**
-   * Truncagem financeira (2 casas decimais) - evita arredondar para cima.
-   * Crucial para cálculos de BDI onde o valor não pode extrapolar o contrato.
+   * Truncagem financeira (2 casas decimais).
    */
   truncate: (value: number): number => {
     return Math.floor((value + Number.EPSILON) * 100) / 100;
@@ -31,10 +30,11 @@ export const financial = {
    * Formata um número com símbolo customizado.
    */
   formatVisual: (value: number, symbol: string = 'R$'): string => {
+    const num = value || 0;
     const formatted = new Intl.NumberFormat('pt-BR', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
-    }).format(value);
+    }).format(num);
     return symbol ? `${symbol} ${formatted}` : formatted;
   },
 
@@ -64,11 +64,12 @@ export const financial = {
   },
 
   /**
-   * Soma valores garantindo truncagem no resultado final para precisão de centavos.
+   * Soma de precisão: evita perdas decimais. 
+   * Usamos round aqui para satisfazer a regra "não pode ficar abaixo".
    */
   sum: (values: number[]): number => {
     const total = values.reduce((acc, val) => acc + (val || 0), 0);
-    return financial.truncate(total);
+    return financial.round(total);
   },
 
   /**

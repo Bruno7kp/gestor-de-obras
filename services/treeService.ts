@@ -1,5 +1,5 @@
 
-import { WorkItem, ProjectExpense } from '../types';
+import { WorkItem, ProjectExpense, Project } from '../types';
 import { financial } from '../utils/math';
 
 export const treeService = {
@@ -55,15 +55,17 @@ export const treeService = {
         node.contractTotal = node.currentTotal = node.accumulatedTotal = node.balanceTotal = node.accumulatedPercentage = 0;
       }
     } else {
-      // PRECISÃO CRÍTICA: Usando truncate para garantir que o BDI não suba centavos indevidamente
-      node.unitPrice = financial.truncate((node.unitPriceNoBdi || 0) * (1 + (projectBdi || 0) / 100));
-      node.contractTotal = financial.truncate((node.contractQuantity || 0) * node.unitPrice);
-      node.previousTotal = financial.truncate((node.previousQuantity || 0) * node.unitPrice);
-      node.currentTotal = financial.truncate((node.currentQuantity || 0) * node.unitPrice);
+      // Cálculo de precisão unitária
+      node.unitPrice = financial.round((node.unitPriceNoBdi || 0) * (1 + (projectBdi || 0) / 100));
+      node.contractTotal = financial.round((node.contractQuantity || 0) * node.unitPrice);
+      node.previousTotal = financial.round((node.previousQuantity || 0) * node.unitPrice);
+      node.currentTotal = financial.round((node.currentQuantity || 0) * node.unitPrice);
+      
       node.accumulatedQuantity = financial.round((node.previousQuantity || 0) + (node.currentQuantity || 0));
-      node.accumulatedTotal = financial.truncate(node.accumulatedQuantity * node.unitPrice);
+      node.accumulatedTotal = financial.round(node.accumulatedQuantity * node.unitPrice);
+      
       node.balanceQuantity = financial.round((node.contractQuantity || 0) - node.accumulatedQuantity);
-      node.balanceTotal = financial.truncate(node.balanceQuantity * node.unitPrice);
+      node.balanceTotal = financial.round(node.balanceQuantity * node.unitPrice);
       
       node.currentPercentage = (node.contractQuantity || 0) > 0 
         ? financial.round(((node.currentQuantity || 0) / node.contractQuantity) * 100) 
@@ -75,6 +77,7 @@ export const treeService = {
     return node;
   },
 
+  // Fix for missing processExpensesRecursive
   processExpensesRecursive: (node: ProjectExpense, prefix: string = '', index: number = 0): ProjectExpense => {
     const currentPos = index + 1;
     const wbs = prefix ? `${prefix}.${currentPos}` : `${currentPos}`;
@@ -83,17 +86,42 @@ export const treeService = {
     if (node.itemType === 'category') {
       if (node.children && node.children.length > 0) {
         node.children = node.children.map((child, idx) => 
-          treeService.processExpensesRecursive(child, wbs, idx)
+          treeService.processExpensesRecursive(child as ProjectExpense, wbs, idx)
         );
         node.amount = financial.sum(node.children.map(c => c.amount || 0));
       } else {
         node.amount = 0;
       }
-    } else {
-      const baseAmount = financial.truncate((node.quantity || 0) * (node.unitPrice || 0));
-      node.amount = financial.round(baseAmount - (node.discountValue || 0));
     }
     return node;
+  },
+
+  calculateBasicStats: (items: WorkItem[], bdi: number, project?: Project) => {
+    const tree = treeService.buildTree(items);
+    const processed = tree.map((r, i) => treeService.processRecursive(r, '', i, bdi));
+    
+    // Calcula totais reais da planilha
+    const rawTotals = {
+      contract: financial.sum(processed.map(n => n.contractTotal || 0)),
+      current: financial.sum(processed.map(n => n.currentTotal || 0)),
+      accumulated: financial.sum(processed.map(n => n.accumulatedTotal || 0)),
+      balance: financial.sum(processed.map(n => n.balanceTotal || 0)),
+    };
+
+    // Aplica os Overrides (Ajustes manuais do rodapé) para garantir conformidade com o PDF
+    const contract = project?.contractTotalOverride ?? rawTotals.contract;
+    const current = project?.currentTotalOverride ?? rawTotals.current;
+    
+    // O saldo é a diferença entre o contrato forçado e o acumulado real
+    const balance = financial.round(contract - rawTotals.accumulated);
+
+    return {
+      contract,
+      current,
+      accumulated: rawTotals.accumulated,
+      balance,
+      progress: contract > 0 ? (rawTotals.accumulated / contract) * 100 : 0
+    };
   },
 
   flattenTree: <T extends { id: string; children?: T[] }>(nodes: T[], expandedIds: Set<string>, depth: number = 0, results: (T & { depth: number })[] = []): (T & { depth: number })[] => {
@@ -136,37 +164,28 @@ export const treeService = {
     });
   },
 
+  // Fix for missing moveInSiblings
   moveInSiblings: <T extends { id: string; parentId: string | null; order: number }>(items: T[], id: string, direction: 'up' | 'down'): T[] => {
     const item = items.find(i => i.id === id);
     if (!item) return items;
 
     const siblings = items
       .filter(i => i.parentId === item.parentId)
-      .sort((a, b) => a.order - b.order);
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-    const idx = siblings.findIndex(s => s.id === id);
-    if (direction === 'up' && idx === 0) return items;
-    if (direction === 'down' && idx === siblings.length - 1) return items;
+    const currentIndex = siblings.findIndex(i => i.id === id);
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
 
-    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
-    const targetItem = siblings[targetIdx];
+    if (targetIndex < 0 || targetIndex >= siblings.length) return items;
+
+    const targetItem = siblings[targetIndex];
+    const oldOrder = item.order;
+    const newOrder = targetItem.order;
 
     return items.map(i => {
-      if (i.id === item.id) return { ...i, order: targetItem.order };
-      if (i.id === targetItem.id) return { ...i, order: item.order };
+      if (i.id === item.id) return { ...i, order: newOrder };
+      if (i.id === targetItem.id) return { ...i, order: oldOrder };
       return i;
     });
-  },
-
-  calculateBasicStats: (items: WorkItem[], bdi: number) => {
-    const tree = treeService.buildTree(items);
-    const processed = tree.map((r, i) => treeService.processRecursive(r, '', i, bdi));
-    const totals = {
-      contract: financial.sum(processed.map(n => n.contractTotal || 0)),
-      current: financial.sum(processed.map(n => n.currentTotal || 0)),
-      accumulated: financial.sum(processed.map(n => n.accumulatedTotal || 0)),
-      balance: financial.sum(processed.map(n => n.balanceTotal || 0)),
-    };
-    return { ...totals, progress: totals.contract > 0 ? (totals.accumulated / totals.contract) * 100 : 0 };
   }
 };

@@ -22,7 +22,6 @@ export const WbsView: React.FC<WbsViewProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Carrega IDs expandidos salvos no localStorage para este projeto específico
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => {
     const saved = localStorage.getItem(`exp_wbs_${project.id}`);
     return saved ? new Set(JSON.parse(saved)) : new Set();
@@ -32,7 +31,6 @@ export const WbsView: React.FC<WbsViewProps> = ({
   const [importSummary, setImportSummary] = useState<ImportResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Persiste mudanças na expansão
   useEffect(() => {
     localStorage.setItem(`exp_wbs_${project.id}`, JSON.stringify(Array.from(expandedIds)));
   }, [expandedIds, project.id]);
@@ -145,7 +143,6 @@ export const WbsView: React.FC<WbsViewProps> = ({
             onUpdateProject({ 
               items: project.items.map(it => {
                 if (it.id === id && it.contractQuantity > 0) {
-                  // USANDO TRUNCATE NO RECÁLCULO DO UNITÁRIO
                   const newUnitPrice = financial.truncate(total / it.contractQuantity);
                   const newUnitPriceNoBdi = financial.truncate(newUnitPrice / (1 + project.bdi/100));
                   return { ...it, unitPrice: newUnitPrice, unitPriceNoBdi: newUnitPriceNoBdi };
@@ -167,6 +164,14 @@ export const WbsView: React.FC<WbsViewProps> = ({
               }) 
             });
           }}
+
+          onUpdateGrandTotal={(overrides) => {
+            if (isReadOnly) return;
+            onUpdateProject({
+              contractTotalOverride: overrides.contract !== undefined ? overrides.contract : project.contractTotalOverride,
+              currentTotalOverride: overrides.current !== undefined ? overrides.current : project.currentTotalOverride,
+            });
+          }}
           
           onAddChild={(pid, type) => !isReadOnly && onOpenModal(type, null, pid)}
           onEdit={item => !isReadOnly && onOpenModal(item.type, item, item.parentId)}
@@ -174,6 +179,8 @@ export const WbsView: React.FC<WbsViewProps> = ({
           searchQuery={searchQuery}
           isReadOnly={isReadOnly}
           currencySymbol={project.theme?.currencySymbol || 'R$'}
+          contractTotalOverride={project.contractTotalOverride}
+          currentTotalOverride={project.currentTotalOverride}
         />
       </div>
 
