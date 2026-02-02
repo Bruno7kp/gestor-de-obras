@@ -80,6 +80,7 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, 
       .report-table tr {
         page-break-inside: avoid !important;
         break-inside: avoid !important;
+        -webkit-column-break-inside: avoid !important;
       }
 
       .report-table th, .report-table td {
@@ -161,6 +162,7 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, 
       .no-break {
         page-break-inside: avoid !important;
         break-inside: avoid !important;
+        -webkit-column-break-inside: avoid !important;
       }
 
       .signature-line {
