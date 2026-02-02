@@ -45,6 +45,7 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, 
         display: block !important;
         width: 100% !important;
         overflow: visible !important;
+        color: #000;
       }
 
       .report-master-container {
@@ -115,10 +116,22 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, 
         -webkit-print-color-adjust: exact !important;
       }
 
+      .kpi-box {
+        border: 0.5pt solid ${theme.border} !important;
+        background-color: #f8fafc !important;
+        -webkit-print-color-adjust: exact !important;
+      }
+
+      .kpi-accent {
+        border: 1pt solid ${theme.accent} !important;
+        color: ${theme.accent} !important;
+        background-color: white !important;
+        -webkit-print-color-adjust: exact !important;
+      }
+
       .no-break {
         page-break-inside: avoid !important;
         break-inside: avoid !important;
-        display: block !important; /* Necessário para quebras em divs no Safari */
       }
 
       .signature-line {
