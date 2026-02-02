@@ -1,3 +1,4 @@
+
 import * as XLSX from 'xlsx';
 import { WorkItem, ItemType, Project, ProjectExpense, ExpenseType } from '../types';
 import { financial } from '../utils/math';
@@ -26,7 +27,7 @@ export interface ExpenseImportResult {
   };
 }
 
-const WBS_HEADERS = ["WBS", "TIPO_ITEM", "CODIGO", "NOME", "UNIDADE", "QUANTIDADE_CONTRATO", "UNITARIO_S_BDI", "FONTE", "QTD_MEDIDA_AGORA"];
+const WBS_HEADERS = ["WBS", "TIPO_ITEM", "CODIGO", "NOME", "UNIDADE", "QUANTIDADE", "UNITARIO_S_BDI", "FONTE"];
 const EXPENSE_HEADERS = ["WBS", "TIPO_REGISTRO", "CATEGORIA", "DATA", "DESCRICAO", "ENTIDADE", "UNIDADE", "QUANTIDADE", "UNITARIO", "DESCONTO", "TOTAL_LIQUIDO", "PAGO"];
 
 const parseVal = (v: any): number => {
@@ -51,13 +52,13 @@ export const excelService = {
     const wb = XLSX.utils.book_new();
     const data = [
       WBS_HEADERS,
-      ["1", "category", "INFRA", "1. INFRAESTRUTURA", "", "", "", "Próprio", ""],
-      ["1.1", "category", "MOV-TERRA", "1.1 Movimentação de Terra", "", "", "", "Próprio", ""],
-      ["1.1.1", "item", "SIN-93358", "Escavação manual de valas", "m3", "150", "45.50", "SINAPI", "10.5"],
+      ["1", "category", "INFRA", "1. INFRAESTRUTURA", "", "", "", "Próprio"],
+      ["1.1", "category", "MOV-TERRA", "1.1 Movimentação de Terra", "", "", "", "Próprio"],
+      ["1.1.1", "item", "SIN-93358", "Escavação manual de valas", "m3", "150", "45.50", "SINAPI"],
     ];
     const ws = XLSX.utils.aoa_to_sheet(data);
-    XLSX.utils.book_append_sheet(wb, ws, "Template_EAP_Medicao");
-    XLSX.writeFile(wb, "ProMeasure_Template_EAP_Com_Medicao.xlsx");
+    XLSX.utils.book_append_sheet(wb, ws, "Template_EAP");
+    XLSX.writeFile(wb, "ProMeasure_Template_EAP.xlsx");
   },
 
   downloadExpenseTemplate: () => {
@@ -150,23 +151,10 @@ export const excelService = {
     const processedTree = tree.map((root, idx) => treeService.processRecursive(root, '', idx, project.bdi));
     const allIds = new Set(project.items.map(i => i.id));
     const fullFlattened = treeService.flattenTree(processedTree, allIds);
-    
-    // Mapeamento de colunas incluindo a medição atual (currentQuantity)
-    const rows = fullFlattened.map(i => [
-      i.wbs, 
-      i.type, 
-      i.cod || "", 
-      i.name, 
-      i.unit, 
-      i.contractQuantity, 
-      i.unitPriceNoBdi, 
-      i.fonte || "", 
-      i.type === 'item' ? i.currentQuantity : ""
-    ]);
-
+    const rows = fullFlattened.map(i => [i.wbs, i.type, i.cod || "", i.name, i.unit, i.contractQuantity, i.unitPriceNoBdi, i.fonte || ""]);
     const ws = XLSX.utils.aoa_to_sheet([WBS_HEADERS, ...rows]);
-    XLSX.utils.book_append_sheet(wb, ws, "EAP_Com_Medicao");
-    XLSX.writeFile(wb, `EAP_Medicao_${project.name}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, "EAP");
+    XLSX.writeFile(wb, `EAP_${project.name}.xlsx`);
   },
 
   parseAndValidate: async (file: File): Promise<ImportResult> => {
@@ -188,18 +176,15 @@ export const excelService = {
             const type = (String(row[1] || "").toLowerCase() === 'category' ? 'category' : 'item') as ItemType;
             const qty = parseVal(row[5]);
             const priceNoBdi = parseVal(row[6]);
+            // Ajuste aqui: Captura o valor exato ou string vazia se não houver conteúdo
             const fonte = row[7] ? String(row[7]).trim() : "";
-            
-            // Nova coluna de medição atual (índice 8)
-            const currentQty = type === 'item' ? parseVal(row[8]) : 0;
 
             const item: WorkItem = {
               id: crypto.randomUUID(), parentId: null, name: String(row[3] || "Novo Item").trim(),
               type: type, wbs: wbs, order: idx, cod: String(row[2] || "").trim(),
               unit: String(row[4] || ""), contractQuantity: qty, unitPriceNoBdi: priceNoBdi, fonte,
               unitPrice: 0, contractTotal: 0, previousQuantity: 0, previousTotal: 0,
-              currentQuantity: currentQty, // Atribui a quantidade medida vinda do Excel
-              currentTotal: 0, currentPercentage: 0,
+              currentQuantity: 0, currentTotal: 0, currentPercentage: 0,
               accumulatedQuantity: 0, accumulatedTotal: 0, accumulatedPercentage: 0,
               balanceQuantity: 0, balanceTotal: 0
             };
