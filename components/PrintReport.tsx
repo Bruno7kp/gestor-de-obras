@@ -201,16 +201,16 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, 
         {/* INFOS OBRA */}
         <div className="flex mb-4 text-[6pt] font-black uppercase" style={{ display: 'flex' }}>
           <div className="flex-1 p-2">
-            <div className="text-[4.5pt] text-slate-400">Obra</div>
-            <div className="dark:text-black">{project.name}</div>
+            <div className="text-[8pt] text-slate-400">Obra</div>
+            <div className="text-[8pt] dark:text-black">{project.name}</div>
           </div>
           <div className="flex-1 p-2">
-            <div className="text-[4.5pt] text-slate-400">Local</div>
-            <div className="dark:text-black">{project.location || '-'}</div>
+            <div className="text-[8pt] text-slate-400">Local</div>
+            <div className="text-[8pt] dark:text-black">{project.location || '-'}</div>
           </div>
           <div className="w-32 p-2 text-right">
-            <div className="text-[4.5pt] text-slate-400">Progresso Físico</div>
-            <div style={{ color: theme.accent }}>{finalStats.progress.toFixed(2)}% Concluído</div>
+            <div className="text-[8pt] text-slate-400">Progresso Físico</div>
+            <div className="text-[8pt]" style={{ color: theme.accent }}>{finalStats.progress.toFixed(2)}% Concluído</div>
           </div>
         </div>
 
@@ -293,19 +293,19 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, 
         <div className="grid grid-cols-4 gap-4 mt-6 no-break" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }}>
           <div className="p-3 text-center rounded bg-slate-50 border" style={{ border: '0.5pt solid #ccc' }}>
             <div className="text-[4.5pt] text-slate-400 uppercase font-bold">Valor Contrato</div>
-            <div className="text-[10pt] font-black dark:text-black">{financial.formatVisual(finalStats.contract, currencySymbol)}</div>
+            <div className="text-[8pt] font-black dark:text-black">{financial.formatVisual(finalStats.contract, currencySymbol)}</div>
           </div>
           <div className="p-3 text-center rounded bg-white border" style={{ border: `1pt solid ${theme.accent}`, color: theme.accent }}>
             <div className="text-[4.5pt] uppercase font-bold">Medição no Período</div>
-            <div className="text-[10pt] font-black">{financial.formatVisual(finalStats.current, currencySymbol)}</div>
+            <div className="text-[8pt] font-black">{financial.formatVisual(finalStats.current, currencySymbol)}</div>
           </div>
           <div className="p-3 text-center rounded bg-white border" style={{ border: '0.5pt solid #ccc' }}>
             <div className="text-[4.5pt] text-slate-400 uppercase font-bold">Acumulado Atual</div>
-            <div className="text-[10pt] font-black dark:text-black">{financial.formatVisual(finalStats.accumulated, currencySymbol)}</div>
+            <div className="text-[8pt] font-black dark:text-black">{financial.formatVisual(finalStats.accumulated, currencySymbol)}</div>
           </div>
           <div className="p-3 text-center rounded bg-white border" style={{ border: '0.5pt solid #ccc' }}>
             <div className="text-[4.5pt] text-slate-400 uppercase font-bold">Saldo a Executar</div>
-            <div className="text-[10pt] font-black dark:text-black">{financial.formatVisual(finalStats.balance, currencySymbol)}</div>
+            <div className="text-[8pt] font-black dark:text-black">{financial.formatVisual(finalStats.balance, currencySymbol)}</div>
           </div>
         </div>
 
