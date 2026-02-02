@@ -2,7 +2,12 @@
 import React, { useRef } from 'react';
 import { Project, PDFTheme } from '../types';
 import { ThemeEditor } from './ThemeEditor';
-import { Percent, Sliders, AlertTriangle, ShieldCheck, MapPin, Upload, Image as ImageIcon, Trash2, FileText, CheckCircle2 } from 'lucide-react';
+import { 
+  Percent, MapPin, Upload, 
+  Image as ImageIcon, Trash2, FileText, 
+  CheckCircle2, Building2, Palette, Settings2,
+  ToggleRight, ToggleLeft, Cpu, Globe
+} from 'lucide-react';
 
 interface BrandingViewProps {
   project: Project;
@@ -31,137 +36,168 @@ export const BrandingView: React.FC<BrandingViewProps> = ({
     reader.readAsDataURL(file);
   };
 
-  const toggleSignatures = () => {
+  const toggleConfig = (key: keyof typeof project.config) => {
     onUpdateProject({
       config: {
         ...project.config,
-        showSignatures: !project.config.showSignatures
+        [key]: !project.config[key]
       }
     });
   };
 
   return (
-    <div className="space-y-12 animate-in fade-in duration-500 pb-20">
-      <header className="max-w-4xl mx-auto flex items-center gap-4 px-4">
-        <div className="p-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl"><Sliders size={24}/></div>
+    <div className="max-w-6xl mx-auto space-y-12 animate-in fade-in duration-700 pb-24 px-4">
+      {/* TÍTULO DA PÁGINA */}
+      <header className="flex items-center gap-6 border-b border-slate-200 dark:border-slate-800 pb-8">
+        <div className="p-4 bg-indigo-600 rounded-3xl text-white shadow-xl shadow-indigo-500/20">
+          <Settings2 size={32} />
+        </div>
         <div>
-          <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">Identidade Visual & Parâmetros</h2>
-          <p className="text-slate-500 font-medium">Configure a marca da empresa e o estilo dos relatórios.</p>
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Personalização do Projeto</h1>
+          <p className="text-slate-500 font-medium">Configure a identidade institucional e parâmetros de engenharia.</p>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 max-w-7xl mx-auto px-4">
-        {/* UPLOAD DE LOGOMARCA */}
-        <div className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-center">
-          <div className="flex items-center gap-3 mb-6 self-start w-full">
-            <div className="p-3 bg-indigo-600 rounded-xl text-white shadow-lg"><ImageIcon size={20} /></div>
-            <div className="text-left">
-              <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest">Logomarca</h3>
-              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Visível no PDF</p>
-            </div>
-          </div>
+      {/* SEÇÃO 1: IDENTIDADE & PRESENÇA */}
+      <section className="space-y-6">
+        <div className="flex items-center gap-3 ml-2">
+          <Building2 className="text-indigo-500" size={20} />
+          <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Identidade & Localização</h2>
+        </div>
 
-          <div 
-            className="w-full h-48 rounded-[2rem] border-2 border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center relative overflow-hidden group hover:border-indigo-500 transition-all cursor-pointer bg-slate-50 dark:bg-slate-950"
-            onClick={() => !isReadOnly && fileInputRef.current?.click()}
-          >
-            {project.logo ? (
-              <>
-                <img src={project.logo} className="w-full h-full object-contain p-4" />
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                   <button 
-                     onClick={(e) => { e.stopPropagation(); onUpdateProject({ logo: null }); }}
-                     className="p-3 bg-rose-600 text-white rounded-xl shadow-lg hover:scale-110 transition-transform"
-                   >
-                     <Trash2 size={20} />
-                   </button>
-                </div>
-              </>
-            ) : (
-              <div className="flex flex-col items-center gap-2 text-slate-400">
-                <Upload size={32} />
-                <span className="text-[10px] font-black uppercase tracking-widest">Upload PNG/JPG</span>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* LOGO */}
+          <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col gap-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 rounded-xl"><ImageIcon size={18} /></div>
+                <h3 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest">Logomarca Oficial</h3>
               </div>
-            )}
-            <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleLogoUpload} disabled={isReadOnly} />
-          </div>
-        </div>
+              {project.logo && (
+                <button onClick={() => onUpdateProject({ logo: null })} className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors">
+                  <Trash2 size={14} />
+                </button>
+              )}
+            </div>
 
-        {/* CONFIGURAÇÃO DE LOCALIZAÇÃO */}
-        <div className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col">
-          <div className="flex items-center gap-4 mb-8">
-            <div className="p-3 bg-indigo-600 rounded-xl text-white shadow-lg"><MapPin size={20} /></div>
-            <div>
-              <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest">Localização</h3>
-              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Endereço da Obra</p>
+            <div 
+              className="w-full h-44 rounded-3xl border-2 border-dashed border-slate-100 dark:border-slate-800 flex flex-col items-center justify-center relative overflow-hidden group hover:border-indigo-500 transition-all cursor-pointer bg-slate-50 dark:bg-slate-950"
+              onClick={() => !isReadOnly && fileInputRef.current?.click()}
+            >
+              {project.logo ? (
+                <img src={project.logo} className="w-full h-full object-contain p-6" alt="Logo" />
+              ) : (
+                <div className="flex flex-col items-center gap-3 text-slate-400">
+                  <Upload size={24} />
+                  <span className="text-[9px] font-black uppercase tracking-widest">Upload PNG/JPG (Máx 2MB)</span>
+                </div>
+              )}
+              <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleLogoUpload} disabled={isReadOnly} />
             </div>
           </div>
-          <div className="flex-1 flex flex-col justify-center">
-            <input 
-              disabled={isReadOnly}
-              type="text" 
-              className="w-full px-6 py-5 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black focus:border-indigo-500 outline-none dark:text-slate-100 transition-all" 
-              value={project.location} 
-              placeholder="Ex: São Paulo - SP / Rua Exemplo, 123"
-              onChange={(e) => onUpdateProject({ location: e.target.value })} 
-            />
-            <p className="text-[10px] font-bold text-slate-400 mt-4 text-center uppercase tracking-widest italic">Visível no quadro de dados do empreendimento.</p>
-          </div>
-        </div>
 
-        {/* CONFIGURAÇÃO DE BDI */}
-        <div className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col">
-          <div className="flex items-center gap-4 mb-8">
-            <div className="p-3 bg-emerald-600 rounded-xl text-white shadow-lg"><Percent size={20} /></div>
-            <div>
-              <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest">Taxa de BDI</h3>
-              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Despesas Indiretas (%)</p>
+          {/* LOCALIZAÇÃO */}
+          <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col gap-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 rounded-xl"><MapPin size={18} /></div>
+              <h3 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest">Endereço do Empreendimento</h3>
+            </div>
+            <div className="flex-1 flex flex-col justify-center gap-4">
+              <input 
+                disabled={isReadOnly}
+                type="text" 
+                className="w-full px-6 py-5 rounded-2xl border-2 border-slate-50 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black focus:border-indigo-500 outline-none dark:text-slate-100 transition-all" 
+                value={project.location} 
+                placeholder="Ex: Brasília - DF / SHN Quadra 02"
+                onChange={(e) => onUpdateProject({ location: e.target.value })} 
+              />
+              <div className="flex items-center gap-2 text-slate-400">
+                <Globe size={12} />
+                <p className="text-[9px] font-bold uppercase tracking-widest">Este endereço será impresso no cabeçalho do PDF.</p>
+              </div>
             </div>
           </div>
-          <div className="flex-1 flex flex-col justify-center">
+        </div>
+      </section>
+
+      {/* SEÇÃO 2: ENGENHARIA & PARÂMETROS */}
+      <section className="space-y-6">
+        <div className="flex items-center gap-3 ml-2">
+          <Cpu className="text-emerald-500" size={20} />
+          <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Engenharia & Parâmetros</h2>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* BDI */}
+          <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col gap-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 rounded-xl"><Percent size={18} /></div>
+              <h3 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest">Taxa de BDI Global</h3>
+            </div>
             <div className="relative">
               <input 
                 disabled={isReadOnly}
                 type="number" 
                 step="0.01" 
-                className="w-full px-8 py-5 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-3xl font-black focus:border-indigo-500 outline-none pr-16 dark:text-slate-100 transition-all" 
+                className="w-full px-8 py-6 rounded-3xl border-2 border-slate-50 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-4xl font-black focus:border-emerald-500 outline-none pr-20 dark:text-slate-100 transition-all" 
                 value={project.bdi} 
                 onChange={(e) => onUpdateProject({ bdi: parseFloat(e.target.value) || 0 })} 
               />
-              <span className="absolute right-6 top-1/2 -translate-y-1/2 text-xl font-black text-slate-300">%</span>
+              <span className="absolute right-8 top-1/2 -translate-y-1/2 text-2xl font-black text-slate-300">%</span>
             </div>
-            <p className="text-[10px] font-bold text-slate-400 mt-4 text-center uppercase tracking-widest">Fator Multiplicador: <span className="text-indigo-600">{(1 + project.bdi/100).toFixed(4)}x</span></p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Fator Multiplicador Atual: <span className="text-emerald-600">{(1 + project.bdi/100).toFixed(4)}x</span></p>
+          </div>
+
+          {/* OPÇÕES DO PDF */}
+          <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col gap-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 rounded-xl"><FileText size={18} /></div>
+              <h3 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest">Configurações de Exportação</h3>
+            </div>
+            
+            <div className="space-y-3">
+              <button 
+                onClick={() => toggleConfig('showSignatures')}
+                disabled={isReadOnly}
+                className={`w-full flex items-center justify-between p-5 rounded-2xl border-2 transition-all ${project.config?.showSignatures ? 'border-indigo-100 bg-indigo-50/50 dark:bg-indigo-900/10 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 shadow-sm' : 'border-slate-100 bg-slate-50 dark:bg-slate-800 dark:border-slate-700 text-slate-400'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <FileText size={16} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Bloco de Assinaturas</span>
+                </div>
+                {project.config?.showSignatures ? <ToggleRight size={28} className="text-indigo-600" /> : <ToggleLeft size={28} />}
+              </button>
+
+              <button 
+                onClick={() => toggleConfig('printSubtotals')}
+                disabled={isReadOnly}
+                className={`w-full flex items-center justify-between p-5 rounded-2xl border-2 transition-all ${project.config?.printSubtotals ? 'border-indigo-100 bg-indigo-50/50 dark:bg-indigo-900/10 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 shadow-sm' : 'border-slate-100 bg-slate-50 dark:bg-slate-800 dark:border-slate-700 text-slate-400'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 size={16} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Subtotais Grupos</span>
+                </div>
+                {project.config?.printSubtotals ? <ToggleRight size={28} className="text-indigo-600" /> : <ToggleLeft size={28} />}
+              </button>
+            </div>
           </div>
         </div>
+      </section>
 
-        {/* OPÇÕES DO RELATÓRIO */}
-        <div className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col">
-          <div className="flex items-center gap-4 mb-8">
-            <div className="p-3 bg-indigo-600 rounded-xl text-white shadow-lg"><FileText size={20} /></div>
-            <div>
-              <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest">Relatório</h3>
-              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Preferências do PDF</p>
-            </div>
-          </div>
-          <div className="flex-1 flex flex-col justify-center space-y-4">
-             <button 
-               onClick={toggleSignatures}
-               disabled={isReadOnly}
-               className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${project.config?.showSignatures ? 'border-indigo-100 bg-indigo-50/50 dark:bg-indigo-900/10 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300' : 'border-slate-100 bg-slate-50 dark:bg-slate-800 dark:border-slate-700 text-slate-400'}`}
-             >
-                <span className="text-xs font-black uppercase tracking-widest">Bloco de Assinaturas</span>
-                {project.config?.showSignatures ? <CheckCircle2 size={20}/> : <div className="w-5 h-5 rounded-full border-2 border-slate-200 dark:border-slate-600" />}
-             </button>
-             <p className="text-[10px] font-bold text-slate-400 text-center uppercase tracking-widest italic">Habilita o quadro de assinaturas no final da planilha.</p>
-          </div>
+      {/* SEÇÃO 3: DESIGN ENGINE */}
+      <section className="space-y-6">
+        <div className="flex items-center gap-3 ml-2">
+          <Palette className="text-rose-500" size={20} />
+          <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Design & Engine Visual</h2>
         </div>
-      </div>
 
-      {/* EDITOR DE TEMAS E FONTES */}
-      <ThemeEditor 
-        theme={project.theme} 
-        onChange={(theme: PDFTheme) => !isReadOnly && onUpdateProject({ theme })} 
-      />
+        <div className="bg-white dark:bg-slate-900 p-2 sm:p-10 rounded-[3.5rem] border border-slate-200 dark:border-slate-800 shadow-sm">
+          <ThemeEditor 
+            theme={project.theme} 
+            onChange={(theme: PDFTheme) => !isReadOnly && onUpdateProject({ theme })} 
+          />
+        </div>
+      </section>
     </div>
   );
 };

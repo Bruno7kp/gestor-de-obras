@@ -230,11 +230,12 @@ export interface Project {
   expenses: ProjectExpense[];
   planning: ProjectPlanning;
   journal: ProjectJournal;
-  contractTotalOverride?: number; // Ajuste manual global contrato
-  currentTotalOverride?: number;  // Ajuste manual global período
+  contractTotalOverride?: number; 
+  currentTotalOverride?: number;  
   config: {
     strict: boolean;
     printCards: boolean;
     printSubtotals: boolean;
+    showSignatures: boolean;
   };
 }
