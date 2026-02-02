@@ -201,11 +201,11 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, 
         {/* INFOS OBRA */}
         <div className="flex mb-4 text-[6pt] font-black uppercase" style={{ display: 'flex' }}>
           <div className="flex-1 p-2">
-            <div className="text-[4.5pt] text-slate-400">Empreendimento</div>
+            <div className="text-[4.5pt] text-slate-400">Obra</div>
             <div className="dark:text-black">{project.name}</div>
           </div>
           <div className="flex-1 p-2">
-            <div className="text-[4.5pt] text-slate-400">Localização</div>
+            <div className="text-[4.5pt] text-slate-400">Local</div>
             <div className="dark:text-black">{project.location || '-'}</div>
           </div>
           <div className="w-32 p-2 text-right">
