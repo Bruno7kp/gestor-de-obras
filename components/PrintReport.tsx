@@ -96,7 +96,7 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, 
       }
 
       .report-table thead th {
-        background-color: ${theme.header.bg} !important;
+        background-color: ${theme.header.bg};
         color: ${theme.header.text} !important;
         font-weight: 900;
         text-align: center;
