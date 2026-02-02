@@ -203,8 +203,8 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, 
               <th rowSpan={2} className="col-desc">DESCRIÇÃO</th>
               <th rowSpan={2} className="col-und">UND</th>
               <th colSpan={2}>UNITÁRIO ({currencySymbol})</th>
-              <th rowSpan={2} className="col-qty">QTD CONTR</th>
-              <th rowSpan={2} className="col-total">TOTAL CONTR</th>
+              <th rowSpan={2} className="col-qty">QTD</th>
+              <th rowSpan={2} className="col-total">TOTAL</th>
               <th colSpan={2}>ACUM. ANTERIOR</th>
               <th colSpan={2} className="bg-medi-period">MEDIÇÃO PERÍODO</th>
               <th colSpan={2}>ACUM. TOTAL</th>
