@@ -218,6 +218,7 @@ export interface Project {
   groupId: string | null;
   name: string;
   companyName: string;
+  companyCnpj: string;
   location: string;
   measurementNumber: number;
   referenceDate: string;

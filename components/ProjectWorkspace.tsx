@@ -331,8 +331,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
       <PrintReport 
         project={project} 
-        companyName={globalSettings.defaultCompanyName}
-        companyCnpj={globalSettings.companyCnpj}
+        companyName={project.companyName || globalSettings.defaultCompanyName}
+        companyCnpj={project.companyCnpj || globalSettings.companyCnpj}
         data={printData.flattened} 
         expenses={project.expenses} 
         stats={printData.stats as any} 

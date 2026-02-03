@@ -36,29 +36,21 @@ export const StatsView: React.FC<StatsViewProps> = ({ project }) => {
 
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-      {/* HEADER EXPLICATIVO */}
-      <div className="bg-indigo-600 rounded-[2.5rem] p-8 text-white shadow-2xl shadow-indigo-500/20 relative overflow-hidden">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <h2 className="text-2xl font-black tracking-tight flex items-center gap-3">
-              <Gauge size={28} /> Performance da Operação
-            </h2>
-            <p className="text-indigo-100 text-xs font-medium mt-1 max-w-xl">
-              Esta visão analisa a **lucratividade da execução**. Ela compara o valor dos serviços produzidos (Medição) contra o custo real para executá-los, independente de quando o dinheiro entrará no caixa.
-            </p>
-          </div>
-          <div className="flex items-center gap-4 bg-white/10 p-4 rounded-3xl backdrop-blur-md border border-white/10">
-             <div className="text-right">
-                <p className="text-[9px] font-black uppercase opacity-60">Status do Contrato</p>
-                <p className="text-xl font-black">{stats.progress.toFixed(1)}%</p>
-             </div>
-             <div className="w-px h-8 bg-white/20" />
-             <div className="p-2 bg-white/20 rounded-xl">
-                <Target size={20} />
-             </div>
-          </div>
+      {/* HEADER SIMPLIFICADO */}
+      <div className="bg-indigo-600 rounded-[2.5rem] p-8 text-white shadow-2xl shadow-indigo-500/20 flex items-center justify-between">
+        <div className="flex items-center gap-5">
+           <div className="p-4 bg-white/10 rounded-2xl backdrop-blur-md">
+              <Target size={32} />
+           </div>
+           <div>
+              <h2 className="text-2xl font-black tracking-tight">Status do Contrato</h2>
+              <p className="text-indigo-100 text-xs font-bold uppercase tracking-widest opacity-80">Avanço Físico-Financeiro Acumulado</p>
+           </div>
         </div>
-        <Zap size={180} className="absolute -right-10 -bottom-10 opacity-10 -rotate-12" />
+        <div className="text-right">
+           <p className="text-4xl font-black tracking-tighter">{stats.progress.toFixed(1)}%</p>
+           <p className="text-[10px] font-black uppercase opacity-60">Execução Global</p>
+        </div>
       </div>
 
       {/* GRID DE PERFORMANCE OPERACIONAL */}
@@ -73,7 +65,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ project }) => {
         <PerfCard 
           label="Custo Operacional" 
           value={financial.formatVisual(operationalCosts, currencySymbol)} 
-          sub="O que você gastou"
+          sub="O que você gastou (MO + MAT)"
           icon={<TrendingUp size={20}/>}
           color="rose"
         />
