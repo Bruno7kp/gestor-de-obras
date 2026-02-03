@@ -1,33 +1,15 @@
 
-import { ProjectPlanning, PlanningTask, MaterialForecast, Milestone, WorkItem, ProjectExpense } from '../types';
+import { ProjectPlanning, PlanningTask, MaterialForecast, Milestone, WorkItem, ProjectExpense, TaskStatus } from '../types';
 
-/**
- * PlanningService
- * 
- * Gerencia a inteligência de negócios do planejamento de obra.
- * Focado em transformar dados passivos da EAP em ações proativas de cronograma.
- */
 export const planningService = {
 
-  // ==========================================
-  // AUTO-GERAÇÃO E INTELIGÊNCIA EAP
-  // ==========================================
-
-  /**
-   * generateTasksFromWbs
-   * 
-   * Analisa a planilha de medição e identifica itens que foram contratados
-   * mas ainda possuem 0% de execução. Sugere esses itens como tarefas.
-   */
   generateTasksFromWbs: (planning: ProjectPlanning, workItems: WorkItem[]): ProjectPlanning => {
-    // Filtramos apenas folhas (itens) que tenham contrato mas zero execução acumulada
     const unstartedItems = workItems.filter(item => 
       item.type === 'item' && 
       (item.contractQuantity || 0) > 0 && 
       (item.accumulatedQuantity || 0) === 0
     );
 
-    // Evitamos duplicidade: não criamos tarefas para itens que já possuem vínculo na lista atual
     const existingCategoryLinks = new Set(
       (planning.tasks || []).map(t => t.categoryId).filter(id => id !== null)
     );
@@ -39,7 +21,8 @@ export const planningService = {
         categoryId: item.id,
         description: `Iniciar execução: ${item.name}`,
         isCompleted: false,
-        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // Prazo padrão: +7 dias
+        status: 'todo',
+        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         createdAt: new Date().toISOString()
       }));
 
@@ -49,69 +32,50 @@ export const planningService = {
     };
   },
 
-  /**
-   * getUrgencyLevel
-   * 
-   * Implementa a regra de negócio de destaque para prazos críticos.
-   * Retorna 'urgent' se o prazo for inferior a 3 dias da data atual.
-   */
   getUrgencyLevel: (dateStr: string): 'urgent' | 'warning' | 'normal' => {
     if (!dateStr) return 'normal';
     
     const dueDate = new Date(dateStr);
     const today = new Date();
-    
-    // Resetamos horas para comparação puramente por data
     today.setHours(0, 0, 0, 0);
     dueDate.setHours(0, 0, 0, 0);
 
     const diffTime = dueDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    if (diffDays < 0) return 'urgent'; // Vencido
-    if (diffDays <= 3) return 'urgent'; // Janela de urgência crítica
-    if (diffDays <= 7) return 'warning'; // Atenção preventiva
+    if (diffDays < 0) return 'urgent';
+    if (diffDays <= 3) return 'urgent';
+    if (diffDays <= 7) return 'warning';
     return 'normal';
   },
 
-  // ==========================================
-  // SINCRONIZAÇÃO PLANEJADO -> GASTO REAL
-  // ==========================================
-
-  /**
-   * prepareExpenseFromForecast
-   * 
-   * Prepara um objeto ProjectExpense a partir de uma previsão de material.
-   * SINCRONIZAÇÃO: Esta função é o "gancho" que permite ao usuário transformar
-   * o que era uma intenção de compra em um registro de saída financeira real.
-   */
-  prepareExpenseFromForecast: (forecast: MaterialForecast): Partial<ProjectExpense> => {
+  prepareExpenseFromForecast: (forecast: MaterialForecast, parentId: string | null = null): Partial<ProjectExpense> => {
+    const totalAmount = (forecast.quantityNeeded || 0) * (forecast.unitPrice || 0);
     return {
       id: crypto.randomUUID(),
+      parentId: parentId,
       type: 'material',
       itemType: 'item',
       date: new Date().toISOString().split('T')[0],
       description: `Compra Efetivada: ${forecast.description}`,
       unit: forecast.unit,
       quantity: forecast.quantityNeeded,
-      isPaid: false,
-      amount: 0 // Valor deve ser ajustado pelo usuário no ato da nota fiscal
+      unitPrice: forecast.unitPrice,
+      isPaid: true, // Se foi efetivado do suprimento, assumimos a transação
+      amount: totalAmount
     };
   },
 
-  // ==========================================
-  // GESTÃO DE ESTADO (CRUD IMUTÁVEL)
-  // ==========================================
-
-  addTask: (planning: ProjectPlanning, description: string, categoryId: string | null = null): ProjectPlanning => {
+  addTask: (planning: ProjectPlanning, description: string, status: TaskStatus = 'todo', categoryId: string | null = null): ProjectPlanning => {
     const now = new Date().toISOString();
     return {
       ...planning,
       tasks: [...(planning.tasks || []), {
         id: crypto.randomUUID(),
         categoryId,
-        description: description.trim() || 'Nova Tarefa de Planejamento',
-        isCompleted: false,
+        description: description.trim() || 'Nova Tarefa',
+        isCompleted: status === 'done',
+        status,
         dueDate: now,
         createdAt: now
       }]
@@ -124,16 +88,14 @@ export const planningService = {
       
       const merged = { ...task, ...updates };
 
-      // Lógica de Timestamp de Conclusão
-      if (updates.isCompleted === true && !merged.completedAt) {
-        merged.completedAt = new Date().toISOString();
-      } else if (updates.isCompleted === false) {
-        merged.completedAt = undefined;
+      if (updates.status) {
+        merged.isCompleted = updates.status === 'done';
       }
 
-      // Validação Crítica: Conclusão não pode ser anterior à criação
-      if (merged.completedAt && new Date(merged.completedAt) < new Date(task.createdAt)) {
-        merged.completedAt = task.createdAt;
+      if (merged.isCompleted && !merged.completedAt) {
+        merged.completedAt = new Date().toISOString();
+      } else if (!merged.isCompleted) {
+        merged.completedAt = undefined;
       }
 
       return merged;
@@ -144,10 +106,8 @@ export const planningService = {
 
   deleteTask: (planning: ProjectPlanning, taskId: string): ProjectPlanning => ({
     ...planning,
-    tasks: planning.tasks.filter(t => t.id !== taskId)
+    tasks: (planning.tasks || []).filter(t => t.id !== taskId)
   }),
-
-  // --- SUPRIMENTOS (FORECASTS) ---
 
   addForecast: (planning: ProjectPlanning, data: Partial<MaterialForecast>): ProjectPlanning => ({
     ...planning,
@@ -155,6 +115,7 @@ export const planningService = {
       id: crypto.randomUUID(),
       description: data.description || 'Insumo Previsto',
       quantityNeeded: data.quantityNeeded || 0,
+      unitPrice: data.unitPrice || 0,
       unit: data.unit || 'un',
       estimatedDate: data.estimatedDate || new Date().toISOString(),
       status: data.status || 'pending'
@@ -170,8 +131,6 @@ export const planningService = {
     ...planning,
     forecasts: (planning.forecasts || []).filter(f => f.id !== id)
   }),
-
-  // --- METAS (MILESTONES) ---
 
   addMilestone: (planning: ProjectPlanning, title: string, date: string): ProjectPlanning => ({
     ...planning,
@@ -193,30 +152,14 @@ export const planningService = {
     milestones: (planning.milestones || []).filter(m => m.id !== id)
   }),
 
-  // ==========================================
-  // MANUTENÇÃO DE INTEGRIDADE
-  // ==========================================
-
-  /**
-   * cleanupOrphanedTasks
-   * 
-   * Sempre que a árvore principal (EAP) é alterada, esta função deve ser
-   * executada para garantir que tarefas não apontem para IDs excluídos.
-   */
   cleanupOrphanedTasks: (planning: ProjectPlanning, currentItems: WorkItem[]): ProjectPlanning => {
     const validIds = new Set(currentItems.map(i => i.id));
-    
     const sanitizedTasks = (planning.tasks || []).map(task => {
-      // Se a tarefa tem um vínculo EAP mas o ID não existe mais, desvincula (órfão)
       if (task.categoryId && !validIds.has(task.categoryId)) {
         return { ...task, categoryId: null };
       }
       return task;
     });
-
-    return {
-      ...planning,
-      tasks: sanitizedTasks
-    };
+    return { ...planning, tasks: sanitizedTasks };
   }
 };

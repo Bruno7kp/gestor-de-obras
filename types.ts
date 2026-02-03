@@ -109,11 +109,14 @@ export interface ProjectPlanning {
   milestones: Milestone[];
 }
 
+export type TaskStatus = 'todo' | 'doing' | 'done';
+
 export interface PlanningTask {
   id: string;
   categoryId: string | null;
   description: string;
   isCompleted: boolean;
+  status: TaskStatus;
   dueDate: string;
   createdAt: string;
   completedAt?: string;
@@ -125,6 +128,7 @@ export interface MaterialForecast {
   id: string;
   description: string;
   quantityNeeded: number;
+  unitPrice: number;
   unit: string;
   estimatedDate: string;
   status: ForecastStatus;
