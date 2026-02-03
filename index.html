@@ -3,8 +3,8 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ProMeasure - Construction Engineering System</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ProMeasure Pro - Gestão de Engenharia SaaS</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -17,51 +17,81 @@
             borderRadius: {
               '3xl': '1.5rem',
               '4xl': '2rem',
-            },
+            }
           },
         },
       }
     </script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Roboto:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;700;800&family=Merriweather:wght@300;400;700;900&display=swap');
         
-        :root {
-            scrollbar-width: thin;
-            scrollbar-color: #cbd5e1 #f8fafc;
-        }
-
-        .dark {
-            scrollbar-color: #334155 #0f172a;
-        }
-
         body { 
           font-family: 'Inter', sans-serif; 
-          -webkit-font-smoothing: antialiased; 
-          overflow-x: hidden;
+          background-color: #f8fafc;
+          /* Compatibilidade de cores global */
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          color-adjust: exact !important;
         }
 
-        /* Custom Scrollbar for Chrome/Safari */
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .dark ::-webkit-scrollbar-thumb { background: #334155; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
-        .glass-panel {
-          background: rgba(255, 255, 255, 0.7);
-          backdrop-filter: blur(10px);
-          border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-
-        .dark .glass-panel {
-          background: rgba(15, 23, 42, 0.7);
-          backdrop-filter: blur(10px);
-          border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        @media print { .no-print { display: none !important; } }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
         
-        * { transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.1s ease; }
+        @media print {
+          @page { 
+            size: A4 landscape; 
+            margin: 18mm 8mm !important; 
+          }
+
+          /* Compatibilidade Cross-Browser: Reset de Renderização */
+          html, body {
+            background-color: white !important;
+            color: black !important;
+            height: auto !important;
+            min-height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            -webkit-font-smoothing: subpixel-antialiased !important;
+            text-rendering: optimizeLegibility !important;
+          }
+
+          #root, #root > div, main {
+            background-color: white !important;
+            background: white !important;
+            height: auto !important;
+            min-height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            display: block !important;
+            overflow: visible !important;
+            position: static !important;
+          }
+
+          /* Oculta interface do sistema */
+          aside, nav, header.no-print, .no-print, button, .lucide {
+            display: none !important;
+            visibility: hidden !important;
+          }
+
+          .print-report-area {
+            display: block !important;
+            visibility: visible !important;
+            width: 100% !important;
+            background-color: white !important;
+            padding: 0 !important;
+            box-sizing: border-box !important;
+            position: relative !important;
+            margin: 0 !important;
+            height: auto !important;
+            min-height: 0 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+        }
+
+        .print-report-area {
+          display: none;
+        }
     </style>
 <script type="importmap">
 {
@@ -72,13 +102,18 @@
     "react-dom/": "https://esm.sh/react-dom@18.3.1/",
     "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
     "lucide-react": "https://esm.sh/lucide-react@0.460.0?external=react,react-dom",
-    "xlsx": "https://esm.sh/xlsx@0.18.5"
+    "xlsx": "https://esm.sh/xlsx@0.18.5",
+    "zod": "https://esm.sh/zod@3.23.8",
+    "@hello-pangea/dnd": "https://esm.sh/@hello-pangea/dnd@17.0.0?external=react,react-dom",
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/"
   }
 }
 </script>
 <link rel="stylesheet" href="/index.css">
 </head>
-<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 selection:bg-blue-100 dark:selection:bg-blue-900">
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
     <div id="root"></div>
 <script type="module" src="/index.tsx"></script>
 </body>

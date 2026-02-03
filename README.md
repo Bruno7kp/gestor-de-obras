@@ -1,104 +1,63 @@
-# Gestor de Obras (React Version)
+# ProMeasure Pro v0.4
+### High-Precision Engineering Measurement & Lifecycle Management Platform
 
-O **Gestor de Obras** é uma aplicação web de alta performance para gerenciamento, orçamentação e medição de obras de engenharia civil. O sistema permite criar estruturas analíticas de projeto (EAP) com profundidade infinita, realizar medições acumuladas e calcular custos automaticamente através de uma árvore hierárquica recursiva.
+O **ProMeasure Pro** é uma plataforma de classe empresarial (SaaS-ready) projetada para suprir a lacuna entre o orçamento teórico e a execução física em obras de infraestrutura e edificações de alta complexidade. 
 
-Esta versão foi construída utilizando **React** e **TypeScript**, focando em tipagem estrita e performance para grandes volumes de dados.
-
-## 🚀 Tecnologias
-
-* **React 18+** (Interface de Usuário)
-* **TypeScript** (Segurança de tipos e Intellisense)
-* **Vite** (Build tool e Dev Server ultra-rápido)
-* **Tailwind CSS** (Estilização utilitária)
-* **Lucide React** (Ícones)
-* **XLSX** (Manipulação de arquivos Excel)
-
-## 📋 Funcionalidades Principais
-
-* **Estrutura em Árvore (WBS/EAP):** Criação de categorias e subcategorias com numeração automática (1, 1.1, 1.1.1).
-* **Cálculo Recursivo (Rollup):** Os valores das categorias "Pai" são calculados automaticamente somando os valores dos filhos, garantindo integridade matemática.
-* **Gestão de Medições:**
-* Controle de valor contratual.
-* Medição atual vs. Acumulada.
-* Cálculo automático de saldos e porcentagens.
-
-
-* **Importação de Excel:** Capacidade de importar planilhas orçamentárias existentes.
-* **Edição Inline:** Interface tipo planilha para edição rápida de quantidades e valores.
-
-## 📂 Estrutura do Projeto
-
-```bash
-src/
-├── components/
-│   ├── ThemeEditor.tsx    # Controle de temas/visual
-│   ├── TreeTable.tsx      # Componente principal de tabela hierárquica
-│   └── WorkItemModal.tsx  # Modal para edição/criação de itens
-├── services/
-│   ├── excelService.ts    # Lógica de parsing e exportação de planilhas
-│   └── treeService.ts     # Algoritmos de cálculo recursivo e "flattening" da árvore
-├── utils/
-│   └── math.ts            # Helpers para cálculos financeiros precisos
-├── types.ts               # Definições de tipos (WorkItem, Category, etc.)
-└── App.tsx                # Entry point da aplicação
-
-```
-
-## 🛠️ Como rodar o projeto
-
-### Pré-requisitos
-
-* Node.js (versão 18 ou superior)
-* NPM ou Yarn
-
-### Instalação
-
-1. Clone o repositório:
-```bash
-git clone https://github.com/seu-usuario/gestor-de-obras.git
-cd gestor-de-obras
-
-```
-
-
-2. Instale as dependências:
-```bash
-npm install
-
-```
-
-
-3. Rode o servidor de desenvolvimento:
-```bash
-npm run dev
-
-```
-
-
-
-O projeto estará disponível em `http://localhost:5173`.
-
-## 🧠 Decisões de Arquitetura
-
-### State Management (Estado Plano vs Árvore)
-
-Para otimizar a performance de renderização e simplificar o CRUD, optamos por manter o estado como uma **lista plana (Flat List)** no React.
-
-* **Armazenamento:** Array linear de objetos com `parentId`.
-* **Renderização:** Uma função no `treeService` converte essa lista plana em uma estrutura visual hierárquica apenas no momento do render, calculando indentação e totais em tempo real.
-
-### Precisão Numérica
-
-Devido aos problemas de ponto flutuante do JavaScript (`0.1 + 0.2 !== 0.3`), todos os cálculos monetários são tratados com funções utilitárias em `src/utils/math.ts` para garantir precisão de centavos.
-
-## 🤝 Contribuição
-
-1. Faça um Fork do projeto
-2. Crie uma Branch para sua Feature (`git checkout -b feature/NovaFeature`)
-3. Faça o Commit (`git commit -m 'Add some NovaFeature'`)
-4. Push para a Branch (`git push origin feature/NovaFeature`)
-5. Abra um Pull Request
+Diferente de planilhas convencionais, o sistema implementa um **Motor de Cálculo Hierárquico Relacional**, garantindo integridade matemática absoluta em estruturas analíticas (EAP) multiníveis.
 
 ---
 
-**Licença:** MIT
+## 🏗️ Core Pillars & Business Logic
+
+### 1. Motor de EAP Dinâmico (WBS Engine)
+*   **Hierarquia Recursiva:** Implementação de árvore virtual que gera automaticamente a numeração de itens (ex: 1.1.2.1) e propaga alterações de ordem via Drag-and-Drop sem perda de referência.
+*   **Column Focus:** Recentemente otimizado para o padrão brasileiro de orçamentação, utilizando a nomenclatura de coluna `ITEM` (antigo WBS) e rastreabilidade de procedência via coluna `FONTE` (SINAPI, SBC, Próprio, etc).
+
+### 2. Rollups Financeiros de Alta Precisão
+*   **Cascateamento Automático:** Valores medidos na "folha" (item de serviço) são somados recursivamente para as categorias superiores em tempo real.
+*   **Gestão de BDI (Benefícios e Despesas Indiretas):** Aplicação de taxas customizáveis por projeto com recálculo instantâneo de preços unitários e totais contratuais.
+*   **Prevenção de Erros de Ponto Flutuante:** Utilização de utilitários de arredondamento financeiro (`DecimalSafe`) para garantir que 0.1 + 0.2 seja exatamente 0.3 no fechamento da medição.
+
+### 3. Compliance & Governança (Auditoria)
+*   **Snapshots de Medição:** Sistema de "Time Machine" que congela o estado da obra em cada fechamento, permitindo auditoria retroativa de qualquer período anterior.
+*   **Diário de Obra Automatizado:** Engine de logs que gera registros de auditoria automáticos quando itens atingem 100% ou quando gastos superam limites críticos de sensibilidade financeira.
+
+### 4. Ciclo de Vida de Licitações (Bidding)
+*   **Pipeline de Propostas:** Gestão de editais desde a prospecção até a conversão em obra ativa.
+*   **Compliance Documental:** Monitoramento de validade de certidões negativas e documentos de habilitação com alertas visuais de criticidade.
+
+---
+
+## 🛠️ Stack Tecnológica & Arquitetura
+
+*   **Frontend:** React 18+ com **TypeScript Strict Mode** para eliminação de erros em tempo de compilação.
+*   **State Management:** Hooks customizados com persistência em `localStorage` (Arquitetura orientada a migração rápida para API REST/PostgreSQL).
+*   **Data Processing:** Engine [SheetJS](https://sheetjs.com/) para parsing heurístico de planilhas Excel.
+*   **UI/UX:** Tailwind CSS com suporte a **Institutional Dark Mode** e layout de impressão otimizado para normas de engenharia (A4 Paisagem).
+
+---
+
+## 📐 Decisões de Engenharia (Architect's Note)
+
+O sistema utiliza uma **Representação Flattened** no armazenamento para performance de escrita, mas reconstrói uma **Virtual Tree** em memória para todos os cálculos de rollup. Isso permite que a interface renderize milhares de itens com performance O(n) enquanto mantém a lógica de negócio complexa isolada na camada de serviço (`treeService.ts`).
+
+### Estrutura de Pastas (Clean Architecture)
+*   `/services`: Single Source of Truth para lógica de negócio (EAP, Finanças, Excel).
+*   `/hooks`: Abstração de persistência e estados globais.
+*   `/utils`: Utilitários matemáticos e formatadores de locale.
+*   `/components`: UI Components atômicos e Views complexas.
+
+---
+
+## 🚀 Deployment & Instalação
+
+A aplicação foi desenhada para ser executada como um módulo ES6 nativo, eliminando a necessidade de builders complexos para prototipagem rápida, mas mantendo total compatibilidade com ambientes de CI/CD modernos.
+
+1.  Clone o repositório.
+2.  Inicie um servidor estático na raiz (ex: `npx serve .` ou Live Server).
+3.  Acesse `http://localhost:3000`.
+
+*Para produção, consulte o arquivo `deployment.md` para configurações de Docker e instâncias gerenciadas de banco de dados.*
+
+---
+**Desenvolvido com rigor técnico para profissionais que não aceitam margem de erro.**

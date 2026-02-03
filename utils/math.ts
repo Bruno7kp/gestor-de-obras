@@ -2,12 +2,25 @@
 export const financial = {
   /**
    * Arredondamento financeiro padrão (2 casas decimais).
-   * Usa uma abordagem robusta para evitar imprecisões de ponto flutuante do JS.
    */
   round: (value: number): number => {
     return Math.round((value + Number.EPSILON) * 100) / 100;
   },
+
+  /**
+   * Truncagem rigorosa de 2 casas decimais (Excel TRUNCAR).
+   * Adiciona um epsilon de 1e-9 para corrigir imprecisões de ponto flutuante do JS
+   * antes de realizar o corte das casas decimais.
+   */
+  truncate: (value: number): number => {
+    const factor = 100;
+    // O 0.0000000001 (1e-10) serve para garantir que 5.9999999999 seja 6.00 antes do trunc
+    return Math.floor((value + 0.0000000001) * factor) / factor;
+  },
   
+  /**
+   * Formata para BRL usando o Intl padrão (inclui R$).
+   */
   formatBRL: (value: number): string => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -17,7 +30,60 @@ export const financial = {
     }).format(value);
   },
 
+  /**
+   * Formata um número com símbolo customizado.
+   */
+  formatVisual: (value: number, symbol: string = 'R$'): string => {
+    const num = value || 0;
+    const formatted = new Intl.NumberFormat('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(num);
+    return symbol ? `${symbol} ${formatted}` : formatted;
+  },
+
+  /**
+   * Máscara de digitação: transforma "1234" em "12,34"
+   */
+  maskCurrency: (value: string): string => {
+    const digits = value.replace(/\D/g, '');
+    if (!digits) return '0,00';
+    const numberValue = parseInt(digits, 10) / 100;
+    return new Intl.NumberFormat('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(numberValue);
+  },
+
+  /**
+   * Converte uma string formatada de volta para número.
+   */
+  parseLocaleNumber: (value: string): number => {
+    if (!value) return 0;
+    const cleanValue = value
+      .replace(/[^\d,.-]/g, '') 
+      .replace(/\./g, '')
+      .replace(',', '.');
+    return parseFloat(cleanValue) || 0;
+  },
+
+  /**
+   * Soma de precisão: Soma os valores e trunca o resultado final.
+   */
   sum: (values: number[]): number => {
-    return financial.round(values.reduce((acc, val) => acc + val, 0));
+    const total = values.reduce((acc, val) => acc + (val || 0), 0);
+    return financial.truncate(total);
+  },
+
+  /**
+   * Formata data YYYY-MM-DD para DD/MM/YYYY.
+   */
+  formatDate: (dateStr: string | undefined): string => {
+    if (!dateStr) return '—';
+    const cleanDate = dateStr.split('T')[0];
+    const parts = cleanDate.split('-');
+    if (parts.length !== 3) return dateStr;
+    const [year, month, day] = parts;
+    return `${day}/${month}/${year}`;
   }
 };
