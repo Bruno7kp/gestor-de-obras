@@ -132,6 +132,7 @@ export interface MaterialForecast {
   unit: string;
   estimatedDate: string;
   status: ForecastStatus;
+  order: number;
 }
 
 export interface Milestone {

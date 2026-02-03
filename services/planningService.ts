@@ -66,17 +66,17 @@ export const planningService = {
     };
   },
 
-  addTask: (planning: ProjectPlanning, description: string, status: TaskStatus = 'todo', categoryId: string | null = null): ProjectPlanning => {
+  addTask: (planning: ProjectPlanning, data: Partial<PlanningTask>): ProjectPlanning => {
     const now = new Date().toISOString();
     return {
       ...planning,
       tasks: [...(planning.tasks || []), {
         id: crypto.randomUUID(),
-        categoryId,
-        description: description.trim() || 'Nova Tarefa',
-        isCompleted: status === 'done',
-        status,
-        dueDate: now,
+        categoryId: data.categoryId || null,
+        description: data.description?.trim() || 'Nova Tarefa',
+        isCompleted: data.status === 'done',
+        status: data.status || 'todo',
+        dueDate: data.dueDate || now,
         createdAt: now
       }]
     };
@@ -118,7 +118,8 @@ export const planningService = {
       unitPrice: data.unitPrice || 0,
       unit: data.unit || 'un',
       estimatedDate: data.estimatedDate || new Date().toISOString(),
-      status: data.status || 'pending'
+      status: data.status || 'pending',
+      order: planning.forecasts.length
     }]
   }),
 
@@ -127,18 +128,33 @@ export const planningService = {
     forecasts: (planning.forecasts || []).map(f => f.id === id ? { ...f, ...updates } : f)
   }),
 
+  reorderForecasts: (planning: ProjectPlanning, id: string, direction: 'up' | 'down'): ProjectPlanning => {
+    const list = [...planning.forecasts].sort((a, b) => a.order - b.order);
+    const idx = list.findIndex(f => f.id === id);
+    if (idx === -1) return planning;
+    
+    const newIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (newIdx < 0 || newIdx >= list.length) return planning;
+    
+    const temp = list[idx].order;
+    list[idx].order = list[newIdx].order;
+    list[newIdx].order = temp;
+    
+    return { ...planning, forecasts: list };
+  },
+
   deleteForecast: (planning: ProjectPlanning, id: string): ProjectPlanning => ({
     ...planning,
     forecasts: (planning.forecasts || []).filter(f => f.id !== id)
   }),
 
-  addMilestone: (planning: ProjectPlanning, title: string, date: string): ProjectPlanning => ({
+  addMilestone: (planning: ProjectPlanning, data: Partial<Milestone>): ProjectPlanning => ({
     ...planning,
     milestones: [...(planning.milestones || []), {
       id: crypto.randomUUID(),
-      title: title || 'Nova Meta do Projeto',
-      date: date || new Date().toISOString(),
-      isCompleted: false
+      title: data.title || 'Nova Meta do Projeto',
+      date: data.date || new Date().toISOString(),
+      isCompleted: !!data.isCompleted
     }]
   }),
 
