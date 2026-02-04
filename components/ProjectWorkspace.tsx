@@ -10,6 +10,7 @@ import { PlanningView } from './PlanningView';
 import { JournalView } from './JournalView';
 import { PrintReport } from './PrintReport';
 import { PrintExpenseReport } from './PrintExpenseReport';
+import { PrintPlanningReport } from './PrintPlanningReport'; // Importação adicionada
 import { WorkItemModal } from './WorkItemModal';
 import { treeService } from '../services/treeService';
 import { projectService } from '../services/projectService';
@@ -328,13 +329,21 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
       </div>
 
       {/* RENDERIZAÇÃO CONDICIONAL DOS RELATÓRIOS PARA IMPRESSÃO */}
-      {tab === 'expenses' ? (
+      {tab === 'expenses' && (
         <PrintExpenseReport 
           project={project}
           expenses={project.expenses}
           stats={expenseStats}
         />
-      ) : (
+      )}
+      
+      {tab === 'planning' && (
+        <PrintPlanningReport 
+          project={project}
+        />
+      )}
+
+      {(tab === 'wbs' || tab === 'stats' || tab === 'journal' || tab === 'documents' || tab === 'branding') && (
         <PrintReport 
           project={project} 
           companyName={project.companyName || globalSettings.defaultCompanyName}

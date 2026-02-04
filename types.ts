@@ -53,9 +53,6 @@ export interface Supplier {
   order: number;
 }
 
-/**
- * Interface para distribuição de valores planejados e realizados por período no cronograma.
- */
 export interface PeriodDistribution {
   plannedPercent: number;
   actualPercent?: number;
@@ -65,7 +62,6 @@ export interface ProjectPlanning {
   tasks: PlanningTask[];
   forecasts: MaterialForecast[];
   milestones: Milestone[];
-  // Fix: Adicionada propriedade schedule para suportar o cronograma físico-financeiro e resolver erro de compilação
   schedule?: Record<string, Record<string, PeriodDistribution>>;
 }
 
@@ -92,6 +88,7 @@ export interface MaterialForecast {
   unit: string;
   estimatedDate: string;
   status: ForecastStatus;
+  isPaid?: boolean; // Novo campo solicitado
   order: number;
 }
 

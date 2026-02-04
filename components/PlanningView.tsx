@@ -10,7 +10,7 @@ import {
   Wand2, ArrowUpRight, Ban, ListChecks, Boxes, Target,
   GripVertical, MoreVertical, Edit2, X, Save, Calculator, Wallet, Link,
   ChevronUp, ChevronDown, List, CalendarDays, Filter, Users, Download, UploadCloud,
-  Layers, FlagTriangleRight, Printer
+  Layers, FlagTriangleRight, Printer, CreditCard, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
@@ -266,8 +266,9 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                         <th className="pb-4">QNT</th>
                         <th className="pb-4">UNT</th>
                         <th className="pb-4">Custo</th>
-                        <th className="pb-4">Data da Compra</th>
+                        <th className="pb-4">Data Prevista</th>
                         <th className="pb-4">Status</th>
+                        <th className="pb-4">Pago?</th>
                         <th className="pb-4 text-right pr-4">Ações</th>
                       </tr>
                     </thead>
@@ -280,7 +281,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                 <tr 
                                   ref={p.innerRef} 
                                   {...p.draggableProps} 
-                                  className={`group bg-slate-50/50 dark:bg-slate-800/30 rounded-2xl border border-transparent transition-all ${s.isDragging ? 'shadow-2xl z-50 bg-white ring-2 ring-indigo-500' : 'hover:border-emerald-200'}`}
+                                  className={`group bg-slate-50/50 dark:bg-slate-800/30 rounded-2xl border border-transparent transition-all ${s.isDragging ? 'shadow-2xl z-50 bg-white ring-2 ring-indigo-500' : 'hover:border-emerald-200'} ${f.isPaid ? 'opacity-70' : ''}`}
                                 >
                                   <td className="py-5 pl-4 rounded-l-[1.5rem]">
                                      <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -313,6 +314,14 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                        <StatusCircle active={f.status === 'ordered'} onClick={() => onUpdatePlanning(planningService.updateForecast(planning, f.id, { status: 'ordered' }))} icon={<ShoppingCart size={12}/>} color="blue" label="Comprado" />
                                        <StatusCircle active={f.status === 'delivered'} onClick={() => onUpdatePlanning(planningService.updateForecast(planning, f.id, { status: 'delivered' }))} icon={<Truck size={12}/>} color="emerald" label="No Local" />
                                     </div>
+                                  </td>
+                                  <td className="py-5">
+                                    <button 
+                                      onClick={() => onUpdatePlanning(planningService.updateForecast(planning, f.id, { isPaid: !f.isPaid }))}
+                                      className={`p-2 rounded-full transition-all ${f.isPaid ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-300 hover:text-rose-500'}`}
+                                    >
+                                      {f.isPaid ? <CheckCircle2 size={16}/> : <Circle size={16}/>}
+                                    </button>
                                   </td>
                                   <td className="py-5 text-right pr-6 rounded-r-[1.5rem]">
                                     <div className="flex items-center justify-end gap-2">
@@ -440,13 +449,13 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
 
 // --- SUB-COMPONENTS ---
 
-// Fix: Definição do componente ForecastAddModal (estava faltando)
 const ForecastAddModal = ({ onClose, onSave, allWorkItems }: any) => {
   const [data, setData] = useState({
     description: '',
     quantityNeeded: 1,
     unitPrice: 0,
     unit: 'un',
+    isPaid: false,
     estimatedDate: new Date().toISOString().split('T')[0],
     categoryId: '' 
   });
@@ -498,6 +507,23 @@ const ForecastAddModal = ({ onClose, onSave, allWorkItems }: any) => {
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">Preço Est.</label>
                 <input type="number" className="w-full px-4 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-black text-right outline-none focus:border-indigo-500 transition-all" value={data.unitPrice} onChange={e => setData({...data, unitPrice: parseFloat(e.target.value) || 0})} />
               </div>
+           </div>
+
+           <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                 <div className="p-2 bg-white dark:bg-slate-900 rounded-lg shadow-sm text-indigo-500"><CreditCard size={18}/></div>
+                 <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase">Estado do Pagamento</p>
+                    <p className="text-xs font-bold text-slate-700 dark:text-slate-200">{data.isPaid ? 'Liquidado' : 'Aguardando Fatura'}</p>
+                 </div>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setData({...data, isPaid: !data.isPaid})}
+                className={`w-12 h-6 rounded-full relative transition-colors ${data.isPaid ? 'bg-emerald-500' : 'bg-slate-300'}`}
+              >
+                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${data.isPaid ? 'left-7' : 'left-1'}`} />
+              </button>
            </div>
         </div>
 
@@ -557,14 +583,90 @@ const StatusCircle = ({ active, onClick, icon, color, label }: any) => {
   );
 };
 
+/**
+ * IMPLEMENTAÇÃO REAL DE CALENDÁRIO MENSAL
+ */
 const CalendarView = ({ milestones, onEdit }: { milestones: Milestone[], onEdit: (m: Milestone) => void }) => {
+  const [currentDate, setCurrentDate] = useState(new Date());
+
+  const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
+  const firstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
+
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+
+  const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
+  const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
+
+  const monthLabel = currentDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+  const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'];
+
+  const gridDays = useMemo(() => {
+    const totalDays = daysInMonth(year, month);
+    const startOffset = firstDayOfMonth(year, month);
+    const days = [];
+    
+    // Empty slots for previous month offset
+    for (let i = 0; i < startOffset; i++) days.push(null);
+    
+    // Current month days
+    for (let i = 1; i <= totalDays; i++) {
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+      const dayMilestones = milestones.filter(m => m.date.startsWith(dateStr));
+      days.push({ day: i, milestones: dayMilestones, dateStr });
+    }
+    return days;
+  }, [currentDate, milestones]);
+
   return (
-    <div className="bg-white dark:bg-slate-900 p-8 rounded-[3.5rem] border border-slate-200 dark:border-slate-800 shadow-sm">
-      <div className="flex items-center justify-center py-20 text-slate-300 flex-col gap-4">
-        <CalendarDays size={48} className="opacity-20" />
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] max-w-xs text-center leading-relaxed">
-          A visualização de calendário está sendo otimizada para dispositivos móveis. Utilize a visão de lista para gestão imediata das metas.
-        </p>
+    <div className="bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-500">
+      {/* Calendar Header */}
+      <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/30">
+        <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight leading-none">{monthLabel}</h3>
+        <div className="flex items-center gap-2">
+          <button onClick={prevMonth} className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded-xl transition-all shadow-sm border border-slate-200 dark:border-slate-700"><ChevronLeft size={20}/></button>
+          <button onClick={() => setCurrentDate(new Date())} className="px-4 py-2 bg-white dark:bg-slate-700 text-[10px] font-black uppercase tracking-widest rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">Hoje</button>
+          <button onClick={nextMonth} className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded-xl transition-all shadow-sm border border-slate-200 dark:border-slate-700"><ChevronRight size={20}/></button>
+        </div>
+      </div>
+
+      {/* Grid */}
+      <div className="p-6">
+        <div className="grid grid-cols-7 gap-px bg-slate-100 dark:bg-slate-800 border border-slate-100 dark:border-slate-800 rounded-3xl overflow-hidden">
+          {weekDays.map(d => (
+            <div key={d} className="bg-white dark:bg-slate-900 py-4 text-center">
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">{d}</span>
+            </div>
+          ))}
+          
+          {gridDays.map((d, i) => (
+            <div key={i} className={`bg-white dark:bg-slate-900 min-h-[120px] p-3 transition-colors hover:bg-slate-50/50 dark:hover:bg-slate-800/50 ${!d ? 'opacity-30' : ''}`}>
+              {d && (
+                <div className="flex flex-col gap-2 h-full">
+                  <span className={`text-[11px] font-black ${new Date().toDateString() === new Date(d.dateStr).toDateString() ? 'bg-indigo-600 text-white w-6 h-6 flex items-center justify-center rounded-lg shadow-lg' : 'text-slate-400'}`}>
+                    {d.day}
+                  </span>
+                  
+                  <div className="flex flex-col gap-1 overflow-y-auto custom-scrollbar flex-1 pr-1">
+                    {d.milestones.map(m => (
+                      <button 
+                        key={m.id}
+                        onClick={() => onEdit(m)}
+                        className={`text-[9px] font-bold p-1.5 rounded-lg text-left truncate border transition-all ${
+                          m.isCompleted 
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
+                            : 'bg-indigo-50 text-indigo-700 border-indigo-100 hover:scale-[1.02]'
+                        }`}
+                      >
+                        {m.title}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -580,7 +682,7 @@ const TaskModal = ({ task, initialStatus, onClose, onSave }: any) => {
       <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl" onClick={e => e.stopPropagation()}>
         <h2 className="text-xl font-black mb-6 dark:text-white uppercase tracking-tight">{task ? 'Editar Tarefa' : 'Nova Tarefa'}</h2>
         <div className="space-y-4">
-          <textarea autoFocus className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-bold outline-none focus:border-indigo-500 transition-all" value={desc} onChange={e => setDesc(e.target.value)} placeholder="O que precisa ser feito?" />
+          <textarea autoFocus className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-bold outline-none focus:border-indigo-500" value={desc} onChange={e => setDesc(e.target.value)} placeholder="O que precisa ser feito?" />
           <div className="grid grid-cols-2 gap-4">
             <select className="px-4 py-3 rounded-xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold outline-none" value={status} onChange={e => setStatus(e.target.value as any)}>
               <option value="todo">Planejado</option>
