@@ -122,7 +122,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
   const showBalance = view === 'full';
 
   const calculateConsolidatedColSpan = () => {
-    let base = 4; // ITEM + EAP + UND + QTD
+    let base = 4; // ITEM + EAP (Descrição) + UND + QTD
     if (showMover) base++;
     if (showAcoes) base++;
     if (showFonte) base++;
@@ -237,7 +237,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
               </tr>
             </thead>
             
-            <Droppable droppableId="wbs-tree" direction="vertical" isCombineEnabled={!isReadOnly}>
+            <Droppable droppableId="wbs-tree" direction="vertical" isDragDisabled={isReadOnly} isCombineEnabled={!isReadOnly}>
               {(provided) => (
                 <tbody 
                   {...provided.droppableProps} 

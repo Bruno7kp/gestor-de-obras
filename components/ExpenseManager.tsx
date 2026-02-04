@@ -54,6 +54,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
 
   const projectedBalance = financial.round(stats.revenue - stats.totalOut);
 
+  // Árvore processada para exibição na tabela (apenas da aba ativa)
   const currentExpenses = useMemo(() => {
     if (activeTab === 'overview') return [];
     const filtered = expenses.filter(e => e.type === activeTab);
@@ -61,8 +62,8 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
     return tree.map((root, idx) => treeService.processExpensesRecursive(root as ProjectExpense, '', idx));
   }, [expenses, activeTab]);
 
+  // Lista de categorias (grupos) para o dropdown do modal, respeitando o tipo (MO/MAT/RE)
   const processedExpenseCategories = useMemo(() => {
-    // Filtramos apenas as categorias do tipo ativo (MO, MAT ou RE)
     const filterTab = activeTab === 'overview' ? 'material' : activeTab;
     const filtered = expenses.filter(e => e.type === filterTab);
     const tree = treeService.buildTree(filtered);
