@@ -11,7 +11,7 @@ import {
   Plus, Search, CheckCircle2, Wallet, ArrowRightLeft,
   X, BarChart3, PieChart, Clock, ArrowUpRight,
   Maximize2, Minimize2, Truck, Users, Download, UploadCloud,
-  FileSpreadsheet, Landmark, Coins, AlertCircle, Printer
+  FileSpreadsheet, Landmark, Coins, AlertCircle, Printer, FolderPlus
 } from 'lucide-react';
 
 interface ExpenseManagerProps {
@@ -62,8 +62,9 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
   }, [expenses, activeTab]);
 
   const processedExpenseCategories = useMemo(() => {
-    if (activeTab === 'overview') return [];
-    const filtered = expenses.filter(e => e.type === activeTab);
+    // Filtramos apenas as categorias do tipo ativo (MO, MAT ou RE)
+    const filterTab = activeTab === 'overview' ? 'material' : activeTab;
+    const filtered = expenses.filter(e => e.type === filterTab);
     const tree = treeService.buildTree(filtered);
     const processed = tree.map((root, idx) => treeService.processExpensesRecursive(root as ProjectExpense, '', idx));
     const allIds = new Set<string>(filtered.map(e => e.id));
@@ -113,10 +114,9 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
     if (editingExpense) {
       onUpdate(editingExpense.id, data);
     } else {
-      // Fix: Adding missing 'status' property when creating a new ProjectExpense
       const newExpense: ProjectExpense = {
         id: crypto.randomUUID(),
-        parentId: targetParentId || null,
+        parentId: data.parentId || null,
         type: data.type || (activeTab === 'overview' ? 'material' : activeTab as ExpenseType),
         itemType: data.itemType || modalItemType,
         wbs: '',
@@ -129,7 +129,10 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
         unitPrice: data.unitPrice || 0,
         amount: data.amount || 0,
         isPaid: data.isPaid || false,
-        status: data.status || 'PENDING'
+        status: data.status || 'PENDING',
+        paymentProof: data.paymentProof,
+        invoiceDoc: data.invoiceDoc,
+        deliveryDate: data.deliveryDate
       };
       onAdd(newExpense);
     }
@@ -161,14 +164,25 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
           <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 self-center mx-1" />
           <TabTrigger active={activeTab === 'revenue'} onClick={() => setActiveTab('revenue')} label="Entradas" icon={<ArrowUpRight size={14} />} />
           <TabTrigger active={activeTab === 'material'} onClick={() => setActiveTab('material')} label="Materiais" icon={<Truck size={14} />} />
-          <TabTrigger active={activeTab === 'labor'} onClick={() => setActiveTab('labor')} label="Mão de Obra" icon={<Users size={14} />} />
+          <TabTrigger active={activeTab === 'labor'} onClick={() => setActiveTab('labor'} label="Mão de Obra" icon={<Users size={14} />} />
         </div>
 
         <div className="flex items-center gap-2">
           {activeTab !== 'overview' && (
-            <button onClick={() => { setModalItemType('item'); setEditingExpense(null); setIsModalOpen(true); }} className="px-5 py-3 bg-indigo-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg hover:scale-105 transition-transform">
-              Novo Lançamento
-            </button>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => { setModalItemType('category'); setEditingExpense(null); setTargetParentId(null); setIsModalOpen(true); }} 
+                className="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-[9px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700 shadow-sm hover:bg-slate-50 transition-all"
+              >
+                <FolderPlus size={14} /> Grupo
+              </button>
+              <button 
+                onClick={() => { setModalItemType('item'); setEditingExpense(null); setTargetParentId(null); setIsModalOpen(true); }} 
+                className="px-5 py-3 bg-indigo-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg hover:scale-105 transition-transform"
+              >
+                Lançamento
+              </button>
+            </div>
           )}
           <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1" />
           
@@ -176,7 +190,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
             onClick={() => window.print()}
             className="flex items-center gap-2 px-5 py-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-[9px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700 shadow-sm hover:bg-slate-50 transition-all"
           >
-            <Printer size={16} /> PDF Financeiro
+            <Printer size={16} /> PDF
           </button>
 
           <button onClick={() => fileInputRef.current?.click()} className="p-2.5 text-slate-400 hover:text-emerald-600" title="Importar Excel"><UploadCloud size={18} /></button>
@@ -210,7 +224,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
             onUpdateUnitPrice={(id, price) => onUpdate(id, { unitPrice: price })}
             onTogglePaid={id => {
               const exp = expenses.find(e => e.id === id);
-              if (exp) onUpdate(id, { isPaid: !exp.isPaid });
+              if (exp) onUpdate(id, { isPaid: !exp.isPaid, status: !exp.isPaid ? 'PAID' : 'PENDING' });
             }}
             onReorder={(src, tgt, pos) => onUpdateExpenses(treeService.reorderItems(expenses, src, tgt, pos))}
             onMoveManual={(id, dir) => onUpdateExpenses(treeService.moveInSiblings(expenses, id, dir))}
@@ -242,7 +256,6 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
   );
 };
 
-// NOVO MODAL DE REVISÃO PARA IMPORTAÇÃO FINANCEIRA
 const ExpenseImportReviewModal = ({ summary, onClose, onConfirm }: { summary: ExpenseImportResult, onClose: () => void, onConfirm: () => void }) => (
   <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
     <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-[2.5rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col gap-6" onClick={e => e.stopPropagation()}>
@@ -290,7 +303,7 @@ const ExpenseImportReviewModal = ({ summary, onClose, onConfirm }: { summary: Ex
 const CashKpi = ({ label, value, icon, color, sub }: any) => {
   const colors: any = { emerald: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-100 dark:border-emerald-800', rose: 'text-rose-600 bg-rose-50 dark:bg-rose-900/20 border-rose-100 dark:border-rose-800', amber: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-800' };
   return (
-    <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+    <div className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
       <div className="flex justify-between items-start mb-4">
         <div className={`p-2 rounded-lg ${colors[color]}`}>{icon}</div>
         <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">{label}</span>

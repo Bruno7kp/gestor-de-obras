@@ -65,7 +65,6 @@ export const TreeTable: React.FC<TreeTableProps> = ({
   contractTotalOverride,
   currentTotalOverride
 }) => {
-  // PERSISTÊNCIA DE ESTADOS DE INTERFACE NO LOCALSTORAGE
   const [view, setView] = useState<ColumnView>(() => {
     return (localStorage.getItem('promeasure_table_view') as ColumnView) || 'full';
   });
@@ -74,7 +73,6 @@ export const TreeTable: React.FC<TreeTableProps> = ({
   const [showFonte, setShowFonte] = useState(() => localStorage.getItem('promeasure_col_fonte') !== 'false');
   const [showCod, setShowCod] = useState(() => localStorage.getItem('promeasure_col_cod') !== 'false');
 
-  // ESTADO PARA DESCRIÇÕES EXPANDIDAS (LOCAL)
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -132,7 +130,8 @@ export const TreeTable: React.FC<TreeTableProps> = ({
     return base;
   };
 
-  const rootItems = filteredData.filter(i => i.depth === 0);
+  // Cálculo de totais baseado na raiz (depth 0) da árvore filtrada ou completa
+  const rootItems = data.filter(i => i.depth === 0);
   const totalContractCalculated = financial.sum(rootItems.map(i => i.contractTotal));
   const totalCurrentCalculated = financial.sum(rootItems.map(i => i.currentTotal));
 
@@ -176,25 +175,25 @@ export const TreeTable: React.FC<TreeTableProps> = ({
         </div>
       </div>
 
-      <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 shadow-xl custom-scrollbar">
+      <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 shadow-xl custom-scrollbar max-h-[70vh]">
         <DragDropContext onDragEnd={handleDragEnd}>
           <table className="min-w-max w-full border-collapse text-[11px]">
-            <thead className="bg-slate-900 dark:bg-black text-white sticky top-0 z-20">
+            <thead className="bg-slate-900 dark:bg-black text-white sticky top-0 z-30">
               <tr className="uppercase tracking-widest font-black text-[9px] opacity-80 text-center">
                 {showMover && <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-16 no-print">Mover</th>}
                 {showAcoes && <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-24">Ações</th>}
                 <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-16">ITEM</th>
                 {showFonte && <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-20">FONTE</th>}
                 {showCod && <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-20">Código</th>}
-                <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 text-left w-[400px] min-w-[400px] max-w-[400px]">Estrutura Analítica do Projeto (EAP)</th>
+                <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 text-left w-[400px] min-w-[400px] max-w-[400px]">Descrição da EAP</th>
                 <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-14">Und</th>
                 <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-18">Qtd</th>
                 
                 {showUnitary && <th colSpan={2} className="p-2 border-r border-slate-800 dark:border-slate-900 bg-slate-800/50">Unitário ({currencySymbol})</th>}
                 {showContract && <th className="p-2 border-r border-slate-800 dark:border-slate-900 bg-slate-800/30">Contrato</th>}
                 {showPrevious && <th colSpan={2} className="p-2 border-r border-slate-800 dark:border-slate-900 bg-amber-900/20">Anterior</th>}
-                {showCurrent && <th colSpan={3} className="p-2 border-r border-slate-800 dark:border-slate-900 bg-blue-900/20">Período Corrente</th>}
-                {showAccumulated && <th colSpan={3} className="p-2 border-r border-slate-800 dark:border-slate-900 bg-emerald-900/20">Acumulado Total</th>}
+                {showCurrent && <th colSpan={3} className="p-2 border-r border-slate-800 dark:border-slate-900 bg-blue-900/20">Período</th>}
+                {showAccumulated && <th colSpan={3} className="p-2 border-r border-slate-800 dark:border-slate-900 bg-emerald-900/20">Acumulado</th>}
                 {showBalance && <th colSpan={2} className="p-2 bg-rose-900/20">Saldo</th>}
                 
                 <th rowSpan={2} className="p-4 w-10 text-center">% EXEC.</th>
@@ -249,7 +248,6 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                     <Draggable key={item.id} draggableId={item.id} index={index} isDragDisabled={isReadOnly}>
                       {(provided, snapshot) => {
                         const isExpandedDesc = expandedDescriptions.has(item.id);
-                        // Item está 100% concluído em medições anteriores
                         const isFullyMeasuredPreviously = item.type === 'item' && item.previousQuantity >= item.contractQuantity;
                         
                         return (
@@ -264,8 +262,8 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                             {showAcoes && (
                               <td className="p-2 border-r border-slate-100 dark:border-slate-800 no-print">
                                 <div className="flex items-center justify-center gap-1 lg:opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <button disabled={isReadOnly} onClick={() => onEdit(item)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg"><Edit3 size={14}/></button>
-                                  <button disabled={isReadOnly} onClick={() => onDelete(item.id)} className="p-1.5 text-rose-300 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg"><Trash2 size={14}/></button>
+                                  <button disabled={isReadOnly} onClick={() => onEdit(item)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg" title="Editar"><Edit3 size={14}/></button>
+                                  <button disabled={isReadOnly} onClick={() => onDelete(item.id)} className="p-1.5 text-rose-300 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg" title="Excluir"><Trash2 size={14}/></button>
                                 </div>
                               </td>
                             )}
@@ -295,8 +293,8 @@ export const TreeTable: React.FC<TreeTableProps> = ({
 
                                   {item.type === 'category' && !isReadOnly && (
                                     <div className="ml-auto lg:opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
-                                      <button onClick={() => onAddChild(item.id, 'category')} className="p-1 text-slate-400 hover:text-blue-600"><FolderPlus size={14} /></button>
-                                      <button onClick={() => onAddChild(item.id, 'item')} className="p-1 text-slate-400 hover:text-emerald-600"><FilePlus size={14} /></button>
+                                      <button onClick={() => onAddChild(item.id, 'category')} className="p-1 text-slate-400 hover:text-blue-600" title="Add Grupo"><FolderPlus size={14} /></button>
+                                      <button onClick={() => onAddChild(item.id, 'item')} className="p-1 text-slate-400 hover:text-emerald-600" title="Add Serviço"><FilePlus size={14} /></button>
                                     </div>
                                   )}
                                 </div>
@@ -397,66 +395,74 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                     </Draggable>
                   ))}
                   {provided.placeholder}
-                  
-                  <tr className="bg-slate-950 dark:bg-black text-white font-black text-xs sticky bottom-0 z-10 shadow-2xl">
-                    <td colSpan={calculateConsolidatedColSpan()} className="p-5 text-right uppercase tracking-[0.2em] text-[10px] border-r border-white/10">Consolidado:</td>
-                    
-                    {showUnitary && <td colSpan={2} className="p-4 border-r border-white/10 opacity-30 italic text-[8px] text-center">Preços Médios</td>}
-                    
-                    {showContract && (
-                      <td className="p-4 border-r border-white/10 text-right text-base tracking-tighter whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1">
-                          <span className="text-[10px] text-slate-400 font-black">{currencySymbol}</span>
-                          <GrandTotalInput 
-                            initialValue={totalContract} 
-                            onUpdate={(val: number) => onUpdateGrandTotal({ contract: val })}
-                            disabled={isReadOnly}
-                          />
-                        </div>
-                      </td>
-                    )}
-
-                    {showPrevious && (
-                      <td colSpan={2} className="p-4 border-r border-white/10 text-right opacity-50 whitespace-nowrap">{financial.formatVisual(financial.sum(rootItems.map(i => i.previousTotal)), currencySymbol)}</td>
-                    )}
-
-                    {showCurrent && (
-                      <>
-                        <td colSpan={2} className="p-4 border-r border-white/10"></td>
-                        <td className="p-4 border-r border-white/10 text-right text-blue-400 text-base tracking-tighter whitespace-nowrap">
-                           <div className="flex items-center justify-end gap-1">
-                            <span className="text-[10px] text-blue-500 font-black">{currencySymbol}</span>
-                            <GrandTotalInput 
-                              initialValue={totalCurrent} 
-                              onUpdate={(val: number) => onUpdateGrandTotal({ current: val })}
-                              disabled={isReadOnly}
-                              textColorClass="text-blue-400"
-                            />
-                          </div>
-                        </td>
-                      </>
-                    )}
-
-                    {showAccumulated && (
-                      <>
-                        <td className="p-4 border-r border-white/10"></td>
-                        <td className="p-4 border-r border-white/10 text-right text-emerald-400 text-base tracking-tighter whitespace-nowrap">{financial.formatVisual(financial.sum(rootItems.map(i => i.accumulatedTotal)), currencySymbol)}</td>
-                        <td className="p-4 border-r border-white/10"></td>
-                      </>
-                    )}
-
-                    {showBalance && (
-                      <>
-                        <td className="p-4 border-r border-white/10"></td>
-                        <td className="p-4 border-r border-white/10 text-right text-rose-400 text-base tracking-tighter whitespace-nowrap">{financial.formatVisual(financial.sum(rootItems.map(i => i.balanceTotal)), currencySymbol)}</td>
-                      </>
-                    )}
-
-                    <td className="p-4 text-center">100%</td>
-                  </tr>
                 </tbody>
               )}
             </Droppable>
+
+            <tfoot className="bg-slate-950 dark:bg-black text-white font-black text-xs sticky bottom-0 z-40 shadow-2xl">
+              <tr className="border-t border-white/20">
+                <td colSpan={calculateConsolidatedColSpan()} className="p-5 text-right uppercase tracking-[0.2em] text-[10px] border-r border-white/10">Consolidado Total da Planilha:</td>
+                
+                {showUnitary && <td colSpan={2} className="p-4 border-r border-white/10 opacity-30 italic text-[8px] text-center">Médias Unitárias</td>}
+                
+                {showContract && (
+                  <td className="p-4 border-r border-white/10 text-right text-base tracking-tighter whitespace-nowrap">
+                    <div className="flex items-center justify-end gap-1">
+                      <span className="text-[10px] text-slate-400 font-black">{currencySymbol}</span>
+                      <GrandTotalInput 
+                        initialValue={totalContract} 
+                        onUpdate={(val: number) => onUpdateGrandTotal({ contract: val })}
+                        disabled={isReadOnly}
+                      />
+                    </div>
+                  </td>
+                )}
+
+                {showPrevious && (
+                  <td colSpan={2} className="p-4 border-r border-white/10 text-right opacity-50 whitespace-nowrap">
+                    {financial.formatVisual(financial.sum(rootItems.map(i => i.previousTotal)), currencySymbol)}
+                  </td>
+                )}
+
+                {showCurrent && (
+                  <>
+                    <td colSpan={2} className="p-4 border-r border-white/10"></td>
+                    <td className="p-4 border-r border-white/10 text-right text-blue-400 text-base tracking-tighter whitespace-nowrap">
+                       <div className="flex items-center justify-end gap-1">
+                        <span className="text-[10px] text-blue-500 font-black">{currencySymbol}</span>
+                        <GrandTotalInput 
+                          initialValue={totalCurrent} 
+                          onUpdate={(val: number) => onUpdateGrandTotal({ current: val })}
+                          disabled={isReadOnly}
+                          textColorClass="text-blue-400"
+                        />
+                      </div>
+                    </td>
+                  </>
+                )}
+
+                {showAccumulated && (
+                  <>
+                    <td className="p-4 border-r border-white/10"></td>
+                    <td className="p-4 border-r border-white/10 text-right text-emerald-400 text-base tracking-tighter whitespace-nowrap">
+                      {financial.formatVisual(financial.sum(rootItems.map(i => i.accumulatedTotal)), currencySymbol)}
+                    </td>
+                    <td className="p-4 border-r border-white/10"></td>
+                  </>
+                )}
+
+                {showBalance && (
+                  <>
+                    <td className="p-4 border-r border-white/10"></td>
+                    <td className="p-4 border-r border-white/10 text-right text-rose-400 text-base tracking-tighter whitespace-nowrap">
+                      {financial.formatVisual(financial.sum(rootItems.map(i => i.balanceTotal)), currencySymbol)}
+                    </td>
+                  </>
+                )}
+
+                <td className="p-4 text-center">100%</td>
+              </tr>
+            </tfoot>
           </table>
         </DragDropContext>
       </div>
@@ -464,7 +470,6 @@ export const TreeTable: React.FC<TreeTableProps> = ({
   );
 };
 
-// Componente para Toggle de Visibilidade de Colunas
 const VisibilityToggle = ({ label, active, onClick }: { label: string, active: boolean, onClick: () => void }) => (
   <button 
     onClick={onClick}
@@ -474,7 +479,6 @@ const VisibilityToggle = ({ label, active, onClick }: { label: string, active: b
   </button>
 );
 
-// Componente auxiliar para lidar com o input de porcentagem
 const PercentageInput = ({ value, onChange, disabled }: { value: number, onChange: (val: number) => void, disabled: boolean }) => {
   const [localVal, setLocalVal] = useState(value.toString());
   useEffect(() => { setLocalVal(value.toString()); }, [value]);
@@ -498,7 +502,6 @@ const PercentageInput = ({ value, onChange, disabled }: { value: number, onChang
   );
 };
 
-// Componente para input de total de item com sincronização manual
 const ItemTotalInput = ({ value, onUpdate, disabled, currencySymbol, textColorClass = "text-slate-900 dark:text-slate-100" }: any) => {
   const [localVal, setLocalVal] = useState(financial.formatVisual(value, currencySymbol).replace(currencySymbol, '').trim());
   useEffect(() => { setLocalVal(financial.formatVisual(value, currencySymbol).replace(currencySymbol, '').trim()); }, [value, currencySymbol]);
@@ -515,7 +518,6 @@ const ItemTotalInput = ({ value, onUpdate, disabled, currencySymbol, textColorCl
   );
 };
 
-// Componente para input de total consolidado (rodapé)
 const GrandTotalInput = ({ initialValue, onUpdate, disabled, textColorClass = "text-white" }: any) => {
   const [localVal, setLocalVal] = useState(financial.formatVisual(initialValue, '').trim());
   useEffect(() => { setLocalVal(financial.formatVisual(initialValue, '').trim()); }, [initialValue]);
