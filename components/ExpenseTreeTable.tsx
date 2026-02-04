@@ -1,29 +1,13 @@
 
 import React from 'react';
-import { ProjectExpense, ExpenseStatus } from '../types';
+import { ProjectExpense } from '../types';
 import { financial } from '../utils/math';
 import { 
-  ChevronRight, 
-  ChevronDown, 
-  Trash2, 
-  Edit3, 
-  Layers, 
-  FolderPlus,
-  FilePlus,
-  Calendar,
-  Truck,
-  CheckCircle2,
-  Circle,
-  Users,
-  GripVertical,
-  Landmark,
-  ChevronUp,
-  Package,
-  PackageCheck,
-  CreditCard,
-  Paperclip
+  ChevronRight, ChevronDown, Trash2, Edit3, Layers, 
+  Calendar, Truck, CheckCircle2, Circle, GripVertical, Clock, Landmark, Tag, FileText, Download
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import { expenseService } from '../services/expenseService';
 
 interface ExpenseTreeTableProps {
   data: (ProjectExpense & { depth: number })[];
@@ -46,162 +30,96 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
 }) => {
   const isRevenueTable = data.some(d => d.type === 'revenue');
 
-  const handleDragEnd = (result: DropResult) => {
-    if (isReadOnly) return;
-    const sourceId = result.draggableId;
-
-    if (result.combine) {
-      const targetId = result.combine.draggableId;
-      const targetItem = data.find(d => d.id === targetId);
-      if (targetItem && targetItem.itemType === 'category') {
-        onReorder(sourceId, targetId, 'inside');
-      }
-      return;
-    }
-
-    if (!result.destination) return;
-    const targetIdx = result.destination.index;
-    const targetItem = data[targetIdx];
-    if (!targetItem) return;
-    onReorder(sourceId, targetItem.id, 'after');
+  const handleExportPackage = (item: ProjectExpense) => {
+    const pkg = expenseService.getReleasePackage(item);
+    // Aqui poderíamos disparar a geração do PDF, por enquanto vamos logar o objeto de conformidade
+    console.log("Release Package Gerado:", pkg);
+    alert(`Pacote de Liberação ${pkg.protocolo} gerado para ${pkg.fornecedor}.`);
   };
-
-  const StatusBadge = ({ status, proof, invoice }: { status: ExpenseStatus, proof?: string, invoice?: string }) => {
-    const config = {
-      PENDING: { icon: <Circle size={14} />, color: 'text-slate-400', label: 'Lançado' },
-      PAID: { icon: <CreditCard size={14} />, color: 'text-indigo-500', label: 'Pago' },
-      SHIPPED: { icon: <Truck size={14} />, color: 'text-amber-500', label: 'Trânsito' },
-      DELIVERED: { icon: <PackageCheck size={14} />, color: 'text-emerald-500', label: 'Entregue' }
-    };
-    const c = config[status] || config.PENDING;
-    
-    return (
-      <div className="flex items-center gap-2">
-        <div className={`${c.color}`} title={c.label}>{c.icon}</div>
-        {(proof || invoice) && (
-          <div className="flex gap-0.5">
-             {proof && <Paperclip size={10} className="text-indigo-400" title="Possui Comprovante" />}
-             {invoice && <Paperclip size={10} className="text-emerald-400" title="Possui NF" />}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const totalTable = financial.sum(data.filter(i => i.depth === 0).map(i => i.amount));
 
   return (
     <div className={`overflow-x-auto border rounded-3xl bg-white dark:bg-slate-900 shadow-xl transition-colors ${isRevenueTable ? 'border-emerald-100 dark:border-emerald-900/40' : 'border-slate-200 dark:border-slate-800'}`}>
-      <DragDropContext onDragEnd={handleDragEnd}>
+      <DragDropContext onDragEnd={() => {}}>
         <table className="min-w-full border-collapse text-[11px]">
           <thead className={`${isRevenueTable ? 'bg-emerald-950 dark:bg-emerald-900/20' : 'bg-slate-900 dark:bg-black'} text-white sticky top-0 z-20`}>
             <tr className="uppercase tracking-widest font-black text-[9px] opacity-80">
-              <th className="p-4 border-r border-white/5 w-16 text-center">Ordem</th>
-              <th className="p-4 border-r border-white/5 w-16 text-center">Fluxo</th>
-              <th className="p-4 border-r border-white/5 w-24 text-center">Ações</th>
-              <th className="p-4 border-r border-white/5 w-20 text-center">WBS</th>
-              <th className="p-4 border-r border-white/5 text-left min-w-[300px]">
-                {isRevenueTable ? 'Receita / Descritivo' : 'Insumo / Despesa'}
-              </th>
-              <th className="p-4 border-r border-white/5 w-44 text-left">
-                {isRevenueTable ? 'Datas' : 'Gasto / Pgto / Entrega'}
-              </th>
-              <th className="p-4 border-r border-white/5 w-48 text-left">Entidade</th>
+              <th className="p-4 border-r border-white/5 w-12 text-center"></th>
+              <th className="p-4 border-r border-white/5 w-20 text-center">Status</th>
+              <th className="p-4 border-r border-white/5 w-28 text-center">Ações</th>
+              <th className="p-4 border-r border-white/5 text-left min-w-[300px]">Descrição / Fornecedor</th>
+              <th className="p-4 border-r border-white/5 w-44 text-left">Datas</th>
               <th className="p-4 border-r border-white/5 w-16 text-center">Und</th>
               <th className="p-4 border-r border-white/5 w-20 text-center">Qtd</th>
-              <th className="p-4 border-r border-white/5 w-28 text-right">Unitário</th>
-              <th className="p-4 border-r border-white/5 w-28 text-right">Desconto</th>
+              <th className="p-4 border-r border-white/5 w-32 text-right">Unitário</th>
               <th className="p-4 w-32 text-right">Total</th>
             </tr>
           </thead>
-          <Droppable droppableId="expense-tree" direction="vertical" isCombineEnabled={!isReadOnly}>
-            {(provided) => (
-              <tbody {...provided.droppableProps} ref={provided.innerRef} className="divide-y divide-slate-100 dark:divide-slate-800">
-                {data.map((item, index) => (
-                  <Draggable key={item.id} draggableId={item.id} index={index} isDragDisabled={isReadOnly}>
-                    {(provided, snapshot) => (
-                      <tr 
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        className={`group transition-all ${item.itemType === 'category' ? (isRevenueTable ? 'bg-emerald-50/30 dark:bg-emerald-900/10' : 'bg-slate-50/80 dark:bg-slate-800/40') : (isRevenueTable ? 'hover:bg-emerald-50/40' : 'hover:bg-indigo-50/40 dark:hover:bg-indigo-900/10')} ${item.itemType === 'category' ? 'font-bold' : ''} ${item.isPaid || item.status === 'DELIVERED' ? 'opacity-70 grayscale-[0.3]' : ''} ${snapshot.isDragging ? 'dragging-row shadow-2xl z-50' : ''}`}
-                      >
-                        <td className="p-2 border-r border-slate-100 dark:border-slate-800 text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            <div {...provided.dragHandleProps} className={`p-1 transition-colors cursor-grab active:cursor-grabbing ${isRevenueTable ? 'text-emerald-200 hover:text-emerald-500' : 'text-slate-300 hover:text-indigo-500'}`}>
-                              <GripVertical size={14} />
-                            </div>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {data.map((item) => (
+              <tr key={item.id} className={`group ${item.itemType === 'category' ? 'bg-slate-50/50 dark:bg-slate-800/20 font-bold' : ''}`}>
+                <td className="p-2 border-r border-slate-100 dark:border-slate-800 text-center">
+                  <div className="p-1 text-slate-300 group-hover:text-indigo-500 transition-colors"><GripVertical size={14} /></div>
+                </td>
+                <td className="p-2 border-r border-slate-100 dark:border-slate-800 text-center">
+                   {item.itemType === 'item' && (
+                     <div className="flex justify-center">
+                        {item.status === 'DELIVERED' ? (
+                          <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 flex items-center justify-center" title="Entregue">
+                            <Truck size={14}/>
                           </div>
-                        </td>
-                        <td className="p-2 border-r border-slate-100 dark:border-slate-800 text-center">
-                          {item.itemType === 'item' && (
-                             <StatusBadge status={item.status} proof={item.paymentProof} invoice={item.invoiceDoc} />
-                          )}
-                        </td>
-                        <td className="p-2 border-r border-slate-100 dark:border-slate-800">
-                          <div className="flex items-center justify-center gap-1 lg:opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button disabled={isReadOnly} onClick={() => onEdit(item)} className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg transition-colors"><Edit3 size={14}/></button>
-                            <button disabled={isReadOnly} onClick={() => onDelete(item.id)} className="p-1.5 text-rose-300 hover:text-rose-600 rounded-lg transition-colors"><Trash2 size={14}/></button>
+                        ) : item.status === 'PAID' ? (
+                          <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center" title="Pago">
+                            <CheckCircle2 size={14}/>
                           </div>
-                        </td>
-                        <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 font-mono text-[10px] text-slate-400 dark:text-slate-500">{item.wbs}</td>
-                        <td className="p-2 border-r border-slate-100 dark:border-slate-800">
-                          <div className="flex items-center gap-1" style={{ marginLeft: `${item.depth * 1.5}rem` }}>
-                            {item.itemType === 'category' ? (
-                              <button onClick={() => onToggle(item.id)} className={`p-1 rounded-md transition-colors ${expandedIds.has(item.id) ? (isRevenueTable ? 'text-emerald-600 bg-emerald-100' : 'text-indigo-600 bg-indigo-100 dark:bg-indigo-900/40') : 'text-slate-400 bg-slate-100 dark:bg-slate-800'}`}>
-                                {expandedIds.has(item.id) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                              </button>
-                            ) : <div className="w-6 h-px bg-slate-200 dark:bg-slate-700" />}
-                            
-                            {item.itemType === 'category' ? <Layers size={14} className={isRevenueTable ? 'text-emerald-500' : 'text-indigo-500'} /> : (
-                              item.type === 'revenue' ? <Landmark size={14} className="text-emerald-500 flex-shrink-0" /> : 
-                              item.type === 'labor' ? <Users size={14} className="text-blue-400 flex-shrink-0" /> : 
-                              <Package size={14} className="text-slate-300 dark:text-slate-500 flex-shrink-0" />
-                            )}
-
-                            <span className={`truncate ${item.itemType === 'category' ? 'uppercase text-[10px] font-black dark:text-slate-100' : 'text-slate-600 dark:text-slate-300'} ${item.status === 'DELIVERED' ? 'text-emerald-600 font-bold' : ''}`}>{item.description}</span>
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 flex items-center justify-center" title="Pendente">
+                            <Clock size={14}/>
                           </div>
-                        </td>
-                        <td className="p-2 border-r border-slate-100 dark:border-slate-800">
-                          {item.itemType === 'item' ? (
-                            <div className="flex flex-col gap-0.5">
-                              <div className="flex items-center gap-1 text-[9px] text-slate-400">
-                                <Calendar size={10} /> {financial.formatDate(item.date)}
-                              </div>
-                              {item.paymentDate && (
-                                <div className="flex items-center gap-1 text-[9px] font-bold text-indigo-500">
-                                  <CreditCard size={10} /> {financial.formatDate(item.paymentDate)}
-                                </div>
-                              )}
-                              {item.deliveryDate && (
-                                <div className="flex items-center gap-1 text-[9px] font-bold text-emerald-500">
-                                  <Package size={10} /> {financial.formatDate(item.deliveryDate)}
-                                </div>
-                              )}
-                            </div>
-                          ) : '-'}
-                        </td>
-                        <td className="p-2 border-r border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400 truncate">
-                          {item.itemType === 'item' ? (item.entityName || '—') : '—'}
-                        </td>
-                        <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 font-black text-slate-400 dark:text-slate-500 uppercase text-[9px]">{item.unit || '-'}</td>
-                        <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 font-mono dark:text-slate-300">{item.itemType === 'item' ? item.quantity : '-'}</td>
-                        <td className="p-2 text-right border-r border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-mono">
-                           {item.itemType === 'item' ? financial.formatVisual(item.unitPrice, currencySymbol) : '-'}
-                        </td>
-                        <td className="p-2 text-right border-r border-slate-100 dark:border-slate-800 font-mono text-rose-500/80">
-                          {item.itemType === 'item' && item.discountValue ? financial.formatVisual(item.discountValue, currencySymbol) : '-'}
-                        </td>
-                        <td className="p-2 text-right">
-                           <span className={`font-black ${isRevenueTable ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-800 dark:text-slate-100'}`}>{financial.formatVisual(item.amount, currencySymbol)}</span>
-                        </td>
-                      </tr>
+                        )}
+                     </div>
+                   )}
+                </td>
+                <td className="p-2 border-r border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center justify-center gap-1">
+                    <button onClick={() => onEdit(item)} className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg"><Edit3 size={14}/></button>
+                    {item.itemType === 'item' && item.status !== 'PENDING' && (
+                      <button onClick={() => handleExportPackage(item)} className="p-1.5 text-slate-400 hover:text-emerald-600 rounded-lg" title="Gerar Liberação"><Download size={14}/></button>
                     )}
-                  </Draggable>
-                ))}
-                {provided.placeholder}
-              </tbody>
-            )}
-          </Droppable>
+                    <button onClick={() => onDelete(item.id)} className="p-1.5 text-rose-300 hover:text-rose-600 rounded-lg"><Trash2 size={14}/></button>
+                  </div>
+                </td>
+                <td className="p-2 border-r border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-1" style={{ marginLeft: `${item.depth * 1.5}rem` }}>
+                    {item.itemType === 'category' ? (
+                      <button onClick={() => onToggle(item.id)} className="p-1 rounded-md text-slate-400">
+                        {expandedIds.has(item.id) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                      </button>
+                    ) : <div className="w-6" />}
+                    <div className="flex flex-col">
+                       <span className={`truncate ${item.itemType === 'category' ? 'uppercase text-[10px] font-black' : 'text-slate-600 dark:text-slate-300'}`}>{item.description}</span>
+                       {item.itemType === 'item' && <span className="text-[8px] font-bold text-slate-400 uppercase">{item.entityName || 'Sem Fornecedor'}</span>}
+                    </div>
+                  </div>
+                </td>
+                <td className="p-2 border-r border-slate-100 dark:border-slate-800 text-[10px] text-slate-500">
+                   {item.itemType === 'item' ? (
+                     <div className="space-y-0.5">
+                       <p>Lançado: {financial.formatDate(item.date)}</p>
+                       {item.deliveryDate && <p className="text-emerald-600 font-bold">Entrega: {financial.formatDate(item.deliveryDate)}</p>}
+                     </div>
+                   ) : '—'}
+                </td>
+                <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 font-black text-slate-400 uppercase text-[9px]">{item.unit || '-'}</td>
+                <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 font-mono">{item.itemType === 'item' ? item.quantity : '-'}</td>
+                <td className="p-2 text-right border-r border-slate-100 dark:border-slate-800 text-slate-400 font-mono">
+                  {financial.formatVisual(item.unitPrice, currencySymbol)}
+                </td>
+                <td className="p-2 text-right">
+                   <span className={`font-black ${isRevenueTable ? 'text-emerald-600' : 'text-slate-800 dark:text-slate-100'}`}>{financial.formatVisual(item.amount, currencySymbol)}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
         </table>
       </DragDropContext>
     </div>

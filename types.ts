@@ -40,55 +40,131 @@ export interface WorkItem {
   children?: WorkItem[];
 }
 
-export interface Supplier {
+// --- GESTÃO DE MÃO DE OBRA ---
+export type WorkforceRole = 'Engenheiro' | 'Mestre' | 'Encarregado' | 'Eletricista' | 'Encanador' | 'Pedreiro' | 'Servente';
+
+export interface StaffDocument {
+  id: string;
+  nome: string;
+  dataVencimento: string;
+  arquivoUrl?: string;
+  status: 'apto' | 'pendente' | 'vencido';
+}
+
+export interface WorkforceMember {
+  id: string;
+  nome: string;
+  cpf_cnpj: string;
+  empresa_vinculada: string;
+  foto?: string;
+  cargo: WorkforceRole;
+  documentos: StaffDocument[];
+  linkedWorkItemIds: string[]; // Vínculo com IDs da EAP para responsabilidade técnica
+}
+
+// --- TEMA E VISUAL ---
+export interface PDFTheme {
+  primary: string;
+  accent: string;
+  accentText: string;
+  border: string;
+  fontFamily: 'Inter' | 'Roboto' | 'JetBrains Mono' | 'Merriweather';
+  header: { bg: string; text: string };
+  category: { bg: string; text: string };
+  footer: { bg: string; text: string };
+  kpiHighlight: { bg: string; text: string };
+  currencySymbol?: string;
+}
+
+export const DEFAULT_THEME: PDFTheme = {
+  primary: '#1e293b',
+  accent: '#4f46e5',
+  accentText: '#ffffff',
+  border: '#e2e8f0',
+  fontFamily: 'Inter',
+  header: { bg: '#1e293b', text: '#ffffff' },
+  category: { bg: '#f8fafc', text: '#1e293b' },
+  footer: { bg: '#0f172a', text: '#ffffff' },
+  kpiHighlight: { bg: '#eff6ff', text: '#1e40af' },
+  currencySymbol: 'R$'
+};
+
+// --- MEDIÇÕES E HISTÓRICO ---
+export interface MeasurementSnapshot {
+  measurementNumber: number;
+  date: string;
+  items: WorkItem[];
+  totals: {
+    contract: number;
+    period: number;
+    accumulated: number;
+    progress: number;
+  };
+}
+
+// --- DOCUMENTOS E ATIVOS ---
+export interface ProjectAsset {
   id: string;
   name: string;
-  cnpj: string;
-  contactName: string;
-  email: string;
-  phone: string;
-  category: 'Material' | 'Serviço' | 'Locação' | 'Outros';
-  rating: number; // 1-5
-  notes: string;
+  fileType: string;
+  fileSize: number;
+  uploadDate: string;
+  data: string;
+}
+
+// --- FINANCEIRO ---
+export type ExpenseType = 'labor' | 'material' | 'revenue';
+export type ExpenseStatus = 'PENDING' | 'PAID' | 'DELIVERED';
+
+export interface ProjectExpense {
+  id: string;
+  parentId: string | null;
+  type: ExpenseType;
+  itemType: 'category' | 'item';
+  wbs: string;
   order: number;
+  date: string;
+  description: string;
+  entityName: string;
+  unit: string;
+  quantity: number;
+  unitPrice: number;
+  amount: number;
+  isPaid: boolean;
+  status: ExpenseStatus;
+  paymentDate?: string;
+  paymentProof?: string;
+  invoiceDoc?: string;
+  deliveryDate?: string;
+  discountValue?: number;
+  discountPercentage?: number;
+  linkedWorkItemId?: string;
+  children?: ProjectExpense[];
 }
 
-export interface PeriodDistribution {
-  plannedPercent: number;
-  actualPercent?: number;
-}
-
-export interface ProjectPlanning {
-  tasks: PlanningTask[];
-  forecasts: MaterialForecast[];
-  milestones: Milestone[];
-  schedule?: Record<string, Record<string, PeriodDistribution>>;
-}
-
+// --- PLANEJAMENTO E CANTEIRO ---
 export type TaskStatus = 'todo' | 'doing' | 'done';
 
 export interface PlanningTask {
   id: string;
   categoryId: string | null;
   description: string;
-  isCompleted: boolean;
   status: TaskStatus;
+  isCompleted: boolean;
   dueDate: string;
   createdAt: string;
   completedAt?: string;
 }
 
-export type ForecastStatus = 'pending' | 'ordered' | 'delivered';
-
 export interface MaterialForecast {
   id: string;
   description: string;
+  unit: string;
   quantityNeeded: number;
   unitPrice: number;
-  unit: string;
   estimatedDate: string;
-  status: ForecastStatus;
-  isPaid?: boolean;
+  status: 'pending' | 'ordered' | 'delivered';
+  isPaid: boolean;
   order: number;
 }
 
@@ -99,12 +175,22 @@ export interface Milestone {
   isCompleted: boolean;
 }
 
-export interface ProjectJournal {
-  entries: JournalEntry[];
+export interface ProjectPlanning {
+  tasks: PlanningTask[];
+  forecasts: MaterialForecast[];
+  milestones: Milestone[];
+  schedule?: {
+    [workItemId: string]: {
+      [period: string]: {
+        plannedPercent: number;
+      };
+    };
+  };
 }
 
-export type JournalCategory = 'PROGRESS' | 'FINANCIAL' | 'INCIDENT' | 'WEATHER' | 'LOGISTICS';
-export type WeatherType = 'sunny' | 'rainy' | 'cloudy' | 'storm';
+// --- DIÁRIO DE OBRA ---
+export type JournalCategory = 'PROGRESS' | 'FINANCIAL' | 'INCIDENT' | 'WEATHER';
+export type WeatherType = 'sunny' | 'cloudy' | 'rainy' | 'storm';
 
 export interface JournalEntry {
   id: string;
@@ -114,34 +200,27 @@ export interface JournalEntry {
   title: string;
   description: string;
   weatherStatus?: WeatherType;
-  photoUrls?: string[];
-  linkedItemId?: string;
+  photoUrls: string[];
 }
 
-export interface BiddingProcess {
+export interface ProjectJournal {
+  entries: JournalEntry[];
+}
+
+// --- ESTRUTURA GLOBAL ---
+export interface ProjectGroup {
   id: string;
-  tenderNumber: string;
-  clientName: string;
-  object: string;
-  openingDate: string;
-  visitDate?: string;
-  expirationDate: string;
-  estimatedValue: number;
-  ourProposalValue: number;
-  status: BiddingStatus;
-  items: WorkItem[];
-  assets: ProjectAsset[];
-  bdi: number;
+  parentId: string | null;
+  name: string;
+  order: number;
+  children?: ProjectGroup[];
 }
-
-export type BiddingStatus = 'PROSPECTING' | 'DRAFTING' | 'SUBMITTED' | 'WON' | 'LOST';
 
 export interface CompanyCertificate {
   id: string;
   name: string;
   issuer: string;
   expirationDate: string;
-  fileData?: string;
   status: 'valid' | 'warning' | 'expired';
 }
 
@@ -154,14 +233,39 @@ export interface GlobalSettings {
   certificates: CompanyCertificate[];
 }
 
-export interface ProjectGroup {
+// --- LICITAÇÕES ---
+export type BiddingStatus = 'PROSPECTING' | 'DRAFTING' | 'SUBMITTED' | 'WON' | 'LOST';
+
+export interface BiddingProcess {
   id: string;
-  parentId: string | null;
-  name: string;
-  order: number;
-  children?: ProjectGroup[];
+  tenderNumber: string;
+  clientName: string;
+  object: string;
+  openingDate: string;
+  expirationDate: string;
+  estimatedValue: number;
+  ourProposalValue: number;
+  status: BiddingStatus;
+  items: WorkItem[];
+  assets: ProjectAsset[];
+  bdi: number;
 }
 
+// --- FORNECEDORES ---
+export interface Supplier {
+  id: string;
+  name: string;
+  cnpj: string;
+  contactName: string;
+  email: string;
+  phone: string;
+  category: 'Material' | 'Serviço' | 'Locação' | 'Outros';
+  rating: number;
+  notes: string;
+  order: number;
+}
+
+// --- PROJETO ---
 export interface Project {
   id: string;
   groupId: string | null;
@@ -178,6 +282,7 @@ export interface Project {
   bdi: number;
   assets: ProjectAsset[];
   expenses: ProjectExpense[];
+  workforce: WorkforceMember[];
   planning: ProjectPlanning;
   journal: ProjectJournal;
   contractTotalOverride?: number; 
@@ -189,84 +294,3 @@ export interface Project {
     showSignatures: boolean;
   };
 }
-
-export type PDFBoxTheme = {
-  bg: string;
-  text: string;
-};
-
-export interface PDFTheme {
-  fontFamily: 'Inter' | 'Roboto' | 'JetBrains Mono' | 'Merriweather';
-  primary: string; 
-  accent: string;  
-  accentText: string;
-  border: string;
-  currencySymbol: string;
-  header: PDFBoxTheme;
-  category: PDFBoxTheme;
-  footer: PDFBoxTheme;
-  kpiHighlight: PDFBoxTheme;
-}
-
-export interface MeasurementSnapshot {
-  measurementNumber: number;
-  date: string;
-  items: WorkItem[];
-  totals: {
-    contract: number;
-    period: number;
-    accumulated: number;
-    progress: number;
-  };
-}
-
-export interface ProjectAsset {
-  id: string;
-  name: string;
-  fileType: string;
-  fileSize: number;
-  uploadDate: string;
-  data: string; 
-}
-
-export type ExpenseType = 'labor' | 'material' | 'revenue';
-export type ExpenseStatus = 'PENDING' | 'PAID' | 'SHIPPED' | 'DELIVERED';
-
-export interface ProjectExpense {
-  id: string;
-  parentId: string | null;
-  type: ExpenseType; 
-  itemType: ItemType; 
-  wbs: string;
-  order: number;
-  date: string; 
-  paymentDate?: string; 
-  deliveryDate?: string;
-  description: string; 
-  entityName: string; 
-  unit: string;
-  quantity: number;
-  unitPrice: number;
-  discountValue?: number;
-  discountPercentage?: number;
-  amount: number; 
-  isPaid?: boolean; 
-  status: ExpenseStatus;
-  paymentProof?: string; // Base64 do comprovante
-  invoiceDoc?: string;   // Base64 da NF
-  linkedWorkItemId?: string;
-  children?: ProjectExpense[];
-}
-
-export const DEFAULT_THEME: PDFTheme = {
-  fontFamily: 'Inter',
-  primary: '#000000',
-  accent: '#2563eb',
-  accentText: '#ffffff',
-  border: '#000000',
-  currencySymbol: 'R$',
-  header: { bg: '#0f172a', text: '#ffffff' },
-  category: { bg: '#f1f5f9', text: '#000000' },
-  footer: { bg: '#0f172a', text: '#ffffff' },
-  kpiHighlight: { bg: '#eff6ff', text: '#1d4ed8' }
-};

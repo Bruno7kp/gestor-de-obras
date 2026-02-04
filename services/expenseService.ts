@@ -1,7 +1,6 @@
 
-import { ProjectExpense, ExpenseType, ProjectJournal, ExpenseStatus } from '../types';
+import { ProjectExpense, ExpenseType, ExpenseStatus } from '../types';
 import { financial } from '../utils/math';
-import { journalService } from './journalService';
 
 export const expenseService = {
   calculateSubtotal: (expenses: ProjectExpense[], type: ExpenseType): number => {
@@ -15,11 +14,11 @@ export const expenseService = {
     const labor = financial.sum(items.filter(e => e.type === 'labor').map(e => e.amount));
     const material = financial.sum(items.filter(e => e.type === 'material').map(e => e.amount));
     
-    const revenue = financial.sum(items.filter(e => e.type === 'revenue' && (e.isPaid || e.status === 'PAID')).map(e => e.amount));
+    const revenue = financial.sum(items.filter(e => e.type === 'revenue' && (e.isPaid || e.status === 'PAID' || e.status === 'DELIVERED')).map(e => e.amount));
     
     const totalOut = financial.round(labor + material);
     
-    const paidOut = financial.sum(items.filter(e => (e.type === 'labor' || e.type === 'material') && (e.isPaid || e.status === 'PAID')).map(e => e.amount));
+    const paidOut = financial.sum(items.filter(e => (e.type === 'labor' || e.type === 'material') && (e.isPaid || e.status === 'PAID' || e.status === 'DELIVERED')).map(e => e.amount));
     const unpaidOut = financial.round(totalOut - paidOut);
     
     const profit = financial.round(revenue - totalOut);
@@ -42,30 +41,22 @@ export const expenseService = {
   },
 
   /**
-   * processDelivery
-   * Transiciona o item para entregue e gera log automático.
+   * Gera o Pacote de Liberação (Release Package) formatado para exportação.
+   * Consolida dados do pedido e imagens vinculadas para auditoria.
    */
-  processDelivery: (expense: ProjectExpense, journal: ProjectJournal): { updatedExpense: ProjectExpense, updatedJournal: ProjectJournal } => {
-    const now = new Date();
-    const updatedExpense: ProjectExpense = {
-      ...expense,
-      status: 'DELIVERED',
-      deliveryDate: now.toISOString(),
-    };
-
-    const logEntry = journalService.createEntry(
-      `Recebimento de Material: ${expense.description}`,
-      `O material "${expense.description}" do fornecedor ${expense.entityName} foi entregue e conferido conforme Nota Fiscal anexa.`,
-      'LOGISTICS',
-      'AUTO'
-    );
-
+  getReleasePackage: (expense: ProjectExpense) => {
     return {
-      updatedExpense,
-      updatedJournal: {
-        ...journal,
-        entries: [logEntry, ...journal.entries]
-      }
+      id: expense.id,
+      protocolo: `REL-${expense.id.slice(0, 8).toUpperCase()}`,
+      dataGeracao: new Date().toLocaleDateString('pt-BR'),
+      fornecedor: expense.entityName,
+      descricao: expense.description,
+      valor: financial.formatBRL(expense.amount),
+      status: expense.status,
+      temComprovante: !!expense.paymentProof,
+      temNotaFiscal: !!expense.invoiceDoc,
+      comprovanteBase64: expense.paymentProof,
+      detalhes: `${expense.quantity} ${expense.unit} x ${financial.formatBRL(expense.unitPrice)}`
     };
   }
 };

@@ -19,6 +19,8 @@ export const projectService = {
     bdi: 25,
     assets: [],
     expenses: [],
+    // Fix: Adding missing 'workforce' property to satisfy 'Project' interface
+    workforce: [],
     planning: {
       tasks: [],
       forecasts: [],

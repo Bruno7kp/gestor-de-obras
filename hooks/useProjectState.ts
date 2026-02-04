@@ -1,9 +1,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
-import { Project, ProjectGroup, MeasurementSnapshot, GlobalSettings, ProjectPlanning, ProjectJournal, WorkItem, ProjectExpense, BiddingProcess, CompanyCertificate, DEFAULT_THEME, Supplier } from '../types';
-import { treeService } from '../services/treeService';
+import { Project, ProjectGroup, GlobalSettings, WorkItem, ProjectExpense, BiddingProcess, Supplier } from '../types';
 import { journalService } from '../services/journalService';
-import { financial } from '../utils/math';
 
 interface State {
   projects: Project[];
@@ -24,123 +22,83 @@ const INITIAL_SETTINGS: GlobalSettings = {
   certificates: []
 };
 
-const INITIAL_PLANNING: ProjectPlanning = {
-  tasks: [],
-  forecasts: [],
-  milestones: [],
-  schedule: {}
-};
-
-const INITIAL_JOURNAL: ProjectJournal = {
-  entries: []
-};
-
 export const useProjectState = () => {
-  const [past, setPast] = useState<State[]>([]);
   const [present, setPresent] = useState<State>(() => {
     const saved = localStorage.getItem('promeasure_v4_data');
     if (saved) {
       const parsed = JSON.parse(saved);
       return {
         ...parsed,
-        suppliers: parsed.suppliers || [],
         projects: (parsed.projects || []).map((p: any) => ({
           ...p,
-          location: p.location || '',
-          planning: p.planning || { ...INITIAL_PLANNING },
-          journal: p.journal || { ...INITIAL_JOURNAL },
-          config: {
-            strict: false,
-            printCards: true,
-            printSubtotals: true,
-            showSignatures: true,
-            ...(p.config || {})
-          },
-          theme: {
-            ...DEFAULT_THEME,
-            ...(p.theme || {}),
-            currencySymbol: p.theme?.currencySymbol || parsed.globalSettings?.currencySymbol || 'R$',
-            header: { ...DEFAULT_THEME.header, ...(p.theme?.header || {}) },
-            category: { ...DEFAULT_THEME.category, ...(p.theme?.category || {}) },
-            footer: { ...DEFAULT_THEME.footer, ...(p.theme?.footer || {}) },
-            kpiHighlight: { ...DEFAULT_THEME.kpiHighlight, ...(p.theme?.kpiHighlight || {}) }
-          }
-        })),
-        biddings: parsed.biddings || [],
-        globalSettings: {
-          ...INITIAL_SETTINGS,
-          ...(parsed.globalSettings || {})
-        }
+          workforce: p.workforce || [],
+          expenses: (p.expenses || []).map((e: any) => ({
+            ...e,
+            status: e.status || (e.isPaid ? 'PAID' : 'PENDING')
+          }))
+        }))
       };
     }
-    return {
-      projects: [],
-      biddings: [],
-      groups: [],
-      suppliers: [],
-      activeProjectId: null,
-      activeBiddingId: null,
-      globalSettings: INITIAL_SETTINGS
-    };
+    return { projects: [], biddings: [], groups: [], suppliers: [], activeProjectId: null, activeBiddingId: null, globalSettings: INITIAL_SETTINGS };
   });
-  const [future, setFuture] = useState<State[]>([]);
 
   useEffect(() => {
     localStorage.setItem('promeasure_v4_data', JSON.stringify(present));
   }, [present]);
 
-  const bulkUpdate = useCallback((updates: Partial<State> | ((prev: State) => Partial<State>)) => {
-    setPresent(prev => {
-      const resolvedUpdates = typeof updates === 'function' ? updates(prev) : updates;
-      setPast(p => [...p, prev].slice(-20));
-      setFuture([]);
-      return { ...prev, ...resolvedUpdates };
-    });
-  }, []);
-
+  /**
+   * Atualiza o projeto ativo preservando a imutabilidade absoluta.
+   * COMPLIANCE: Intercepta mudanças para gerar logs automáticos no diário.
+   */
   const updateActiveProject = useCallback((data: Partial<Project>) => {
     setPresent(prev => {
-      const activeProject = prev.projects.find(p => p.id === prev.activeProjectId);
-      if (!activeProject) return prev;
-      const updatedProjects = prev.projects.map(p => p.id === prev.activeProjectId ? { ...p, ...data } : p);
+      const activeIdx = prev.projects.findIndex(p => p.id === prev.activeProjectId);
+      if (activeIdx === -1) return prev;
+
+      const active = prev.projects[activeIdx];
+      let autoLogs: any[] = [];
+
+      // 1. Detectar mudanças de status em despesas (Suprimentos)
+      if (data.expenses) {
+        autoLogs = [...autoLogs, ...journalService.checkExpenseStatusDeltas(active.expenses, data.expenses)];
+      }
+
+      // 2. Detectar conclusões na EAP (Físico)
+      if (data.items) {
+        autoLogs = [...autoLogs, ...journalService.checkWorkItemDeltas(active.items, data.items)];
+      }
+
+      // Construir o novo estado do projeto
+      const updatedProject: Project = { 
+        ...active, 
+        ...data,
+        journal: {
+          ...active.journal,
+          // Insere novos logs no topo da lista se houverem deltas
+          entries: autoLogs.length > 0 
+            ? [...autoLogs, ...active.journal.entries] 
+            : active.journal.entries
+        }
+      };
+
+      const updatedProjects = [...prev.projects];
+      updatedProjects[activeIdx] = updatedProject;
+
       return { ...prev, projects: updatedProjects };
     });
   }, []);
 
-  const updateProjects = useCallback((projects: Project[]) => {
-    bulkUpdate({ projects });
-  }, [bulkUpdate]);
-  
-  const updateGroups = useCallback((groups: ProjectGroup[]) => {
-    bulkUpdate({ groups });
-  }, [bulkUpdate]);
-
-  const updateSuppliers = useCallback((suppliers: Supplier[]) => {
-    bulkUpdate({ suppliers });
-  }, [bulkUpdate]);
-  
-  const updateBiddings = useCallback((biddings: BiddingProcess[]) => {
-    bulkUpdate({ biddings });
-  }, [bulkUpdate]);
-  
-  const updateCertificates = useCallback((certs: CompanyCertificate[]) => {
-    bulkUpdate(prev => ({ globalSettings: { ...prev.globalSettings, certificates: certs } }));
-  }, [bulkUpdate]);
-
   return {
     ...present,
     activeProject: present.projects.find(p => p.id === present.activeProjectId) || null,
-    activeBidding: present.biddings.find(b => b.id === present.activeBiddingId) || null,
-    setGlobalSettings: (s: GlobalSettings) => bulkUpdate({ globalSettings: s }),
-    setActiveProjectId: (id: string | null) => setPresent(prev => ({ ...prev, activeProjectId: id, activeBiddingId: null })),
-    setActiveBiddingId: (id: string | null) => setPresent(prev => ({ ...prev, activeBiddingId: id, activeProjectId: null })),
     updateActiveProject,
-    updateProjects,
-    updateGroups,
-    updateSuppliers,
-    updateBiddings,
-    updateCertificates,
-    bulkUpdate,
-    undo: () => {}, redo: () => {}, canUndo: false, canRedo: false 
+    setActiveProjectId: (id: string | null) => setPresent(prev => ({ ...prev, activeProjectId: id })),
+    updateProjects: (projects: Project[]) => setPresent(prev => ({ ...prev, projects })),
+    updateGroups: (groups: ProjectGroup[]) => setPresent(prev => ({ ...prev, groups })),
+    updateSuppliers: (suppliers: Supplier[]) => setPresent(prev => ({ ...prev, suppliers })),
+    updateBiddings: (biddings: BiddingProcess[]) => setPresent(prev => ({ ...prev, biddings })),
+    updateCertificates: (certs: any) => setPresent(prev => ({ ...prev, globalSettings: { ...prev.globalSettings, certificates: certs } })),
+    setGlobalSettings: (s: GlobalSettings) => setPresent(prev => ({ ...prev, globalSettings: s })),
+    bulkUpdate: (updates: any) => setPresent(prev => ({ ...prev, ...updates }))
   };
 };

@@ -113,7 +113,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
     if (editingExpense) {
       onUpdate(editingExpense.id, data);
     } else {
-      // Fix: Add missing required 'status' property
+      // Fix: Adding missing 'status' property when creating a new ProjectExpense
       const newExpense: ProjectExpense = {
         id: crypto.randomUUID(),
         parentId: targetParentId || null,
