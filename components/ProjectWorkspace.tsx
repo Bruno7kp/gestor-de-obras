@@ -1,8 +1,8 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Project, GlobalSettings, WorkItem, MeasurementSnapshot } from '../types';
-import { 
-  Layers, BarChart3, Coins, Users, HardHat, BookOpen, FileText, Sliders, 
+import {
+  Layers, BarChart3, Coins, Users, HardHat, BookOpen, FileText, Sliders,
   ChevronLeft, CheckCircle2, Printer, History, Calendar, Lock, ChevronDown,
   ArrowRight, Clock, Undo2, Redo2
 } from 'lucide-react';
@@ -107,7 +107,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
   return (
     <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-50 dark:bg-slate-950">
-      
+
       {/* 1. HEADER DE CONTEXTO */}
       <header className={`no-print border-b p-6 shrink-0 flex flex-col lg:flex-row lg:items-center justify-between gap-6 z-40 transition-colors ${isHistoryMode ? 'bg-amber-50 dark:bg-amber-900/10 border-amber-200' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'}`}>
         <div className="flex items-center gap-4 min-w-0">
@@ -135,16 +135,16 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           {/* BOTÕES DE UNDO/REDO ADICIONADOS */}
           {!isHistoryMode && (
             <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl mr-2 border border-slate-200 dark:border-slate-700 shadow-inner">
-              <button 
-                onClick={onUndo} 
+              <button
+                onClick={onUndo}
                 disabled={!canUndo}
                 title="Desfazer (Undo)"
                 className={`p-2.5 rounded-xl transition-all ${canUndo ? 'text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 shadow-sm hover:scale-110 active:scale-90' : 'text-slate-300 dark:text-slate-600 opacity-40 cursor-not-allowed'}`}
               >
                 <Undo2 size={18} />
               </button>
-              <button 
-                onClick={onRedo} 
+              <button
+                onClick={onRedo}
                 disabled={!canRedo}
                 title="Refazer (Redo)"
                 className={`p-2.5 rounded-xl transition-all ${canRedo ? 'text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 shadow-sm hover:scale-110 active:scale-90' : 'text-slate-300 dark:text-slate-600 opacity-40 cursor-not-allowed'}`}
@@ -156,11 +156,11 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
           {!isHistoryMode ? (
             <button onClick={() => { if (window.confirm("CONFIRMAÇÃO CRÍTICA: Deseja encerrar o período atual? Isso irá gerar um snapshot histórico e limpar as quantidades medidas para o próximo período.")) { onCloseMeasurement(); } }} className="flex items-center gap-2 px-6 py-3.5 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-500/20">
-              <CheckCircle2 size={16}/> Encerrar Período
+              <CheckCircle2 size={16} /> Encerrar Período
             </button>
           ) : (
             <button onClick={() => setViewingMeasurementId('current')} className="flex items-center gap-2 px-6 py-3.5 bg-white border-2 border-amber-400 text-amber-700 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-50 active:scale-95 transition-all shadow-sm">
-              <ArrowRight size={16}/> Voltar ao Período Aberto
+              <ArrowRight size={16} /> Voltar ao Período Aberto
             </button>
           )}
         </div>
@@ -169,14 +169,14 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
       {/* 2. SUB-NAVEGAÇÃO */}
       <nav className="no-print bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 shrink-0 sticky top-0 z-20 overflow-hidden">
         <div ref={tabsNavRef} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUpOrLeave} onMouseLeave={handleMouseUpOrLeave} className={`px-6 py-3 flex items-center gap-2 overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing select-none transition-shadow ${isDraggingState ? 'shadow-inner' : ''}`}>
-          <TabBtn active={tab === 'wbs'} id="wbs" label="Planilha EAP" icon={<Layers size={16}/>} />
-          <TabBtn active={tab === 'stats'} id="stats" label="Análise Técnica" icon={<BarChart3 size={16}/>} />
-          <TabBtn active={tab === 'expenses'} id="expenses" label="Fluxo Financeiro" icon={<Coins size={16}/>} />
-          <TabBtn active={tab === 'workforce'} id="workforce" label="Mão de Obra" icon={<Users size={16}/>} />
-          <TabBtn active={tab === 'planning'} id="planning" label="Canteiro Ágil" icon={<HardHat size={16}/>} />
-          <TabBtn active={tab === 'journal'} id="journal" label="Diário de Obra" icon={<BookOpen size={16}/>} />
-          <TabBtn active={tab === 'documents'} id="documents" label="Repositório" icon={<FileText size={16}/>} />
-          <TabBtn active={tab === 'branding'} id="branding" label="Configurações" icon={<Sliders size={16}/>} />
+          <TabBtn active={tab === 'wbs'} id="wbs" label="Planilha EAP" icon={<Layers size={16} />} />
+          <TabBtn active={tab === 'stats'} id="stats" label="Análise Técnica" icon={<BarChart3 size={16} />} />
+          <TabBtn active={tab === 'expenses'} id="expenses" label="Fluxo Financeiro" icon={<Coins size={16} />} />
+          <TabBtn active={tab === 'planning'} id="planning" label="Canteiro Ágil" icon={<HardHat size={16} />} />
+          <TabBtn active={tab === 'journal'} id="journal" label="Diário de Obra" icon={<BookOpen size={16} />} />
+          <TabBtn active={tab === 'documents'} id="documents" label="Repositório" icon={<FileText size={16} />} />
+          <TabBtn active={tab === 'workforce'} id="workforce" label="Mão de Obra" icon={<Users size={16} />} />
+          <TabBtn active={tab === 'branding'} id="branding" label="Configurações" icon={<Sliders size={16} />} />
         </div>
         <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-slate-50 dark:from-slate-950 to-transparent pointer-events-none" />
       </nav>
@@ -184,8 +184,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
       {/* 3. CONTEÚDO DINÂMICO */}
       <div className="flex-1 overflow-y-auto p-4 lg:p-8 custom-scrollbar">
         <div className="max-w-[1600px] mx-auto">
-          {tab === 'wbs' && <WbsView project={{...project, items: displayData.items}} onUpdateProject={onUpdateProject} onOpenModal={handleOpenModal} isReadOnly={displayData.isReadOnly} />}
-          {tab === 'stats' && <StatsView project={{...project, items: displayData.items}} />}
+          {tab === 'wbs' && <WbsView project={{ ...project, items: displayData.items }} onUpdateProject={onUpdateProject} onOpenModal={handleOpenModal} isReadOnly={displayData.isReadOnly} />}
+          {tab === 'stats' && <StatsView project={{ ...project, items: displayData.items }} />}
           {tab === 'expenses' && <ExpenseManager project={project} expenses={project.expenses} onAdd={(ex) => onUpdateProject({ expenses: [...project.expenses, ex] })} onAddMany={(exs) => onUpdateProject({ expenses: [...project.expenses, ...exs] })} onUpdate={(id, data) => onUpdateProject({ expenses: project.expenses.map(e => e.id === id ? { ...e, ...data } : e) })} onDelete={(id) => onUpdateProject({ expenses: project.expenses.filter(e => e.id !== id) })} workItems={displayData.items} measuredValue={treeService.calculateBasicStats(displayData.items, project.bdi).current} onUpdateExpenses={(exs) => onUpdateProject({ expenses: exs })} isReadOnly={displayData.isReadOnly} />}
           {tab === 'workforce' && <WorkforceManager project={project} onUpdateProject={onUpdateProject} />}
           {tab === 'planning' && <PlanningView project={project} onUpdatePlanning={(p) => onUpdateProject({ planning: p })} onAddExpense={(ex) => onUpdateProject({ expenses: [...project.expenses, ex] })} categories={displayData.items.filter(i => i.type === 'category')} allWorkItems={displayData.items} />}
