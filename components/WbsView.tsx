@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Project, WorkItem, ItemType } from '../types';
 import { treeService } from '../services/treeService';
@@ -6,7 +7,7 @@ import { financial } from '../utils/math';
 import { TreeTable } from './TreeTable';
 import { 
   Plus, Layers, Search, FileSpreadsheet, UploadCloud, Download, 
-  X, CheckCircle2, AlertCircle, Package, RefreshCw, Eraser
+  X, CheckCircle2, AlertCircle, Package, RefreshCw, Eraser, Printer
 } from 'lucide-react';
 
 interface WbsViewProps {
@@ -21,14 +22,15 @@ export const WbsView: React.FC<WbsViewProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => {
-    const saved = localStorage.getItem(`exp_wbs_${project.id}`);
-    return saved ? new Set(JSON.parse(saved)) : new Set();
-  });
-
+  // Estados para controle de importação e UI
   const [isImporting, setIsImporting] = useState(false);
   const [importSummary, setImportSummary] = useState<ImportResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem(`exp_wbs_${project.id}`);
+    return saved ? new Set<string>(JSON.parse(saved)) : new Set<string>();
+  });
 
   useEffect(() => {
     localStorage.setItem(`exp_wbs_${project.id}`, JSON.stringify(Array.from(expandedIds)));
@@ -92,6 +94,37 @@ export const WbsView: React.FC<WbsViewProps> = ({
     });
   };
 
+  // HANDLERS COM VALIDAÇÃO DE REGRA DE NEGÓCIO (CLAMPS)
+  const updateItemQuantity = (id: string, qty: number) => {
+    if (isReadOnly) return;
+    onUpdateProject({
+      items: project.items.map(it => {
+        if (it.id === id) {
+          const maxPossible = Math.max(0, (it.contractQuantity || 0) - (it.previousQuantity || 0));
+          const safeQty = Math.min(Math.max(0, qty), maxPossible);
+          return { ...it, currentQuantity: safeQty };
+        }
+        return it;
+      })
+    });
+  };
+
+  const updateItemPercentage = (id: string, pct: number) => {
+    if (isReadOnly) return;
+    onUpdateProject({
+      items: project.items.map(it => {
+        if (it.id === id) {
+          const prevPct = it.contractQuantity > 0 ? (it.previousQuantity / it.contractQuantity) * 100 : 0;
+          const maxPctAllowed = Math.max(0, 100 - prevPct);
+          const safePct = Math.min(Math.max(0, pct), maxPctAllowed);
+          const calculatedQty = financial.round((safePct / 100) * it.contractQuantity);
+          return { ...it, currentQuantity: calculatedQty, currentPercentage: safePct };
+        }
+        return it;
+      })
+    });
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx, .xls" onChange={handleFileChange} />
@@ -146,6 +179,17 @@ export const WbsView: React.FC<WbsViewProps> = ({
           <button type="button" onClick={() => excelService.exportProjectToExcel(project)} className="p-2 text-slate-400 hover:text-blue-600 transition-colors" title="Exportar para Excel">
             <Download size={18}/>
           </button>
+
+          <div className="w-px h-6 bg-slate-100 dark:bg-slate-800 mx-1" />
+
+          <button 
+            onClick={() => window.print()} 
+            className="p-3 text-white bg-slate-900 dark:bg-slate-700 hover:scale-105 active:scale-95 rounded-xl transition-all shadow-lg flex items-center gap-2"
+            title="Gerar PDF da Planilha"
+          >
+            <Printer size={16}/>
+            <span className="text-[9px] font-black uppercase tracking-widest pr-1 hidden sm:inline">Imprimir Relatório</span>
+          </button>
         </div>
 
         <div className="relative w-full lg:w-96">
@@ -163,12 +207,12 @@ export const WbsView: React.FC<WbsViewProps> = ({
         <TreeTable 
           data={flattenedList} 
           expandedIds={expandedIds} 
-          onToggle={id => { const n = new Set(expandedIds); n.has(id) ? n.delete(id) : n.add(id); setExpandedIds(n); }} 
-          onExpandAll={() => setExpandedIds(new Set(project.items.filter(i => i.type === 'category').map(i => i.id)))}
-          onCollapseAll={() => setExpandedIds(new Set())}
+          onToggle={id => { const n = new Set<string>(expandedIds); n.has(id) ? n.delete(id) : n.add(id); setExpandedIds(n); }} 
+          onExpandAll={() => setExpandedIds(new Set<string>(project.items.filter(i => i.type === 'category').map(i => i.id)))}
+          onCollapseAll={() => setExpandedIds(new Set<string>())}
           onDelete={id => !isReadOnly && onUpdateProject({ items: project.items.filter(i => i.id !== id && i.parentId !== id) })}
-          onUpdateQuantity={(id, qty) => !isReadOnly && onUpdateProject({ items: project.items.map(it => it.id === id ? { ...it, currentQuantity: qty } : it) })}
-          onUpdatePercentage={(id, pct) => !isReadOnly && onUpdateProject({ items: project.items.map(it => it.id === id ? { ...it, currentQuantity: financial.round((pct/100) * it.contractQuantity), currentPercentage: pct } : it) })}
+          onUpdateQuantity={updateItemQuantity}
+          onUpdatePercentage={updateItemPercentage}
           
           onUpdateTotal={(id, total) => {
             if (isReadOnly) return;

@@ -40,80 +40,43 @@ export interface WorkItem {
   children?: WorkItem[];
 }
 
-export type PDFBoxTheme = {
-  bg: string;
-  text: string;
-};
-
-export interface PDFTheme {
-  fontFamily: 'Inter' | 'Roboto' | 'JetBrains Mono' | 'Merriweather';
-  primary: string; 
-  accent: string;  
-  accentText: string;
-  border: string;
-  currencySymbol: string;
-  header: PDFBoxTheme;
-  category: PDFBoxTheme;
-  footer: PDFBoxTheme;
-  kpiHighlight: PDFBoxTheme;
-}
-
-export interface MeasurementSnapshot {
-  measurementNumber: number;
-  date: string;
-  items: WorkItem[];
-  totals: {
-    contract: number;
-    period: number;
-    accumulated: number;
-    progress: number;
-  };
-}
-
-export interface ProjectAsset {
+export interface Supplier {
   id: string;
   name: string;
-  fileType: string;
-  fileSize: number;
-  uploadDate: string;
-  data: string; 
+  cnpj: string;
+  contactName: string;
+  email: string;
+  phone: string;
+  category: 'Material' | 'Serviço' | 'Locação' | 'Outros';
+  rating: number; // 1-5
+  notes: string;
+  order: number;
 }
 
-export type ExpenseType = 'labor' | 'material' | 'revenue';
-
-export interface ProjectExpense {
-  id: string;
-  parentId: string | null;
-  type: ExpenseType; 
-  itemType: ItemType; 
-  wbs: string;
-  order: number;
-  date: string; 
-  paymentDate?: string; 
-  description: string; 
-  entityName: string; 
-  unit: string;
-  quantity: number;
-  unitPrice: number;
-  discountValue?: number;
-  discountPercentage?: number;
-  amount: number; 
-  isPaid?: boolean; 
-  linkedWorkItemId?: string;
-  children?: ProjectExpense[];
+/**
+ * Interface para distribuição de valores planejados e realizados por período no cronograma.
+ */
+export interface PeriodDistribution {
+  plannedPercent: number;
+  actualPercent?: number;
 }
 
 export interface ProjectPlanning {
   tasks: PlanningTask[];
   forecasts: MaterialForecast[];
   milestones: Milestone[];
+  // Fix: Adicionada propriedade schedule para suportar o cronograma físico-financeiro e resolver erro de compilação
+  schedule?: Record<string, Record<string, PeriodDistribution>>;
 }
+
+export type TaskStatus = 'todo' | 'doing' | 'done';
 
 export interface PlanningTask {
   id: string;
   categoryId: string | null;
   description: string;
   isCompleted: boolean;
+  status: TaskStatus;
   dueDate: string;
   createdAt: string;
   completedAt?: string;
@@ -125,9 +88,11 @@ export interface MaterialForecast {
   id: string;
   description: string;
   quantityNeeded: number;
+  unitPrice: number;
   unit: string;
   estimatedDate: string;
   status: ForecastStatus;
+  order: number;
 }
 
 export interface Milestone {
@@ -218,6 +183,7 @@ export interface Project {
   groupId: string | null;
   name: string;
   companyName: string;
+  companyCnpj: string;
   location: string;
   measurementNumber: number;
   referenceDate: string;
@@ -238,4 +204,67 @@ export interface Project {
     printSubtotals: boolean;
     showSignatures: boolean;
   };
+}
+
+export type PDFBoxTheme = {
+  bg: string;
+  text: string;
+};
+
+export interface PDFTheme {
+  fontFamily: 'Inter' | 'Roboto' | 'JetBrains Mono' | 'Merriweather';
+  primary: string; 
+  accent: string;  
+  accentText: string;
+  border: string;
+  currencySymbol: string;
+  header: PDFBoxTheme;
+  category: PDFBoxTheme;
+  footer: PDFBoxTheme;
+  kpiHighlight: PDFBoxTheme;
+}
+
+export interface MeasurementSnapshot {
+  measurementNumber: number;
+  date: string;
+  items: WorkItem[];
+  totals: {
+    contract: number;
+    period: number;
+    accumulated: number;
+    progress: number;
+  };
+}
+
+export interface ProjectAsset {
+  id: string;
+  name: string;
+  fileType: string;
+  fileSize: number;
+  uploadDate: string;
+  data: string; 
+}
+
+export type ExpenseType = 'labor' | 'material' | 'revenue';
+
+export interface ProjectExpense {
+  id: string;
+  parentId: string | null;
+  type: ExpenseType; 
+  itemType: ItemType; 
+  wbs: string;
+  order: number;
+  date: string; 
+  paymentDate?: string; 
+  description: string; 
+  entityName: string; 
+  unit: string;
+  quantity: number;
+  unitPrice: number;
+  discountValue?: number;
+  discountPercentage?: number;
+  amount: number; 
+  isPaid?: boolean; 
+  linkedWorkItemId?: string;
+  children?: ProjectExpense[];
 }

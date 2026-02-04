@@ -6,7 +6,7 @@ import { HardHat } from 'lucide-react';
 
 interface PrintReportProps {
   project: Project;
-  companyName: string; 
+  companyName: string;
   companyCnpj: string;
   data: (WorkItem & { depth: number })[];
   expenses: ProjectExpense[];
@@ -192,8 +192,8 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, 
           <div className="text-right">
             <h2 className="text-xl font-black uppercase leading-none" style={{ color: theme.primary }}>Planilha de Medição</h2>
             <div className="mt-2 flex items-center gap-2 justify-end" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-               <span className="px-3 py-0.5 rounded text-[8pt] font-black text-white uppercase" style={{ backgroundColor: theme.accent }}>Medição Nº {project.measurementNumber}</span>
-               <span className="text-[8pt] font-bold text-slate-400 uppercase">Data: {project.referenceDate}</span>
+              <span className="px-3 py-0.5 rounded text-[8pt] font-black text-white uppercase" style={{ backgroundColor: theme.accent }}>Medição Nº {project.measurementNumber}</span>
+              <span className="text-[8pt] font-bold text-slate-400 uppercase">Data: {project.referenceDate}</span>
             </div>
           </div>
         </div>

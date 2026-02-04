@@ -1,4 +1,3 @@
-
 import { WorkItem, ProjectExpense, Project } from '../types';
 import { financial } from '../utils/math';
 
@@ -78,10 +77,6 @@ export const treeService = {
     return node;
   },
 
-  /**
-   * Recalcula todos os itens do projeto garantindo que os preços unitários c/ BDI
-   * estejam sincronizados com o Preço Base (s/ BDI) e o BDI global.
-   */
   forceRecalculate: (items: WorkItem[], bdi: number): WorkItem[] => {
     return items.map(item => {
       if (item.type === 'category') return item;
@@ -172,10 +167,10 @@ export const treeService = {
 
     return items.map(item => {
       if (item.id === sourceId) {
-        return { ...item, parentId: newParentId, order: newOrder };
+        return { ...item, parentId: newParentId, order: newOrder } as T;
       }
       if (item.parentId === newParentId && item.order >= newOrder && item.id !== sourceId) {
-        return { ...item, order: item.order + 1 };
+        return { ...item, order: item.order + 1 } as T;
       }
       return item;
     });
@@ -199,8 +194,8 @@ export const treeService = {
     const newOrder = targetItem.order;
 
     return items.map(i => {
-      if (i.id === item.id) return { ...i, order: newOrder };
-      if (i.id === targetItem.id) return { ...i, order: oldOrder };
+      if (i.id === item.id) return { ...i, order: newOrder } as T;
+      if (i.id === targetItem.id) return { ...i, order: oldOrder } as T;
       return i;
     });
   }

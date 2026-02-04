@@ -9,17 +9,18 @@ import { DashboardView } from './components/DashboardView';
 import { SettingsView } from './components/SettingsView';
 import { ProjectWorkspace } from './components/ProjectWorkspace';
 import { BiddingView } from './components/BiddingView';
+import { SupplierManager } from './components/SupplierManager';
 
 import { Menu } from 'lucide-react';
 
-type ViewMode = 'global-dashboard' | 'project-workspace' | 'system-settings' | 'bidding-view';
+type ViewMode = 'global-dashboard' | 'project-workspace' | 'system-settings' | 'bidding-view' | 'supplier-view';
 
 const App: React.FC = () => {
   // Hook de estado centralizado
   const { 
-    projects, biddings, groups, activeProject, activeProjectId, setActiveProjectId, 
+    projects, biddings, groups, suppliers, activeProject, activeProjectId, setActiveProjectId, 
     globalSettings, setGlobalSettings,
-    updateActiveProject, updateProjects, updateGroups, updateBiddings, updateCertificates, bulkUpdate
+    updateActiveProject, updateProjects, updateGroups, updateSuppliers, updateBiddings, updateCertificates, bulkUpdate
   } = useProjectState();
 
   // Configurações com fallback seguro - added missing currencySymbol to match GlobalSettings
@@ -61,7 +62,6 @@ const App: React.FC = () => {
     // Atualiza o estado global e persiste
     updateActiveProject(updated);
     
-    // Feedback visual opcional pode ser adicionado aqui
   }, [activeProject, updateActiveProject]);
 
   // Navegação: Criar Obra do zero ou vinculada a uma pasta
@@ -104,16 +104,17 @@ const App: React.FC = () => {
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         
-        {/* HEADER MOBILE */}
+        {/* HEADER MOBILE: Desduplicado e simplificado */}
         <header className="no-print lg:hidden h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center px-4 shrink-0 z-50">
           <button onClick={() => setMobileMenuOpen(true)} className="p-2 text-slate-600 dark:text-slate-300">
             <Menu size={24} />
           </button>
-          <span className="ml-4 text-xs font-black uppercase tracking-widest truncate">
-            {viewMode === 'global-dashboard' ? 'Dashboard' : 
-             viewMode === 'bidding-view' ? 'Licitações' : 
-             viewMode === 'system-settings' ? 'Configurações' : 
-             activeProject?.name}
+          <span className="ml-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 truncate">
+            {viewMode === 'global-dashboard' ? 'Portal de Obras' : 
+             viewMode === 'bidding-view' ? 'Setor de Licitações' : 
+             viewMode === 'supplier-view' ? 'Base de Fornecedores' :
+             viewMode === 'system-settings' ? 'Configurações de Sistema' : 
+             'Obra em Gestão'}
           </span>
         </header>
 
@@ -138,6 +139,14 @@ const App: React.FC = () => {
             onUpdateBiddings={updateBiddings} 
             onUpdateCertificates={updateCertificates}
             onCreateProjectFromBidding={handleCreateProjectFromBidding}
+          />
+        )}
+
+        {/* VIEW: FORNECEDORES */}
+        {viewMode === 'supplier-view' && (
+          <SupplierManager 
+            suppliers={suppliers}
+            onUpdateSuppliers={updateSuppliers}
           />
         )}
 

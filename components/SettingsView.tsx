@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Building2, ShieldCheck, Trash2, Cog, Coins } from 'lucide-react';
 import { GlobalSettings } from '../types';
@@ -16,40 +17,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdate, 
           <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl shadow-sm"><Cog size={24}/></div>
           <div>
             <h1 className="text-3xl font-black tracking-tight text-slate-800 dark:text-white">Ajustes Globais</h1>
-            <p className="text-slate-500 dark:text-slate-400 font-medium">Configurações que afetam todo o sistema e novos projetos.</p>
+            <p className="text-slate-500 dark:text-slate-400 font-medium">Preferências regionais e segurança de dados.</p>
           </div>
         </header>
 
         <div className="grid grid-cols-1 gap-8">
-          {/* PERFIL EMPRESA */}
+          {/* REGIONALIZAÇÃO */}
           <section className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm space-y-8">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-2xl"><Building2 size={24}/></div>
+              <div className="p-3 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-2xl"><Coins size={24}/></div>
               <div>
-                <h3 className="font-black uppercase text-xs tracking-widest text-slate-800 dark:text-white">Perfil Institucional</h3>
-                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase">Dados padrão para novos relatórios</p>
+                <h3 className="font-black uppercase text-xs tracking-widest text-slate-800 dark:text-white">Regionalização</h3>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase">Formatação padrão do sistema</p>
               </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase mb-2 block tracking-widest ml-1">Nome da Empreiteira</label>
-                <input 
-                  className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-white text-sm font-black focus:border-indigo-500 outline-none transition-all"
-                  value={settings.defaultCompanyName}
-                  onChange={(e) => onUpdate({ ...settings, defaultCompanyName: e.target.value })}
-                  placeholder="Nome da sua empresa"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase mb-2 block tracking-widest ml-1">CNPJ da Construtora</label>
-                <input 
-                  className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-white text-sm font-black focus:border-indigo-500 outline-none transition-all"
-                  value={settings.companyCnpj}
-                  onChange={(e) => onUpdate({ ...settings, companyCnpj: e.target.value })}
-                  placeholder="00.000.000/0000-00"
-                />
-              </div>
               <div>
                 <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase mb-2 block tracking-widest ml-1">Idioma / Região</label>
                 <select 

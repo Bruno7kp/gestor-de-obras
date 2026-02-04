@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Home, Cog, PlusCircle, Briefcase, Sun, Moon, Menu, HardHat, X, Folder, ChevronRight, ChevronLeft, ChevronDown, Landmark, AlertCircle } from 'lucide-react';
+import { Home, Cog, PlusCircle, Briefcase, Sun, Moon, Menu, HardHat, X, Folder, ChevronRight, ChevronLeft, ChevronDown, Landmark, AlertCircle, Truck } from 'lucide-react';
 import { Project, ProjectGroup, CompanyCertificate } from '../types';
 import { biddingService } from '../services/biddingService';
 
@@ -25,13 +25,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpen, setIsOpen, mobileOpen, setMobileOpen, viewMode, setViewMode,
   projects, groups, activeProjectId, onOpenProject, onCreateProject, isDarkMode, toggleDarkMode, certificates
 }) => {
+  // Inicializa estado do localStorage para persistir pastas abertas
+  // Fix: Explicitly type Set in lazy initializer to avoid 'Set<unknown>' inference
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
-    const saved = localStorage.getItem('promeasure_sidebar_expanded_groups');
-    return saved ? new Set(JSON.parse(saved)) : new Set();
+    const saved = localStorage.getItem('promeasure_sidebar_expanded_v4');
+    return saved ? new Set<string>(JSON.parse(saved)) : new Set<string>();
   });
 
   useEffect(() => {
-    localStorage.setItem('promeasure_sidebar_expanded_groups', JSON.stringify(Array.from(expandedGroups)));
+    localStorage.setItem('promeasure_sidebar_expanded_v4', JSON.stringify(Array.from(expandedGroups)));
   }, [expandedGroups]);
 
   const hasAlerts = biddingService.hasGlobalAlerts(certificates);
@@ -44,7 +46,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </button>
   );
 
-  const GroupTreeItem = ({ group, depth }: { group: ProjectGroup, depth: number }) => {
+  // Fix: Explicitly type GroupTreeItem as React.FC to handle React's intrinsic key prop and satisfy strict TS checks
+  const GroupTreeItem: React.FC<{ group: ProjectGroup, depth: number }> = ({ group, depth }) => {
     const isExpanded = expandedGroups.has(group.id);
     const subGroups = groups.filter(g => g.parentId === group.id);
     const groupProjects = projects.filter(p => p.groupId === group.id);
@@ -54,7 +57,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <button 
           onClick={(e) => { 
             e.stopPropagation(); 
-            const n = new Set(expandedGroups); 
+            const n = new Set<string>(expandedGroups); 
             n.has(group.id) ? n.delete(group.id) : n.add(group.id); 
             setExpandedGroups(n); 
           }}
@@ -71,7 +74,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <>
             {subGroups.map(sg => <GroupTreeItem key={sg.id} group={sg} depth={depth + 1} />)}
             {groupProjects.map(p => (
-              <button key={p.id} onClick={() => onOpenProject(p.id)} className={`w-full flex items-center gap-2 p-2 rounded-xl transition-all ${activeProjectId === p.id ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600' : 'text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`} style={{ paddingLeft: `${(depth + 1) * 12 + 18}px` }}>
+              <button key={p.id} onClick={() => onOpenProject(p.id)} className={`w-full flex items-center gap-2 p-2 rounded-xl transition-all ${activeProjectId === p.id ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 font-bold' : 'text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`} style={{ paddingLeft: `${(depth + 1) * 12 + 18}px` }}>
                 <Briefcase size={12} className="shrink-0" />
                 {isOpen && <span className="text-[11px] truncate">{p.name}</span>}
               </button>
@@ -107,6 +110,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar">
           <NavItem active={viewMode === 'global-dashboard'} onClick={() => { setViewMode('global-dashboard'); setMobileOpen(false); }} icon={<Home size={18}/>} label="Dashboard" />
           <NavItem active={viewMode === 'bidding-view'} onClick={() => { setViewMode('bidding-view'); setMobileOpen(false); }} icon={<Landmark size={18}/>} label="Licitações" badge={hasAlerts} />
+          <NavItem active={viewMode === 'supplier-view'} onClick={() => { setViewMode('supplier-view'); setMobileOpen(false); }} icon={<Truck size={18}/>} label="Fornecedores" />
           <NavItem active={viewMode === 'system-settings'} onClick={() => { setViewMode('system-settings'); setMobileOpen(false); }} icon={<Cog size={18}/>} label="Configurações" />
           
           <div className="py-6 px-3 flex items-center justify-between">

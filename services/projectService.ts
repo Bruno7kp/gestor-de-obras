@@ -2,19 +2,13 @@
 import { Project, ProjectGroup, DEFAULT_THEME, MeasurementSnapshot } from '../types';
 import { treeService } from './treeService';
 
-/**
- * ProjectService
- * Centraliza a lógica de criação e transformação de entidades de negócio.
- */
 export const projectService = {
-  /**
-   * Fábrica de Projetos (Obras)
-   */
   createProject: (name: string, companyName: string, groupId: string | null = null): Project => ({
     id: crypto.randomUUID(),
     groupId,
     name: name.trim() || 'Novo Empreendimento',
     companyName: companyName.trim() || 'Empresa Padrão',
+    companyCnpj: '',
     location: '',
     measurementNumber: 1,
     referenceDate: new Date().toLocaleDateString('pt-BR'),
@@ -49,10 +43,6 @@ export const projectService = {
     children: []
   }),
 
-  /**
-   * closeMeasurement
-   * Realiza a "virada" de mês/período.
-   */
   closeMeasurement: (project: Project): Project => {
     try {
       const stats = treeService.calculateBasicStats(project.items, project.bdi);
@@ -98,30 +88,18 @@ export const projectService = {
     }
   },
 
-  /**
-   * reopenLatestMeasurement
-   * Permite reabrir a última medição para correções.
-   * Recupera o snapshot mais recente e o torna o estado atual.
-   */
   reopenLatestMeasurement: (project: Project): Project => {
     if (!project.history || project.history.length === 0) return project;
-
-    // Remove o snapshot mais recente do histórico
     const [latestSnapshot, ...remainingHistory] = project.history;
-
     return {
       ...project,
       measurementNumber: latestSnapshot.measurementNumber,
       referenceDate: latestSnapshot.date,
-      // Restaura os itens com os valores medidos que estavam salvos no snapshot
       items: JSON.parse(JSON.stringify(latestSnapshot.items)),
       history: remainingHistory
     };
   },
 
-  /**
-   * Reatribui itens de um grupo que está sendo excluído
-   */
   getReassignedItems: (groupId: string, groups: ProjectGroup[], projects: Project[]) => {
     const targetGroup = groups.find(g => g.id === groupId);
     const newParentId = targetGroup?.parentId || null;
@@ -137,9 +115,6 @@ export const projectService = {
     return { updatedGroups, updatedProjects, newParentId };
   },
 
-  /**
-   * Move uma obra ou pasta para um novo grupo destino
-   */
   moveItem: (
     itemId: string, 
     itemType: 'project' | 'group', 
@@ -153,9 +128,7 @@ export const projectService = {
       );
       return { updatedProjects, updatedGroups: groups };
     } else {
-      // Evitar mover pasta para dentro de si mesma
       if (itemId === targetGroupId) return { updatedProjects: projects, updatedGroups: groups };
-      
       const updatedGroups = groups.map(g => 
         g.id === itemId ? { ...g, parentId: targetGroupId } : g
       );

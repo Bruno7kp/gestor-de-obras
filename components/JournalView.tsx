@@ -49,7 +49,8 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
 
   // Handlers
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
+    // Fix: Explicitly cast Array.from result to File[] to satisfy strict TS checks on file.size and readAsDataURL
+    const files = Array.from(e.target.files || []) as File[];
     files.forEach(file => {
       if (file.size > 2 * 1024 * 1024) return alert("Imagem muito pesada (Max 2MB)");
       const reader = new FileReader();

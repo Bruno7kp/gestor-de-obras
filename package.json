@@ -8,26 +8,18 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@hello-pangea/dnd": "17.0.0",
-    "@neondatabase/serverless": "^1.0.2",
-    "@prisma/adapter-neon": "^7.3.0",
-    "@prisma/client": "^7.3.0",
-    "dotenv": "^17.2.3",
-    "lucide-react": "0.460.0",
-    "prisma": "^7.3.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "ws": "^8.19.0",
+    "lucide-react": "0.460.0",
     "xlsx": "0.18.5",
-    "zod": "3.23.8"
+    "zod": "3.23.8",
+    "@hello-pangea/dnd": "17.0.0"
   },
   "devDependencies": {
+    "vite": "^5.4.1",
+    "@vitejs/plugin-react": "^4.3.1",
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.1",
-    "@types/ws": "^8.18.1",
-    "@vitejs/plugin-react": "^4.3.1",
-    "tsx": "^4.21.0",
-    "typescript": "^5.0.0",
-    "vite": "^5.4.1"
+    "typescript": "^5.0.0"
   }
 }
