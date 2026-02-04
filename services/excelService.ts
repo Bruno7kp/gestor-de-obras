@@ -1,5 +1,6 @@
+
 import * as XLSX from 'xlsx';
-import { WorkItem, ItemType, Project, ProjectExpense, ExpenseType } from '../types';
+import { WorkItem, ItemType, Project, ProjectExpense, ExpenseType, ProjectPlanning, PlanningTask, MaterialForecast, Milestone } from '../types';
 import { financial } from '../utils/math';
 import { treeService } from './treeService';
 
@@ -44,16 +45,13 @@ const EXPENSE_HEADERS = ["WBS", "TIPO_REGISTRO", "CATEGORIA", "DATA", "DESCRICAO
 const parseVal = (v: any): number => {
   if (v === undefined || v === null || v === '') return 0;
   if (typeof v === 'number') return v;
-  
   let s = String(v).trim();
   s = s.replace(/R\$\s?/g, '').replace(/\s/g, '');
-  
   if (s.includes(',') && s.includes('.')) {
     s = s.replace(/\./g, '').replace(',', '.');
   } else if (s.includes(',')) {
     s = s.replace(',', '.');
   }
-  
   const n = parseFloat(s);
   return isNaN(n) ? 0 : n;
 };
@@ -95,7 +93,6 @@ export const excelService = {
     const processedTree = tree.map((root, idx) => treeService.processRecursive(root, '', idx, project.bdi));
     const allIds = new Set(project.items.map(i => i.id));
     const fullFlattened = treeService.flattenTree(processedTree, allIds);
-    
     const rows = fullFlattened.map(i => [
       i.wbs, 
       i.type, 
@@ -108,10 +105,82 @@ export const excelService = {
       i.type === 'item' ? (i.previousQuantity || 0) : "",
       i.type === 'item' ? (i.currentQuantity || 0) : ""
     ]);
-
     const ws = XLSX.utils.aoa_to_sheet([WBS_HEADERS, ...rows]);
     XLSX.utils.book_append_sheet(wb, ws, "Planilha_de_Medicao");
     XLSX.writeFile(wb, `EAP_Medicao_${project.name}.xlsx`);
+  },
+
+  exportPlanningToExcel: (project: Project) => {
+    const wb = XLSX.utils.book_new();
+    const { tasks, forecasts, milestones } = project.planning;
+    const taskData = tasks.map(t => [t.description, t.status, t.dueDate, t.isCompleted ? "SIM" : "NÃO"]);
+    const forecastData = forecasts.map(f => [f.description, f.unit, f.quantityNeeded, f.unitPrice, f.estimatedDate, f.status]);
+    const milestoneData = milestones.map(m => [m.title, m.date, m.isCompleted ? "SIM" : "NÃO"]);
+    const wsTasks = XLSX.utils.aoa_to_sheet([["DESCRICAO", "STATUS", "VENCIMENTO", "CONCLUIDO"], ...taskData]);
+    const wsForecasts = XLSX.utils.aoa_to_sheet([["MATERIAL", "UND", "QNT", "PRECO_UNIT", "DATA_COMPRA", "STATUS"], ...forecastData]);
+    const wsMilestones = XLSX.utils.aoa_to_sheet([["TITULO", "DATA_META", "CONCLUIDA"], ...milestoneData]);
+    XLSX.utils.book_append_sheet(wb, wsTasks, "Tarefas");
+    XLSX.utils.book_append_sheet(wb, wsForecasts, "Suprimentos");
+    XLSX.utils.book_append_sheet(wb, wsMilestones, "Cronograma");
+    XLSX.writeFile(wb, `Planejamento_${project.name}.xlsx`);
+  },
+
+  parsePlanningExcel: async (file: File): Promise<ProjectPlanning> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const buffer = e.target?.result;
+          const data = new Uint8Array(buffer as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+          const tasks: PlanningTask[] = [];
+          const forecasts: MaterialForecast[] = [];
+          const milestones: Milestone[] = [];
+          if (workbook.Sheets["Tarefas"]) {
+            const raw: any[] = XLSX.utils.sheet_to_json(workbook.Sheets["Tarefas"]);
+            raw.forEach((r) => {
+              tasks.push({
+                id: crypto.randomUUID(),
+                categoryId: null,
+                description: String(r.DESCRICAO || ""),
+                status: (r.STATUS || "todo") as any,
+                dueDate: r.VENCIMENTO instanceof Date ? r.VENCIMENTO.toISOString() : new Date().toISOString(),
+                isCompleted: String(r.CONCLUIDO).toUpperCase() === "SIM",
+                createdAt: new Date().toISOString()
+              });
+            });
+          }
+          if (workbook.Sheets["Suprimentos"]) {
+            const raw: any[] = XLSX.utils.sheet_to_json(workbook.Sheets["Suprimentos"]);
+            raw.forEach((r, idx) => {
+              forecasts.push({
+                id: crypto.randomUUID(),
+                description: String(r.MATERIAL || ""),
+                unit: String(r.UND || "un"),
+                quantityNeeded: parseVal(r.QNT),
+                unitPrice: parseVal(r.PRECO_UNIT),
+                estimatedDate: r.DATA_COMPRA instanceof Date ? r.DATA_COMPRA.toISOString() : new Date().toISOString(),
+                status: (r.STATUS || "pending") as any,
+                order: idx
+              });
+            });
+          }
+          if (workbook.Sheets["Cronograma"]) {
+            const raw: any[] = XLSX.utils.sheet_to_json(workbook.Sheets["Cronograma"]);
+            raw.forEach((r) => {
+              milestones.push({
+                id: crypto.randomUUID(),
+                title: String(r.TITULO || ""),
+                date: r.DATA_META instanceof Date ? r.DATA_META.toISOString() : new Date().toISOString(),
+                isCompleted: String(r.CONCLUIDA).toUpperCase() === "SIM"
+              });
+            });
+          }
+          resolve({ tasks, forecasts, milestones });
+        } catch (err) { reject(err); }
+      };
+      reader.readAsArrayBuffer(file);
+    });
   },
 
   parseAndValidate: async (file: File): Promise<ImportResult> => {
@@ -127,7 +196,6 @@ export const excelService = {
           const importedItems: WorkItem[] = [];
           const dataRows = raw.slice(1).filter(r => r.length > 0 && r[0]);
           const wbsMap = new Map<string, WorkItem>();
-
           dataRows.forEach((row, idx) => {
             const wbs = String(row[0] || "").trim();
             const type = (String(row[1] || "").toLowerCase() === 'category' ? 'category' : 'item') as ItemType;
@@ -136,36 +204,12 @@ export const excelService = {
             const fonte = row[7] ? String(row[7]).trim() : "Próprio";
             const prevQty = type === 'item' ? parseVal(row[8]) : 0;
             const currentQty = type === 'item' ? parseVal(row[9]) : 0;
-
             const item: WorkItem = {
-              id: crypto.randomUUID(), 
-              parentId: null, 
-              name: String(row[3] || "Novo Item").trim(),
-              type: type, 
-              wbs: wbs, 
-              order: idx, 
-              cod: String(row[2] || "").trim(),
-              unit: String(row[4] || ""), 
-              contractQuantity: qty, 
-              unitPriceNoBdi: priceNoBdi, 
-              fonte,
-              unitPrice: 0, 
-              contractTotal: 0, 
-              previousQuantity: prevQty, 
-              previousTotal: 0,
-              currentQuantity: currentQty,
-              currentTotal: 0, 
-              currentPercentage: 0,
-              accumulatedQuantity: 0, 
-              accumulatedTotal: 0, 
-              accumulatedPercentage: 0,
-              balanceQuantity: 0, 
-              balanceTotal: 0
+              id: crypto.randomUUID(), parentId: null, name: String(row[3] || "Novo Item").trim(), type: type, wbs: wbs, order: idx, cod: String(row[2] || "").trim(), unit: String(row[4] || ""), contractQuantity: qty, unitPriceNoBdi: priceNoBdi, fonte, unitPrice: 0, contractTotal: 0, previousQuantity: prevQty, previousTotal: 0, currentQuantity: currentQty, currentTotal: 0, currentPercentage: 0, accumulatedQuantity: 0, accumulatedTotal: 0, accumulatedPercentage: 0, balanceQuantity: 0, balanceTotal: 0
             };
             importedItems.push(item);
             if (wbs) wbsMap.set(wbs, item);
           });
-          
           importedItems.forEach(item => {
             if (item.wbs.includes('.')) {
               const parts = item.wbs.split('.'); parts.pop();
@@ -173,14 +217,8 @@ export const excelService = {
               if (parent) item.parentId = parent.id;
             }
           });
-
           resolve({ 
-            items: importedItems, 
-            errors: [], 
-            stats: { 
-              categories: importedItems.filter(i => i.type === 'category').length, 
-              items: importedItems.filter(i => i.type === 'item').length 
-            }
+            items: importedItems, errors: [], stats: { categories: importedItems.filter(i => i.type === 'category').length, items: importedItems.filter(i => i.type === 'item').length }
           });
         } catch (err) { reject(err); }
       };
@@ -195,22 +233,10 @@ export const excelService = {
     const processedTree = tree.map((root, idx) => treeService.processExpensesRecursive(root as ProjectExpense, '', idx));
     const allIds = new Set(filtered.map(e => e.id));
     const fullFlattened = treeService.flattenTree(processedTree, allIds);
-
     const rows = fullFlattened.map(e => {
       const typeLabel = e.type === 'labor' ? 'MO' : (e.type === 'revenue' ? 'RE' : 'MA');
       return [
-        e.wbs, 
-        e.itemType, 
-        typeLabel, 
-        e.itemType === 'item' ? e.date : "", 
-        e.description,
-        e.itemType === 'item' ? e.entityName : "", 
-        e.unit || "", 
-        e.itemType === 'item' ? e.quantity : "",
-        e.itemType === 'item' ? e.unitPrice : "", 
-        e.itemType === 'item' ? (e.discountValue || 0) : "",
-        e.amount, 
-        e.itemType === 'item' ? (e.isPaid ? "S" : "N") : ""
+        e.wbs, e.itemType, typeLabel, e.itemType === 'item' ? e.date : "", e.description, e.itemType === 'item' ? e.entityName : "", e.unit || "", e.itemType === 'item' ? e.quantity : "", e.itemType === 'item' ? e.unitPrice : "", e.itemType === 'item' ? (e.discountValue || 0) : "", e.amount, e.itemType === 'item' ? (e.isPaid ? "S" : "N") : ""
       ];
     });
     const ws = XLSX.utils.aoa_to_sheet([EXPENSE_HEADERS, ...rows]);
@@ -232,58 +258,26 @@ export const excelService = {
           const dataRows = raw.slice(1).filter(r => r.length > 0 && r[0]);
           const wbsMap = new Map<string, ProjectExpense>();
           const stats = { categories: 0, items: 0, byType: { labor: 0, material: 0, revenue: 0 } };
-
           dataRows.forEach((row, idx) => {
             const wbs = String(row[0] || "").trim();
             const itemType = (String(row[1] || "").toLowerCase() === 'category') ? 'category' : 'item';
-            
             const rawCat = String(row[2] || "").toUpperCase().trim();
             let type: ExpenseType = 'material';
-            
-            if (rawCat === 'MO' || rawCat === 'LABOR' || rawCat === 'MÃO DE OBRA' || rawCat === 'MAO DE OBRA') {
-              type = 'labor';
-            } else if (rawCat === 'RE' || rawCat === 'REVENUE' || rawCat === 'RECEITA' || rawCat === 'RECEITAS') {
-              type = 'revenue';
-            }
-
+            if (rawCat === 'MO' || rawCat === 'LABOR' || rawCat === 'MÃO DE OBRA' || rawCat === 'MAO DE OBRA') { type = 'labor'; } else if (rawCat === 'RE' || rawCat === 'REVENUE' || rawCat === 'RECEITA' || rawCat === 'RECEITAS') { type = 'revenue'; }
             const qty = itemType === 'item' ? parseVal(row[7]) : 0;
             const unitPrice = itemType === 'item' ? parseVal(row[8]) : 0;
             const disc = itemType === 'item' ? parseVal(row[9]) : 0;
             const total = itemType === 'item' ? parseVal(row[10]) : 0;
-            
             let expenseDate = new Date().toISOString().split('T')[0];
-            if (itemType === 'item' && row[3] instanceof Date) {
-              expenseDate = row[3].toISOString().split('T')[0];
-            } else if (itemType === 'item' && row[3]) {
-              const d = new Date(row[3]);
-              if (!isNaN(d.getTime())) expenseDate = d.toISOString().split('T')[0];
-            }
-
+            if (itemType === 'item' && row[3] instanceof Date) { expenseDate = row[3].toISOString().split('T')[0]; } else if (itemType === 'item' && row[3]) { const d = new Date(row[3]); if (!isNaN(d.getTime())) expenseDate = d.toISOString().split('T')[0]; }
             const expense: ProjectExpense = {
-              id: crypto.randomUUID(), 
-              parentId: null, 
-              type, 
-              itemType, 
-              wbs, 
-              order: idx, 
-              date: expenseDate,
-              description: String(row[4] || "Importado"), 
-              entityName: itemType === 'item' ? String(row[5] || "") : "",
-              unit: String(row[6] || ""), 
-              quantity: qty || 1, 
-              unitPrice: unitPrice || (total + disc),
-              discountValue: disc, 
-              discountPercentage: 0, 
-              amount: total || (qty * unitPrice - disc),
-              isPaid: String(row[11] || "").toUpperCase().startsWith('S') || String(row[11] || "").toUpperCase() === 'SIM'
+              id: crypto.randomUUID(), parentId: null, type, itemType, wbs, order: idx, date: expenseDate, description: String(row[4] || "Importado"), entityName: itemType === 'item' ? String(row[5] || "") : "", unit: String(row[6] || ""), quantity: qty || 1, unitPrice: unitPrice || (total + disc), discountValue: disc, discountPercentage: 0, amount: total || (qty * unitPrice - disc), isPaid: String(row[11] || "").toUpperCase().startsWith('S') || String(row[11] || "").toUpperCase() === 'SIM'
             };
-            
             importedExpenses.push(expense);
             if (wbs) wbsMap.set(wbs, expense);
             if (itemType === 'category') stats.categories++; else stats.items++;
             stats.byType[type]++;
           });
-
           importedExpenses.forEach(exp => {
             if (exp.wbs.includes('.')) {
               const parts = exp.wbs.split('.'); parts.pop();

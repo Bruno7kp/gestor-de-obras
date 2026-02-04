@@ -9,17 +9,18 @@ import { DashboardView } from './components/DashboardView';
 import { SettingsView } from './components/SettingsView';
 import { ProjectWorkspace } from './components/ProjectWorkspace';
 import { BiddingView } from './components/BiddingView';
+import { SupplierManager } from './components/SupplierManager';
 
 import { Menu } from 'lucide-react';
 
-type ViewMode = 'global-dashboard' | 'project-workspace' | 'system-settings' | 'bidding-view';
+type ViewMode = 'global-dashboard' | 'project-workspace' | 'system-settings' | 'bidding-view' | 'supplier-view';
 
 const App: React.FC = () => {
   // Hook de estado centralizado
   const { 
-    projects, biddings, groups, activeProject, activeProjectId, setActiveProjectId, 
+    projects, biddings, groups, suppliers, activeProject, activeProjectId, setActiveProjectId, 
     globalSettings, setGlobalSettings,
-    updateActiveProject, updateProjects, updateGroups, updateBiddings, updateCertificates, bulkUpdate
+    updateActiveProject, updateProjects, updateGroups, updateSuppliers, updateBiddings, updateCertificates, bulkUpdate
   } = useProjectState();
 
   // Configurações com fallback seguro - added missing currencySymbol to match GlobalSettings
@@ -111,6 +112,7 @@ const App: React.FC = () => {
           <span className="ml-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 truncate">
             {viewMode === 'global-dashboard' ? 'Portal de Obras' : 
              viewMode === 'bidding-view' ? 'Setor de Licitações' : 
+             viewMode === 'supplier-view' ? 'Base de Fornecedores' :
              viewMode === 'system-settings' ? 'Configurações de Sistema' : 
              'Obra em Gestão'}
           </span>
@@ -137,6 +139,14 @@ const App: React.FC = () => {
             onUpdateBiddings={updateBiddings} 
             onUpdateCertificates={updateCertificates}
             onCreateProjectFromBidding={handleCreateProjectFromBidding}
+          />
+        )}
+
+        {/* VIEW: FORNECEDORES */}
+        {viewMode === 'supplier-view' && (
+          <SupplierManager 
+            suppliers={suppliers}
+            onUpdateSuppliers={updateSuppliers}
           />
         )}
 

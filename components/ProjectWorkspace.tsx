@@ -9,16 +9,19 @@ import { AssetManager } from './AssetManager';
 import { PlanningView } from './PlanningView';
 import { JournalView } from './JournalView';
 import { PrintReport } from './PrintReport';
+import { PrintExpenseReport } from './PrintExpenseReport';
+import { PrintPlanningReport } from './PrintPlanningReport'; // Importação adicionada
 import { WorkItemModal } from './WorkItemModal';
 import { treeService } from '../services/treeService';
 import { projectService } from '../services/projectService';
+import { expenseService } from '../services/expenseService';
 import { planningService } from '../services/planningService';
 import { financial } from '../utils/math';
 import { 
   Layers, BarChart3, Coins, FileText, Sliders, 
   Undo2, Redo2, Lock, Calendar, BookOpen,
-  CheckCircle2, ArrowRight, History, ChevronDown, LockOpen, Target, HardHat,
-  RotateCcw, AlertTriangle, X as CloseIcon, Edit2
+  CheckCircle2, ArrowRight, History, Edit2, HardHat,
+  RotateCcw, AlertTriangle, LockOpen
 } from 'lucide-react';
 
 interface ProjectWorkspaceProps {
@@ -51,7 +54,6 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     setLocalName(project.name);
   }, [project.name]);
 
-  // Lógica de Drag-to-Scroll Refinada
   const scrollRef = useRef<HTMLDivElement>(null);
   const dragInfo = useRef({ isDragging: false, startX: 0, scrollLeft: 0, totalDelta: 0 });
 
@@ -67,12 +69,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
   const onMouseMove = (e: React.MouseEvent) => {
     if (!dragInfo.current.isDragging || !scrollRef.current) return;
-    
     const x = e.pageX - scrollRef.current.offsetLeft;
     const walk = (x - dragInfo.current.startX);
     dragInfo.current.totalDelta = Math.abs(walk);
-    
-    // Só move o scroll se o delta for significativo para evitar micro-movimentos que anulam o clique
     if (dragInfo.current.totalDelta > 5) {
       scrollRef.current.scrollLeft = dragInfo.current.scrollLeft - walk;
     }
@@ -82,7 +81,6 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     dragInfo.current.isDragging = false;
   };
 
-  // Previne o clique se o usuário estiver arrastando
   const handleTabClick = (e: React.MouseEvent, targetTab: typeof tab) => {
     if (dragInfo.current.totalDelta > 10) {
       e.preventDefault();
@@ -105,6 +103,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     const stats = treeService.calculateBasicStats(activeItems, project.bdi, project);
     return { flattened, stats };
   }, [activeItems, project, project.bdi]);
+
+  const expenseStats = useMemo(() => expenseService.getExpenseStats(project.expenses), [project.expenses]);
 
   const isViewingHistory = viewingHistoryIndex !== null;
 
@@ -158,7 +158,6 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     <>
       <div className="flex-1 flex flex-col overflow-hidden no-print">
         <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex flex-col shrink-0 z-40">
-          
           <div className="flex flex-col md:flex-row items-center justify-between px-6 md:px-10 py-4 gap-4">
             <div className="flex-1 min-w-0 group relative w-full md:w-auto">
               <input 
@@ -229,7 +228,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                   <TabBtn active={tab === 'wbs'} onClick={(e: any) => handleTabClick(e, 'wbs')} label="Planilha" icon={<Layers size={14}/>} />
                   <TabBtn active={tab === 'stats'} onClick={(e: any) => handleTabClick(e, 'stats')} label="Análise" icon={<BarChart3 size={14}/>} />
                   <TabBtn active={tab === 'expenses'} onClick={(e: any) => handleTabClick(e, 'expenses')} label="Financeiro" icon={<Coins size={14}/>} />
-                  <TabBtn active={tab === 'planning'} onClick={(e: any) => handleTabClick(e, 'planning')} label="Planejamento" icon={<Calendar size={14}/>} />
+                  <TabBtn active={tab === 'planning'} onClick={(e: any) => handleTabClick(e, 'planning')} label="Canteiro" icon={<HardHat size={14}/>} />
                   <TabBtn active={tab === 'journal'} onClick={(e: any) => handleTabClick(e, 'journal')} label="Diário" icon={<BookOpen size={14}/>} />
                   <TabBtn active={tab === 'documents'} onClick={(e: any) => handleTabClick(e, 'documents')} label="Docs" icon={<FileText size={14}/>} />
                   <TabBtn active={tab === 'branding'} onClick={(e: any) => handleTabClick(e, 'branding')} label="Ajustes" icon={<Sliders size={14}/>} />
@@ -329,14 +328,31 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         </div>
       </div>
 
-      <PrintReport 
-        project={project} 
-        companyName={project.companyName || globalSettings.defaultCompanyName}
-        companyCnpj={project.companyCnpj || globalSettings.companyCnpj}
-        data={printData.flattened} 
-        expenses={project.expenses} 
-        stats={printData.stats as any} 
-      />
+      {/* RENDERIZAÇÃO CONDICIONAL DOS RELATÓRIOS PARA IMPRESSÃO */}
+      {tab === 'expenses' && (
+        <PrintExpenseReport 
+          project={project}
+          expenses={project.expenses}
+          stats={expenseStats}
+        />
+      )}
+      
+      {tab === 'planning' && (
+        <PrintPlanningReport 
+          project={project}
+        />
+      )}
+
+      {(tab === 'wbs' || tab === 'stats' || tab === 'journal' || tab === 'documents' || tab === 'branding') && (
+        <PrintReport 
+          project={project} 
+          companyName={project.companyName || globalSettings.defaultCompanyName}
+          companyCnpj={project.companyCnpj || globalSettings.companyCnpj}
+          data={printData.flattened} 
+          expenses={project.expenses} 
+          stats={printData.stats as any} 
+        />
+      )}
 
       {showConfirmClose && (
         <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
