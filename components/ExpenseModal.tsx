@@ -147,7 +147,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
             )}
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              <div className="lg:col-span-7 space-y-6">
+              <div className={isCategory ? "lg:col-span-12 space-y-6" : "lg:col-span-7 space-y-6"}>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -176,8 +176,8 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                       onChange={e => setFormData({ ...formData, status: e.target.value as ExpenseStatus })}
                     >
                       <option value="PENDING">Pendente</option>
-                      <option value="PAID">Pago / Liquidado</option>
-                      <option value="DELIVERED">Entregue / Concluído</option>
+                      {!isRevenue && <option value="PAID">Pago / Liquidado</option>}
+                      <option value="DELIVERED">{isRevenue ? 'Entregue' : 'Entregue / Concluído'}</option>
                     </select>
                   </div>
                 </div>
@@ -248,31 +248,35 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                 )}
               </div>
 
-              <div className="lg:col-span-5 bg-slate-50 dark:bg-slate-800/60 p-6 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 space-y-6">
-                <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-3 mb-2">
-                  <ClipboardCheck size={18} className="text-indigo-500" />
-                  <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Compliance (Opcional)</h3>
-                </div>
+              {!isCategory && (
+                <div className="lg:col-span-5 bg-slate-50 dark:bg-slate-800/60 p-6 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 space-y-6">
+                  <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-3 mb-2">
+                    <ClipboardCheck size={18} className="text-indigo-500" />
+                    <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Compliance (Opcional)</h3>
+                  </div>
 
-                <ExpenseAttachmentZone
-                  label="1. Comprovante de Pagamento"
-                  requiredStatus="PAID"
-                  currentFile={formData.paymentProof}
-                  onUpload={(base64) => setFormData({ ...formData, paymentProof: base64 })}
-                  onRemove={() => setFormData({ ...formData, paymentProof: undefined })}
-                />
+                  {!isRevenue && (
+                    <ExpenseAttachmentZone
+                      label="1. Comprovante de Pagamento"
+                      requiredStatus="PAID"
+                      currentFile={formData.paymentProof}
+                      onUpload={(base64) => setFormData({ ...formData, paymentProof: base64 })}
+                      onRemove={() => setFormData({ ...formData, paymentProof: undefined })}
+                    />
+                  )}
 
-                <ExpenseAttachmentZone
-                  label="2. Nota Fiscal / Fatura"
-                  requiredStatus="DELIVERED"
-                  currentFile={formData.invoiceDoc}
-                  onUpload={(base64) => setFormData({ ...formData, invoiceDoc: base64 })}
-                  onRemove={() => setFormData({ ...formData, invoiceDoc: undefined })}
-                />
+                  <ExpenseAttachmentZone
+                    label={isRevenue ? "1. Nota Fiscal / Comprovante" : "2. Nota Fiscal / Fatura"}
+                    requiredStatus="DELIVERED"
+                    currentFile={formData.invoiceDoc}
+                    onUpload={(base64) => setFormData({ ...formData, invoiceDoc: base64 })}
+                    onRemove={() => setFormData({ ...formData, invoiceDoc: undefined })}
+                  />
 
-                {!isCategory && (
                   <div className="animate-in slide-in-from-top-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">Data de Entrega</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">
+                      {isRevenue ? 'Data de Faturamento' : 'Data de Entrega'}
+                    </label>
                     <input
                       type="date"
                       className="w-full px-5 py-3 rounded-xl border-2 border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-black outline-none"
@@ -280,8 +284,8 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                       onChange={e => setFormData({ ...formData, deliveryDate: e.target.value })}
                     />
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
 
