@@ -1,14 +1,15 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Project, PlanningTask, MaterialForecast, Milestone, WorkItem, TaskStatus, ProjectPlanning, ProjectExpense } from '../types';
 import { planningService } from '../services/planningService';
+import { excelService } from '../services/excelService';
 import { financial } from '../utils/math';
 import { 
   CheckCircle2, Circle, Clock, Package, Flag, Plus, 
   Trash2, Calendar, AlertCircle, ShoppingCart, Truck, Search,
   Wand2, ArrowUpRight, Ban, ListChecks, Boxes, Target,
   GripVertical, MoreVertical, Edit2, X, Save, Calculator, Wallet, Link,
-  ChevronUp, ChevronDown, List, CalendarDays, Filter, Users
+  ChevronUp, ChevronDown, List, CalendarDays, Filter, Users, Download, UploadCloud
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
@@ -27,6 +28,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   const [editingTask, setEditingTask] = useState<PlanningTask | null>(null);
   const [confirmingForecast, setConfirmingForecast] = useState<MaterialForecast | null>(null);
   const [isAddingTask, setIsAddingTask] = useState<TaskStatus | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // States for Milestones
   const [milestoneView, setMilestoneView] = useState<'list' | 'calendar'>('list');
@@ -84,6 +86,20 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     onUpdatePlanning(updated);
   };
 
+  const handleImportPlanning = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const imported = await excelService.parsePlanningExcel(file);
+      onUpdatePlanning(imported);
+      alert("Planejamento importado com sucesso!");
+    } catch (err) {
+      alert("Falha ao importar planejamento.");
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   const handleFinalizePurchase = (forecast: MaterialForecast, parentId: string | null) => {
     const expenseData = planningService.prepareExpenseFromForecast(forecast, parentId);
     onAddExpense(expenseData as ProjectExpense);
@@ -100,6 +116,8 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
+      <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx, .xls" onChange={handleImportPlanning} />
+      
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-8 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-xl">
         <div className="flex items-center gap-5">
           <div className="p-4 bg-indigo-600 rounded-[1.5rem] text-white shadow-xl shadow-indigo-500/20">
@@ -107,7 +125,12 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
           </div>
           <div>
             <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">Planejamento Operacional</h2>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1">Gestão Ágil de Canteiro</p>
+            <div className="flex items-center gap-2 mt-1">
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Gestão Ágil de Canteiro</p>
+              <div className="h-3 w-px bg-slate-200 dark:bg-slate-700 mx-1" />
+              <button onClick={() => excelService.exportPlanningToExcel(project)} className="text-[9px] font-black uppercase text-indigo-600 flex items-center gap-1 hover:underline"><Download size={12}/> Exportar</button>
+              <button onClick={() => fileInputRef.current?.click()} className="text-[9px] font-black uppercase text-indigo-600 flex items-center gap-1 hover:underline ml-2"><UploadCloud size={12}/> Importar</button>
+            </div>
           </div>
         </div>
 

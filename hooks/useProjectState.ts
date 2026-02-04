@@ -23,10 +23,12 @@ const INITIAL_SETTINGS: GlobalSettings = {
   certificates: []
 };
 
+// Fix: Add missing 'schedule' property to INITIAL_PLANNING to match ProjectPlanning interface
 const INITIAL_PLANNING: ProjectPlanning = {
   tasks: [],
   forecasts: [],
-  milestones: []
+  milestones: [],
+  schedule: {}
 };
 
 const INITIAL_JOURNAL: ProjectJournal = {

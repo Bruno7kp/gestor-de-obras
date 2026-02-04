@@ -40,73 +40,20 @@ export interface WorkItem {
   children?: WorkItem[];
 }
 
-export type PDFBoxTheme = {
-  bg: string;
-  text: string;
-};
-
-export interface PDFTheme {
-  fontFamily: 'Inter' | 'Roboto' | 'JetBrains Mono' | 'Merriweather';
-  primary: string; 
-  accent: string;  
-  accentText: string;
-  border: string;
-  currencySymbol: string;
-  header: PDFBoxTheme;
-  category: PDFBoxTheme;
-  footer: PDFBoxTheme;
-  kpiHighlight: PDFBoxTheme;
+export interface PeriodDistribution {
+  plannedPercent: number; // % física planejada (0-100)
+  actualPercent?: number;  // % física realizada (0-100)
 }
 
-export interface MeasurementSnapshot {
-  measurementNumber: number;
-  date: string;
-  items: WorkItem[];
-  totals: {
-    contract: number;
-    period: number;
-    accumulated: number;
-    progress: number;
-  };
-}
-
-export interface ProjectAsset {
-  id: string;
-  name: string;
-  fileType: string;
-  fileSize: number;
-  uploadDate: string;
-  data: string; 
-}
-
-export type ExpenseType = 'labor' | 'material' | 'revenue';
-
-export interface ProjectExpense {
-  id: string;
-  parentId: string | null;
-  type: ExpenseType; 
-  itemType: ItemType; 
-  wbs: string;
-  order: number;
-  date: string; 
-  paymentDate?: string; 
-  description: string; 
-  entityName: string; 
-  unit: string;
-  quantity: number;
-  unitPrice: number;
-  discountValue?: number;
-  discountPercentage?: number;
-  amount: number; 
-  isPaid?: boolean; 
-  linkedWorkItemId?: string;
-  children?: ProjectExpense[];
+export interface ItemSchedule {
+  [period: string]: PeriodDistribution; // Key: "YYYY-MM"
 }
 
 export interface ProjectPlanning {
   tasks: PlanningTask[];
   forecasts: MaterialForecast[];
   milestones: Milestone[];
+  schedule: { [workItemId: string]: ItemSchedule }; // Distribuição por item
 }
 
 export type TaskStatus = 'todo' | 'doing' | 'done';
@@ -244,4 +191,67 @@ export interface Project {
     printSubtotals: boolean;
     showSignatures: boolean;
   };
+}
+
+export type PDFBoxTheme = {
+  bg: string;
+  text: string;
+};
+
+export interface PDFTheme {
+  fontFamily: 'Inter' | 'Roboto' | 'JetBrains Mono' | 'Merriweather';
+  primary: string; 
+  accent: string;  
+  accentText: string;
+  border: string;
+  currencySymbol: string;
+  header: PDFBoxTheme;
+  category: PDFBoxTheme;
+  footer: PDFBoxTheme;
+  kpiHighlight: PDFBoxTheme;
+}
+
+export interface MeasurementSnapshot {
+  measurementNumber: number;
+  date: string;
+  items: WorkItem[];
+  totals: {
+    contract: number;
+    period: number;
+    accumulated: number;
+    progress: number;
+  };
+}
+
+export interface ProjectAsset {
+  id: string;
+  name: string;
+  fileType: string;
+  fileSize: number;
+  uploadDate: string;
+  data: string; 
+}
+
+export type ExpenseType = 'labor' | 'material' | 'revenue';
+
+export interface ProjectExpense {
+  id: string;
+  parentId: string | null;
+  type: ExpenseType; 
+  itemType: ItemType; 
+  wbs: string;
+  order: number;
+  date: string; 
+  paymentDate?: string; 
+  description: string; 
+  entityName: string; 
+  unit: string;
+  quantity: number;
+  unitPrice: number;
+  discountValue?: number;
+  discountPercentage?: number;
+  amount: number; 
+  isPaid?: boolean; 
+  linkedWorkItemId?: string;
+  children?: ProjectExpense[];
 }

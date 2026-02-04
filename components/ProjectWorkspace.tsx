@@ -8,17 +8,21 @@ import { ExpenseManager } from './ExpenseManager';
 import { AssetManager } from './AssetManager';
 import { PlanningView } from './PlanningView';
 import { JournalView } from './JournalView';
+import { CostLinkingView } from './CostLinkingView';
+import { PhysicalScheduleView } from './PhysicalScheduleView';
 import { PrintReport } from './PrintReport';
+import { PrintExpenseReport } from './PrintExpenseReport';
 import { WorkItemModal } from './WorkItemModal';
 import { treeService } from '../services/treeService';
 import { projectService } from '../services/projectService';
+import { expenseService } from '../services/expenseService';
 import { planningService } from '../services/planningService';
 import { financial } from '../utils/math';
 import { 
   Layers, BarChart3, Coins, FileText, Sliders, 
   Undo2, Redo2, Lock, Calendar, BookOpen,
   CheckCircle2, ArrowRight, History, ChevronDown, LockOpen, Target, HardHat,
-  RotateCcw, AlertTriangle, X as CloseIcon, Edit2
+  RotateCcw, AlertTriangle, X as CloseIcon, Edit2, Link2, Printer, CalendarDays
 } from 'lucide-react';
 
 interface ProjectWorkspaceProps {
@@ -35,7 +39,7 @@ interface ProjectWorkspaceProps {
 export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   project, globalSettings, onUpdateProject, onCloseMeasurement, canUndo, canRedo, onUndo, onRedo
 }) => {
-  const [tab, setTab] = useState<'wbs' | 'stats' | 'expenses' | 'planning' | 'journal' | 'documents' | 'branding'>('wbs');
+  const [tab, setTab] = useState<'wbs' | 'stats' | 'expenses' | 'linking' | 'schedule' | 'planning' | 'journal' | 'documents' | 'branding'>('wbs');
   const [viewingHistoryIndex, setViewingHistoryIndex] = useState<number | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showConfirmClose, setShowConfirmClose] = useState(false);
@@ -72,7 +76,6 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     const walk = (x - dragInfo.current.startX);
     dragInfo.current.totalDelta = Math.abs(walk);
     
-    // Só move o scroll se o delta for significativo para evitar micro-movimentos que anulam o clique
     if (dragInfo.current.totalDelta > 5) {
       scrollRef.current.scrollLeft = dragInfo.current.scrollLeft - walk;
     }
@@ -82,7 +85,6 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     dragInfo.current.isDragging = false;
   };
 
-  // Previne o clique se o usuário estiver arrastando
   const handleTabClick = (e: React.MouseEvent, targetTab: typeof tab) => {
     if (dragInfo.current.totalDelta > 10) {
       e.preventDefault();
@@ -105,6 +107,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     const stats = treeService.calculateBasicStats(activeItems, project.bdi, project);
     return { flattened, stats };
   }, [activeItems, project, project.bdi]);
+
+  const expenseStats = useMemo(() => expenseService.getExpenseStats(project.expenses), [project.expenses]);
 
   const isViewingHistory = viewingHistoryIndex !== null;
 
@@ -174,6 +178,15 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
             </div>
 
             <div className="flex items-center gap-3 shrink-0">
+              {tab === 'expenses' && (
+                <button 
+                  onClick={() => window.print()}
+                  className="flex items-center gap-2 px-5 py-3 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700 shadow-sm hover:bg-slate-50 transition-all"
+                >
+                  <Printer size={14} /> Relatório Financeiro
+                </button>
+              )}
+
               <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
                 <button disabled={!canUndo || isViewingHistory} onClick={onUndo} className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded-lg disabled:opacity-30 transition-all"><Undo2 size={16}/></button>
                 <button disabled={!canRedo || isViewingHistory} onClick={onRedo} className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded-lg disabled:opacity-30 transition-all"><Redo2 size={16}/></button>
@@ -229,7 +242,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                   <TabBtn active={tab === 'wbs'} onClick={(e: any) => handleTabClick(e, 'wbs')} label="Planilha" icon={<Layers size={14}/>} />
                   <TabBtn active={tab === 'stats'} onClick={(e: any) => handleTabClick(e, 'stats')} label="Análise" icon={<BarChart3 size={14}/>} />
                   <TabBtn active={tab === 'expenses'} onClick={(e: any) => handleTabClick(e, 'expenses')} label="Financeiro" icon={<Coins size={14}/>} />
-                  <TabBtn active={tab === 'planning'} onClick={(e: any) => handleTabClick(e, 'planning')} label="Planejamento" icon={<Calendar size={14}/>} />
+                  <TabBtn active={tab === 'linking'} onClick={(e: any) => handleTabClick(e, 'linking')} label="Conciliação" icon={<Link2 size={14}/>} />
+                  <TabBtn active={tab === 'schedule'} onClick={(e: any) => handleTabClick(e, 'schedule')} label="Cronograma" icon={<CalendarDays size={14}/>} />
+                  <TabBtn active={tab === 'planning'} onClick={(e: any) => handleTabClick(e, 'planning')} label="Canteiro" icon={<HardHat size={14}/>} />
                   <TabBtn active={tab === 'journal'} onClick={(e: any) => handleTabClick(e, 'journal')} label="Diário" icon={<BookOpen size={14}/>} />
                   <TabBtn active={tab === 'documents'} onClick={(e: any) => handleTabClick(e, 'documents')} label="Docs" icon={<FileText size={14}/>} />
                   <TabBtn active={tab === 'branding'} onClick={(e: any) => handleTabClick(e, 'branding')} label="Ajustes" icon={<Sliders size={14}/>} />
@@ -296,6 +311,18 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                 onUpdateExpenses={newExpenses => onUpdateProject({ expenses: newExpenses })}
               />
             )}
+            {tab === 'linking' && (
+              <CostLinkingView 
+                project={project}
+                onUpdateProject={onUpdateProject}
+              />
+            )}
+            {tab === 'schedule' && (
+              <PhysicalScheduleView 
+                project={project}
+                onUpdatePlanning={p => onUpdateProject({ planning: p })}
+              />
+            )}
             {tab === 'planning' && (
               <PlanningView 
                 project={project} 
@@ -336,6 +363,12 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         data={printData.flattened} 
         expenses={project.expenses} 
         stats={printData.stats as any} 
+      />
+
+      <PrintExpenseReport 
+        project={project}
+        expenses={project.expenses}
+        stats={expenseStats}
       />
 
       {showConfirmClose && (

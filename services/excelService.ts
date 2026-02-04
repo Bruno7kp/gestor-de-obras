@@ -1,5 +1,6 @@
+
 import * as XLSX from 'xlsx';
-import { WorkItem, ItemType, Project, ProjectExpense, ExpenseType } from '../types';
+import { WorkItem, ItemType, Project, ProjectExpense, ExpenseType, ProjectPlanning, PlanningTask, MaterialForecast, Milestone } from '../types';
 import { financial } from '../utils/math';
 import { treeService } from './treeService';
 
@@ -112,6 +113,89 @@ export const excelService = {
     const ws = XLSX.utils.aoa_to_sheet([WBS_HEADERS, ...rows]);
     XLSX.utils.book_append_sheet(wb, ws, "Planilha_de_Medicao");
     XLSX.writeFile(wb, `EAP_Medicao_${project.name}.xlsx`);
+  },
+
+  exportPlanningToExcel: (project: Project) => {
+    const wb = XLSX.utils.book_new();
+    const { tasks, forecasts, milestones } = project.planning;
+
+    const taskData = tasks.map(t => [t.description, t.status, t.dueDate, t.isCompleted ? "SIM" : "NÃO"]);
+    const forecastData = forecasts.map(f => [f.description, f.unit, f.quantityNeeded, f.unitPrice, f.estimatedDate, f.status]);
+    const milestoneData = milestones.map(m => [m.title, m.date, m.isCompleted ? "SIM" : "NÃO"]);
+
+    const wsTasks = XLSX.utils.aoa_to_sheet([["DESCRICAO", "STATUS", "VENCIMENTO", "CONCLUIDO"], ...taskData]);
+    const wsForecasts = XLSX.utils.aoa_to_sheet([["MATERIAL", "UND", "QNT", "PRECO_UNIT", "DATA_COMPRA", "STATUS"], ...forecastData]);
+    const wsMilestones = XLSX.utils.aoa_to_sheet([["TITULO", "DATA_META", "CONCLUIDA"], ...milestoneData]);
+
+    XLSX.utils.book_append_sheet(wb, wsTasks, "Tarefas");
+    XLSX.utils.book_append_sheet(wb, wsForecasts, "Suprimentos");
+    XLSX.utils.book_append_sheet(wb, wsMilestones, "Cronograma");
+
+    XLSX.writeFile(wb, `Planejamento_${project.name}.xlsx`);
+  },
+
+  parsePlanningExcel: async (file: File): Promise<ProjectPlanning> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const buffer = e.target?.result;
+          const data = new Uint8Array(buffer as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+          
+          const tasks: PlanningTask[] = [];
+          const forecasts: MaterialForecast[] = [];
+          const milestones: Milestone[] = [];
+
+          if (workbook.Sheets["Tarefas"]) {
+            const raw: any[] = XLSX.utils.sheet_to_json(workbook.Sheets["Tarefas"]);
+            raw.forEach((r, idx) => {
+              tasks.push({
+                id: crypto.randomUUID(),
+                categoryId: null,
+                description: String(r.DESCRICAO || ""),
+                status: (r.STATUS || "todo") as any,
+                dueDate: r.VENCIMENTO instanceof Date ? r.VENCIMENTO.toISOString() : new Date().toISOString(),
+                isCompleted: String(r.CONCLUIDO).toUpperCase() === "SIM",
+                createdAt: new Date().toISOString()
+              });
+            });
+          }
+
+          if (workbook.Sheets["Suprimentos"]) {
+            const raw: any[] = XLSX.utils.sheet_to_json(workbook.Sheets["Suprimentos"]);
+            raw.forEach((r, idx) => {
+              forecasts.push({
+                id: crypto.randomUUID(),
+                description: String(r.MATERIAL || ""),
+                unit: String(r.UND || "un"),
+                quantityNeeded: parseVal(r.QNT),
+                unitPrice: parseVal(r.PRECO_UNIT),
+                estimatedDate: r.DATA_COMPRA instanceof Date ? r.DATA_COMPRA.toISOString() : new Date().toISOString(),
+                status: (r.STATUS || "pending") as any,
+                order: idx
+              });
+            });
+          }
+
+          if (workbook.Sheets["Cronograma"]) {
+            const raw: any[] = XLSX.utils.sheet_to_json(workbook.Sheets["Cronograma"]);
+            raw.forEach((r) => {
+              milestones.push({
+                id: crypto.randomUUID(),
+                title: String(r.TITULO || ""),
+                date: r.DATA_META instanceof Date ? r.DATA_META.toISOString() : new Date().toISOString(),
+                isCompleted: String(r.CONCLUIDA).toUpperCase() === "SIM"
+              });
+            });
+          }
+
+          // Fix: Include missing 'schedule' property to satisfy ProjectPlanning interface
+          resolve({ tasks, forecasts, milestones, schedule: {} });
+        } catch (err) { reject(err); }
+      };
+      reader.readAsArrayBuffer(file);
+    });
   },
 
   parseAndValidate: async (file: File): Promise<ImportResult> => {

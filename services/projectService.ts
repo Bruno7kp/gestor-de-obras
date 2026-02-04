@@ -26,10 +26,12 @@ export const projectService = {
     bdi: 25,
     assets: [],
     expenses: [],
+    // Fix: Add missing 'schedule' property to planning object initialization
     planning: {
       tasks: [],
       forecasts: [],
-      milestones: []
+      milestones: [],
+      schedule: {}
     },
     journal: {
       entries: []
