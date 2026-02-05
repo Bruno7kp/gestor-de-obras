@@ -274,12 +274,12 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                         {isRevenue && (
                           <div className="col-span-2 grid grid-cols-2 gap-6 pt-4 border-t border-slate-100 dark:border-slate-800">
                             <div>
-                              <label className="text-[9px] font-black text-emerald-600 uppercase mb-2 block text-center">ISS (%)</label>
-                              <input className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-emerald-100 dark:border-emerald-900/30 text-xs font-black text-right text-emerald-600 outline-none" value={strIssPercent} onChange={e => handleNumericChange(e.target.value, setStrIssPercent, 'issPct')} />
+                              <label className="text-[9px] font-black text-rose-600 uppercase mb-2 block text-center">ISS (%)</label>
+                              <input className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-900/30 text-xs font-black text-right text-rose-600 outline-none" value={strIssPercent} onChange={e => handleNumericChange(e.target.value, setStrIssPercent, 'issPct')} />
                             </div>
                             <div>
-                              <label className="text-[9px] font-black text-emerald-600 uppercase mb-2 block text-center">ISS (R$)</label>
-                              <input className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-emerald-100 dark:border-emerald-900/30 text-xs font-black text-right text-emerald-600 outline-none" value={strIssValue} onChange={e => handleNumericChange(e.target.value, setStrIssValue, 'issVal')} />
+                              <label className="text-[9px] font-black text-rose-600 uppercase mb-2 block text-center">ISS (R$)</label>
+                              <input className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-900/30 text-xs font-black text-right text-rose-600 outline-none" value={strIssValue} onChange={e => handleNumericChange(e.target.value, setStrIssValue, 'issVal')} />
                             </div>
                           </div>
                         )}
