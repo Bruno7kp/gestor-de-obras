@@ -4,7 +4,7 @@ import { Project, GlobalSettings, WorkItem, MeasurementSnapshot } from '../types
 import {
   Layers, BarChart3, Coins, Users, HardHat, BookOpen, FileText, Sliders,
   ChevronLeft, CheckCircle2, Printer, History, Calendar, Lock, ChevronDown,
-  ArrowRight, Clock, Undo2, Redo2
+  ArrowRight, Clock, Undo2, Redo2, RotateCcw
 } from 'lucide-react';
 import { WbsView } from './WbsView';
 import { StatsView } from './StatsView';
@@ -16,6 +16,7 @@ import { AssetManager } from './AssetManager';
 import { BrandingView } from './BrandingView';
 import { WorkItemModal } from './WorkItemModal';
 import { treeService } from '../services/treeService';
+import { projectService } from '../services/projectService';
 
 interface ProjectWorkspaceProps {
   project: Project;
@@ -98,6 +99,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     }
   };
 
+  const handleReopenMeasurement = () => {
+    if (window.confirm("Atenção: Ao reabrir a última medição, o snapshot atual será removido e as quantidades voltaram para o estado anterior ao fechamento. Continuar?")) {
+      const updated = projectService.reopenLatestMeasurement(project);
+      onUpdateProject(updated);
+    }
+  };
+
   const TabBtn: React.FC<{ active: boolean; id: TabID; label: string; icon: React.ReactNode }> = ({ active, id, label, icon }) => (
     <button onMouseUp={() => handleTabClick(id)} className={`flex items-center gap-2.5 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0 select-none cursor-pointer ${active ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'bg-white dark:bg-slate-900 text-slate-500 hover:text-indigo-600 border border-slate-200 dark:border-slate-800'} ${isDraggingState ? 'pointer-events-none' : ''}`}>
       <span className={active ? 'text-white' : 'text-slate-400'}>{icon}</span>
@@ -132,7 +140,6 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          {/* BOTÕES DE UNDO/REDO ADICIONADOS */}
           {!isHistoryMode && (
             <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl mr-2 border border-slate-200 dark:border-slate-700 shadow-inner">
               <button
@@ -155,9 +162,16 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           )}
 
           {!isHistoryMode ? (
-            <button onClick={() => { if (window.confirm("CONFIRMAÇÃO CRÍTICA: Deseja encerrar o período atual? Isso irá gerar um snapshot histórico e limpar as quantidades medidas para o próximo período.")) { onCloseMeasurement(); } }} className="flex items-center gap-2 px-6 py-3.5 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-500/20">
-              <CheckCircle2 size={16} /> Encerrar Período
-            </button>
+            <div className="flex items-center gap-2">
+              {project.history && project.history.length > 0 && (
+                <button onClick={handleReopenMeasurement} className="flex items-center gap-2 px-5 py-3.5 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm">
+                  <RotateCcw size={16} /> Reabrir Medição
+                </button>
+              )}
+              <button onClick={() => { if (window.confirm("CONFIRMAÇÃO CRÍTICA: Deseja encerrar o período atual? Isso irá gerar um snapshot histórico e limpar as quantidades medidas para o próximo período.")) { onCloseMeasurement(); } }} className="flex items-center gap-2 px-6 py-3.5 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-500/20">
+                <CheckCircle2 size={16} /> Encerrar Período
+              </button>
+            </div>
           ) : (
             <button onClick={() => setViewingMeasurementId('current')} className="flex items-center gap-2 px-6 py-3.5 bg-white border-2 border-amber-400 text-amber-700 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-50 active:scale-95 transition-all shadow-sm">
               <ArrowRight size={16} /> Voltar ao Período Aberto
