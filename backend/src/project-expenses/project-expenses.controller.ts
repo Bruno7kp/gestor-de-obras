@@ -1,0 +1,65 @@
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { ProjectExpensesService } from './project-expenses.service';
+import { Roles } from '../auth/roles.decorator';
+
+interface CreateExpenseBody {
+  projectId: string;
+  parentId?: string | null;
+  type: string;
+  itemType: string;
+  wbs?: string;
+  order?: number;
+  date: string;
+  description: string;
+  entityName: string;
+  unit: string;
+  quantity: number;
+  unitPrice: number;
+  amount: number;
+  isPaid?: boolean;
+  status?: string;
+  paymentDate?: string;
+  paymentProof?: string;
+  invoiceDoc?: string;
+  deliveryDate?: string;
+  discountValue?: number;
+  discountPercentage?: number;
+  linkedWorkItemId?: string;
+}
+
+type UpdateExpenseBody = Partial<CreateExpenseBody>;
+
+@Controller('project-expenses')
+@UseGuards(AuthGuard('jwt'))
+@Roles('USER', 'ADMIN', 'SUPER_ADMIN')
+export class ProjectExpensesController {
+  constructor(private readonly projectExpensesService: ProjectExpensesService) {}
+
+  @Get()
+  findAll(@Query('projectId') projectId: string, @Req() req: any) {
+    return this.projectExpensesService.findAll(projectId, req.user.instanceId);
+  }
+
+  @Post()
+  create(@Body() body: CreateExpenseBody, @Req() req: any) {
+    return this.projectExpensesService.create({
+      ...body,
+      instanceId: req.user.instanceId,
+    });
+  }
+
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() body: UpdateExpenseBody, @Req() req: any) {
+    return this.projectExpensesService.update({
+      ...body,
+      id,
+      instanceId: req.user.instanceId,
+    });
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string, @Req() req: any) {
+    return this.projectExpensesService.remove(id, req.user.instanceId);
+  }
+}
