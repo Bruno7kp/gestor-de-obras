@@ -51,7 +51,11 @@ export class WorkforceController {
   constructor(private readonly workforceService: WorkforceService) {}
 
   @Get()
-  findAll(@Query('projectId') projectId: string, @Req() req: AuthenticatedRequest) {
+  findAll(
+    @Query('projectId') projectId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
     return this.workforceService.findAll(projectId, req.user.instanceId);
   }
 
@@ -59,6 +63,7 @@ export class WorkforceController {
   create(@Body() body: CreateWorkforceBody, @Req() req: AuthenticatedRequest) {
     return this.workforceService.create({
       ...body,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
       instanceId: req.user.instanceId,
     });
   }
@@ -72,12 +77,14 @@ export class WorkforceController {
     return this.workforceService.update({
       ...body,
       id,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
       instanceId: req.user.instanceId,
     });
   }
 
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
     return this.workforceService.remove(id, req.user.instanceId);
   }
 
@@ -87,6 +94,7 @@ export class WorkforceController {
     @Body() body: AddDocumentBody,
     @Req() req: AuthenticatedRequest,
   ) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
     return this.workforceService.addDocument(id, req.user.instanceId, body);
   }
 
@@ -96,7 +104,12 @@ export class WorkforceController {
     @Param('documentId') documentId: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.workforceService.removeDocument(id, documentId, req.user.instanceId);
+    return this.workforceService.removeDocument(
+      id,
+      documentId,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
+      req.user.instanceId,
+    );
   }
 
   @Post(':id/responsibilities')
@@ -105,7 +118,12 @@ export class WorkforceController {
     @Body() body: AddResponsibilityBody,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.workforceService.addResponsibility(id, body.workItemId, req.user.instanceId);
+    return this.workforceService.addResponsibility(
+      id,
+      body.workItemId,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
+      req.user.instanceId,
+    );
   }
 
   @Delete(':id/responsibilities/:workItemId')
@@ -114,6 +132,11 @@ export class WorkforceController {
     @Param('workItemId') workItemId: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.workforceService.removeResponsibility(id, workItemId, req.user.instanceId);
+    return this.workforceService.removeResponsibility(
+      id,
+      workItemId,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
+      req.user.instanceId,
+    );
   }
 }

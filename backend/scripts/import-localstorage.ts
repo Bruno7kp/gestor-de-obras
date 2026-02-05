@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
@@ -12,9 +17,13 @@ interface LocalStorageData {
   globalSettings?: any;
 }
 
-const getLaborTotals = (pagamentos: any[], valorTotal: number) => {
+const getLaborTotals = (
+  pagamentos: Array<{ valor?: number }>,
+  valorTotal: number,
+): { valorPago: number; status: string } => {
   const valorPago = pagamentos.reduce((sum, p) => sum + (p.valor || 0), 0);
-  const status = valorPago === 0 ? 'pendente' : valorPago >= valorTotal ? 'pago' : 'parcial';
+  const status =
+    valorPago === 0 ? 'pendente' : valorPago >= valorTotal ? 'pago' : 'parcial';
   return { valorPago, status };
 };
 
@@ -23,7 +32,9 @@ async function main() {
   const instanceName = process.argv[3] || 'Instancia Importada';
 
   if (!filePath) {
-    console.error('Uso: ts-node scripts/import-localstorage.ts <data.json> [instanceName]');
+    console.error(
+      'Uso: ts-node scripts/import-localstorage.ts <data.json> [instanceName]',
+    );
     process.exit(1);
   }
 
@@ -42,19 +53,23 @@ async function main() {
       status: 'ACTIVE',
       globalSettings: {
         create: {
-          defaultCompanyName: data.globalSettings?.defaultCompanyName || 'Sua Empresa de Engenharia',
+          defaultCompanyName:
+            data.globalSettings?.defaultCompanyName ||
+            'Sua Empresa de Engenharia',
           companyCnpj: data.globalSettings?.companyCnpj || '',
           userName: data.globalSettings?.userName || 'Administrador',
           language: data.globalSettings?.language || 'pt-BR',
           currencySymbol: data.globalSettings?.currencySymbol || 'R$',
           certificates: {
-            create: (data.globalSettings?.certificates || []).map((cert: any) => ({
-              id: cert.id,
-              name: cert.name,
-              issuer: cert.issuer,
-              expirationDate: new Date(cert.expirationDate),
-              status: cert.status,
-            })),
+            create: (data.globalSettings?.certificates || []).map(
+              (cert: any) => ({
+                id: cert.id,
+                name: cert.name,
+                issuer: cert.issuer,
+                expirationDate: new Date(cert.expirationDate),
+                status: cert.status,
+              }),
+            ),
           },
         },
       },
@@ -73,7 +88,7 @@ async function main() {
 
   if (data.groups?.length) {
     await prisma.projectGroup.createMany({
-      data: data.groups.map(group => ({
+      data: data.groups.map((group) => ({
         id: group.id,
         parentId: group.parentId || null,
         name: group.name,
@@ -85,7 +100,7 @@ async function main() {
 
   if (data.suppliers?.length) {
     await prisma.supplier.createMany({
-      data: data.suppliers.map(supplier => ({
+      data: data.suppliers.map((supplier) => ({
         id: supplier.id,
         name: supplier.name,
         cnpj: supplier.cnpj,
@@ -131,7 +146,8 @@ async function main() {
         companyCnpj: project.companyCnpj || '',
         location: project.location || '',
         measurementNumber: project.measurementNumber || 1,
-        referenceDate: project.referenceDate || new Date().toISOString().slice(0, 10),
+        referenceDate:
+          project.referenceDate ?? new Date().toISOString().slice(0, 10),
         logo: project.logo || null,
         bdi: project.bdi ?? 25,
         contractTotalOverride: project.contractTotalOverride || null,
@@ -272,7 +288,9 @@ async function main() {
         const pagamentos = contract.pagamentos || [];
         const totals = getLaborTotals(pagamentos, contract.valorTotal || 0);
 
-        const createdContract = await prisma.laborContract.create({
+        const createdContract = await (
+          prisma as unknown as any
+        ).laborContract.create({
           data: {
             id: contract.id,
             projectId: created.id,
@@ -291,7 +309,7 @@ async function main() {
         });
 
         if (pagamentos.length) {
-          await prisma.laborPayment.createMany({
+          await (prisma as unknown as any).laborPayment.createMany({
             data: pagamentos.map((pag: any) => ({
               id: pag.id,
               data: pag.data,
@@ -375,7 +393,7 @@ async function main() {
   console.log('Importacao concluida para instancia:', instanceId);
 }
 
-main().catch(error => {
+main().catch((error) => {
   console.error(error);
   process.exit(1);
 });

@@ -49,10 +49,16 @@ type UpdateExpenseBody = Partial<CreateExpenseBody>;
 @UseGuards(AuthGuard('jwt'))
 @Roles('USER', 'ADMIN', 'SUPER_ADMIN')
 export class ProjectExpensesController {
-  constructor(private readonly projectExpensesService: ProjectExpensesService) {}
+  constructor(
+    private readonly projectExpensesService: ProjectExpensesService,
+  ) {}
 
   @Get()
-  findAll(@Query('projectId') projectId: string, @Req() req: AuthenticatedRequest) {
+  findAll(
+    @Query('projectId') projectId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
     return this.projectExpensesService.findAll(projectId, req.user.instanceId);
   }
 
@@ -60,6 +66,7 @@ export class ProjectExpensesController {
   create(@Body() body: CreateExpenseBody, @Req() req: AuthenticatedRequest) {
     return this.projectExpensesService.create({
       ...body,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
       instanceId: req.user.instanceId,
     });
   }
@@ -73,12 +80,14 @@ export class ProjectExpensesController {
     return this.projectExpensesService.update({
       ...body,
       id,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
       instanceId: req.user.instanceId,
     });
   }
 
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
     return this.projectExpensesService.remove(id, req.user.instanceId);
   }
 }

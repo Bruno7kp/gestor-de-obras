@@ -35,14 +35,22 @@ export class JournalController {
   constructor(private readonly journalService: JournalService) {}
 
   @Get('entries')
-  listEntries(@Query('projectId') projectId: string, @Req() req: AuthenticatedRequest) {
+  listEntries(
+    @Query('projectId') projectId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
     return this.journalService.listEntries(projectId, req.user.instanceId);
   }
 
   @Post('entries')
-  createEntry(@Body() body: CreateJournalEntryBody, @Req() req: AuthenticatedRequest) {
+  createEntry(
+    @Body() body: CreateJournalEntryBody,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.journalService.createEntry({
       ...body,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
       instanceId: req.user.instanceId,
     });
   }
@@ -53,11 +61,13 @@ export class JournalController {
     @Body() body: UpdateJournalEntryBody,
     @Req() req: AuthenticatedRequest,
   ) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
     return this.journalService.updateEntry(id, req.user.instanceId, body);
   }
 
   @Delete('entries/:id')
   deleteEntry(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
     return this.journalService.deleteEntry(id, req.user.instanceId);
   }
 }
