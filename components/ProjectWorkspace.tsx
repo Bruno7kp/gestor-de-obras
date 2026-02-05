@@ -83,7 +83,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
   const isHistoryMode = viewingMeasurementId !== 'current';
 
-  // O botão de reabrir aparece apenas se estivermos visualizando o snapshot mais recente (topo do histórico)
+  // REGRA DE OURO: Botão de reabrir APENAS no snapshot da medição anterior imediata
   const isLatestHistory = viewingMeasurementId !== 'current' &&
     project.history &&
     project.history.length > 0 &&
@@ -183,7 +183,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           ) : (
             <div className="flex items-center gap-2">
               {isLatestHistory && (
-                <button onClick={() => setIsReopenModalOpen(true)} className="flex items-center gap-2 px-5 py-3 bg-rose-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-700 active:scale-95 transition-all shadow-xl shadow-rose-500/20">
+                <button onClick={() => setIsReopenModalOpen(true)} className="flex items-center gap-2 px-5 py-3 bg-white border-2 border-rose-500 text-rose-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-50 transition-all shadow-sm">
                   <RotateCcw size={16} /> Reabrir Medição
                 </button>
               )}
@@ -225,100 +225,83 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
       <WorkItemModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSaveWorkItem} editingItem={editingItem} type={modalType} categories={treeService.flattenTree(treeService.buildTree(displayData.items.filter(i => i.type === 'category')), new Set(displayData.items.map(i => i.id)))} projectBdi={project.bdi} />
 
-      {/* MODAL DE CONFIRMAÇÃO DE FECHAMENTO */}
+      {/* MODAL DE FINALIZAR PERÍODO (BASEADO NA IMAGEM) */}
       {isClosingModalOpen && (
-        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={() => setIsClosingModalOpen(false)}>
-          <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-[3rem] p-10 shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden relative" onClick={e => e.stopPropagation()}>
-            <div className="absolute top-0 left-0 right-0 h-2 bg-indigo-600"></div>
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setIsClosingModalOpen(false)}>
+          <div className="bg-[#0f111a] w-full max-w-lg rounded-[3rem] p-12 shadow-2xl border border-slate-800/50 flex flex-col items-center text-center relative overflow-hidden" onClick={e => e.stopPropagation()}>
+            {/* Efeito de luz de fundo */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-indigo-500/10 blur-[100px] pointer-events-none"></div>
 
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 rounded-2xl"><Target size={24} /></div>
-                <div>
-                  <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Encerrar Medição Nº {project.measurementNumber}</h2>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Resumo de Fechamento de Período</p>
-                </div>
-              </div>
-              <button onClick={() => setIsClosingModalOpen(false)} className="p-2 text-slate-300 hover:text-slate-600"><X size={20} /></button>
-            </div>
-
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] border border-slate-100 dark:border-slate-800 text-center">
-                  <p className="text-[9px] font-black text-slate-400 uppercase mb-2">Total Medido Agora</p>
-                  <p className="text-lg font-black text-indigo-600">{financial.formatVisual(currentStats.current, project.theme?.currencySymbol)}</p>
-                </div>
-                <div className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] border border-slate-100 dark:border-slate-800 text-center">
-                  <p className="text-[9px] font-black text-slate-400 uppercase mb-2">Avanço Físico Global</p>
-                  <p className="text-lg font-black text-emerald-600">{currentStats.progress.toFixed(2)}%</p>
-                </div>
-              </div>
-
-              <div className="p-6 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-3xl flex gap-4">
-                <AlertTriangle className="text-amber-500 shrink-0" size={24} />
-                <div className="space-y-2">
-                  <p className="text-[11px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-widest">Aviso de Integridade</p>
-                  <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed font-medium">
-                    Esta ação irá transferir todas as quantidades deste período para o "Acumulado Anterior". Os dados serão salvos em um snapshot histórico e o período atual será reiniciado para a Medição Nº {project.measurementNumber + 1}.
-                  </p>
-                </div>
+            <div className="relative mb-10">
+              <div className="w-24 h-24 bg-slate-800/40 rounded-full flex items-center justify-center border border-slate-700/50">
+                <Lock size={36} className="text-indigo-500" />
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 mt-10">
-              <button onClick={() => setIsClosingModalOpen(false)} className="flex-1 py-4 text-slate-400 font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 rounded-2xl transition-all">Cancelar</button>
+            <h2 className="text-3xl font-black text-white uppercase tracking-tighter mb-6">Finalizar Período?</h2>
+
+            <div className="space-y-2 mb-12">
+              <p className="text-slate-400 text-lg font-medium leading-relaxed">
+                A medição <span className="text-white font-bold">#{project.measurementNumber}</span> será congelada no histórico.
+              </p>
+              <p className="text-slate-400 text-lg font-medium leading-relaxed">
+                O valor total faturado no período é <span className="text-white font-bold">{financial.formatVisual(currentStats.current, project.theme?.currencySymbol)}</span>.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-6 w-full">
+              <button
+                onClick={() => setIsClosingModalOpen(false)}
+                className="flex-1 py-4 text-slate-500 font-black uppercase text-xs tracking-widest hover:text-white transition-colors"
+              >
+                Voltar
+              </button>
               <button
                 onClick={() => { onCloseMeasurement(); setIsClosingModalOpen(false); }}
-                className="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-indigo-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                className="flex-[2] py-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-[0_10px_30px_-10px_rgba(79,70,229,0.5)] active:scale-95 transition-all"
               >
-                <CheckCircle2 size={18} /> Confirmar e Congelar
+                Confirmar e abrir próxima
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL DE CONFIRMAÇÃO DE REABERTURA (ESTORNO) */}
+      {/* MODAL DE REABERTURA (ESTORNO) - MESMO ESTILO */}
       {isReopenModalOpen && (
-        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={() => setIsReopenModalOpen(false)}>
-          <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-[3rem] p-10 shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden relative" onClick={e => e.stopPropagation()}>
-            <div className="absolute top-0 left-0 right-0 h-2 bg-rose-600"></div>
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setIsReopenModalOpen(false)}>
+          <div className="bg-[#0f111a] w-full max-w-lg rounded-[3rem] p-12 shadow-2xl border border-slate-800/50 flex flex-col items-center text-center relative overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-rose-500/10 blur-[100px] pointer-events-none"></div>
 
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-rose-50 dark:bg-rose-900/30 text-rose-600 rounded-2xl"><RefreshCw size={24} /></div>
-                <div>
-                  <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Estornar Medição Nº {viewingMeasurementId}</h2>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Reverter Encerramento de Período</p>
-                </div>
-              </div>
-              <button onClick={() => setIsReopenModalOpen(false)} className="p-2 text-slate-300 hover:text-slate-600"><X size={20} /></button>
-            </div>
-
-            <div className="space-y-6">
-              <div className="p-6 bg-rose-50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-800 rounded-3xl flex gap-4">
-                <AlertTriangle className="text-rose-500 shrink-0" size={24} />
-                <div className="space-y-2">
-                  <p className="text-[11px] font-black text-rose-700 dark:text-rose-400 uppercase tracking-widest">Ação Crítica de Rollback</p>
-                  <p className="text-xs text-rose-800 dark:text-rose-200 leading-relaxed font-medium">
-                    Ao reabrir esta medição, o sistema irá:
-                  </p>
-                  <ul className="text-xs text-rose-700 dark:text-rose-300 list-disc pl-5 space-y-1">
-                    <li>Descartar quaisquer rascunhos de medição do período atual (Nº {project.measurementNumber}).</li>
-                    <li>Restaurar os dados deste snapshot para o modo de edição.</li>
-                    <li>Remover este registro permanentemente do histórico de snapshots.</li>
-                  </ul>
-                </div>
+            <div className="relative mb-10">
+              <div className="w-24 h-24 bg-slate-800/40 rounded-full flex items-center justify-center border border-slate-700/50">
+                <RefreshCw size={36} className="text-rose-500" />
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 mt-10">
-              <button onClick={() => setIsReopenModalOpen(false)} className="flex-1 py-4 text-slate-400 font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 rounded-2xl transition-all">Manter Encerrada</button>
+            <h2 className="text-3xl font-black text-white uppercase tracking-tighter mb-6">Reabrir Medição?</h2>
+
+            <div className="space-y-4 mb-12">
+              <p className="text-slate-400 text-lg font-medium leading-relaxed">
+                Deseja realmente reativar a medição <span className="text-white font-bold">#{viewingMeasurementId}</span>?
+              </p>
+              <p className="text-rose-400/80 text-sm font-bold uppercase tracking-widest">
+                O período atual será descartado e o histórico voltará um passo.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-6 w-full">
+              <button
+                onClick={() => setIsReopenModalOpen(false)}
+                className="flex-1 py-4 text-slate-500 font-black uppercase text-xs tracking-widest hover:text-white transition-colors"
+              >
+                Cancelar
+              </button>
               <button
                 onClick={handleConfirmReopen}
-                className="flex-[2] py-4 bg-rose-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-rose-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                className="flex-[2] py-5 bg-rose-600 hover:bg-rose-500 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-[0_10px_30px_-10px_rgba(225,29,72,0.5)] active:scale-95 transition-all"
               >
-                <RotateCcw size={18} /> Confirmar Reabertura
+                Confirmar Reabertura
               </button>
             </div>
           </div>
