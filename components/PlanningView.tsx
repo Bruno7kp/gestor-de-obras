@@ -11,7 +11,7 @@ import {
   GripVertical, MoreVertical, Edit2, X, Save, Calculator, Wallet, Link,
   ChevronUp, ChevronDown, List, CalendarDays, Filter, Users, Download, UploadCloud,
   Layers, FlagTriangleRight, Printer, CreditCard, ChevronLeft, ChevronRight,
-  HardHat, Building2, User, FolderTree, FileCheck, ReceiptText, FileText
+  HardHat, Building2, User, FolderTree, FileCheck, ReceiptText, FileText, FileSpreadsheet
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { ExpenseAttachmentZone } from './ExpenseAttachmentZone';
@@ -46,8 +46,9 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   
   const planning = project.planning;
 
+  // Filtragem estrita: apenas grupos do tipo 'Mão de Obra' (labor)
   const financialCategories = useMemo(() => {
-    return project.expenses.filter(e => e.itemType === 'category');
+    return project.expenses.filter(e => e.itemType === 'category' && e.type === 'labor');
   }, [project.expenses]);
 
   const sortedForecasts = useMemo(() => {
@@ -106,7 +107,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     onAddExpense(expenseData as ProjectExpense);
     const updatedPlanning = planningService.updateForecast(planning, forecast.id, { 
       status: 'ordered', 
-      isPaid: true,
+      isPaid: true, 
       paymentProof: proof 
     });
     onUpdatePlanning(updatedPlanning);
@@ -118,6 +119,19 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     win?.document.write(`<iframe src="${proof}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
   };
 
+  const handleImportPlanning = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const newPlanning = await excelService.parsePlanningExcel(file);
+      onUpdatePlanning(newPlanning);
+    } catch (err) {
+      alert("Erro ao importar planejamento.");
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const columns: { id: TaskStatus, label: string, color: string }[] = [
     { id: 'todo', label: 'Planejado', color: 'indigo' },
     { id: 'doing', label: 'Executando', color: 'amber' },
@@ -126,7 +140,13 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
-      <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx, .xls" />
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        className="hidden" 
+        accept=".xlsx, .xls" 
+        onChange={handleImportPlanning}
+      />
       
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-8 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-xl">
         <div className="flex items-center gap-5">
@@ -135,15 +155,33 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
           </div>
           <div>
             <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">Planejamento Operacional</h2>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex flex-wrap items-center gap-2 mt-1">
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Gestão Ágil de Canteiro</p>
               <div className="h-3 w-px bg-slate-200 dark:bg-slate-700 mx-1" />
               <button 
                 onClick={() => window.print()}
                 className="text-[10px] font-black uppercase text-indigo-600 flex items-center gap-1.5 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 px-2 py-1 rounded-lg transition-all"
               >
-                <Printer size={14}/> Imprimir Relatório
+                <Printer size={14}/> Imprimir
               </button>
+              <div className="h-3 w-px bg-slate-200 dark:bg-slate-700 mx-1" />
+              {/* Botões de Excel Restaurados */}
+              <div className="flex items-center gap-1">
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-1.5 text-slate-400 hover:text-emerald-600 transition-colors"
+                  title="Importar Excel"
+                >
+                  <UploadCloud size={16}/>
+                </button>
+                <button 
+                  onClick={() => excelService.exportPlanningToExcel(project)}
+                  className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors"
+                  title="Exportar Excel"
+                >
+                  <Download size={16}/>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -425,7 +463,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
       {isDeletingForecast && (
         <div className="fixed inset-0 z-[2100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setIsDeletingForecast(null)}>
           <div className="bg-[#0f111a] w-full max-w-md rounded-[3rem] p-12 shadow-2xl border border-slate-800/50 flex flex-col items-center text-center relative overflow-hidden" onClick={e => e.stopPropagation()}>
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-indigo-500/10 blur-[100px] pointer-events-none"></div>
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-rose-500/10 blur-[100px] pointer-events-none"></div>
             <div className="relative mb-10">
               <div className="w-24 h-24 bg-slate-800/40 rounded-full flex items-center justify-center border border-slate-700/50">
                  <Trash2 size={36} className="text-rose-500" />
@@ -898,7 +936,7 @@ const ConfirmForecastModal = ({ forecast, onClose, onConfirm, financialCategorie
            
            <div className="text-left space-y-6">
               <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest ml-1">Vincular ao Grupo Financeiro</label>
+                <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest ml-1">Vincular ao Grupo Financeiro (MDO)</label>
                 <div className="relative">
                   <FolderTree className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={14} />
                   <select 
