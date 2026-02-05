@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useRef } from 'react';
-import { Project, PlanningTask, MaterialForecast, Milestone, WorkItem, TaskStatus, ProjectPlanning, ProjectExpense } from '../types';
+import { Project, PlanningTask, MaterialForecast, Milestone, WorkItem, TaskStatus, ProjectPlanning, ProjectExpense, Supplier } from '../types';
 import { planningService } from '../services/planningService';
 import { excelService } from '../services/excelService';
 import { financial } from '../utils/math';
@@ -11,12 +11,13 @@ import {
   GripVertical, MoreVertical, Edit2, X, Save, Calculator, Wallet, Link,
   ChevronUp, ChevronDown, List, CalendarDays, Filter, Users, Download, UploadCloud,
   Layers, FlagTriangleRight, Printer, CreditCard, ChevronLeft, ChevronRight,
-  HardHat
+  HardHat, Building2, User
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
 interface PlanningViewProps {
   project: Project;
+  suppliers: Supplier[];
   onUpdatePlanning: (planning: ProjectPlanning) => void;
   onAddExpense: (expense: ProjectExpense) => void;
   categories: WorkItem[];
@@ -24,12 +25,14 @@ interface PlanningViewProps {
 }
 
 export const PlanningView: React.FC<PlanningViewProps> = ({ 
-  project, onUpdatePlanning, onAddExpense, categories, allWorkItems 
+  project, suppliers, onUpdatePlanning, onAddExpense, categories, allWorkItems 
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'tasks' | 'forecast' | 'milestones'>('tasks');
   const [editingTask, setEditingTask] = useState<PlanningTask | null>(null);
   const [confirmingForecast, setConfirmingForecast] = useState<MaterialForecast | null>(null);
   const [isAddingForecast, setIsAddingForecast] = useState(false);
+  const [editingForecast, setEditingForecast] = useState<MaterialForecast | null>(null);
+  const [isDeletingForecast, setIsDeletingForecast] = useState<MaterialForecast | null>(null);
   const [isAddingTask, setIsAddingTask] = useState<TaskStatus | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -40,9 +43,6 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   const [forecastSearch, setForecastSearch] = useState('');
   const [forecastStatusFilter, setForecastStatusFilter] = useState<'all' | 'pending' | 'ordered' | 'delivered'>('all');
   
-  // Estado para controlar a expansão das descrições na lista de suprimentos
-  const [expandedForecastIds, setExpandedForecastIds] = useState<Set<string>>(new Set());
-
   const planning = project.planning;
 
   const financialCategories = useMemo(() => {
@@ -65,15 +65,6 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     const ordered = list.filter(f => f.status !== 'pending').reduce((acc, f) => acc + ((f.quantityNeeded || 0) * (f.unitPrice || 0)), 0);
     return { total, pending, ordered };
   }, [planning.forecasts]);
-
-  const toggleForecastExpansion = (id: string) => {
-    setExpandedForecastIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
 
   const handleAutoGenerate = () => {
     const updated = planningService.generateTasksFromWbs(planning, allWorkItems);
@@ -151,9 +142,6 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
               >
                 <Printer size={14}/> Imprimir Relatório
               </button>
-              <div className="h-3 w-px bg-slate-200 dark:bg-slate-700 mx-1" />
-              <button onClick={() => excelService.exportPlanningToExcel(project)} className="text-[9px] font-black uppercase text-slate-500 flex items-center gap-1 hover:text-indigo-600"><Download size={12}/> Exportar</button>
-              <button onClick={() => fileInputRef.current?.click()} className="text-[9px] font-black uppercase text-slate-500 flex items-center gap-1 hover:text-indigo-600 ml-2"><UploadCloud size={12}/> Importar</button>
             </div>
           </div>
         </div>
@@ -212,7 +200,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                     <div {...p.dragHandleProps} className="p-1 text-slate-300 hover:text-indigo-500"><GripVertical size={14}/></div>
                                     <button onClick={(e) => { e.stopPropagation(); onUpdatePlanning(planningService.deleteTask(planning, task.id)); }} className="opacity-0 group-hover:opacity-100 p-1 text-slate-300 hover:text-rose-500 transition-all"><Trash2 size={14}/></button>
                                   </div>
-                                  <h4 className={`text-sm font-bold leading-relaxed whitespace-normal break-words ${task.isCompleted ? 'text-slate-400 line-through' : 'text-slate-800 dark:text-slate-100'}`}>
+                                  <h4 className={`text-sm font-bold leading-relaxed whitespace-normal break-words ${task.isCompleted ? 'text-slate-400 line-through' : 'text-slate-800 dark:text-white'}`}>
                                     {task.description}
                                   </h4>
                                   <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -242,7 +230,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
         {activeSubTab === 'forecast' && (
           <div className="space-y-8 animate-in fade-in">
              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <ForecastKpi label="Total em Suprimentos" value={forecastStats.total} icon={<Boxes size={20}/>} color="indigo" sub="Previsão global de gastos" />
+                <ForecastKpi label="Previsão de Suprimentos" value={forecastStats.total} icon={<Boxes size={20}/>} color="indigo" sub="Previsão global de gastos" />
                 <ForecastKpi label="Pendente de Compra" value={forecastStats.pending} icon={<Clock size={20}/>} color="amber" sub="Ainda não efetivado" />
                 <ForecastKpi label="Efetivado/Local" value={forecastStats.ordered} icon={<CheckCircle2 size={20}/>} color="emerald" sub="Lançado no financeiro" />
              </div>
@@ -250,8 +238,8 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
              <div className="bg-white dark:bg-slate-900 p-8 rounded-[3.5rem] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10">
                   <div>
-                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Lista de Compras Planejada</h3>
-                    <p className="text-[10px] text-slate-500 font-medium mt-1">Gestão de insumos e matérias-primas antes do faturamento.</p>
+                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Suprimentos e Insumos</h3>
+                    <p className="text-[10px] text-slate-500 font-medium mt-1">Gestão proativa de matérias-primas e equipamentos.</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-4">
                     <div className="relative group">
@@ -263,121 +251,160 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                         onChange={e => setForecastSearch(e.target.value)}
                       />
                     </div>
-                    <button onClick={() => setIsAddingForecast(true)} className="flex items-center gap-2 px-6 py-4 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all">
+                    <button onClick={() => setIsAddingForecast(true)} className="flex items-center gap-2 px-6 py-4 bg-[#0f111a] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:scale-105 active:scale-95 transition-all">
                       <Plus size={16} /> Adicionar Insumo
                     </button>
                   </div>
                 </div>
                 
                 <div className="overflow-x-auto custom-scrollbar">
-                  <table className="w-full text-left border-separate border-spacing-y-2">
+                  <table className="w-full text-left border-separate border-spacing-y-3">
                     <thead>
                       <tr className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 text-center">
-                        <th className="pb-4 w-12"></th>
-                        <th className="pb-4 pl-4 text-left">Material / Insumo</th>
-                        <th className="pb-4">Und</th>
-                        <th className="pb-4">QNT</th>
-                        <th className="pb-4">UNT</th>
-                        <th className="pb-4">Custo</th>
-                        <th className="pb-4">Data Prevista</th>
-                        <th className="pb-4">Status</th>
-                        <th className="pb-4">Pago?</th>
-                        <th className="pb-4 text-right pr-4">Ações</th>
+                        <th className="pb-2 w-12"></th>
+                        <th className="pb-2 pl-4 text-left">Material / Fornecedor</th>
+                        <th className="pb-2">Und</th>
+                        <th className="pb-2">Qtd</th>
+                        <th className="pb-2">Unitário</th>
+                        <th className="pb-2">Custo Previsto</th>
+                        <th className="pb-2">Status</th>
+                        <th className="pb-2">Pago?</th>
+                        <th className="pb-2 text-right pr-4">Ações</th>
                       </tr>
                     </thead>
                     <Droppable droppableId="forecast-list">
                       {(provided) => (
                         <tbody ref={provided.innerRef} {...provided.droppableProps} className="text-center">
-                          {sortedForecasts.map((f, index) => (
-                            <Draggable key={f.id} draggableId={f.id} index={index}>
-                              {(p, s) => {
-                                const isExpanded = expandedForecastIds.has(f.id);
-                                return (
+                          {sortedForecasts.map((f, index) => {
+                            const supplier = suppliers.find(s => s.id === f.supplierId);
+                            return (
+                              <Draggable key={f.id} draggableId={f.id} index={index}>
+                                {(p, s) => (
                                   <tr 
                                     ref={p.innerRef} 
                                     {...p.draggableProps} 
-                                    className={`group/row bg-slate-50/50 dark:bg-slate-800/30 rounded-2xl border border-transparent transition-all ${s.isDragging ? 'shadow-2xl z-50 bg-white ring-2 ring-indigo-500' : 'hover:border-emerald-200'} ${f.isPaid ? 'opacity-70' : ''}`}
+                                    className={`group/row bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl transition-all shadow-sm ${s.isDragging ? 'shadow-2xl z-50 ring-2 ring-indigo-500 scale-[1.02]' : 'hover:shadow-md'}`}
                                   >
-                                    <td className="py-5 pl-4 rounded-l-[1.5rem]">
-                                      <div className="flex flex-col gap-0.5 opacity-0 group-hover/row:opacity-100 transition-opacity">
-                                          <div {...p.dragHandleProps} className="p-1 mb-1 text-slate-300 hover:text-indigo-500 cursor-grab active:cursor-grabbing"><GripVertical size={14}/></div>
-                                          <button onClick={() => onUpdatePlanning(planningService.reorderForecasts(planning, f.id, 'up'))} className="p-1 hover:bg-white rounded text-slate-300 hover:text-indigo-500"><ChevronUp size={14}/></button>
-                                          <button onClick={() => onUpdatePlanning(planningService.reorderForecasts(planning, f.id, 'down'))} className="p-1 hover:bg-white rounded text-slate-300 hover:text-indigo-500"><ChevronDown size={14}/></button>
+                                    <td className="py-6 pl-4 rounded-l-3xl">
+                                      <div {...p.dragHandleProps} className="p-2 text-slate-200 hover:text-indigo-400 cursor-grab active:cursor-grabbing">
+                                        <GripVertical size={16}/>
                                       </div>
                                     </td>
-                                    <td className="py-5 px-4 text-left w-[300px] max-w-[300px]">
-                                      <div 
-                                        onClick={() => toggleForecastExpansion(f.id)}
-                                        className={`cursor-pointer transition-all duration-300 text-sm font-black dark:text-white leading-tight ${isExpanded ? '' : 'line-clamp-2'}`}
-                                        title="Clique para expandir"
-                                      >
-                                        {f.description}
+                                    <td className="py-6 px-4 text-left min-w-[250px]">
+                                      <div className="flex flex-col gap-1">
+                                        <span className="text-sm font-black dark:text-white leading-tight uppercase">{f.description}</span>
+                                        <div className="flex items-center gap-1.5 text-[9px] font-bold text-indigo-500 uppercase tracking-widest">
+                                          <Building2 size={10} className="shrink-0" />
+                                          {supplier ? supplier.name : 'Fornecedor não vinculado'}
+                                        </div>
                                       </div>
                                     </td>
-                                    <td className="py-5">
-                                      <input className="bg-transparent text-[10px] font-black uppercase text-slate-400 w-12 text-center outline-none" value={f.unit} onChange={e => onUpdatePlanning(planningService.updateForecast(planning, f.id, { unit: e.target.value }))} />
+                                    <td className="py-6">
+                                      <span className="text-[10px] font-black uppercase text-slate-400">{f.unit}</span>
                                     </td>
-                                    <td className="py-5">
-                                      <input type="number" className="w-16 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 p-1.5 rounded-lg text-xs font-black text-slate-700 dark:text-slate-300 outline-none text-center" value={f.quantityNeeded} onChange={e => onUpdatePlanning(planningService.updateForecast(planning, f.id, { quantityNeeded: parseFloat(e.target.value) || 0 }))} />
+                                    <td className="py-6 font-mono font-bold text-slate-600 dark:text-slate-300">
+                                      {f.quantityNeeded}
                                     </td>
-                                    <td className="py-5">
-                                      <input type="number" className="w-20 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 p-1.5 rounded-lg text-xs font-black text-slate-700 dark:text-slate-300 outline-none text-right" value={f.unitPrice} onChange={e => onUpdatePlanning(planningService.updateForecast(planning, f.id, { unitPrice: parseFloat(e.target.value) || 0 }))} />
+                                    <td className="py-6 font-mono text-slate-400">
+                                      {financial.formatVisual(f.unitPrice, project.theme?.currencySymbol)}
                                     </td>
-                                    <td className="py-5">
-                                      <span className="text-xs font-black text-indigo-600">{financial.formatVisual((f.quantityNeeded || 0) * (f.unitPrice || 0), 'R$')}</span>
+                                    <td className="py-6">
+                                      <span className="text-sm font-black text-indigo-600 dark:text-indigo-400">
+                                        {financial.formatVisual((f.quantityNeeded || 0) * (f.unitPrice || 0), project.theme?.currencySymbol)}
+                                      </span>
                                     </td>
-                                    <td className="py-5">
-                                      <input type="date" className="bg-transparent text-[11px] font-bold text-slate-600 dark:text-slate-400 outline-none" value={f.estimatedDate.split('T')[0]} onChange={e => onUpdatePlanning(planningService.updateForecast(planning, f.id, { estimatedDate: e.target.value }))} />
-                                    </td>
-                                    <td className="py-5">
+                                    <td className="py-6">
                                       <div className="flex gap-2 justify-center">
                                         <StatusCircle active={f.status === 'pending'} onClick={() => onUpdatePlanning(planningService.updateForecast(planning, f.id, { status: 'pending' }))} icon={<AlertCircle size={12}/>} color="amber" label="Pendente" />
                                         <StatusCircle active={f.status === 'ordered'} onClick={() => onUpdatePlanning(planningService.updateForecast(planning, f.id, { status: 'ordered' }))} icon={<ShoppingCart size={12}/>} color="blue" label="Comprado" />
                                         <StatusCircle active={f.status === 'delivered'} onClick={() => onUpdatePlanning(planningService.updateForecast(planning, f.id, { status: 'delivered' }))} icon={<Truck size={12}/>} color="emerald" label="No Local" />
                                       </div>
                                     </td>
-                                    <td className="py-5">
-                                      <div className="group/status relative flex justify-center">
-                                        <button 
-                                          onClick={() => onUpdatePlanning(planningService.updateForecast(planning, f.id, { isPaid: !f.isPaid }))}
-                                          className={`p-2 rounded-full transition-all ${f.isPaid ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30' : 'text-slate-300 hover:text-rose-500 bg-slate-100 dark:bg-slate-800'}`}
-                                        >
-                                          {f.isPaid ? <CheckCircle2 size={18}/> : <Circle size={18}/>}
-                                        </button>
-                                        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-3 py-1.5 bg-slate-900 text-white text-[9px] font-black uppercase rounded-lg opacity-0 group-hover/status:opacity-100 transition-all pointer-events-none whitespace-nowrap shadow-xl z-[100] transform group-hover/status:-translate-y-1">
-                                          {f.isPaid ? "Pago" : "Pendente de Pagamento"}
-                                          <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-900" />
-                                        </span>
-                                      </div>
+                                    <td className="py-6">
+                                      <button 
+                                        onClick={() => onUpdatePlanning(planningService.updateForecast(planning, f.id, { isPaid: !f.isPaid }))}
+                                        className={`p-2.5 rounded-full transition-all ${f.isPaid ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 shadow-sm' : 'text-slate-200 hover:text-rose-400 bg-slate-50 dark:bg-slate-800'}`}
+                                      >
+                                        {f.isPaid ? <CheckCircle2 size={20}/> : <Circle size={20}/>}
+                                      </button>
                                     </td>
-                                    <td className="py-5 text-right pr-6 rounded-r-[1.5rem]">
-                                      <div className="flex items-center justify-end gap-2">
+                                    <td className="py-6 text-right pr-6 rounded-r-3xl">
+                                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity">
                                         {f.status !== 'delivered' && (
                                           <button 
                                             onClick={() => setConfirmingForecast(f)}
-                                            className="px-3 py-2 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 rounded-xl text-[8px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all flex items-center gap-1.5 border border-indigo-100 dark:border-indigo-800"
+                                            className="p-2 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 rounded-xl"
+                                            title="Efetivar Compra"
                                           >
-                                            <ArrowUpRight size={14}/> Efetivar
+                                            <ArrowUpRight size={18}/>
                                           </button>
                                         )}
-                                        <button onClick={() => onUpdatePlanning(planningService.deleteForecast(planning, f.id))} className="p-2 text-slate-300 hover:text-rose-500 transition-colors rounded-lg"><Trash2 size={16}/></button>
+                                        <button onClick={() => setEditingForecast(f)} className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-xl" title="Editar"><Edit2 size={18}/></button>
+                                        <button onClick={() => setIsDeletingForecast(f)} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl" title="Excluir"><Trash2 size={18}/></button>
                                       </div>
                                     </td>
                                   </tr>
-                                );
-                              }}
-                            </Draggable>
-                          ))}
+                                )}
+                              </Draggable>
+                            );
+                          })}
                           {provided.placeholder}
                         </tbody>
                       )}
                     </Droppable>
                   </table>
+                  {sortedForecasts.length === 0 && (
+                    <div className="py-24 flex flex-col items-center justify-center text-slate-300 opacity-40">
+                      <Boxes size={64} className="mb-4" />
+                      <p className="text-xs font-black uppercase tracking-[0.2em]">Sem suprimentos planejados</p>
+                    </div>
+                  )}
                 </div>
             </div>
           </div>
         )}
       </DragDropContext>
+
+      {/* MODAL DE CADASTRO/EDIÇÃO DE SUPRIMENTO */}
+      {(isAddingForecast || editingForecast) && (
+        <ForecastModal 
+          onClose={() => { setIsAddingForecast(false); setEditingForecast(null); }}
+          allWorkItems={allWorkItems}
+          suppliers={suppliers}
+          editingItem={editingForecast}
+          onSave={(data: any) => {
+            if (editingForecast) {
+              onUpdatePlanning(planningService.updateForecast(planning, editingForecast.id, data));
+            } else {
+              onUpdatePlanning(planningService.addForecast(planning, data));
+            }
+            setIsAddingForecast(false);
+            setEditingForecast(null);
+          }}
+        />
+      )}
+
+      {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO */}
+      {isDeletingForecast && (
+        <div className="fixed inset-0 z-[2100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setIsDeletingForecast(null)}>
+          <div className="bg-[#0f111a] w-full max-w-md rounded-[3rem] p-12 shadow-2xl border border-slate-800/50 flex flex-col items-center text-center relative overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-rose-500/10 blur-[100px] pointer-events-none"></div>
+            <div className="relative mb-10">
+              <div className="w-24 h-24 bg-slate-800/40 rounded-full flex items-center justify-center border border-slate-700/50">
+                 <Trash2 size={36} className="text-rose-500" />
+              </div>
+            </div>
+            <h2 className="text-3xl font-black text-white uppercase tracking-tighter mb-4">Remover Insumo?</h2>
+            <p className="text-slate-400 text-lg font-medium leading-relaxed mb-12">
+              Deseja realmente excluir o suprimento <span className="text-white font-bold">{isDeletingForecast.description}</span>? Esta ação é irreversível.
+            </p>
+            <div className="flex items-center gap-6 w-full">
+               <button onClick={() => setIsDeletingForecast(null)} className="flex-1 py-4 text-slate-500 font-black uppercase text-xs tracking-widest hover:text-white transition-colors">Voltar</button>
+               <button onClick={() => { onUpdatePlanning(planningService.deleteForecast(planning, isDeletingForecast.id)); setIsDeletingForecast(null); }} className="flex-[2] py-5 bg-rose-600 hover:bg-rose-500 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-xl shadow-rose-500/20 active:scale-95 transition-all">Excluir Permanente</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {activeSubTab === 'milestones' && (
         <div className="space-y-8 animate-in fade-in">
@@ -424,18 +451,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
         </div>
       )}
 
-      {/* MODAIS */}
-      {isAddingForecast && (
-        <ForecastAddModal 
-          onClose={() => setIsAddingForecast(false)}
-          allWorkItems={allWorkItems}
-          onSave={(data: any) => {
-            onUpdatePlanning(planningService.addForecast(planning, data));
-            setIsAddingForecast(false);
-          }}
-        />
-      )}
-
+      {/* MODAIS TAREFA E MILESTONE */}
       {(editingTask || isAddingTask) && (
         <TaskModal 
           task={editingTask} 
@@ -475,89 +491,103 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   );
 };
 
-// --- SUB-COMPONENTS ---
-
-const ForecastAddModal = ({ onClose, onSave, allWorkItems }: any) => {
+// --- PREMIUM FORECAST MODAL ---
+const ForecastModal = ({ onClose, onSave, allWorkItems, suppliers, editingItem }: any) => {
   const [data, setData] = useState({
-    description: '',
-    quantityNeeded: 1,
-    unitPrice: 0,
-    unit: 'un',
-    isPaid: false,
-    estimatedDate: new Date().toISOString().split('T')[0],
-    categoryId: '' 
+    description: editingItem?.description || '',
+    quantityNeeded: editingItem?.quantityNeeded || 1,
+    unitPrice: editingItem?.unitPrice || 0,
+    unit: editingItem?.unit || 'un',
+    isPaid: editingItem?.isPaid || false,
+    estimatedDate: (editingItem?.estimatedDate || new Date().toISOString()).split('T')[0],
+    supplierId: editingItem?.supplierId || '',
+    categoryId: editingItem?.categoryId || '' 
   });
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center gap-4 mb-8">
-           <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-2xl"><Boxes size={24}/></div>
-           <div>
-             <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Novo Insumo</h2>
-             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Pré-Cotação de Material</p>
-           </div>
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}>
+      <div className="bg-[#0f111a] w-full max-w-2xl rounded-[3rem] p-12 border border-slate-800/50 shadow-2xl overflow-hidden relative" onClick={e => e.stopPropagation()}>
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-indigo-500/5 blur-[120px] pointer-events-none"></div>
+        
+        <div className="flex items-center justify-between mb-10">
+          <div className="flex items-center gap-5">
+             <div className="p-4 bg-slate-800/60 rounded-3xl border border-slate-700/50 text-indigo-500 shadow-xl"><Boxes size={28}/></div>
+             <div>
+               <h2 className="text-2xl font-black text-white uppercase tracking-tighter">{editingItem ? 'Editar Insumo' : 'Novo Suprimento'}</h2>
+               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Inteligência de Aquisições</p>
+             </div>
+          </div>
+          <button onClick={onClose} className="p-3 text-slate-500 hover:text-white transition-all"><X size={24}/></button>
         </div>
 
-        <div className="space-y-5">
+        <div className="space-y-8 relative z-10">
            <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">Descrição do Material</label>
-              <input autoFocus className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all" value={data.description} onChange={e => setData({...data, description: e.target.value})} placeholder="Ex: Areia Média Lavada" />
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Descrição Técnica do Material</label>
+              <input autoFocus className="w-full px-8 py-5 rounded-3xl bg-slate-900 border-2 border-slate-800 text-white text-base font-black outline-none focus:border-indigo-600 transition-all placeholder:text-slate-700" value={data.description} onChange={e => setData({...data, description: e.target.value})} placeholder="Ex: Cimento Portland CP-II" />
            </div>
 
-           <div className="grid grid-cols-2 gap-4">
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">Vínculo com EAP (Opcional)</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Vínculo de Fornecedor</label>
                 <div className="relative">
-                   <Layers className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                   <select className="w-full pl-10 pr-4 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold outline-none appearance-none focus:border-indigo-500" value={data.categoryId} onChange={e => setData({...data, categoryId: e.target.value})}>
-                     <option value="">Sem vínculo</option>
-                     {allWorkItems.filter((i: any) => i.type === 'item').map((wi: any) => <option key={wi.id} value={wi.id}>{wi.wbs} - {wi.name}</option>)}
+                   <Building2 className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                   <select className="w-full pl-14 pr-6 py-5 rounded-3xl bg-slate-900 border-2 border-slate-800 text-white text-xs font-bold outline-none appearance-none focus:border-indigo-600 transition-all" value={data.supplierId} onChange={e => setData({...data, supplierId: e.target.value})}>
+                     <option value="">Não definido (Spot)</option>
+                     {suppliers.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
                    </select>
+                   <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={16} />
                 </div>
               </div>
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">Previsão Compra</label>
-                <input type="date" className="w-full px-4 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-black outline-none focus:border-indigo-500" value={data.estimatedDate} onChange={e => setData({...data, estimatedDate: e.target.value})} />
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Previsão de Chegada</label>
+                <div className="relative">
+                   <Calendar className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                   <input type="date" className="w-full pl-14 pr-6 py-5 rounded-3xl bg-slate-900 border-2 border-slate-800 text-white text-xs font-bold outline-none focus:border-indigo-600 transition-all [color-scheme:dark]" value={data.estimatedDate} onChange={e => setData({...data, estimatedDate: e.target.value})} />
+                </div>
               </div>
            </div>
 
-           <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">Un</label>
-                <input className="w-full px-4 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-black text-center outline-none focus:border-indigo-500 transition-all" value={data.unit} onChange={e => setData({...data, unit: e.target.value})} />
+           <div className="grid grid-cols-3 gap-6">
+              <div className="col-span-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 text-center">Unidade</label>
+                <input className="w-full px-4 py-5 rounded-3xl bg-slate-900 border-2 border-slate-800 text-white text-sm font-black text-center uppercase outline-none focus:border-indigo-600" value={data.unit} onChange={e => setData({...data, unit: e.target.value})} />
               </div>
-              <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">Qtd</label>
-                <input type="number" className="w-full px-4 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-black text-center outline-none focus:border-indigo-500 transition-all" value={data.quantityNeeded} onChange={e => setData({...data, quantityNeeded: parseFloat(e.target.value) || 0})} />
+              <div className="col-span-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 text-center">Qtd</label>
+                <input type="number" className="w-full px-4 py-5 rounded-3xl bg-slate-900 border-2 border-slate-800 text-white text-sm font-black text-center outline-none focus:border-indigo-600" value={data.quantityNeeded} onChange={e => setData({...data, quantityNeeded: parseFloat(e.target.value) || 0})} />
               </div>
-              <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">Preço Est.</label>
-                <input type="number" className="w-full px-4 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-black text-right outline-none focus:border-indigo-500 transition-all" value={data.unitPrice} onChange={e => setData({...data, unitPrice: parseFloat(e.target.value) || 0})} />
+              <div className="col-span-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 text-right">Preço Unit.</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-600">R$</span>
+                  <input type="number" className="w-full pl-10 pr-6 py-5 rounded-3xl bg-slate-900 border-2 border-slate-800 text-white text-sm font-black text-right outline-none focus:border-indigo-600" value={data.unitPrice} onChange={e => setData({...data, unitPrice: parseFloat(e.target.value) || 0})} />
+                </div>
               </div>
            </div>
 
-           <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                 <div className="p-2 bg-white dark:bg-slate-900 rounded-lg shadow-sm text-indigo-500"><CreditCard size={18}/></div>
+           <div className="flex flex-col sm:flex-row items-center justify-between p-6 bg-slate-800/40 rounded-3xl border border-slate-700/50 gap-6">
+              <div className="flex items-center gap-4">
+                 <div className={`p-4 rounded-2xl ${data.isPaid ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700/50 text-slate-500'} transition-colors shadow-lg`}><CreditCard size={24}/></div>
                  <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase">Estado do Pagamento</p>
-                    <p className="text-xs font-bold text-slate-700 dark:text-slate-200">{data.isPaid ? 'Liquidado' : 'Aguardando Fatura'}</p>
+                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Estado Financeiro</p>
+                    <p className="text-sm font-bold text-white mt-1">{data.isPaid ? 'Pago e Liquidado' : 'Aguardando Pagamento'}</p>
                  </div>
               </div>
               <button 
                 type="button" 
                 onClick={() => setData({...data, isPaid: !data.isPaid})}
-                className={`w-12 h-6 rounded-full relative transition-colors ${data.isPaid ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                className={`w-16 h-8 rounded-full relative transition-all shadow-inner ${data.isPaid ? 'bg-emerald-500' : 'bg-slate-700'}`}
               >
-                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${data.isPaid ? 'left-7' : 'left-1'}`} />
+                <div className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-md transition-all ${data.isPaid ? 'left-9' : 'left-1'}`} />
               </button>
            </div>
         </div>
 
-        <div className="flex gap-3 pt-8">
-           <button onClick={onClose} className="flex-1 py-4 text-slate-400 font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 rounded-2xl">Cancelar</button>
-           <button onClick={() => onSave(data)} disabled={!data.description} className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-indigo-500/20 active:scale-95 transition-all">Confirmar Insumo</button>
+        <div className="flex items-center gap-6 mt-12 w-full">
+           <button onClick={onClose} className="flex-1 py-5 text-slate-500 font-black uppercase text-xs tracking-widest hover:text-white transition-colors">Cancelar</button>
+           <button onClick={() => onSave(data)} disabled={!data.description} className="flex-[2] py-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-[0_15px_35px_-10px_rgba(79,70,229,0.5)] active:scale-95 transition-all flex items-center justify-center gap-3">
+             <Save size={20} /> {editingItem ? 'Atualizar Registro' : 'Confirmar Inclusão'}
+           </button>
         </div>
       </div>
     </div>
@@ -617,9 +647,6 @@ const StatusCircle = ({ active, onClick, icon, color, label }: any) => {
   );
 };
 
-/**
- * IMPLEMENTAÇÃO REAL DE CALENDÁRIO MENSAL OTIMIZADA PARA PC
- */
 const CalendarView = ({ milestones, onEdit }: { milestones: Milestone[], onEdit: (m: Milestone) => void }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -640,10 +667,8 @@ const CalendarView = ({ milestones, onEdit }: { milestones: Milestone[], onEdit:
     const startOffset = firstDayOfMonth(year, month);
     const days = [];
     
-    // Slots vazios
     for (let i = 0; i < startOffset; i++) days.push(null);
     
-    // Dias do mês
     for (let i = 1; i <= totalDays; i++) {
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
       const dayMilestones = milestones.filter(m => m.date.startsWith(dateStr));
@@ -654,7 +679,6 @@ const CalendarView = ({ milestones, onEdit }: { milestones: Milestone[], onEdit:
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-500">
-      {/* Calendar Header */}
       <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/30">
         <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight leading-none">{monthLabel}</h3>
         <div className="flex items-center gap-2">
@@ -664,7 +688,6 @@ const CalendarView = ({ milestones, onEdit }: { milestones: Milestone[], onEdit:
         </div>
       </div>
 
-      {/* Grid */}
       <div className="p-6">
         <div className="grid grid-cols-7 gap-px bg-slate-100 dark:bg-slate-800 border border-slate-100 dark:border-slate-800 rounded-3xl overflow-hidden">
           {weekDays.map(d => (

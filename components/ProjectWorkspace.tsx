@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useRef } from 'react';
-import { Project, GlobalSettings, WorkItem } from '../types';
+import { Project, GlobalSettings, WorkItem, Supplier } from '../types';
 import {
   Layers, BarChart3, Coins, Users, HardHat, BookOpen, FileText, Sliders,
   CheckCircle2, History, Calendar, Lock, ChevronDown,
@@ -22,6 +22,7 @@ import { financial } from '../utils/math';
 interface ProjectWorkspaceProps {
   project: Project;
   globalSettings: GlobalSettings;
+  suppliers: Supplier[];
   onUpdateProject: (data: Partial<Project>) => void;
   onCloseMeasurement: () => void;
   canUndo: boolean;
@@ -33,7 +34,7 @@ interface ProjectWorkspaceProps {
 export type TabID = 'wbs' | 'stats' | 'expenses' | 'workforce' | 'planning' | 'journal' | 'documents' | 'branding';
 
 export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
-  project, globalSettings, onUpdateProject, onCloseMeasurement,
+  project, globalSettings, suppliers, onUpdateProject, onCloseMeasurement,
   canUndo, canRedo, onUndo, onRedo
 }) => {
   const [tab, setTab] = useState<TabID>('wbs');
@@ -69,8 +70,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     setTimeout(() => { dragStartRef.current = null; }, 50);
   };
 
-  const currentStats = useMemo(() =>
-    treeService.calculateBasicStats(project.items, project.bdi, project),
+  const currentStats = useMemo(() => 
+    treeService.calculateBasicStats(project.items, project.bdi, project), 
     [project]
   );
 
@@ -82,12 +83,11 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   }, [project, viewingMeasurementId]);
 
   const isHistoryMode = viewingMeasurementId !== 'current';
-
-  // REGRA DE OURO: Botão de reabrir APENAS no snapshot da medição anterior imediata
-  const isLatestHistory = viewingMeasurementId !== 'current' &&
-    project.history &&
-    project.history.length > 0 &&
-    viewingMeasurementId === project.history[0].measurementNumber;
+  
+  const isLatestHistory = viewingMeasurementId !== 'current' && 
+                          project.history && 
+                          project.history.length > 0 && 
+                          viewingMeasurementId === project.history[0].measurementNumber;
 
   const handleTabClick = (newTab: TabID) => {
     if (dragStartRef.current?.moved) return;
@@ -137,9 +137,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
             <h1 className="text-xl font-black uppercase tracking-tight text-slate-800 dark:text-white leading-none truncate">{project.name}</h1>
             <div className="flex flex-wrap items-center gap-3 mt-2">
               <div className="relative z-50">
-                <select
-                  className={`pl-8 pr-10 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest appearance-none border-2 outline-none cursor-pointer transition-all ${isHistoryMode ? 'bg-amber-200 border-amber-400 text-amber-900 shadow-sm' : 'bg-slate-100 dark:bg-slate-800 border-transparent text-slate-500 hover:border-indigo-400'}`}
-                  value={viewingMeasurementId}
+                <select 
+                  className={`pl-8 pr-10 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest appearance-none border-2 outline-none cursor-pointer transition-all ${isHistoryMode ? 'bg-amber-200 border-amber-400 text-amber-900 shadow-sm' : 'bg-slate-100 dark:bg-slate-800 border-transparent text-slate-500 hover:border-indigo-400'}`} 
+                  value={viewingMeasurementId} 
                   onChange={(e) => setViewingMeasurementId(e.target.value === 'current' ? 'current' : Number(e.target.value))}
                 >
                   <option value="current">Período Aberto (Nº {project.measurementNumber})</option>
@@ -216,7 +216,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           {tab === 'stats' && <StatsView project={{ ...project, items: displayData.items }} />}
           {tab === 'expenses' && <ExpenseManager project={project} expenses={project.expenses} onAdd={(ex) => onUpdateProject({ expenses: [...project.expenses, ex] })} onAddMany={(exs) => onUpdateProject({ expenses: [...project.expenses, ...exs] })} onUpdate={(id, data) => onUpdateProject({ expenses: project.expenses.map(e => e.id === id ? { ...e, ...data } : e) })} onDelete={(id) => onUpdateProject({ expenses: project.expenses.filter(e => e.id !== id) })} workItems={displayData.items} measuredValue={treeService.calculateBasicStats(displayData.items, project.bdi).current} onUpdateExpenses={(exs) => onUpdateProject({ expenses: exs })} isReadOnly={displayData.isReadOnly} />}
           {tab === 'workforce' && <WorkforceManager project={project} onUpdateProject={onUpdateProject} />}
-          {tab === 'planning' && <PlanningView project={project} onUpdatePlanning={(p) => onUpdateProject({ planning: p })} onAddExpense={(ex) => onUpdateProject({ expenses: [...project.expenses, ex] })} categories={displayData.items.filter(i => i.type === 'category')} allWorkItems={displayData.items} />}
+          {tab === 'planning' && <PlanningView project={project} suppliers={suppliers} onUpdatePlanning={(p) => onUpdateProject({ planning: p })} onAddExpense={(ex) => onUpdateProject({ expenses: [...project.expenses, ex] })} categories={displayData.items.filter(i => i.type === 'category')} allWorkItems={displayData.items} />}
           {tab === 'journal' && <JournalView project={project} onUpdateJournal={(j) => onUpdateProject({ journal: j })} allWorkItems={displayData.items} />}
           {tab === 'documents' && <AssetManager assets={project.assets} onAdd={(a) => onUpdateProject({ assets: [...project.assets, a] })} onDelete={(id) => onUpdateProject({ assets: project.assets.filter(as => as.id !== id) })} isReadOnly={displayData.isReadOnly} />}
           {tab === 'branding' && <BrandingView project={project} onUpdateProject={onUpdateProject} isReadOnly={displayData.isReadOnly} />}
@@ -231,37 +231,37 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           <div className="bg-[#0f111a] w-full max-w-lg rounded-[3rem] p-12 shadow-2xl border border-slate-800/50 flex flex-col items-center text-center relative overflow-hidden" onClick={e => e.stopPropagation()}>
             {/* Efeito de luz de fundo */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-indigo-500/10 blur-[100px] pointer-events-none"></div>
-
+            
             <div className="relative mb-10">
               <div className="w-24 h-24 bg-slate-800/40 rounded-full flex items-center justify-center border border-slate-700/50">
-                <Lock size={36} className="text-indigo-500" />
+                 <Lock size={36} className="text-indigo-500" />
               </div>
             </div>
 
             <h2 className="text-3xl font-black text-white uppercase tracking-tighter mb-6">Finalizar Período?</h2>
-
+            
             <div className="space-y-2 mb-12">
-              <p className="text-slate-400 text-lg font-medium leading-relaxed">
-                A medição <span className="text-white font-bold">#{project.measurementNumber}</span> será congelada no histórico.
-              </p>
-              <p className="text-slate-400 text-lg font-medium leading-relaxed">
-                O valor total faturado no período é <span className="text-white font-bold">{financial.formatVisual(currentStats.current, project.theme?.currencySymbol)}</span>.
-              </p>
+               <p className="text-slate-400 text-lg font-medium leading-relaxed">
+                 A medição <span className="text-white font-bold">#{project.measurementNumber}</span> será congelada no histórico.
+               </p>
+               <p className="text-slate-400 text-lg font-medium leading-relaxed">
+                 O valor total faturado no período é <span className="text-white font-bold">{financial.formatVisual(currentStats.current, project.theme?.currencySymbol)}</span>.
+               </p>
             </div>
 
             <div className="flex items-center gap-6 w-full">
-              <button
-                onClick={() => setIsClosingModalOpen(false)}
-                className="flex-1 py-4 text-slate-500 font-black uppercase text-xs tracking-widest hover:text-white transition-colors"
-              >
-                Voltar
-              </button>
-              <button
-                onClick={() => { onCloseMeasurement(); setIsClosingModalOpen(false); }}
-                className="flex-[2] py-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-[0_10px_30px_-10px_rgba(79,70,229,0.5)] active:scale-95 transition-all"
-              >
-                Confirmar e abrir próxima
-              </button>
+               <button 
+                  onClick={() => setIsClosingModalOpen(false)}
+                  className="flex-1 py-4 text-slate-500 font-black uppercase text-xs tracking-widest hover:text-white transition-colors"
+               >
+                 Voltar
+               </button>
+               <button 
+                  onClick={() => { onCloseMeasurement(); setIsClosingModalOpen(false); }}
+                  className="flex-[2] py-5 bg-indigo-600 hover:bg-indigo-50 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-[0_10px_30px_-10px_rgba(79,70,229,0.5)] active:scale-95 transition-all"
+               >
+                 Confirmar e abrir próxima
+               </button>
             </div>
           </div>
         </div>
@@ -272,37 +272,37 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setIsReopenModalOpen(false)}>
           <div className="bg-[#0f111a] w-full max-w-lg rounded-[3rem] p-12 shadow-2xl border border-slate-800/50 flex flex-col items-center text-center relative overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-rose-500/10 blur-[100px] pointer-events-none"></div>
-
+            
             <div className="relative mb-10">
               <div className="w-24 h-24 bg-slate-800/40 rounded-full flex items-center justify-center border border-slate-700/50">
-                <RefreshCw size={36} className="text-rose-500" />
+                 <RefreshCw size={36} className="text-rose-500" />
               </div>
             </div>
 
             <h2 className="text-3xl font-black text-white uppercase tracking-tighter mb-6">Reabrir Medição?</h2>
-
+            
             <div className="space-y-4 mb-12">
-              <p className="text-slate-400 text-lg font-medium leading-relaxed">
-                Deseja realmente reativar a medição <span className="text-white font-bold">#{viewingMeasurementId}</span>?
-              </p>
-              <p className="text-rose-400/80 text-sm font-bold uppercase tracking-widest">
-                O período atual será descartado e o histórico voltará um passo.
-              </p>
+               <p className="text-slate-400 text-lg font-medium leading-relaxed">
+                 Deseja realmente reativar a medição <span className="text-white font-bold">#{viewingMeasurementId}</span>?
+               </p>
+               <p className="text-rose-400/80 text-sm font-bold uppercase tracking-widest">
+                 O período atual será descartado e o histórico voltará um passo.
+               </p>
             </div>
 
             <div className="flex items-center gap-6 w-full">
-              <button
-                onClick={() => setIsReopenModalOpen(false)}
-                className="flex-1 py-4 text-slate-500 font-black uppercase text-xs tracking-widest hover:text-white transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleConfirmReopen}
-                className="flex-[2] py-5 bg-rose-600 hover:bg-rose-500 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-[0_10px_30px_-10px_rgba(225,29,72,0.5)] active:scale-95 transition-all"
-              >
-                Confirmar Reabertura
-              </button>
+               <button 
+                  onClick={() => setIsReopenModalOpen(false)}
+                  className="flex-1 py-4 text-slate-500 font-black uppercase text-xs tracking-widest hover:text-white transition-colors"
+               >
+                 Cancelar
+               </button>
+               <button 
+                  onClick={handleConfirmReopen}
+                  className="flex-[2] py-5 bg-rose-600 hover:bg-rose-50 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-[0_10px_30px_-10px_rgba(225,29,72,0.5)] active:scale-95 transition-all"
+               >
+                 Confirmar Reabertura
+               </button>
             </div>
           </div>
         </div>

@@ -103,6 +103,7 @@ const App: React.FC = () => {
           <ProjectWorkspace 
             project={activeProject}
             globalSettings={safeGlobalSettings as any}
+            suppliers={suppliers}
             onUpdateProject={updateActiveProject}
             onCloseMeasurement={handleCloseMeasurement}
             canUndo={canUndo} 

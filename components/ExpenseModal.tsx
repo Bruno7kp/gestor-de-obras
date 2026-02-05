@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { ProjectExpense, ItemType, ExpenseType, ExpenseStatus } from '../types';
 import { financial } from '../utils/math';
 import { ExpenseAttachmentZone } from './ExpenseAttachmentZone';
-import { X, Save, Truck, Users, Calculator, FolderTree, Calendar, Clock, Landmark, ReceiptText, ClipboardCheck, ArrowRight, Percent, Layers, Package } from 'lucide-react';
+import { X, Save, Truck, Users, Calculator, FolderTree, Landmark, ReceiptText, ClipboardCheck, Percent, Layers } from 'lucide-react';
 
 interface ExpenseModalProps {
   isOpen: boolean;
@@ -23,9 +23,9 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
   const isRevenue = expenseType === 'revenue';
   const isLabor = expenseType === 'labor';
   const [activeItemType, setActiveItemType] = useState<ItemType>(initialItemType);
-
+  
   const [formData, setFormData] = useState<Partial<ProjectExpense>>({
-    description: '', parentId: null, unit: 'un', quantity: 1, unitPrice: 0, amount: 0, entityName: '',
+    description: '', parentId: null, unit: 'un', quantity: 1, unitPrice: 0, amount: 0, entityName: '', 
     date: new Date().toISOString().split('T')[0],
     status: 'PENDING',
     paymentProof: undefined,
@@ -51,9 +51,9 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
       setStrDiscountPercent(financial.formatVisual(editingItem.discountPercentage || 0, '').trim());
       setStrAmount(financial.formatVisual(editingItem.amount || 0, '').trim());
     } else {
-      setFormData({
-        description: '', parentId: null, unit: isRevenue ? 'vb' : 'un',
-        quantity: 1, unitPrice: 0, amount: 0, entityName: '',
+      setFormData({ 
+        description: '', parentId: null, unit: isRevenue ? 'vb' : 'un', 
+        quantity: 1, unitPrice: 0, amount: 0, entityName: '', 
         date: new Date().toISOString().split('T')[0],
         status: 'PENDING',
         discountValue: 0,
@@ -64,10 +64,24 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
     }
   }, [editingItem, isOpen, initialItemType, expenseType]);
 
+  // Automação básica de status baseada em anexos (apenas para ITENS)
+  useEffect(() => {
+    if (activeItemType === 'item') {
+      let newStatus: ExpenseStatus = formData.status || 'PENDING';
+      if (formData.invoiceDoc && !isLabor && !isRevenue) newStatus = 'DELIVERED';
+      if (isRevenue && formData.invoiceDoc) newStatus = 'DELIVERED';
+      if (formData.paymentProof && newStatus === 'PENDING') newStatus = 'PAID';
+      
+      if (newStatus !== formData.status) {
+        setFormData(prev => ({ ...prev, status: newStatus }));
+      }
+    }
+  }, [formData.invoiceDoc, formData.paymentProof, activeItemType, isLabor, isRevenue]);
+
   const handleNumericChange = (val: string, setter: (v: string) => void, field: 'qty' | 'price' | 'discountVal' | 'discountPct') => {
     const masked = financial.maskCurrency(val);
     setter(masked);
-
+    
     const q = field === 'qty' ? financial.parseLocaleNumber(masked) : financial.parseLocaleNumber(strQty);
     const p = field === 'price' ? financial.parseLocaleNumber(masked) : financial.parseLocaleNumber(strPrice);
     let dVal = field === 'discountVal' ? financial.parseLocaleNumber(masked) : financial.parseLocaleNumber(strDiscountValue);
@@ -98,20 +112,16 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.description) return;
-
-    const qtyNum = financial.parseLocaleNumber(strQty);
-    const priceNum = financial.parseLocaleNumber(strPrice);
-    const amountNum = financial.parseLocaleNumber(strAmount);
-
+    
     onSave({
       ...formData,
       itemType: activeItemType,
       type: expenseType,
-      quantity: qtyNum,
-      unitPrice: priceNum,
+      quantity: financial.parseLocaleNumber(strQty),
+      unitPrice: financial.parseLocaleNumber(strPrice),
       discountValue: financial.parseLocaleNumber(strDiscountValue),
       discountPercentage: financial.parseLocaleNumber(strDiscountPercent),
-      amount: activeItemType === 'category' ? 0 : amountNum,
+      amount: activeItemType === 'category' ? 0 : financial.parseLocaleNumber(strAmount),
       isPaid: formData.status === 'PAID' || formData.status === 'DELIVERED'
     });
     onClose();
@@ -122,8 +132,8 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-[3rem] shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[95vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
-
+      <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-[3.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[95vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        
         <div className={`px-8 py-6 border-b flex items-center justify-between shrink-0 ${isRevenue ? 'bg-emerald-50 dark:bg-emerald-900/10' : 'bg-indigo-50 dark:bg-indigo-900/10'}`}>
           <div className="flex items-center gap-4">
             <div className={`p-3 rounded-2xl text-white ${isRevenue ? 'bg-emerald-600' : 'bg-indigo-600'}`}>
@@ -131,7 +141,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
             </div>
             <div>
               <h2 className="text-xl font-black dark:text-white tracking-tight">{editingItem ? 'Editar' : 'Novo'} {isCategory ? 'Grupo' : 'Lançamento'}</h2>
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Gestão Financeira & Hierarquia</p>
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Controle Hierárquico Financeiro</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 text-slate-400 hover:bg-slate-100 rounded-xl transition-all"><X size={20} /></button>
@@ -139,28 +149,26 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
 
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
           <div className="p-8 space-y-8 overflow-y-auto custom-scrollbar flex-1">
-
             {!editingItem && (
-              <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl gap-2 max-w-sm mx-auto">
-                <button type="button" onClick={() => setActiveItemType('category')} className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${activeItemType === 'category' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}>Grupo Pai</button>
-                <button type="button" onClick={() => setActiveItemType('item')} className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${activeItemType === 'item' ? 'bg-white dark:bg-slate-700 text-emerald-600 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}>Lançamento</button>
+              <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl gap-2 max-w-sm mx-auto">
+                <button type="button" onClick={() => setActiveItemType('category')} className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeItemType === 'category' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}>Grupo de Despesa</button>
+                <button type="button" onClick={() => setActiveItemType('item')} className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeItemType === 'item' ? 'bg-white dark:bg-slate-700 text-emerald-600 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}>Lançamento Direto</button>
               </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              <div className={isCategory ? "lg:col-span-12 space-y-6" : "lg:col-span-7 space-y-6"}>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+              <div className={isCategory ? "lg:col-span-12" : "lg:col-span-7"}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                   <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">Pertence ao Grupo</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">Vínculo Hierárquico</label>
                     <div className="relative">
                       <FolderTree className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                      <select
-                        className="w-full pl-11 pr-4 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold outline-none appearance-none focus:border-indigo-500"
+                      <select 
+                        className="w-full pl-11 pr-4 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold outline-none appearance-none focus:border-indigo-500 transition-all"
                         value={formData.parentId || ''}
-                        onChange={e => setFormData({ ...formData, parentId: e.target.value || null })}
+                        onChange={e => setFormData(prev => ({...prev, parentId: e.target.value || null}))}
                       >
-                        <option value="">Raiz (Nenhum)</option>
+                        <option value="">Raiz do Financeiro</option>
                         {categories.filter(c => c.id !== editingItem?.id).map(cat => (
                           <option key={cat.id} value={cat.id}>
                             {"\u00A0".repeat(cat.depth * 2)} {cat.description}
@@ -169,82 +177,77 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                       </select>
                     </div>
                   </div>
+                  
                   {!isCategory && (
                     <div>
-                      <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">Status Manual</label>
-                      <select
-                        className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-black uppercase outline-none focus:border-indigo-500"
+                      <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">Status de Liquidação</label>
+                      <select 
+                        className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-black uppercase outline-none focus:border-indigo-500 transition-all"
                         value={formData.status}
-                        onChange={e => setFormData({ ...formData, status: e.target.value as ExpenseStatus })}
+                        onChange={e => setFormData(prev => ({...prev, status: e.target.value as ExpenseStatus}))}
                       >
                         <option value="PENDING">Pendente</option>
                         {!isRevenue && <option value="PAID">Pago / Liquidado</option>}
-                        {!isLabor && <option value="DELIVERED">{isRevenue ? 'Entregue' : 'Entregue / Concluído'}</option>}
+                        {!isLabor && <option value="DELIVERED">{isRevenue ? 'Faturado/Recebido' : 'Entregue no Local'}</option>}
                       </select>
                     </div>
                   )}
                 </div>
 
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">Descrição</label>
-                  <input required className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="Ex: Cimento CP-II 50kg" />
+                <div className="mb-6">
+                  <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">Descrição do Lançamento</label>
+                  <input required className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all" value={formData.description} onChange={e => setFormData(prev => ({...prev, description: e.target.value}))} placeholder="Ex: Cimento CP-II 50kg" />
                 </div>
 
                 {!isCategory && (
                   <>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-6 mb-6">
                       <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">Entidade / Fornecedor</label>
-                        <input className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500" value={formData.entityName} onChange={e => setFormData({ ...formData, entityName: e.target.value })} placeholder="Razão Social" />
+                        <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">Entidade / Fornecedor / MEI</label>
+                        <input className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all" value={formData.entityName} onChange={e => setFormData(prev => ({...prev, entityName: e.target.value}))} placeholder="Nome Fantasia ou Razão" />
                       </div>
                       <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">Data Competência</label>
-                        <input type="date" className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500" value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} />
+                        <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">Mês de Competência</label>
+                        <input type="date" className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all" value={formData.date} onChange={e => setFormData(prev => ({...prev, date: e.target.value}))} />
                       </div>
                     </div>
 
-                    <div className="p-6 bg-slate-50 dark:bg-slate-800/40 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 space-y-6">
-                      <div className="grid grid-cols-3 gap-4">
-                        <div>
-                          <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block text-center">Unidade</label>
-                          <input className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-black text-center uppercase outline-none focus:ring-2 focus:ring-indigo-500/20" value={formData.unit} onChange={e => setFormData({ ...formData, unit: e.target.value })} placeholder="Ex: m2" />
-                        </div>
-                        <div>
-                          <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block text-center">Qtd</label>
-                          <input className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-black text-center outline-none focus:ring-2 focus:ring-indigo-500/20" value={strQty} onChange={e => handleNumericChange(e.target.value, setStrQty, 'qty')} />
-                        </div>
-                        <div>
-                          <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block text-center">Preço Unitário</label>
-                          <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-300">R$</span>
-                            <input className="w-full pl-8 pr-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-black text-right outline-none focus:ring-2 focus:ring-indigo-500/20" value={strPrice} onChange={e => handleNumericChange(e.target.value, setStrPrice, 'price')} />
+                    <div className="p-8 bg-slate-50 dark:bg-slate-800/40 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 space-y-6">
+                      <div className="grid grid-cols-3 gap-6">
+                          <div>
+                            <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block text-center">Unidade</label>
+                            <input className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-black text-center uppercase outline-none focus:ring-2 focus:ring-indigo-500/20" value={formData.unit} onChange={e => setFormData(prev => ({...prev, unit: e.target.value}))} />
                           </div>
-                        </div>
+                          <div>
+                            <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block text-center">Qtd</label>
+                            <input className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-black text-center outline-none focus:ring-2 focus:ring-indigo-500/20" value={strQty} onChange={e => handleNumericChange(e.target.value, setStrQty, 'qty')} />
+                          </div>
+                          <div>
+                            <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block text-center">Preço Unitário</label>
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-300">R$</span>
+                              <input className="w-full pl-8 pr-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-black text-right outline-none focus:ring-2 focus:ring-indigo-500/20" value={strPrice} onChange={e => handleNumericChange(e.target.value, setStrPrice, 'price')} />
+                            </div>
+                          </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-                        <div>
-                          <label className="text-[9px] font-black text-rose-500 uppercase mb-2 block text-center">Desconto (%)</label>
-                          <div className="relative">
-                            <Percent className="absolute left-3 top-1/2 -translate-y-1/2 text-rose-300" size={14} />
-                            <input className="w-full pl-8 pr-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-900/30 text-xs font-black text-right text-rose-600 outline-none focus:ring-2 focus:ring-rose-500/20" value={strDiscountPercent} onChange={e => handleNumericChange(e.target.value, setStrDiscountPercent, 'discountPct')} />
+                      <div className="grid grid-cols-2 gap-6 pt-4 border-t border-slate-200 dark:border-slate-700">
+                          <div>
+                            <label className="text-[9px] font-black text-rose-500 uppercase mb-2 block text-center">Desconto (%)</label>
+                            <input className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-900/30 text-xs font-black text-right text-rose-600 outline-none" value={strDiscountPercent} onChange={e => handleNumericChange(e.target.value, setStrDiscountPercent, 'discountPct')} />
                           </div>
-                        </div>
-                        <div>
-                          <label className="text-[9px] font-black text-rose-500 uppercase mb-2 block text-center">Desconto (R$)</label>
-                          <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[9px] font-black text-rose-300">R$</span>
-                            <input className="w-full pl-8 pr-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-900/30 text-xs font-black text-right text-rose-600 outline-none focus:ring-2 focus:ring-rose-500/20" value={strDiscountValue} onChange={e => handleNumericChange(e.target.value, setStrDiscountValue, 'discountVal')} />
+                          <div>
+                            <label className="text-[9px] font-black text-rose-500 uppercase mb-2 block text-center">Desconto (R$)</label>
+                            <input className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-900/30 text-xs font-black text-right text-rose-600 outline-none" value={strDiscountValue} onChange={e => handleNumericChange(e.target.value, setStrDiscountValue, 'discountVal')} />
                           </div>
-                        </div>
                       </div>
 
-                      <div className="pt-4 border-t-2 border-dashed border-slate-200 dark:border-slate-700">
-                        <label className="text-[9px] font-black text-indigo-500 uppercase mb-2 block text-center tracking-widest">Total Líquido</label>
-                        <div className="relative">
-                          <Calculator className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-300" size={20} />
-                          <input readOnly className="w-full pl-12 pr-6 py-4 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 border-2 border-indigo-100 dark:border-indigo-800 text-xl font-black text-right text-indigo-600 outline-none" value={strAmount} />
-                        </div>
+                      <div className="pt-6 border-t-2 border-dashed border-slate-200 dark:border-slate-700">
+                          <label className="text-[10px] font-black text-indigo-500 uppercase mb-2 block text-center tracking-widest">Valor Total Líquido</label>
+                          <div className="relative">
+                            <Calculator className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-300" size={20} />
+                            <input readOnly className="w-full pl-12 pr-6 py-4 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 border-2 border-indigo-100 dark:border-indigo-800 text-xl font-black text-right text-indigo-600 outline-none shadow-inner" value={strAmount} />
+                          </div>
                       </div>
                     </div>
                   </>
@@ -252,41 +255,41 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
               </div>
 
               {!isCategory && (
-                <div className="lg:col-span-5 bg-slate-50 dark:bg-slate-800/60 p-6 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 space-y-6">
+                <div className="lg:col-span-5 bg-slate-50 dark:bg-slate-800/60 p-8 rounded-[3rem] border border-slate-100 dark:border-slate-800 space-y-8">
                   <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-3 mb-2">
                     <ClipboardCheck size={18} className="text-indigo-500" />
-                    <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Compliance (Opcional)</h3>
+                    <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Auditoria e Anexos</h3>
                   </div>
 
                   {!isRevenue && (
-                    <ExpenseAttachmentZone
-                      label={isLabor ? "1. Recibo de Pagamento" : "1. Comprovante de Pagamento"}
+                    <ExpenseAttachmentZone 
+                      label={isLabor ? "Recibo de Pagamento (Pix/DOC)" : "Comprovante de Pagamento"}
                       requiredStatus="PAID"
                       currentFile={formData.paymentProof}
-                      onUpload={(base64) => setFormData({ ...formData, paymentProof: base64 })}
-                      onRemove={() => setFormData({ ...formData, paymentProof: undefined })}
+                      onUpload={(base64) => setFormData(prev => ({...prev, paymentProof: base64}))}
+                      onRemove={() => setFormData(prev => ({...prev, paymentProof: undefined}))}
                     />
                   )}
 
                   {!isLabor && (
-                    <ExpenseAttachmentZone
-                      label={isRevenue ? "1. Nota Fiscal / Comprovante" : "2. Nota Fiscal / Fatura"}
+                    <ExpenseAttachmentZone 
+                      label={isRevenue ? "Nota Fiscal de Faturamento" : "Nota Fiscal de Compra"}
                       requiredStatus="DELIVERED"
                       currentFile={formData.invoiceDoc}
-                      onUpload={(base64) => setFormData({ ...formData, invoiceDoc: base64 })}
-                      onRemove={() => setFormData({ ...formData, invoiceDoc: undefined })}
+                      onUpload={(base64) => setFormData(prev => ({...prev, invoiceDoc: base64}))}
+                      onRemove={() => setFormData(prev => ({...prev, invoiceDoc: undefined}))}
                     />
                   )}
 
                   <div className="animate-in slide-in-from-top-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">
-                      {isRevenue ? 'Data de Faturamento' : isLabor ? 'Data de Pagamento' : 'Data de Entrega'}
+                      {isLabor ? 'Data da Transferência' : (isRevenue ? 'Data do Faturamento' : 'Data da Entrega')}
                     </label>
-                    <input
-                      type="date"
-                      className="w-full px-5 py-3 rounded-xl border-2 border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-black outline-none"
-                      value={formData.deliveryDate || ''}
-                      onChange={e => setFormData({ ...formData, deliveryDate: e.target.value })}
+                    <input 
+                      type="date" 
+                      className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-black outline-none focus:border-indigo-500 transition-all shadow-sm" 
+                      value={formData.deliveryDate || ''} 
+                      onChange={e => setFormData(prev => ({...prev, deliveryDate: e.target.value}))} 
                     />
                   </div>
                 </div>
@@ -294,10 +297,10 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
             </div>
           </div>
 
-          <div className="px-8 py-6 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3 shrink-0">
-            <button type="button" onClick={onClose} className="px-8 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">Cancelar</button>
-            <button type="submit" className={`px-12 py-4 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center gap-3 ${isRevenue ? 'bg-emerald-600' : 'bg-indigo-600'}`}>
-              <Save size={18} /> {editingItem ? 'Salvar Alterações' : 'Confirmar'}
+          <div className="px-8 py-6 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-4 shrink-0">
+            <button type="button" onClick={onClose} className="px-8 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-700 transition-colors">Cancelar</button>
+            <button type="submit" className={`px-12 py-4 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center gap-3 ${isRevenue ? 'bg-emerald-600 shadow-emerald-500/20' : 'bg-indigo-600 shadow-indigo-500/20'}`}>
+              <Save size={18} /> {editingItem ? 'Atualizar Registro' : 'Salvar Lançamento'}
             </button>
           </div>
         </form>
