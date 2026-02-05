@@ -11,7 +11,8 @@ import {
   GripVertical, MoreVertical, Edit2, X, Save, Calculator, Wallet, Link,
   ChevronUp, ChevronDown, List, CalendarDays, Filter, Users, Download, UploadCloud,
   Layers, FlagTriangleRight, Printer, CreditCard, ChevronLeft, ChevronRight,
-  HardHat, Building2, User, FolderTree, FileCheck, ReceiptText, FileText, FileSpreadsheet
+  HardHat, Building2, User, FolderTree, FileCheck, ReceiptText, FileText, FileSpreadsheet,
+  ArrowRight
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { ExpenseAttachmentZone } from './ExpenseAttachmentZone';
@@ -42,11 +43,10 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   const [isAddingMilestone, setIsAddingMilestone] = useState(false);
 
   const [forecastSearch, setForecastSearch] = useState('');
-  const [forecastStatusFilter, setForecastStatusFilter] = useState<'all' | 'pending' | 'ordered' | 'delivered'>('all');
+  const [forecastStatusFilter, setForecastStatusFilter] = useState<'pending' | 'ordered' | 'delivered'>('pending');
   
   const planning = project.planning;
 
-  // Filtragem estrita: apenas grupos do tipo 'Mão de Obra' (labor)
   const financialCategories = useMemo(() => {
     return project.expenses.filter(e => e.itemType === 'category' && e.type === 'labor');
   }, [project.expenses]);
@@ -55,7 +55,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     return [...planning.forecasts].sort((a, b) => a.order - b.order)
       .filter(f => {
         const matchesSearch = f.description.toLowerCase().includes(forecastSearch.toLowerCase());
-        const matchesStatus = forecastStatusFilter === 'all' || f.status === forecastStatusFilter;
+        const matchesStatus = f.status === forecastStatusFilter;
         return matchesSearch && matchesStatus;
       });
   }, [planning.forecasts, forecastSearch, forecastStatusFilter]);
@@ -63,9 +63,16 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   const forecastStats = useMemo(() => {
     const list = planning.forecasts || [];
     const total = list.reduce((acc, f) => acc + ((f.quantityNeeded || 0) * (f.unitPrice || 0)), 0);
+    
+    const countPending = list.filter(f => f.status === 'pending').length;
+    const countOrdered = list.filter(f => f.status === 'ordered').length;
+    const countDelivered = list.filter(f => f.status === 'delivered').length;
+
     const pending = list.filter(f => f.status === 'pending').reduce((acc, f) => acc + ((f.quantityNeeded || 0) * (f.unitPrice || 0)), 0);
-    const ordered = list.filter(f => f.status !== 'pending').reduce((acc, f) => acc + ((f.quantityNeeded || 0) * (f.unitPrice || 0)), 0);
-    return { total, pending, ordered };
+    const ordered = list.filter(f => f.status === 'ordered').reduce((acc, f) => acc + ((f.quantityNeeded || 0) * (f.unitPrice || 0)), 0);
+    const delivered = list.filter(f => f.status === 'delivered').reduce((acc, f) => acc + ((f.quantityNeeded || 0) * (f.unitPrice || 0)), 0);
+    
+    return { total, pending, ordered, delivered, countPending, countOrdered, countDelivered };
   }, [planning.forecasts]);
 
   const handleAutoGenerate = () => {
@@ -112,6 +119,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     });
     onUpdatePlanning(updatedPlanning);
     setConfirmingForecast(null);
+    setForecastStatusFilter('ordered');
   };
 
   const handleViewProof = (proof: string) => {
@@ -148,7 +156,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
         onChange={handleImportPlanning}
       />
       
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-8 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-xl">
+      <div className="no-print flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-8 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-xl">
         <div className="flex items-center gap-5">
           <div className="p-4 bg-indigo-600 rounded-[1.5rem] text-white shadow-xl shadow-indigo-500/20">
             <HardHat size={28} />
@@ -271,36 +279,56 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <ForecastKpi label="Previsão de Suprimentos" value={forecastStats.total} icon={<Boxes size={20}/>} color="indigo" sub="Previsão global de gastos" />
                 <ForecastKpi label="Pendente de Compra" value={forecastStats.pending} icon={<Clock size={20}/>} color="amber" sub="Ainda não efetivado" />
-                <ForecastKpi label="Efetivado/Local" value={forecastStats.ordered} icon={<CheckCircle2 size={20}/>} color="emerald" sub="Lançado no financeiro" />
+                <ForecastKpi label="Efetivado/Local" value={forecastStats.ordered + forecastStats.delivered} icon={<CheckCircle2 size={20}/>} color="emerald" sub="Lançado no financeiro" />
              </div>
 
              <div className="bg-white dark:bg-slate-900 p-8 rounded-[3.5rem] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                {/* PIPELINE NAVIGATION */}
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10">
-                  <div>
-                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Suprimentos e Insumos</h3>
-                    <p className="text-[10px] text-slate-500 font-medium mt-1">Gestão proativa de matérias-primas e equipamentos.</p>
+                  <div className="flex flex-wrap items-center bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl gap-1">
+                    <ProcurementStep 
+                      active={forecastStatusFilter === 'pending'} 
+                      onClick={() => setForecastStatusFilter('pending')}
+                      label="A Comprar"
+                      count={forecastStats.countPending}
+                      icon={<ShoppingCart size={14}/>}
+                      color="amber"
+                    />
+                    <ArrowRight size={14} className="text-slate-300 mx-1 hidden sm:block"/>
+                    <ProcurementStep 
+                      active={forecastStatusFilter === 'ordered'} 
+                      onClick={() => setForecastStatusFilter('ordered')}
+                      label="Pedidos de Compra"
+                      count={forecastStats.countOrdered}
+                      icon={<Clock size={14}/>}
+                      color="blue"
+                    />
+                    <ArrowRight size={14} className="text-slate-300 mx-1 hidden sm:block"/>
+                    <ProcurementStep 
+                      active={forecastStatusFilter === 'delivered'} 
+                      onClick={() => setForecastStatusFilter('delivered')}
+                      label="Recebidos (Local)"
+                      count={forecastStats.countDelivered}
+                      icon={<Truck size={14}/>}
+                      color="emerald"
+                    />
                   </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    {/* Botões de Filtro de Status */}
-                    <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl mr-2">
-                       <button onClick={() => setForecastStatusFilter('all')} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${forecastStatusFilter === 'all' ? 'bg-white dark:bg-slate-700 text-slate-800 shadow-sm' : 'text-slate-400'}`}>Tudo</button>
-                       <button onClick={() => setForecastStatusFilter('pending')} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${forecastStatusFilter === 'pending' ? 'bg-amber-500 text-white shadow-lg' : 'text-slate-400'}`}>Pendentes</button>
-                       <button onClick={() => setForecastStatusFilter('ordered')} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${forecastStatusFilter === 'ordered' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400'}`}>Comprados</button>
-                       <button onClick={() => setForecastStatusFilter('delivered')} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${forecastStatusFilter === 'delivered' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400'}`}>No Local</button>
-                    </div>
 
+                  <div className="flex flex-wrap items-center gap-3">
                     <div className="relative group">
                       <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
                       <input 
-                        placeholder="Filtrar materiais..."
-                        className="bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 pl-11 pr-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest outline-none focus:border-indigo-500 transition-all w-48"
+                        placeholder="Pesquisar..."
+                        className="bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 pl-11 pr-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest outline-none focus:border-indigo-500 transition-all w-40"
                         value={forecastSearch}
                         onChange={e => setForecastSearch(e.target.value)}
                       />
                     </div>
-                    <button onClick={() => setIsAddingForecast(true)} className="flex items-center gap-2 px-6 py-4 bg-[#0f111a] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:scale-105 active:scale-95 transition-all">
-                      <Plus size={16} /> Adicionar Insumo
-                    </button>
+                    {forecastStatusFilter === 'pending' && (
+                      <button onClick={() => setIsAddingForecast(true)} className="flex items-center gap-2 px-6 py-4 bg-[#0f111a] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:scale-105 active:scale-95 transition-all">
+                        <Plus size={16} /> Novo Insumo
+                      </button>
+                    )}
                   </div>
                 </div>
                 
@@ -313,7 +341,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                         <th className="pb-2">Und</th>
                         <th className="pb-2">Qtd</th>
                         <th className="pb-2">Unitário</th>
-                        <th className="pb-2">Custo Previsto</th>
+                        <th className="pb-2">Total Previsto</th>
                         <th className="pb-2">Status</th>
                         <th className="pb-2">Pago?</th>
                         <th className="pb-2 text-right pr-4">Ações</th>
@@ -409,13 +437,22 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                     </td>
                                     <td className="py-6 text-right pr-6 rounded-r-3xl">
                                       <div className="flex items-center justify-end gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity">
-                                        {f.status !== 'delivered' && (
+                                        {f.status === 'pending' && (
                                           <button 
                                             onClick={() => setConfirmingForecast(f)}
                                             className="p-2 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 rounded-xl"
                                             title="Efetivar Compra"
                                           >
                                             <ArrowUpRight size={18}/>
+                                          </button>
+                                        )}
+                                        {f.status === 'ordered' && (
+                                          <button 
+                                            onClick={() => onUpdatePlanning(planningService.updateForecast(planning, f.id, { status: 'delivered' }))}
+                                            className="p-2 text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/40 rounded-xl"
+                                            title="Receber no Local"
+                                          >
+                                            <Truck size={18}/>
                                           </button>
                                         )}
                                         {f.paymentProof && (
@@ -438,7 +475,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                   {sortedForecasts.length === 0 && (
                     <div className="py-24 flex flex-col items-center justify-center text-slate-300 opacity-40">
                       <Boxes size={64} className="mb-4" />
-                      <p className="text-xs font-black uppercase tracking-[0.2em]">Sem suprimentos planejados</p>
+                      <p className="text-xs font-black uppercase tracking-[0.2em]">Sem suprimentos neste estágio</p>
                     </div>
                   )}
                 </div>
@@ -482,7 +519,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
             </p>
             <div className="flex items-center gap-6 w-full">
                <button onClick={() => setIsDeletingForecast(null)} className="flex-1 py-4 text-slate-500 font-black uppercase text-xs tracking-widest hover:text-white transition-colors">Voltar</button>
-               <button onClick={() => { onUpdatePlanning(planningService.deleteForecast(planning, isDeletingForecast.id)); setIsDeletingForecast(null); }} className="flex-[2] py-5 bg-rose-600 hover:bg-rose-500 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-xl shadow-rose-500/20 active:scale-95 transition-all">Excluir Permanente</button>
+               <button onClick={() => { onUpdatePlanning(planningService.deleteForecast(planning, isDeletingForecast.id)); setIsDeletingForecast(null); }} className="flex-[2] py-5 bg-rose-600 hover:bg-rose-50 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-xl shadow-rose-500/20 active:scale-95 transition-all">Excluir Permanente</button>
             </div>
           </div>
         </div>
@@ -571,6 +608,29 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
         />
       )}
     </div>
+  );
+};
+
+// --- PREMIUM COMPONENTS ---
+
+const ProcurementStep = ({ active, onClick, label, count, icon, color }: any) => {
+  const colors: any = {
+    amber: active ? 'bg-amber-500 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600',
+    blue: active ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600',
+    emerald: active ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'
+  };
+
+  return (
+    <button 
+      onClick={onClick}
+      className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${colors[color]}`}
+    >
+      {icon}
+      <span>{label}</span>
+      <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-black ${active ? 'bg-white/20' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>
+        {count}
+      </span>
+    </button>
   );
 };
 
@@ -722,7 +782,7 @@ const ForecastModal = ({ onClose, onSave, allWorkItems, suppliers, editingItem }
            <button 
             onClick={() => onSave(data)} 
             disabled={!data.description} 
-            className="flex-[2] py-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-[0_15px_35px_-10px_rgba(79,70,229,0.5)] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="flex-[2] py-6 bg-indigo-600 hover:bg-indigo-50 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-[0_15px_35px_-10px_rgba(79,70,229,0.5)] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-30 disabled:cursor-not-allowed"
            >
              <Save size={20} /> {editingItem ? 'Atualizar Registro' : 'Confirmar Inclusão'}
            </button>
