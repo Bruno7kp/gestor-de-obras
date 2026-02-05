@@ -20,8 +20,7 @@ export const PrintExpenseReport: React.FC<PrintExpenseReportProps> = ({ project,
 
   const dynamicStyles = `
     @media print {
-      /* Reset global para impressão estável */
-      .print-expense-report {
+      .print-expense-report-area {
         display: block !important;
         position: static !important;
         width: 100% !important;
@@ -108,13 +107,12 @@ export const PrintExpenseReport: React.FC<PrintExpenseReportProps> = ({ project,
         margin-bottom: 2pt;
       }
 
-      /* Esconder elementos desnecessários */
       .no-print, button { display: none !important; }
     }
   `;
 
   return (
-    <div className="print-expense-report hidden print:block bg-white min-h-screen">
+    <div className="print-report-area print-expense-report-area bg-white min-h-screen">
       <style dangerouslySetInnerHTML={{ __html: dynamicStyles }} />
       
       <div className="expense-report-container">

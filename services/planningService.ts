@@ -49,20 +49,21 @@ export const planningService = {
     return 'normal';
   },
 
-  prepareExpenseFromForecast: (forecast: MaterialForecast, parentId: string | null = null): Partial<ProjectExpense> => {
+  prepareExpenseFromForecast: (forecast: MaterialForecast, parentId: string | null = null, purchaseDate?: string, isPaid: boolean = false): Partial<ProjectExpense> => {
     const totalAmount = (forecast.quantityNeeded || 0) * (forecast.unitPrice || 0);
     return {
       id: crypto.randomUUID(),
       parentId: parentId,
       type: 'material',
       itemType: 'item',
-      date: new Date().toISOString().split('T')[0],
-      description: `Compra Efetivada: ${forecast.description}`,
+      date: purchaseDate || new Date().toISOString().split('T')[0],
+      description: `Pedido de Compra: ${forecast.description}`,
       unit: forecast.unit,
       quantity: forecast.quantityNeeded,
       unitPrice: forecast.unitPrice,
-      isPaid: forecast.isPaid || true, // Sincroniza com o estado do forecast
-      amount: totalAmount
+      isPaid: isPaid, 
+      amount: totalAmount,
+      status: isPaid ? 'PAID' : 'PENDING'
     };
   },
 

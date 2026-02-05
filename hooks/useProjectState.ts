@@ -1,9 +1,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
-import { Project, ProjectGroup, MeasurementSnapshot, GlobalSettings, ProjectPlanning, ProjectJournal, WorkItem, ProjectExpense, BiddingProcess, CompanyCertificate, DEFAULT_THEME, Supplier } from '../types';
-import { treeService } from '../services/treeService';
+import { Project, ProjectGroup, GlobalSettings, BiddingProcess, Supplier, CompanyCertificate } from '../types';
 import { journalService } from '../services/journalService';
-import { financial } from '../utils/math';
 
 interface State {
   projects: Project[];
@@ -24,123 +22,128 @@ const INITIAL_SETTINGS: GlobalSettings = {
   certificates: []
 };
 
-const INITIAL_PLANNING: ProjectPlanning = {
-  tasks: [],
-  forecasts: [],
-  milestones: [],
-  schedule: {}
-};
-
-const INITIAL_JOURNAL: ProjectJournal = {
-  entries: []
-};
+const MAX_HISTORY = 20;
 
 export const useProjectState = () => {
-  const [past, setPast] = useState<State[]>([]);
   const [present, setPresent] = useState<State>(() => {
     const saved = localStorage.getItem('promeasure_v4_data');
     if (saved) {
-      const parsed = JSON.parse(saved);
-      return {
-        ...parsed,
-        suppliers: parsed.suppliers || [],
-        projects: (parsed.projects || []).map((p: any) => ({
-          ...p,
-          location: p.location || '',
-          planning: p.planning || { ...INITIAL_PLANNING },
-          journal: p.journal || { ...INITIAL_JOURNAL },
-          config: {
-            strict: false,
-            printCards: true,
-            printSubtotals: true,
-            showSignatures: true,
-            ...(p.config || {})
-          },
-          theme: {
-            ...DEFAULT_THEME,
-            ...(p.theme || {}),
-            currencySymbol: p.theme?.currencySymbol || parsed.globalSettings?.currencySymbol || 'R$',
-            header: { ...DEFAULT_THEME.header, ...(p.theme?.header || {}) },
-            category: { ...DEFAULT_THEME.category, ...(p.theme?.category || {}) },
-            footer: { ...DEFAULT_THEME.footer, ...(p.theme?.footer || {}) },
-            kpiHighlight: { ...DEFAULT_THEME.kpiHighlight, ...(p.theme?.kpiHighlight || {}) }
-          }
-        })),
-        biddings: parsed.biddings || [],
-        globalSettings: {
-          ...INITIAL_SETTINGS,
-          ...(parsed.globalSettings || {})
-        }
-      };
+      try {
+        const parsed = JSON.parse(saved);
+        return {
+          ...parsed,
+          suppliers: parsed.suppliers || [],
+          groups: parsed.groups || [],
+          biddings: parsed.biddings || [],
+          activeProjectId: parsed.activeProjectId || null,
+          activeBiddingId: parsed.activeBiddingId || null,
+          globalSettings: { ...INITIAL_SETTINGS, ...(parsed.globalSettings || {}) },
+          projects: (parsed.projects || []).map((p: any) => ({
+            ...p,
+            workforce: p.workforce || [],
+            laborContracts: p.laborContracts || [], // Garantia de inicialização
+            expenses: (p.expenses || []).map((e: any) => ({
+              ...e,
+              status: e.status || (e.isPaid ? 'PAID' : 'PENDING')
+            }))
+          }))
+        };
+      } catch (e) {
+        console.error("Erro ao carregar dados salvos:", e);
+      }
     }
-    return {
-      projects: [],
-      biddings: [],
-      groups: [],
-      suppliers: [],
-      activeProjectId: null,
-      activeBiddingId: null,
-      globalSettings: INITIAL_SETTINGS
-    };
+    return { projects: [], biddings: [], groups: [], suppliers: [], activeProjectId: null, activeBiddingId: null, globalSettings: INITIAL_SETTINGS };
   });
+
+  const [past, setPast] = useState<State[]>([]);
   const [future, setFuture] = useState<State[]>([]);
 
   useEffect(() => {
-    localStorage.setItem('promeasure_v4_data', JSON.stringify(present));
+    try {
+      localStorage.setItem('promeasure_v4_data', JSON.stringify(present));
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+        alert("CRÍTICO: Limite excedido! Remova fotos ou obras antigas.");
+      }
+    }
   }, [present]);
 
-  const bulkUpdate = useCallback((updates: Partial<State> | ((prev: State) => Partial<State>)) => {
+  const commit = useCallback((updater: (prev: State) => State) => {
     setPresent(prev => {
-      const resolvedUpdates = typeof updates === 'function' ? updates(prev) : updates;
-      setPast(p => [...p, prev].slice(-20));
+      const next = updater(prev);
+      if (JSON.stringify(prev) === JSON.stringify(next)) return prev;
+
+      setPast(pastPrev => [...pastPrev, prev].slice(-MAX_HISTORY));
       setFuture([]);
-      return { ...prev, ...resolvedUpdates };
+      return next;
     });
   }, []);
+
+  const undo = useCallback(() => {
+    setPresent(prev => {
+      if (past.length === 0) return prev;
+      const previous = past[past.length - 1];
+      const newPast = past.slice(0, past.length - 1);
+      setFuture(f => [prev, ...f].slice(0, MAX_HISTORY));
+      setPast(newPast);
+      return previous;
+    });
+  }, [past]);
+
+  const redo = useCallback(() => {
+    setPresent(prev => {
+      if (future.length === 0) return prev;
+      const next = future[0];
+      const newFuture = future.slice(1);
+      setPast(p => [...p, prev].slice(-MAX_HISTORY));
+      setFuture(newFuture);
+      return next;
+    });
+  }, [future]);
 
   const updateActiveProject = useCallback((data: Partial<Project>) => {
-    setPresent(prev => {
-      const activeProject = prev.projects.find(p => p.id === prev.activeProjectId);
-      if (!activeProject) return prev;
-      const updatedProjects = prev.projects.map(p => p.id === prev.activeProjectId ? { ...p, ...data } : p);
+    commit(prev => {
+      const activeIdx = prev.projects.findIndex(p => p.id === prev.activeProjectId);
+      if (activeIdx === -1) return prev;
+
+      const active = prev.projects[activeIdx];
+      let autoLogs: any[] = [];
+      if (data.expenses) autoLogs = [...autoLogs, ...journalService.checkExpenseStatusDeltas(active.expenses, data.expenses)];
+      if (data.items) autoLogs = [...autoLogs, ...journalService.checkWorkItemDeltas(active.items, data.items)];
+
+      const updatedProject: Project = {
+        ...active,
+        ...data,
+        journal: {
+          ...active.journal,
+          entries: autoLogs.length > 0 ? [...autoLogs, ...active.journal.entries] : active.journal.entries
+        }
+      };
+
+      const updatedProjects = [...prev.projects];
+      updatedProjects[activeIdx] = updatedProject;
       return { ...prev, projects: updatedProjects };
     });
-  }, []);
-
-  const updateProjects = useCallback((projects: Project[]) => {
-    bulkUpdate({ projects });
-  }, [bulkUpdate]);
-  
-  const updateGroups = useCallback((groups: ProjectGroup[]) => {
-    bulkUpdate({ groups });
-  }, [bulkUpdate]);
-
-  const updateSuppliers = useCallback((suppliers: Supplier[]) => {
-    bulkUpdate({ suppliers });
-  }, [bulkUpdate]);
-  
-  const updateBiddings = useCallback((biddings: BiddingProcess[]) => {
-    bulkUpdate({ biddings });
-  }, [bulkUpdate]);
-  
-  const updateCertificates = useCallback((certs: CompanyCertificate[]) => {
-    bulkUpdate(prev => ({ globalSettings: { ...prev.globalSettings, certificates: certs } }));
-  }, [bulkUpdate]);
+  }, [commit]);
 
   return {
     ...present,
     activeProject: present.projects.find(p => p.id === present.activeProjectId) || null,
-    activeBidding: present.biddings.find(b => b.id === present.activeBiddingId) || null,
-    setGlobalSettings: (s: GlobalSettings) => bulkUpdate({ globalSettings: s }),
-    setActiveProjectId: (id: string | null) => setPresent(prev => ({ ...prev, activeProjectId: id, activeBiddingId: null })),
-    setActiveBiddingId: (id: string | null) => setPresent(prev => ({ ...prev, activeBiddingId: id, activeProjectId: null })),
     updateActiveProject,
-    updateProjects,
-    updateGroups,
-    updateSuppliers,
-    updateBiddings,
-    updateCertificates,
-    bulkUpdate,
-    undo: () => {}, redo: () => {}, canUndo: false, canRedo: false 
+    undo,
+    redo,
+    canUndo: past.length > 0,
+    canRedo: future.length > 0,
+    setActiveProjectId: (id: string | null) => commit(prev => ({ ...prev, activeProjectId: id })),
+    updateProjects: (projects: Project[]) => commit(prev => ({ ...prev, projects })),
+    updateGroups: (groups: ProjectGroup[]) => commit(prev => ({ ...prev, groups })),
+    updateSuppliers: (suppliers: Supplier[]) => commit(prev => ({ ...prev, suppliers })),
+    updateBiddings: (biddings: BiddingProcess[]) => commit(prev => ({ ...prev, biddings })),
+    updateCertificates: (certificates: CompanyCertificate[]) => commit(prev => ({
+      ...prev,
+      globalSettings: { ...prev.globalSettings, certificates }
+    })),
+    setGlobalSettings: (s: GlobalSettings) => commit(prev => ({ ...prev, globalSettings: s })),
+    bulkUpdate: (updates: Partial<State>) => commit(prev => ({ ...prev, ...updates }))
   };
 };

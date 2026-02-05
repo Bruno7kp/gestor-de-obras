@@ -1,0 +1,78 @@
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { LaborContractsService } from './labor-contracts.service';
+import { Roles } from '../auth/roles.decorator';
+import type { AuthenticatedRequest } from '../auth/auth.types';
+
+interface LaborPaymentBody {
+  id?: string;
+  data: string;
+  valor: number;
+  descricao: string;
+  comprovante?: string;
+}
+
+interface CreateLaborContractBody {
+  projectId: string;
+  tipo: string;
+  descricao: string;
+  associadoId: string;
+  valorTotal: number;
+  dataInicio: string;
+  dataFim?: string;
+  linkedWorkItemId?: string;
+  observacoes?: string;
+  ordem?: number;
+  pagamentos?: LaborPaymentBody[];
+}
+
+type UpdateLaborContractBody = Partial<CreateLaborContractBody>;
+
+@Controller('labor-contracts')
+@UseGuards(AuthGuard('jwt'))
+@Roles('USER', 'ADMIN', 'SUPER_ADMIN')
+export class LaborContractsController {
+  constructor(private readonly laborContractsService: LaborContractsService) {}
+
+  @Get()
+  findAll(@Query('projectId') projectId: string, @Req() req: AuthenticatedRequest) {
+    return this.laborContractsService.findAll(projectId, req.user.instanceId);
+  }
+
+  @Post()
+  create(@Body() body: CreateLaborContractBody, @Req() req: AuthenticatedRequest) {
+    return this.laborContractsService.create({
+      ...body,
+      instanceId: req.user.instanceId,
+    });
+  }
+
+  @Patch(':id')
+  update(
+    @Param('id') id: string,
+    @Body() body: UpdateLaborContractBody,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.laborContractsService.update({
+      ...body,
+      id,
+      instanceId: req.user.instanceId,
+    });
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.laborContractsService.remove(id, req.user.instanceId);
+  }
+}

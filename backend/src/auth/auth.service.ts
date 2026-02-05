@@ -1,0 +1,49 @@
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
+import { PrismaService } from '../prisma/prisma.service';
+
+interface LoginInput {
+  email: string;
+  password: string;
+  instanceId: string;
+}
+
+@Injectable()
+export class AuthService {
+  constructor(private readonly prisma: PrismaService, private readonly jwtService: JwtService) {}
+
+  async login(input: LoginInput) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        email: input.email,
+        instanceId: input.instanceId,
+      },
+      include: {
+        roles: { include: { role: true } },
+      },
+    });
+
+    if (!user) throw new UnauthorizedException('Credenciais invalidas');
+
+    const passwordValid = await bcrypt.compare(input.password, user.passwordHash);
+    if (!passwordValid) throw new UnauthorizedException('Credenciais invalidas');
+
+    const payload = {
+      sub: user.id,
+      instanceId: user.instanceId,
+      roles: user.roles.map(r => r.role.name),
+    };
+
+    return {
+      accessToken: await this.jwtService.signAsync(payload),
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        instanceId: user.instanceId,
+        roles: payload.roles,
+      },
+    };
+  }
+}

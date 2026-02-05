@@ -114,10 +114,12 @@ export const excelService = {
     const wb = XLSX.utils.book_new();
     const { tasks, forecasts, milestones } = project.planning;
     const taskData = tasks.map(t => [t.description, t.status, t.dueDate, t.isCompleted ? "SIM" : "NÃO"]);
-    const forecastData = forecasts.map(f => [f.description, f.unit, f.quantityNeeded, f.unitPrice, f.estimatedDate, f.status]);
+    // Added 'isPaid' (converted to SIM/NÃO) to the forecast export data
+    const forecastData = forecasts.map(f => [f.description, f.unit, f.quantityNeeded, f.unitPrice, f.estimatedDate, f.status, f.isPaid ? "SIM" : "NÃO"]);
     const milestoneData = milestones.map(m => [m.title, m.date, m.isCompleted ? "SIM" : "NÃO"]);
     const wsTasks = XLSX.utils.aoa_to_sheet([["DESCRICAO", "STATUS", "VENCIMENTO", "CONCLUIDO"], ...taskData]);
-    const wsForecasts = XLSX.utils.aoa_to_sheet([["MATERIAL", "UND", "QNT", "PRECO_UNIT", "DATA_COMPRA", "STATUS"], ...forecastData]);
+    // Added 'PAGO' column to the forecast worksheet headers
+    const wsForecasts = XLSX.utils.aoa_to_sheet([["MATERIAL", "UND", "QNT", "PRECO_UNIT", "DATA_COMPRA", "STATUS", "PAGO"], ...forecastData]);
     const wsMilestones = XLSX.utils.aoa_to_sheet([["TITULO", "DATA_META", "CONCLUIDA"], ...milestoneData]);
     XLSX.utils.book_append_sheet(wb, wsTasks, "Tarefas");
     XLSX.utils.book_append_sheet(wb, wsForecasts, "Suprimentos");
@@ -153,6 +155,7 @@ export const excelService = {
           if (workbook.Sheets["Suprimentos"]) {
             const raw: any[] = XLSX.utils.sheet_to_json(workbook.Sheets["Suprimentos"]);
             raw.forEach((r, idx) => {
+              // Fix: Added missing 'isPaid' property to the MaterialForecast object to match the interface requirements
               forecasts.push({
                 id: crypto.randomUUID(),
                 description: String(r.MATERIAL || ""),
@@ -161,7 +164,8 @@ export const excelService = {
                 unitPrice: parseVal(r.PRECO_UNIT),
                 estimatedDate: r.DATA_COMPRA instanceof Date ? r.DATA_COMPRA.toISOString() : new Date().toISOString(),
                 status: (r.STATUS || "pending") as any,
-                order: idx
+                order: idx,
+                isPaid: String(r.PAGO || "").toUpperCase() === "SIM"
               });
             });
           }
@@ -270,8 +274,26 @@ export const excelService = {
             const total = itemType === 'item' ? parseVal(row[10]) : 0;
             let expenseDate = new Date().toISOString().split('T')[0];
             if (itemType === 'item' && row[3] instanceof Date) { expenseDate = row[3].toISOString().split('T')[0]; } else if (itemType === 'item' && row[3]) { const d = new Date(row[3]); if (!isNaN(d.getTime())) expenseDate = d.toISOString().split('T')[0]; }
+            // Fix: Adding missing 'status' property to the ProjectExpense object
+            const isPaid = String(row[11] || "").toUpperCase().startsWith('S') || String(row[11] || "").toUpperCase() === 'SIM';
             const expense: ProjectExpense = {
-              id: crypto.randomUUID(), parentId: null, type, itemType, wbs, order: idx, date: expenseDate, description: String(row[4] || "Importado"), entityName: itemType === 'item' ? String(row[5] || "") : "", unit: String(row[6] || ""), quantity: qty || 1, unitPrice: unitPrice || (total + disc), discountValue: disc, discountPercentage: 0, amount: total || (qty * unitPrice - disc), isPaid: String(row[11] || "").toUpperCase().startsWith('S') || String(row[11] || "").toUpperCase() === 'SIM'
+              id: crypto.randomUUID(), 
+              parentId: null, 
+              type, 
+              itemType, 
+              wbs, 
+              order: idx, 
+              date: expenseDate, 
+              description: String(row[4] || "Importado"), 
+              entityName: itemType === 'item' ? String(row[5] || "") : "", 
+              unit: String(row[6] || ""), 
+              quantity: qty || 1, 
+              unitPrice: unitPrice || (total + disc), 
+              discountValue: disc, 
+              discountPercentage: 0, 
+              amount: total || (qty * unitPrice - disc), 
+              isPaid,
+              status: isPaid ? 'PAID' : 'PENDING'
             };
             importedExpenses.push(expense);
             if (wbs) wbsMap.set(wbs, expense);

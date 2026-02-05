@@ -1,0 +1,432 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ExpenseStatus {
+  PENDING
+  PAID
+  DELIVERED
+}
+
+model Instance {
+  id             String            @id @default(uuid())
+  name           String
+  status         String
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  subscription   Subscription?
+  globalSettings GlobalSettings?
+  users          User[]
+  roles          Role[]
+  projects       Project[]
+  projectGroups  ProjectGroup[]
+  suppliers      Supplier[]
+  biddings       BiddingProcess[]
+}
+
+model Subscription {
+  id           String   @id @default(uuid())
+  plan         String
+  status       String
+  startDate    DateTime
+  endDate      DateTime?
+  billingCycle String
+  instanceId   String   @unique
+  instance     Instance @relation(fields: [instanceId], references: [id])
+}
+
+model GlobalSettings {
+  id                  String              @id @default(uuid())
+  defaultCompanyName  String
+  companyCnpj         String
+  userName            String
+  language            String
+  currencySymbol      String
+  instanceId          String              @unique
+  instance            Instance            @relation(fields: [instanceId], references: [id])
+  certificates        CompanyCertificate[]
+}
+
+model CompanyCertificate {
+  id               String         @id @default(uuid())
+  name             String
+  issuer           String
+  expirationDate   DateTime
+  status           String
+  globalSettingsId String
+  globalSettings   GlobalSettings @relation(fields: [globalSettingsId], references: [id])
+}
+
+model User {
+  id         String     @id @default(uuid())
+  name       String
+  email      String     @unique
+  passwordHash String
+  status     String
+  createdAt  DateTime   @default(now())
+  instanceId String
+  instance   Instance   @relation(fields: [instanceId], references: [id])
+  roles      UserRole[]
+}
+
+model Role {
+  id          String           @id @default(uuid())
+  name        String
+  description String?
+  instanceId  String
+  instance    Instance         @relation(fields: [instanceId], references: [id])
+  users       UserRole[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id          String           @id @default(uuid())
+  code        String           @unique
+  description String?
+  roles       RolePermission[]
+}
+
+model UserRole {
+  id     String @id @default(uuid())
+  userId String
+  roleId String
+  user   User   @relation(fields: [userId], references: [id])
+  role   Role   @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, roleId])
+}
+
+model RolePermission {
+  id           String     @id @default(uuid())
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
+
+  @@unique([roleId, permissionId])
+}
+
+model ProjectGroup {
+  id         String         @id @default(uuid())
+  parentId   String?
+  name       String
+  order      Int
+  instanceId String
+  instance   Instance       @relation(fields: [instanceId], references: [id])
+  parent     ProjectGroup?  @relation("ProjectGroupParent", fields: [parentId], references: [id])
+  children   ProjectGroup[] @relation("ProjectGroupParent")
+  projects   Project[]
+}
+
+model Project {
+  id                    String                @id @default(uuid())
+  groupId               String?
+  name                  String
+  companyName           String
+  companyCnpj           String
+  location              String
+  measurementNumber     Int
+  referenceDate         String
+  logo                  String?
+  bdi                   Float
+  contractTotalOverride Float?
+  currentTotalOverride  Float?
+  strict                Boolean
+  printCards            Boolean
+  printSubtotals         Boolean
+  showSignatures        Boolean
+  instanceId            String
+  instance              Instance              @relation(fields: [instanceId], references: [id])
+  group                 ProjectGroup?         @relation(fields: [groupId], references: [id])
+  items                 WorkItem[]
+  history               MeasurementSnapshot[]
+  assets                ProjectAsset[]
+  expenses              ProjectExpense[]
+  planning              ProjectPlanning?
+  journal               ProjectJournal?
+  workforce             WorkforceMember[]
+  laborContracts        LaborContract[]
+  theme                 PDFTheme?
+}
+
+model PDFTheme {
+  id            String  @id @default(uuid())
+  fontFamily    String
+  primary       String
+  accent        String
+  accentText    String
+  border        String
+  currencySymbol String?
+  headerBg      String
+  headerText    String
+  categoryBg    String
+  categoryText  String
+  footerBg      String
+  footerText    String
+  kpiBg         String
+  kpiText       String
+  projectId     String  @unique
+  project       Project @relation(fields: [projectId], references: [id])
+}
+
+model WorkItem {
+  id                   String    @id @default(uuid())
+  parentId             String?
+  name                 String
+  type                 String
+  wbs                  String
+  order                Int
+  unit                 String
+  cod                  String?
+  fonte                String?
+  contractQuantity     Float
+  unitPrice            Float
+  unitPriceNoBdi        Float
+  contractTotal        Float
+  previousQuantity     Float
+  previousTotal        Float
+  currentQuantity      Float
+  currentTotal         Float
+  currentPercentage    Float
+  accumulatedQuantity  Float
+  accumulatedTotal     Float
+  accumulatedPercentage Float
+  balanceQuantity      Float
+  balanceTotal         Float
+  projectId            String
+  project              Project   @relation(fields: [projectId], references: [id])
+  parent               WorkItem? @relation("WorkItemParent", fields: [parentId], references: [id])
+  children             WorkItem[] @relation("WorkItemParent")
+  responsibilities     WorkItemResponsibility[]
+  laborContracts       LaborContract[]
+}
+
+model WorkItemResponsibility {
+  id                String          @id @default(uuid())
+  workItemId        String
+  workforceMemberId String
+  workItem          WorkItem        @relation(fields: [workItemId], references: [id])
+  workforceMember   WorkforceMember @relation(fields: [workforceMemberId], references: [id])
+
+  @@unique([workItemId, workforceMemberId])
+}
+
+model MeasurementSnapshot {
+  id                String   @id @default(uuid())
+  measurementNumber Int
+  date              String
+  itemsSnapshot     Json
+  totals            Json
+  projectId         String
+  project           Project  @relation(fields: [projectId], references: [id])
+}
+
+model ProjectAsset {
+  id         String  @id @default(uuid())
+  name       String
+  fileType   String
+  fileSize   Int
+  uploadDate String
+  data       String
+  projectId  String
+  project    Project @relation(fields: [projectId], references: [id])
+}
+
+model ProjectExpense {
+  id                 String          @id @default(uuid())
+  parentId           String?
+  type               String
+  itemType           String
+  wbs                String
+  order              Int
+  date               String
+  description        String
+  entityName         String
+  unit               String
+  quantity           Float
+  unitPrice          Float
+  amount             Float
+  isPaid             Boolean
+  status             ExpenseStatus
+  paymentDate        String?
+  paymentProof       String?
+  invoiceDoc         String?
+  deliveryDate       String?
+  discountValue      Float?
+  discountPercentage Float?
+  issValue           Float?
+  issPercentage      Float?
+  linkedWorkItemId   String?
+  projectId          String
+  project            Project         @relation(fields: [projectId], references: [id])
+  parent             ProjectExpense? @relation("ProjectExpenseParent", fields: [parentId], references: [id])
+  children           ProjectExpense[] @relation("ProjectExpenseParent")
+}
+
+model ProjectPlanning {
+  id        String  @id @default(uuid())
+  schedule  Json?
+  projectId String  @unique
+  project   Project @relation(fields: [projectId], references: [id])
+  tasks     PlanningTask[]
+  forecasts MaterialForecast[]
+  milestones Milestone[]
+}
+
+model PlanningTask {
+  id               String   @id @default(uuid())
+  categoryId       String?
+  description      String
+  status           String
+  isCompleted      Boolean
+  dueDate          String
+  createdAt        String
+  completedAt      String?
+  projectPlanningId String
+  projectPlanning  ProjectPlanning @relation(fields: [projectPlanningId], references: [id])
+}
+
+model MaterialForecast {
+  id               String   @id @default(uuid())
+  description      String
+  unit             String
+  quantityNeeded   Float
+  unitPrice        Float
+  estimatedDate    String
+  purchaseDate     String?
+  deliveryDate     String?
+  status           String
+  isPaid           Boolean
+  order            Int
+  supplierId       String?
+  paymentProof     String?
+  projectPlanningId String
+  projectPlanning  ProjectPlanning @relation(fields: [projectPlanningId], references: [id])
+  supplier         Supplier? @relation(fields: [supplierId], references: [id])
+}
+
+model Milestone {
+  id               String   @id @default(uuid())
+  title            String
+  date             String
+  isCompleted      Boolean
+  projectPlanningId String
+  projectPlanning  ProjectPlanning @relation(fields: [projectPlanningId], references: [id])
+}
+
+model ProjectJournal {
+  id        String        @id @default(uuid())
+  projectId String        @unique
+  project   Project       @relation(fields: [projectId], references: [id])
+  entries   JournalEntry[]
+}
+
+model JournalEntry {
+  id              String   @id @default(uuid())
+  timestamp       String
+  type            String
+  category        String
+  title           String
+  description     String
+  weatherStatus   String?
+  photoUrls       String[]
+  projectJournalId String
+  projectJournal  ProjectJournal @relation(fields: [projectJournalId], references: [id])
+}
+
+model Supplier {
+  id         String  @id @default(uuid())
+  name       String
+  cnpj       String
+  contactName String
+  email      String
+  phone      String
+  category   String
+  rating     Int
+  notes      String
+  order      Int
+  instanceId String
+  instance   Instance @relation(fields: [instanceId], references: [id])
+  forecasts  MaterialForecast[]
+}
+
+model BiddingProcess {
+  id              String   @id @default(uuid())
+  tenderNumber    String
+  clientName      String
+  object          String
+  openingDate     String
+  expirationDate  String
+  estimatedValue  Float
+  ourProposalValue Float
+  status          String
+  bdi             Float
+  itemsSnapshot   Json
+  assetsSnapshot  Json
+  instanceId      String
+  instance        Instance @relation(fields: [instanceId], references: [id])
+}
+
+model WorkforceMember {
+  id               String   @id @default(uuid())
+  nome             String
+  cpf_cnpj         String
+  empresa_vinculada String
+  foto             String?
+  cargo            String
+  projectId        String
+  project          Project  @relation(fields: [projectId], references: [id])
+  documentos       StaffDocument[]
+  responsabilidades WorkItemResponsibility[]
+  laborContracts   LaborContract[]
+}
+
+model LaborContract {
+  id              String        @id @default(uuid())
+  tipo            String
+  descricao       String
+  associadoId     String
+  valorTotal      Float
+  valorPago       Float
+  status          String
+  dataInicio      String
+  dataFim         String?
+  linkedWorkItemId String?
+  observacoes     String?
+  ordem           Int
+  projectId       String
+  project         Project       @relation(fields: [projectId], references: [id])
+  associado       WorkforceMember @relation(fields: [associadoId], references: [id])
+  linkedWorkItem  WorkItem?     @relation(fields: [linkedWorkItemId], references: [id])
+  pagamentos      LaborPayment[]
+}
+
+model LaborPayment {
+  id              String        @id @default(uuid())
+  data            String
+  valor           Float
+  descricao       String
+  comprovante     String?
+  laborContractId String
+  laborContract   LaborContract @relation(fields: [laborContractId], references: [id])
+}
+
+model StaffDocument {
+  id               String   @id @default(uuid())
+  nome             String
+  dataVencimento   String
+  arquivoUrl       String?
+  status           String
+  workforceMemberId String
+  workforceMember  WorkforceMember @relation(fields: [workforceMemberId], references: [id])
+}

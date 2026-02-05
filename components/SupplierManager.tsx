@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Supplier } from '../types';
 import { 
@@ -41,7 +42,7 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, onU
     };
   }, [suppliers]);
 
-  // Fix: Ensure reorderedItem is valid and handle potential undefined values in array during map spread
+  // Fix: Explicitly ensure mapped items are treated as object types for spread operation
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
     const items = Array.from(suppliers);
@@ -49,8 +50,8 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, onU
     
     if (reorderedItem) {
       items.splice(result.destination.index, 0, reorderedItem);
-      // Ensure each item is an object before spreading to satisfy strict TS checks
-      const updated = items.map((item, index) => ({ ...item, order: index }));
+      // Fixed: Casting item to Supplier to satisfy "Spread types may only be created from object types" check
+      const updated = items.map((item, index) => ({ ...(item as Supplier), order: index }));
       onUpdateSuppliers(updated);
     }
   };
@@ -67,7 +68,7 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, onU
       const targetId = editingSupplier.id;
       onUpdateSuppliers(suppliers.map(s => s.id === targetId ? { ...s, ...data } : s));
     } else {
-      // Fix: Removed redundant spread of (data as any) to resolve TS error and simplified assignment
+      // Fix: Simplified assignment and removed redundant casting
       const newSupplier: Supplier = {
         id: crypto.randomUUID(),
         name: data.name || 'Novo Fornecedor',
@@ -106,7 +107,6 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, onU
 
         {/* STATS GRID */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          {/* Fix: StatCard defined below */}
           <StatCard label="Total Cadastrados" value={stats.total} icon={<Truck />} color="indigo" />
           <StatCard label="Qualificação Alta (4★+)" value={stats.topRated} icon={<Star />} color="amber" />
           <StatCard label="Materiais / Serviços" value={`${stats.byCategory.Material} / ${stats.byCategory.Serviço}`} icon={<Building2 />} color="emerald" />
@@ -157,14 +157,12 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, onU
                           <div {...p.dragHandleProps} className="p-1 text-slate-300 hover:text-indigo-500 transition-colors cursor-grab active:cursor-grabbing">
                             <GripVertical size={20} />
                           </div>
-                          {/* Fix: getCategoryColor defined below */}
                           <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg shrink-0 ${getCategoryColor(supplier.category)}`}>
                             {supplier.category === 'Material' ? <Truck size={24} /> : <Building2 size={24} />}
                           </div>
                           <div>
                             <div className="flex items-center gap-3">
                               <h3 className="text-base font-black dark:text-white uppercase tracking-tight">{supplier.name}</h3>
-                              {/* Fix: RatingStars defined below */}
                               <RatingStars rating={supplier.rating} />
                             </div>
                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{supplier.cnpj} • {supplier.category}</p>
@@ -225,7 +223,6 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, onU
 
 // --- SUB-COMPONENTS ---
 
-// Fix: Adicionado componente StatCard para os KPIs de fornecedores
 const StatCard = ({ label, value, icon, color }: any) => {
   const colors: any = {
     indigo: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 border-indigo-100 dark:border-indigo-800',
@@ -243,7 +240,6 @@ const StatCard = ({ label, value, icon, color }: any) => {
   );
 };
 
-// Fix: Adicionada função getCategoryColor para estilizar os avatares de fornecedores
 const getCategoryColor = (category: Supplier['category']) => {
   switch (category) {
     case 'Material': return 'bg-indigo-600';
@@ -253,7 +249,6 @@ const getCategoryColor = (category: Supplier['category']) => {
   }
 };
 
-// Fix: Adicionado componente RatingStars para exibir a qualificação dos parceiros
 const RatingStars = ({ rating }: { rating: number }) => (
   <div className="flex gap-0.5">
     {[1, 2, 3, 4, 5].map(s => (

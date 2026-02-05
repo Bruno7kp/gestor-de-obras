@@ -11,7 +11,7 @@ import {
   Plus, Search, CheckCircle2, Wallet, ArrowRightLeft,
   X, BarChart3, PieChart, Clock, ArrowUpRight,
   Maximize2, Minimize2, Truck, Users, Download, UploadCloud,
-  FileSpreadsheet, Landmark, Coins, AlertCircle, Printer
+  FileSpreadsheet, Landmark, Coins, AlertCircle, Printer, FolderPlus
 } from 'lucide-react';
 
 interface ExpenseManagerProps {
@@ -54,21 +54,22 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
 
   const projectedBalance = financial.round(stats.revenue - stats.totalOut);
 
-  const currentExpenses = useMemo(() => {
-    if (activeTab === 'overview') return [];
-    const filtered = expenses.filter(e => e.type === activeTab);
-    const tree = treeService.buildTree(filtered);
-    return tree.map((root, idx) => treeService.processExpensesRecursive(root as ProjectExpense, '', idx));
-  }, [expenses, activeTab]);
-
+  // Filtramos apenas as categorias do tipo ativo (MO, MAT ou RE) para o dropdown do modal
   const processedExpenseCategories = useMemo(() => {
-    if (activeTab === 'overview') return [];
-    const filtered = expenses.filter(e => e.type === activeTab);
+    const filterTab = activeTab === 'overview' ? 'material' : activeTab;
+    const filtered = expenses.filter(e => e.type === filterTab);
     const tree = treeService.buildTree(filtered);
     const processed = tree.map((root, idx) => treeService.processExpensesRecursive(root as ProjectExpense, '', idx));
     const allIds = new Set<string>(filtered.map(e => e.id));
     const flattened = treeService.flattenTree(processed, allIds);
     return flattened.filter(e => e.itemType === 'category');
+  }, [expenses, activeTab]);
+
+  const currentExpenses = useMemo(() => {
+    if (activeTab === 'overview') return [];
+    const filtered = expenses.filter(e => e.type === activeTab);
+    const tree = treeService.buildTree(filtered);
+    return tree.map((root, idx) => treeService.processExpensesRecursive(root as ProjectExpense, '', idx));
   }, [expenses, activeTab]);
 
   const flattenedExpenses = useMemo(() =>
@@ -115,7 +116,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
     } else {
       const newExpense: ProjectExpense = {
         id: crypto.randomUUID(),
-        parentId: targetParentId || null,
+        parentId: data.parentId || null,
         type: data.type || (activeTab === 'overview' ? 'material' : activeTab as ExpenseType),
         itemType: data.itemType || modalItemType,
         wbs: '',
@@ -127,10 +128,15 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
         quantity: data.quantity || 1,
         unitPrice: data.unitPrice || 0,
         amount: data.amount || 0,
-        isPaid: data.isPaid || false
+        isPaid: data.isPaid || false,
+        status: data.status || 'PENDING',
+        paymentProof: data.paymentProof,
+        invoiceDoc: data.invoiceDoc,
+        deliveryDate: data.deliveryDate
       };
       onAdd(newExpense);
     }
+    setIsModalOpen(false);
   };
 
   return (
@@ -164,17 +170,28 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
 
         <div className="flex items-center gap-2">
           {activeTab !== 'overview' && (
-            <button onClick={() => { setModalItemType('item'); setEditingExpense(null); setIsModalOpen(true); }} className="px-5 py-3 bg-indigo-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg hover:scale-105 transition-transform">
-              Novo Lançamento
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => { setModalItemType('category'); setEditingExpense(null); setTargetParentId(null); setIsModalOpen(true); }}
+                className="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-[9px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700 shadow-sm hover:bg-slate-50 transition-all"
+              >
+                <FolderPlus size={14} /> Criar Grupo
+              </button>
+              <button
+                onClick={() => { setModalItemType('item'); setEditingExpense(null); setTargetParentId(null); setIsModalOpen(true); }}
+                className="px-5 py-3 bg-indigo-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg hover:scale-105 transition-transform"
+              >
+                Lançamento
+              </button>
+            </div>
           )}
           <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1" />
-          
-          <button 
+
+          <button
             onClick={() => window.print()}
             className="flex items-center gap-2 px-5 py-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-[9px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700 shadow-sm hover:bg-slate-50 transition-all"
           >
-            <Printer size={16} /> PDF Financeiro
+            <Printer size={16} /> PDF
           </button>
 
           <button onClick={() => fileInputRef.current?.click()} className="p-2.5 text-slate-400 hover:text-emerald-600" title="Importar Excel"><UploadCloud size={18} /></button>
@@ -208,7 +225,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
             onUpdateUnitPrice={(id, price) => onUpdate(id, { unitPrice: price })}
             onTogglePaid={id => {
               const exp = expenses.find(e => e.id === id);
-              if (exp) onUpdate(id, { isPaid: !exp.isPaid });
+              if (exp) onUpdate(id, { isPaid: !exp.isPaid, status: !exp.isPaid ? 'PAID' : 'PENDING' });
             }}
             onReorder={(src, tgt, pos) => onUpdateExpenses(treeService.reorderItems(expenses, src, tgt, pos))}
             onMoveManual={(id, dir) => onUpdateExpenses(treeService.moveInSiblings(expenses, id, dir))}
@@ -219,10 +236,10 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
       )}
 
       {importSummary && (
-        <ExpenseImportReviewModal 
-          summary={importSummary} 
-          onClose={() => setImportSummary(null)} 
-          onConfirm={confirmImport} 
+        <ExpenseImportReviewModal
+          summary={importSummary}
+          onClose={() => setImportSummary(null)}
+          onConfirm={confirmImport}
         />
       )}
 
@@ -240,46 +257,45 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
   );
 };
 
-// NOVO MODAL DE REVISÃO PARA IMPORTAÇÃO FINANCEIRA
 const ExpenseImportReviewModal = ({ summary, onClose, onConfirm }: { summary: ExpenseImportResult, onClose: () => void, onConfirm: () => void }) => (
   <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
     <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-[2.5rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col gap-6" onClick={e => e.stopPropagation()}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-2xl"><UploadCloud size={24}/></div>
+          <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-2xl"><UploadCloud size={24} /></div>
           <div>
             <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Revisar Importação</h2>
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Planilha Financeira Processada</p>
           </div>
         </div>
-        <button onClick={onClose} className="p-2 text-slate-400 hover:bg-slate-50 rounded-xl transition-all"><X size={20}/></button>
+        <button onClick={onClose} className="p-2 text-slate-400 hover:bg-slate-50 rounded-xl transition-all"><X size={20} /></button>
       </div>
 
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl text-center border border-slate-100 dark:border-slate-700">
-           <p className="text-2xl font-black text-blue-600">{summary.stats.byType.labor}</p>
-           <p className="text-[8px] font-black uppercase text-slate-400">Mão de Obra</p>
+          <p className="text-2xl font-black text-blue-600">{summary.stats.byType.labor}</p>
+          <p className="text-[8px] font-black uppercase text-slate-400">Mão de Obra</p>
         </div>
         <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl text-center border border-slate-100 dark:border-slate-700">
-           <p className="text-2xl font-black text-indigo-600">{summary.stats.byType.material}</p>
-           <p className="text-[8px] font-black uppercase text-slate-400">Materiais</p>
+          <p className="text-2xl font-black text-indigo-600">{summary.stats.byType.material}</p>
+          <p className="text-[8px] font-black uppercase text-slate-400">Materiais</p>
         </div>
         <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl text-center border border-slate-100 dark:border-slate-700">
-           <p className="text-2xl font-black text-emerald-600">{summary.stats.byType.revenue}</p>
-           <p className="text-[8px] font-black uppercase text-slate-400">Receitas</p>
+          <p className="text-2xl font-black text-emerald-600">{summary.stats.byType.revenue}</p>
+          <p className="text-[8px] font-black uppercase text-slate-400">Receitas</p>
         </div>
       </div>
 
       <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-2xl flex gap-3">
-         <AlertCircle size={20} className="text-amber-500 shrink-0" />
-         <p className="text-[10px] font-medium text-amber-700 dark:text-amber-400 leading-tight">
-           Ao confirmar, os registros de Mão de Obra, Materiais e Receitas do sistema serão **SUBSTITUÍDOS** pelos dados desta planilha para evitar duplicações.
-         </p>
+        <AlertCircle size={20} className="text-amber-500 shrink-0" />
+        <p className="text-[10px] font-medium text-amber-700 dark:text-amber-400 leading-tight">
+          Ao confirmar, os registros de Mão de Obra, Materiais e Receitas do sistema serão **SUBSTITUÍDOS** pelos dados desta planilha para evitar duplicações.
+        </p>
       </div>
 
       <div className="flex gap-3">
-         <button onClick={onClose} className="flex-1 py-4 text-slate-400 font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 rounded-2xl">Cancelar</button>
-         <button onClick={onConfirm} className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-indigo-500/20 active:scale-95 transition-all">Confirmar e Importar</button>
+        <button onClick={onClose} className="flex-1 py-4 text-slate-400 font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 rounded-2xl">Cancelar</button>
+        <button onClick={onConfirm} className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-indigo-500/20 active:scale-95 transition-all">Confirmar e Importar</button>
       </div>
     </div>
   </div>
@@ -288,7 +304,7 @@ const ExpenseImportReviewModal = ({ summary, onClose, onConfirm }: { summary: Ex
 const CashKpi = ({ label, value, icon, color, sub }: any) => {
   const colors: any = { emerald: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-100 dark:border-emerald-800', rose: 'text-rose-600 bg-rose-50 dark:bg-rose-900/20 border-rose-100 dark:border-rose-800', amber: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-800' };
   return (
-    <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+    <div className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
       <div className="flex justify-between items-start mb-4">
         <div className={`p-2 rounded-lg ${colors[color]}`}>{icon}</div>
         <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">{label}</span>
