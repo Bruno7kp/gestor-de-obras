@@ -71,7 +71,7 @@ export interface LaborPayment {
   data: string;
   valor: number;
   descricao: string;
-  comprovante?: string; // Base64
+  comprovante?: string; // URL
 }
 
 export interface LaborContract {

@@ -22,6 +22,7 @@ import { GlobalSettingsModule } from './global-settings/global-settings.module';
 import { RolesGuard } from './auth/roles.guard';
 import { RolesModule } from './roles/roles.module';
 import { PermissionsModule } from './permissions/permissions.module';
+import { UploadsModule } from './uploads/uploads.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { PermissionsModule } from './permissions/permissions.module';
     GlobalSettingsModule,
     RolesModule,
     PermissionsModule,
+    UploadsModule,
   ],
   controllers: [AppController],
   providers: [

@@ -233,7 +233,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           {tab === 'wbs' && <WbsView project={{ ...project, items: displayData.items }} onUpdateProject={onUpdateProject} onOpenModal={handleOpenModal} isReadOnly={displayData.isReadOnly} />}
           {tab === 'stats' && <StatsView project={{ ...project, items: displayData.items }} />}
           {tab === 'expenses' && <ExpenseManager project={project} expenses={project.expenses} onAdd={(ex) => onUpdateProject({ expenses: [...project.expenses, ex] })} onAddMany={(exs) => onUpdateProject({ expenses: [...project.expenses, ...exs] })} onUpdate={(id, data) => onUpdateProject({ expenses: project.expenses.map(e => e.id === id ? { ...e, ...data } : e) })} onDelete={(id) => onUpdateProject({ expenses: project.expenses.filter(e => e.id !== id) })} workItems={displayData.items} measuredValue={treeService.calculateBasicStats(displayData.items, project.bdi).current} onUpdateExpenses={(exs) => onUpdateProject({ expenses: exs })} isReadOnly={displayData.isReadOnly} />}
-          {tab === 'labor-contracts' && <LaborContractsManager project={project} onUpdateProject={onUpdateProject} />}
+          {tab === 'labor-contracts' && (
+            <LaborContractsManager
+              project={project}
+              onUpdateProject={onUpdateProject}
+              isReadOnly={displayData.isReadOnly}
+            />
+          )}
           {tab === 'workforce' && <WorkforceManager project={project} onUpdateProject={onUpdateProject} />}
           {tab === 'planning' && <PlanningView project={project} suppliers={suppliers} onUpdatePlanning={(p) => onUpdateProject({ planning: p })} onAddExpense={(ex) => onUpdateProject({ expenses: [...project.expenses, ex] })} categories={displayData.items.filter(i => i.type === 'category')} allWorkItems={displayData.items} />}
           {tab === 'journal' && <JournalView project={project} onUpdateJournal={(j) => onUpdateProject({ journal: j })} allWorkItems={displayData.items} />}

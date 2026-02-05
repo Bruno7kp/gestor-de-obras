@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Project, LaborContract, LaborPayment, WorkforceMember } from '../types';
 import { laborContractService } from '../services/laborContractService';
+import { uploadService } from '../services/uploadService';
 import { 
   Briefcase, Plus, Search, Trash2, Edit2, DollarSign, Calendar, 
   CheckCircle2, Clock, AlertCircle, User, FileText, Download, X,
@@ -10,11 +11,13 @@ import {
 interface LaborContractsManagerProps {
   project: Project;
   onUpdateProject: (data: Partial<Project>) => void;
+  isReadOnly?: boolean;
 }
 
 export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({ 
   project, 
-  onUpdateProject 
+  onUpdateProject,
+  isReadOnly = false,
 }) => {
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -41,6 +44,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
   );
 
   const handleSave = (contract: LaborContract) => {
+    if (isReadOnly) return;
     const updated = laborContractService.updateContract(contract);
     const newContracts = contracts.find(c => c.id === contract.id)
       ? contracts.map(c => c.id === contract.id ? updated : c)
@@ -51,6 +55,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
   };
 
   const removeContract = (id: string) => {
+    if (isReadOnly) return;
     if (confirm("Excluir este contrato de mão de obra?")) {
       onUpdateProject({ laborContracts: contracts.filter(c => c.id !== id) });
     }
@@ -119,8 +124,13 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
         </div>
 
         <button 
-          onClick={() => { setEditingContract(null); setIsModalOpen(true); }}
-          className="flex items-center gap-2 px-8 py-3.5 bg-indigo-600 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-xl hover:scale-105 transition-all"
+          onClick={() => { if (!isReadOnly) { setEditingContract(null); setIsModalOpen(true); } }}
+          disabled={isReadOnly}
+          className={`flex items-center gap-2 px-8 py-3.5 font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-xl transition-all ${
+            isReadOnly
+              ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+              : 'bg-indigo-600 text-white hover:scale-105'
+          }`}
         >
           <Plus size={18} /> Novo Contrato
         </button>
@@ -177,14 +187,24 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
 
                 <div className="flex gap-2">
                   <button 
-                    onClick={() => { setEditingContract(contract); setIsModalOpen(true); }}
-                    className="p-3 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-indigo-600 rounded-xl transition-all"
+                    onClick={() => { if (!isReadOnly) { setEditingContract(contract); setIsModalOpen(true); } }}
+                    disabled={isReadOnly}
+                    className={`p-3 rounded-xl transition-all ${
+                      isReadOnly
+                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-300 cursor-not-allowed'
+                        : 'bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-indigo-600'
+                    }`}
                   >
                     <Edit2 size={16}/>
                   </button>
                   <button 
                     onClick={() => removeContract(contract.id)}
-                    className="p-3 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-rose-500 rounded-xl transition-all"
+                    disabled={isReadOnly}
+                    className={`p-3 rounded-xl transition-all ${
+                      isReadOnly
+                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-300 cursor-not-allowed'
+                        : 'bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-rose-500'
+                    }`}
                   >
                     <Trash2 size={16}/>
                   </button>
@@ -277,6 +297,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
           contract={editingContract}
           workforce={workforce}
           workItems={project.items.filter(i => i.type === 'item')}
+          isReadOnly={isReadOnly}
           onClose={() => { setIsModalOpen(false); setEditingContract(null); }}
           onSave={handleSave}
         />
@@ -285,17 +306,19 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
   );
 };
 
-const ContractModal = ({ contract, workforce, workItems, onClose, onSave }: any) => {
+const ContractModal = ({ contract, workforce, workItems, isReadOnly, onClose, onSave }: any) => {
   const [data, setData] = useState<LaborContract>(
     contract || laborContractService.createContract('empreita')
   );
 
   const handleAddPayment = () => {
+    if (isReadOnly) return;
     const newPayment = laborContractService.createPayment();
     setData({ ...data, pagamentos: [...data.pagamentos, newPayment] });
   };
 
   const handleUpdatePayment = (id: string, updates: Partial<LaborPayment>) => {
+    if (isReadOnly) return;
     setData({
       ...data,
       pagamentos: data.pagamentos.map(p => p.id === id ? { ...p, ...updates } : p)
@@ -303,20 +326,25 @@ const ContractModal = ({ contract, workforce, workItems, onClose, onSave }: any)
   };
 
   const handleRemovePayment = (id: string) => {
+    if (isReadOnly) return;
     setData({
       ...data,
       pagamentos: data.pagamentos.filter(p => p.id !== id)
     });
   };
 
-  const handleFileUpload = (paymentId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (paymentId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isReadOnly) return;
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        handleUpdatePayment(paymentId, { comprovante: reader.result as string });
-      };
-      reader.readAsDataURL(file);
+      try {
+        const response = await uploadService.uploadFile(file);
+        if (!response?.url) throw new Error('Upload failed');
+        handleUpdatePayment(paymentId, { comprovante: response.url });
+      } catch (error) {
+        console.error('Falha no upload do comprovante:', error);
+        alert('Falha ao enviar o comprovante. Tente novamente.');
+      }
     }
   };
 
@@ -346,6 +374,7 @@ const ContractModal = ({ contract, workforce, workItems, onClose, onSave }: any)
                     key={tipo}
                     type="button"
                     onClick={() => setData({ ...data, tipo })}
+                    disabled={isReadOnly}
                     className={`flex-1 py-4 rounded-2xl text-sm font-black uppercase transition-all ${
                       data.tipo === tipo
                         ? 'bg-indigo-600 text-white shadow-lg'
@@ -366,6 +395,7 @@ const ContractModal = ({ contract, workforce, workItems, onClose, onSave }: any)
                 className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500"
                 value={data.associadoId}
                 onChange={e => setData({ ...data, associadoId: e.target.value })}
+                disabled={isReadOnly}
               >
                 <option value="">Selecione...</option>
                 {workforce.map((w: WorkforceMember) => (
@@ -385,6 +415,7 @@ const ContractModal = ({ contract, workforce, workItems, onClose, onSave }: any)
               className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500"
               value={data.descricao}
               onChange={e => setData({ ...data, descricao: e.target.value })}
+              disabled={isReadOnly}
               placeholder="Ex: Alvenaria Bloco 1, Pedreiro - Janeiro/2026"
             />
           </div>
@@ -400,6 +431,7 @@ const ContractModal = ({ contract, workforce, workItems, onClose, onSave }: any)
                 className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500"
                 value={data.valorTotal}
                 onChange={e => setData({ ...data, valorTotal: parseFloat(e.target.value) || 0 })}
+                disabled={isReadOnly}
               />
             </div>
 
@@ -412,6 +444,7 @@ const ContractModal = ({ contract, workforce, workItems, onClose, onSave }: any)
                 className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500"
                 value={data.dataInicio}
                 onChange={e => setData({ ...data, dataInicio: e.target.value })}
+                disabled={isReadOnly}
               />
             </div>
 
@@ -424,6 +457,7 @@ const ContractModal = ({ contract, workforce, workItems, onClose, onSave }: any)
                 className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500"
                 value={data.dataFim || ''}
                 onChange={e => setData({ ...data, dataFim: e.target.value })}
+                disabled={isReadOnly}
               />
             </div>
           </div>
@@ -437,6 +471,7 @@ const ContractModal = ({ contract, workforce, workItems, onClose, onSave }: any)
               className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500"
               value={data.linkedWorkItemId || ''}
               onChange={e => setData({ ...data, linkedWorkItemId: e.target.value })}
+              disabled={isReadOnly}
             >
               <option value="">Nenhum</option>
               {workItems.map((item: any) => (
@@ -456,6 +491,7 @@ const ContractModal = ({ contract, workforce, workItems, onClose, onSave }: any)
               className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 min-h-[80px]"
               value={data.observacoes || ''}
               onChange={e => setData({ ...data, observacoes: e.target.value })}
+              disabled={isReadOnly}
               placeholder="Informações adicionais..."
             />
           </div>
@@ -469,7 +505,12 @@ const ContractModal = ({ contract, workforce, workItems, onClose, onSave }: any)
               <button 
                 type="button"
                 onClick={handleAddPayment}
-                className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white text-[9px] font-black uppercase rounded-xl hover:scale-105 transition-all"
+                disabled={isReadOnly}
+                className={`flex items-center gap-2 px-6 py-2.5 text-[9px] font-black uppercase rounded-xl transition-all ${
+                  isReadOnly
+                    ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                    : 'bg-emerald-600 text-white hover:scale-105'
+                }`}
               >
                 <Plus size={14} /> Adicionar Pagamento
               </button>
@@ -487,7 +528,12 @@ const ContractModal = ({ contract, workforce, workItems, onClose, onSave }: any)
                     </span>
                     <button
                       onClick={() => handleRemovePayment(pag.id)}
-                      className="text-rose-400 hover:text-rose-600 transition-colors"
+                      disabled={isReadOnly}
+                      className={`transition-colors ${
+                        isReadOnly
+                          ? 'text-slate-300 cursor-not-allowed'
+                          : 'text-rose-400 hover:text-rose-600'
+                      }`}
                     >
                       <Trash2 size={16}/>
                     </button>
@@ -503,6 +549,7 @@ const ContractModal = ({ contract, workforce, workItems, onClose, onSave }: any)
                         className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold outline-none"
                         value={pag.data}
                         onChange={e => handleUpdatePayment(pag.id, { data: e.target.value })}
+                        disabled={isReadOnly}
                       />
                     </div>
 
@@ -516,6 +563,7 @@ const ContractModal = ({ contract, workforce, workItems, onClose, onSave }: any)
                         className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold outline-none"
                         value={pag.valor}
                         onChange={e => handleUpdatePayment(pag.id, { valor: parseFloat(e.target.value) || 0 })}
+                        disabled={isReadOnly}
                       />
                     </div>
 
@@ -527,6 +575,7 @@ const ContractModal = ({ contract, workforce, workItems, onClose, onSave }: any)
                         className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold outline-none"
                         value={pag.descricao}
                         onChange={e => handleUpdatePayment(pag.id, { descricao: e.target.value })}
+                        disabled={isReadOnly}
                         placeholder="Ex: 1ª Parcela"
                       />
                     </div>
@@ -541,7 +590,8 @@ const ContractModal = ({ contract, workforce, workItems, onClose, onSave }: any)
                         type="file"
                         accept="image/*,.pdf"
                         onChange={(e) => handleFileUpload(pag.id, e)}
-                        className="flex-1 text-sm"
+                        disabled={isReadOnly}
+                        className={`flex-1 text-sm ${isReadOnly ? 'cursor-not-allowed opacity-60' : ''}`}
                       />
                       {pag.comprovante && (
                         <span className="flex items-center gap-2 text-xs text-emerald-600 font-bold">
@@ -571,7 +621,12 @@ const ContractModal = ({ contract, workforce, workItems, onClose, onSave }: any)
           </button>
           <button 
             onClick={() => onSave(data)}
-            className="flex-[2] py-5 bg-indigo-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all"
+            disabled={isReadOnly}
+            className={`flex-[2] py-5 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl transition-all ${
+              isReadOnly
+                ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                : 'bg-indigo-600 text-white active:scale-95'
+            }`}
           >
             Salvar Contrato
           </button>
