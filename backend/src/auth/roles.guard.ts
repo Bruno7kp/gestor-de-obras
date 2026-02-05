@@ -18,7 +18,13 @@ export class RolesGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest();
     const user = request.user;
-    const roles = Array.isArray(user?.roles) ? user.roles : [];
+
+    if (!user) {
+      // Let AuthGuard handle unauthenticated requests on guarded routes.
+      return true;
+    }
+
+    const roles = Array.isArray(user.roles) ? user.roles : [];
 
     return requiredRoles.some(role => roles.includes(role));
   }
