@@ -8,12 +8,12 @@ export interface WorkItem {
   type: ItemType;
   wbs: string;
   order: number;
-  
+
   // Especificações Técnicas
   unit: string;
   cod?: string;
   fonte?: string;
-  
+
   // Valores de Contrato
   contractQuantity: number;
   unitPrice: number; // C/ BDI
@@ -21,10 +21,10 @@ export interface WorkItem {
   contractTotal: number;
 
   // Medição
-  previousQuantity: number; 
+  previousQuantity: number;
   previousTotal: number;
-  
-  currentQuantity: number; 
+
+  currentQuantity: number;
   currentTotal: number;
   currentPercentage: number;
 
@@ -32,7 +32,7 @@ export interface WorkItem {
   accumulatedQuantity: number;
   accumulatedTotal: number;
   accumulatedPercentage: number;
-  
+
   // Saldo
   balanceQuantity: number;
   balanceTotal: number;
@@ -60,6 +60,34 @@ export interface WorkforceMember {
   cargo: WorkforceRole;
   documentos: StaffDocument[];
   linkedWorkItemIds: string[]; // Vínculo com IDs da EAP para responsabilidade técnica
+}
+
+// --- CONTRATOS DE MÃO DE OBRA (NOVO) ---
+export type LaborContractType = 'empreita' | 'diaria';
+export type LaborPaymentStatus = 'pago' | 'parcial' | 'pendente';
+
+export interface LaborPayment {
+  id: string;
+  data: string;
+  valor: number;
+  descricao: string;
+  comprovante?: string; // Base64
+}
+
+export interface LaborContract {
+  id: string;
+  tipo: LaborContractType;
+  descricao: string;
+  associadoId: string; // FK para WorkforceMember
+  valorTotal: number;
+  valorPago: number;
+  status: LaborPaymentStatus;
+  dataInicio: string;
+  dataFim?: string;
+  pagamentos: LaborPayment[];
+  linkedWorkItemId?: string; // FK para WorkItem
+  observacoes?: string;
+  ordem: number;
 }
 
 // --- TEMA E VISUAL ---
@@ -287,10 +315,11 @@ export interface Project {
   assets: ProjectAsset[];
   expenses: ProjectExpense[];
   workforce: WorkforceMember[];
+  laborContracts: LaborContract[]; // NOVO
   planning: ProjectPlanning;
   journal: ProjectJournal;
-  contractTotalOverride?: number; 
-  currentTotalOverride?: number;  
+  contractTotalOverride?: number;
+  currentTotalOverride?: number;
   config: {
     strict: boolean;
     printCards: boolean;

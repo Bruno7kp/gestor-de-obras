@@ -1,6 +1,5 @@
 
 import { useState, useCallback, useEffect } from 'react';
-// Added CompanyCertificate to the imported types
 import { Project, ProjectGroup, GlobalSettings, BiddingProcess, Supplier, CompanyCertificate } from '../types';
 import { journalService } from '../services/journalService';
 
@@ -36,6 +35,7 @@ export const useProjectState = () => {
           projects: (parsed.projects || []).map((p: any) => ({
             ...p,
             workforce: p.workforce || [],
+            laborContracts: p.laborContracts || [], // Garantia de inicialização
             expenses: (p.expenses || []).map((e: any) => ({
               ...e,
               status: e.status || (e.isPaid ? 'PAID' : 'PENDING')
@@ -62,13 +62,11 @@ export const useProjectState = () => {
     }
   }, [present]);
 
-  // Função centralizada para atualizar estado com histórico
   const commit = useCallback((updater: (prev: State) => State) => {
     setPresent(prev => {
       const next = updater(prev);
-      // Evita salvar no histórico se não houve mudança real
       if (JSON.stringify(prev) === JSON.stringify(next)) return prev;
-      
+
       setPast(pastPrev => [...pastPrev, prev].slice(-MAX_HISTORY));
       setFuture([]);
       return next;
@@ -107,8 +105,8 @@ export const useProjectState = () => {
       if (data.expenses) autoLogs = [...autoLogs, ...journalService.checkExpenseStatusDeltas(active.expenses, data.expenses)];
       if (data.items) autoLogs = [...autoLogs, ...journalService.checkWorkItemDeltas(active.items, data.items)];
 
-      const updatedProject: Project = { 
-        ...active, 
+      const updatedProject: Project = {
+        ...active,
         ...data,
         journal: {
           ...active.journal,
@@ -135,10 +133,9 @@ export const useProjectState = () => {
     updateGroups: (groups: ProjectGroup[]) => commit(prev => ({ ...prev, groups })),
     updateSuppliers: (suppliers: Supplier[]) => commit(prev => ({ ...prev, suppliers })),
     updateBiddings: (biddings: BiddingProcess[]) => commit(prev => ({ ...prev, biddings })),
-    // Added updateCertificates to fix the error in App.tsx line 22
-    updateCertificates: (certificates: CompanyCertificate[]) => commit(prev => ({ 
-      ...prev, 
-      globalSettings: { ...prev.globalSettings, certificates } 
+    updateCertificates: (certificates: CompanyCertificate[]) => commit(prev => ({
+      ...prev,
+      globalSettings: { ...prev.globalSettings, certificates }
     })),
     setGlobalSettings: (s: GlobalSettings) => commit(prev => ({ ...prev, globalSettings: s })),
     bulkUpdate: (updates: Partial<State>) => commit(prev => ({ ...prev, ...updates }))
