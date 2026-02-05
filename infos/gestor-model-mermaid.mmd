@@ -1,10 +1,6 @@
-# Modelo de Dados (LocalStorage → Futuro Banco)
-
-Este documento descreve as entidades atuais do app (localStorage) e adiciona a camada multi-instância solicitada para planejamento de migração.
-
-## Diagrama (Mermaid ER)
-
-```mermaid
+---
+id: 5079c2fd-985b-46a9-a052-214568bfaf79
+---
 erDiagram
   SUPER_ADMIN {
     string id
@@ -331,10 +327,3 @@ erDiagram
   BIDDING_PROCESS ||--o{ WORK_ITEM : items
   BIDDING_PROCESS ||--o{ PROJECT_ASSET : assets
   SUPPLIER ||--o{ MATERIAL_FORECAST : supplies
-```
-
-## Notas
-- Entidades e campos derivam de [types.ts](types.ts).
-- A camada multi-instância (SUPER_ADMIN → INSTANCE → SUBSCRIPTION) foi adicionada para suportar várias instâncias do sistema com assinatura.
-- RBAC por instância: USER ⇄ ROLE ⇄ PERMISSION via tabelas de ligação.
-- Em uma futura migração para banco, INSTANCE funcionará como tenant e será a raiz para todas as entidades do app.

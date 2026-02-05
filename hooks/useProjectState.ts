@@ -33,6 +33,12 @@ export const useProjectState = () => {
         const parsed = JSON.parse(saved);
         return {
           ...parsed,
+          suppliers: parsed.suppliers || [],
+          groups: parsed.groups || [],
+          biddings: parsed.biddings || [],
+          activeProjectId: parsed.activeProjectId || null,
+          activeBiddingId: parsed.activeBiddingId || null,
+          globalSettings: { ...INITIAL_SETTINGS, ...(parsed.globalSettings || {}) },
           projects: (parsed.projects || []).map((p: any) => ({
             ...p,
             workforce: p.workforce || [],
