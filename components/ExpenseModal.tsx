@@ -23,22 +23,26 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
   const isRevenue = expenseType === 'revenue';
   const isLabor = expenseType === 'labor';
   const [activeItemType, setActiveItemType] = useState<ItemType>(initialItemType);
-  
+
   const [formData, setFormData] = useState<Partial<ProjectExpense>>({
-    description: '', parentId: null, unit: 'un', quantity: 1, unitPrice: 0, amount: 0, entityName: '', 
+    description: '', parentId: null, unit: 'un', quantity: 1, unitPrice: 0, amount: 0, entityName: '',
     date: new Date().toISOString().split('T')[0],
     status: 'PENDING',
     paymentProof: undefined,
     invoiceDoc: undefined,
     deliveryDate: undefined,
     discountValue: 0,
-    discountPercentage: 0
+    discountPercentage: 0,
+    issValue: 0,
+    issPercentage: 0
   });
 
   const [strQty, setStrQty] = useState('1,00');
   const [strPrice, setStrPrice] = useState('0,00');
   const [strDiscountValue, setStrDiscountValue] = useState('0,00');
   const [strDiscountPercent, setStrDiscountPercent] = useState('0,00');
+  const [strIssValue, setStrIssValue] = useState('0,00');
+  const [strIssPercent, setStrIssPercent] = useState('0,00');
   const [strAmount, setStrAmount] = useState('0,00');
 
   useEffect(() => {
@@ -49,18 +53,22 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
       setStrPrice(financial.formatVisual(editingItem.unitPrice || 0, '').trim());
       setStrDiscountValue(financial.formatVisual(editingItem.discountValue || 0, '').trim());
       setStrDiscountPercent(financial.formatVisual(editingItem.discountPercentage || 0, '').trim());
+      setStrIssValue(financial.formatVisual(editingItem.issValue || 0, '').trim());
+      setStrIssPercent(financial.formatVisual(editingItem.issPercentage || 0, '').trim());
       setStrAmount(financial.formatVisual(editingItem.amount || 0, '').trim());
     } else {
-      setFormData({ 
-        description: '', parentId: null, unit: isRevenue ? 'vb' : 'un', 
-        quantity: 1, unitPrice: 0, amount: 0, entityName: '', 
+      setFormData({
+        description: '', parentId: null, unit: isRevenue ? 'vb' : 'un',
+        quantity: 1, unitPrice: 0, amount: 0, entityName: '',
         date: new Date().toISOString().split('T')[0],
         status: 'PENDING',
         discountValue: 0,
-        discountPercentage: 0
+        discountPercentage: 0,
+        issValue: 0,
+        issPercentage: 0
       });
       setActiveItemType(initialItemType);
-      setStrQty('1,00'); setStrPrice('0,00'); setStrDiscountValue('0,00'); setStrDiscountPercent('0,00'); setStrAmount('0,00');
+      setStrQty('1,00'); setStrPrice('0,00'); setStrDiscountValue('0,00'); setStrDiscountPercent('0,00'); setStrIssValue('0,00'); setStrIssPercent('0,00'); setStrAmount('0,00');
     }
   }, [editingItem, isOpen, initialItemType, expenseType]);
 
@@ -71,48 +79,66 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
       if (formData.invoiceDoc && !isLabor && !isRevenue) newStatus = 'DELIVERED';
       if (isRevenue && formData.invoiceDoc) newStatus = 'DELIVERED';
       if (formData.paymentProof && newStatus === 'PENDING') newStatus = 'PAID';
-      
+
       if (newStatus !== formData.status) {
         setFormData(prev => ({ ...prev, status: newStatus }));
       }
     }
   }, [formData.invoiceDoc, formData.paymentProof, activeItemType, isLabor, isRevenue]);
 
-  const handleNumericChange = (val: string, setter: (v: string) => void, field: 'qty' | 'price' | 'discountVal' | 'discountPct') => {
+  const handleNumericChange = (val: string, setter: (v: string) => void, field: 'qty' | 'price' | 'discountVal' | 'discountPct' | 'issVal' | 'issPct') => {
     const masked = financial.maskCurrency(val);
     setter(masked);
-    
+
     const q = field === 'qty' ? financial.parseLocaleNumber(masked) : financial.parseLocaleNumber(strQty);
     const p = field === 'price' ? financial.parseLocaleNumber(masked) : financial.parseLocaleNumber(strPrice);
     let dVal = field === 'discountVal' ? financial.parseLocaleNumber(masked) : financial.parseLocaleNumber(strDiscountValue);
     const dPct = field === 'discountPct' ? financial.parseLocaleNumber(masked) : financial.parseLocaleNumber(strDiscountPercent);
+    let iVal = field === 'issVal' ? financial.parseLocaleNumber(masked) : financial.parseLocaleNumber(strIssValue);
+    const iPct = field === 'issPct' ? financial.parseLocaleNumber(masked) : financial.parseLocaleNumber(strIssPercent);
 
     const subtotal = financial.round(q * p);
 
+    // Lógica de Desconto
     if (field === 'discountPct') {
       dVal = financial.round(subtotal * (dPct / 100));
       setStrDiscountValue(financial.formatVisual(dVal, '').trim());
     }
-
     if (field === 'qty' || field === 'price') {
       const currentPct = financial.parseLocaleNumber(strDiscountPercent);
       dVal = financial.round(subtotal * (currentPct / 100));
       setStrDiscountValue(financial.formatVisual(dVal, '').trim());
     }
-
-    const finalAmount = Math.max(0, financial.round(subtotal - dVal));
-    setStrAmount(financial.formatVisual(finalAmount, '').trim());
-
     if (field === 'discountVal' && subtotal > 0) {
       const newPct = financial.round((dVal / subtotal) * 100);
       setStrDiscountPercent(financial.formatVisual(newPct, '').trim());
     }
+
+    // Lógica de ISS
+    if (isRevenue) {
+      if (field === 'issPct') {
+        iVal = financial.round(subtotal * (iPct / 100));
+        setStrIssValue(financial.formatVisual(iVal, '').trim());
+      }
+      if (field === 'qty' || field === 'price') {
+        const currentIssPct = financial.parseLocaleNumber(strIssPercent);
+        iVal = financial.round(subtotal * (currentIssPct / 100));
+        setStrIssValue(financial.formatVisual(iVal, '').trim());
+      }
+      if (field === 'issVal' && subtotal > 0) {
+        const newIssPct = financial.round((iVal / subtotal) * 100);
+        setStrIssPercent(financial.formatVisual(newIssPct, '').trim());
+      }
+    }
+
+    const finalAmount = Math.max(0, financial.round(subtotal - dVal - iVal));
+    setStrAmount(financial.formatVisual(finalAmount, '').trim());
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.description) return;
-    
+
     onSave({
       ...formData,
       itemType: activeItemType,
@@ -121,6 +147,8 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
       unitPrice: financial.parseLocaleNumber(strPrice),
       discountValue: financial.parseLocaleNumber(strDiscountValue),
       discountPercentage: financial.parseLocaleNumber(strDiscountPercent),
+      issValue: isRevenue ? financial.parseLocaleNumber(strIssValue) : 0,
+      issPercentage: isRevenue ? financial.parseLocaleNumber(strIssPercent) : 0,
       amount: activeItemType === 'category' ? 0 : financial.parseLocaleNumber(strAmount),
       isPaid: formData.status === 'PAID' || formData.status === 'DELIVERED'
     });
@@ -133,7 +161,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
       <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-[3.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[95vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        
+
         <div className={`px-8 py-6 border-b flex items-center justify-between shrink-0 ${isRevenue ? 'bg-emerald-50 dark:bg-emerald-900/10' : 'bg-indigo-50 dark:bg-indigo-900/10'}`}>
           <div className="flex items-center gap-4">
             <div className={`p-3 rounded-2xl text-white ${isRevenue ? 'bg-emerald-600' : 'bg-indigo-600'}`}>
@@ -163,10 +191,10 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                     <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">Vínculo Hierárquico</label>
                     <div className="relative">
                       <FolderTree className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                      <select 
+                      <select
                         className="w-full pl-11 pr-4 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold outline-none appearance-none focus:border-indigo-500 transition-all"
                         value={formData.parentId || ''}
-                        onChange={e => setFormData(prev => ({...prev, parentId: e.target.value || null}))}
+                        onChange={e => setFormData(prev => ({ ...prev, parentId: e.target.value || null }))}
                       >
                         <option value="">Raiz do Financeiro</option>
                         {categories.filter(c => c.id !== editingItem?.id).map(cat => (
@@ -177,14 +205,14 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                       </select>
                     </div>
                   </div>
-                  
+
                   {!isCategory && (
                     <div>
                       <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">Status de Liquidação</label>
-                      <select 
+                      <select
                         className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-black uppercase outline-none focus:border-indigo-500 transition-all"
                         value={formData.status}
-                        onChange={e => setFormData(prev => ({...prev, status: e.target.value as ExpenseStatus}))}
+                        onChange={e => setFormData(prev => ({ ...prev, status: e.target.value as ExpenseStatus }))}
                       >
                         <option value="PENDING">Pendente</option>
                         {!isRevenue && <option value="PAID">Pago / Liquidado</option>}
@@ -196,7 +224,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
 
                 <div className="mb-6">
                   <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">Descrição do Lançamento</label>
-                  <input required className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all" value={formData.description} onChange={e => setFormData(prev => ({...prev, description: e.target.value}))} placeholder="Ex: Cimento CP-II 50kg" />
+                  <input required className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all" value={formData.description} onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))} placeholder="Ex: Cimento CP-II 50kg" />
                 </div>
 
                 {!isCategory && (
@@ -204,34 +232,35 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                     <div className="grid grid-cols-2 gap-6 mb-6">
                       <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">Entidade / Fornecedor / MEI</label>
-                        <input className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all" value={formData.entityName} onChange={e => setFormData(prev => ({...prev, entityName: e.target.value}))} placeholder="Nome Fantasia ou Razão" />
+                        <input className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all" value={formData.entityName} onChange={e => setFormData(prev => ({ ...prev, entityName: e.target.value }))} placeholder="Nome Fantasia ou Razão" />
                       </div>
                       <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">Mês de Competência</label>
-                        <input type="date" className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all" value={formData.date} onChange={e => setFormData(prev => ({...prev, date: e.target.value}))} />
+                        <input type="date" className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all" value={formData.date} onChange={e => setFormData(prev => ({ ...prev, date: e.target.value }))} />
                       </div>
                     </div>
 
                     <div className="p-8 bg-slate-50 dark:bg-slate-800/40 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 space-y-6">
                       <div className="grid grid-cols-3 gap-6">
-                          <div>
-                            <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block text-center">Unidade</label>
-                            <input className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-black text-center uppercase outline-none focus:ring-2 focus:ring-indigo-500/20" value={formData.unit} onChange={e => setFormData(prev => ({...prev, unit: e.target.value}))} />
+                        <div>
+                          <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block text-center">Unidade</label>
+                          <input className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-black text-center uppercase outline-none focus:ring-2 focus:ring-indigo-500/20" value={formData.unit} onChange={e => setFormData(prev => ({ ...prev, unit: e.target.value }))} />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block text-center">Qtd</label>
+                          <input className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-black text-center outline-none focus:ring-2 focus:ring-indigo-500/20" value={strQty} onChange={e => handleNumericChange(e.target.value, setStrQty, 'qty')} />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block text-center">Preço Unitário</label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-300">R$</span>
+                            <input className="w-full pl-8 pr-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-black text-right outline-none focus:ring-2 focus:ring-indigo-500/20" value={strPrice} onChange={e => handleNumericChange(e.target.value, setStrPrice, 'price')} />
                           </div>
-                          <div>
-                            <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block text-center">Qtd</label>
-                            <input className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-black text-center outline-none focus:ring-2 focus:ring-indigo-500/20" value={strQty} onChange={e => handleNumericChange(e.target.value, setStrQty, 'qty')} />
-                          </div>
-                          <div>
-                            <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block text-center">Preço Unitário</label>
-                            <div className="relative">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-300">R$</span>
-                              <input className="w-full pl-8 pr-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-black text-right outline-none focus:ring-2 focus:ring-indigo-500/20" value={strPrice} onChange={e => handleNumericChange(e.target.value, setStrPrice, 'price')} />
-                            </div>
-                          </div>
+                        </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-6 pt-4 border-t border-slate-200 dark:border-slate-700">
+                      <div className={`grid ${isRevenue ? 'grid-cols-2' : 'grid-cols-2'} gap-6 pt-4 border-t border-slate-200 dark:border-slate-700`}>
+                        <div className="col-span-2 grid grid-cols-2 gap-6">
                           <div>
                             <label className="text-[9px] font-black text-rose-500 uppercase mb-2 block text-center">Desconto (%)</label>
                             <input className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-900/30 text-xs font-black text-right text-rose-600 outline-none" value={strDiscountPercent} onChange={e => handleNumericChange(e.target.value, setStrDiscountPercent, 'discountPct')} />
@@ -240,14 +269,28 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                             <label className="text-[9px] font-black text-rose-500 uppercase mb-2 block text-center">Desconto (R$)</label>
                             <input className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-900/30 text-xs font-black text-right text-rose-600 outline-none" value={strDiscountValue} onChange={e => handleNumericChange(e.target.value, setStrDiscountValue, 'discountVal')} />
                           </div>
+                        </div>
+
+                        {isRevenue && (
+                          <div className="col-span-2 grid grid-cols-2 gap-6 pt-4 border-t border-slate-100 dark:border-slate-800">
+                            <div>
+                              <label className="text-[9px] font-black text-emerald-600 uppercase mb-2 block text-center">ISS (%)</label>
+                              <input className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-emerald-100 dark:border-emerald-900/30 text-xs font-black text-right text-emerald-600 outline-none" value={strIssPercent} onChange={e => handleNumericChange(e.target.value, setStrIssPercent, 'issPct')} />
+                            </div>
+                            <div>
+                              <label className="text-[9px] font-black text-emerald-600 uppercase mb-2 block text-center">ISS (R$)</label>
+                              <input className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-emerald-100 dark:border-emerald-900/30 text-xs font-black text-right text-emerald-600 outline-none" value={strIssValue} onChange={e => handleNumericChange(e.target.value, setStrIssValue, 'issVal')} />
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       <div className="pt-6 border-t-2 border-dashed border-slate-200 dark:border-slate-700">
-                          <label className="text-[10px] font-black text-indigo-500 uppercase mb-2 block text-center tracking-widest">Valor Total Líquido</label>
-                          <div className="relative">
-                            <Calculator className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-300" size={20} />
-                            <input readOnly className="w-full pl-12 pr-6 py-4 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 border-2 border-indigo-100 dark:border-indigo-800 text-xl font-black text-right text-indigo-600 outline-none shadow-inner" value={strAmount} />
-                          </div>
+                        <label className="text-[10px] font-black text-indigo-500 uppercase mb-2 block text-center tracking-widest">Valor Total Líquido</label>
+                        <div className="relative">
+                          <Calculator className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-300" size={20} />
+                          <input readOnly className="w-full pl-12 pr-6 py-4 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 border-2 border-indigo-100 dark:border-indigo-800 text-xl font-black text-right text-indigo-600 outline-none shadow-inner" value={strAmount} />
+                        </div>
                       </div>
                     </div>
                   </>
@@ -262,22 +305,22 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                   </div>
 
                   {!isRevenue && (
-                    <ExpenseAttachmentZone 
+                    <ExpenseAttachmentZone
                       label={isLabor ? "Recibo de Pagamento (Pix/DOC)" : "Comprovante de Pagamento"}
                       requiredStatus="PAID"
                       currentFile={formData.paymentProof}
-                      onUpload={(base64) => setFormData(prev => ({...prev, paymentProof: base64}))}
-                      onRemove={() => setFormData(prev => ({...prev, paymentProof: undefined}))}
+                      onUpload={(base64) => setFormData(prev => ({ ...prev, paymentProof: base64 }))}
+                      onRemove={() => setFormData(prev => ({ ...prev, paymentProof: undefined }))}
                     />
                   )}
 
                   {!isLabor && (
-                    <ExpenseAttachmentZone 
+                    <ExpenseAttachmentZone
                       label={isRevenue ? "Nota Fiscal de Faturamento" : "Nota Fiscal de Compra"}
                       requiredStatus="DELIVERED"
                       currentFile={formData.invoiceDoc}
-                      onUpload={(base64) => setFormData(prev => ({...prev, invoiceDoc: base64}))}
-                      onRemove={() => setFormData(prev => ({...prev, invoiceDoc: undefined}))}
+                      onUpload={(base64) => setFormData(prev => ({ ...prev, invoiceDoc: base64 }))}
+                      onRemove={() => setFormData(prev => ({ ...prev, invoiceDoc: undefined }))}
                     />
                   )}
 
@@ -285,11 +328,11 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                     <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">
                       {isLabor ? 'Data da Transferência' : (isRevenue ? 'Data do Faturamento' : 'Data da Entrega')}
                     </label>
-                    <input 
-                      type="date" 
-                      className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-black outline-none focus:border-indigo-500 transition-all shadow-sm" 
-                      value={formData.deliveryDate || ''} 
-                      onChange={e => setFormData(prev => ({...prev, deliveryDate: e.target.value}))} 
+                    <input
+                      type="date"
+                      className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-black outline-none focus:border-indigo-500 transition-all shadow-sm"
+                      value={formData.deliveryDate || ''}
+                      onChange={e => setFormData(prev => ({ ...prev, deliveryDate: e.target.value }))}
                     />
                   </div>
                 </div>
