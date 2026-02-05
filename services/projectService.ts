@@ -21,6 +21,8 @@ export const projectService = {
     expenses: [],
     // Fix: Adding missing 'workforce' property to satisfy 'Project' interface
     workforce: [],
+    // Fix: Adding missing 'laborContracts' property to satisfy 'Project' interface
+    laborContracts: [],
     planning: {
       tasks: [],
       forecasts: [],
@@ -29,9 +31,9 @@ export const projectService = {
     journal: {
       entries: []
     },
-    config: { 
-      strict: false, 
-      printCards: true, 
+    config: {
+      strict: false,
+      printCards: true,
       printSubtotals: true,
       showSignatures: true
     }
@@ -110,7 +112,7 @@ export const projectService = {
       .filter(g => g.id !== groupId)
       .map(g => g.parentId === groupId ? { ...g, parentId: newParentId } : g);
 
-    const updatedProjects = projects.map(p => 
+    const updatedProjects = projects.map(p =>
       p.groupId === groupId ? { ...p, groupId: newParentId } : p
     );
 
@@ -118,20 +120,20 @@ export const projectService = {
   },
 
   moveItem: (
-    itemId: string, 
-    itemType: 'project' | 'group', 
+    itemId: string,
+    itemType: 'project' | 'group',
     targetGroupId: string | null,
     projects: Project[],
     groups: ProjectGroup[]
   ) => {
     if (itemType === 'project') {
-      const updatedProjects = projects.map(p => 
+      const updatedProjects = projects.map(p =>
         p.id === itemId ? { ...p, groupId: targetGroupId } : p
       );
       return { updatedProjects, updatedGroups: groups };
     } else {
       if (itemId === targetGroupId) return { updatedProjects: projects, updatedGroups: groups };
-      const updatedGroups = groups.map(g => 
+      const updatedGroups = groups.map(g =>
         g.id === itemId ? { ...g, parentId: targetGroupId } : g
       );
       return { updatedProjects: projects, updatedGroups: updatedGroups };
