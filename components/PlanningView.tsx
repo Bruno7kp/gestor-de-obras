@@ -104,18 +104,19 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     onUpdatePlanning(updated);
   };
 
-  const handleFinalizePurchase = (forecast: MaterialForecast, parentId: string | null, proof?: string) => {
-    const expenseData = planningService.prepareExpenseFromForecast(forecast, parentId);
-    if (proof) {
+  const handleFinalizePurchase = (forecast: MaterialForecast, parentId: string | null, isPaid: boolean, proof?: string, purchaseDate?: string) => {
+    const expenseData = planningService.prepareExpenseFromForecast(forecast, parentId, purchaseDate, isPaid);
+    if (isPaid && proof) {
       expenseData.paymentProof = proof;
-      expenseData.status = 'PAID';
-      expenseData.isPaid = true;
     }
+    
     onAddExpense(expenseData as ProjectExpense);
+    
     const updatedPlanning = planningService.updateForecast(planning, forecast.id, { 
       status: 'ordered', 
-      isPaid: true, 
-      paymentProof: proof 
+      isPaid: isPaid, 
+      paymentProof: proof,
+      purchaseDate: purchaseDate || new Date().toISOString().split('T')[0]
     });
     onUpdatePlanning(updatedPlanning);
     setConfirmingForecast(null);
@@ -352,6 +353,33 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                         <tbody ref={provided.innerRef} {...provided.droppableProps} className="text-center">
                           {sortedForecasts.map((f, index) => {
                             const supplier = suppliers.find(s => s.id === f.supplierId);
+                            
+                            // Lógica refinada de rótulo e valor de data baseada no status e pagamento
+                            let dateLabel = 'Previsto';
+                            let dateValue = f.estimatedDate;
+                            let dateColor = 'text-slate-400';
+                            let statusText = '';
+
+                            if (f.status === 'pending') {
+                              dateLabel = 'Previsto';
+                              dateValue = f.estimatedDate;
+                              dateColor = 'text-slate-400';
+                            } else if (f.status === 'ordered') {
+                              if (f.isPaid) {
+                                dateLabel = 'Pago';
+                                dateColor = 'text-indigo-500';
+                              } else {
+                                dateLabel = 'Comprado';
+                                dateColor = 'text-amber-500';
+                                statusText = '(A Pagar)';
+                              }
+                              dateValue = f.purchaseDate || f.estimatedDate;
+                            } else if (f.status === 'delivered') {
+                              dateLabel = 'Entregue';
+                              dateValue = f.deliveryDate || f.estimatedDate;
+                              dateColor = 'text-emerald-500';
+                            }
+
                             return (
                               <Draggable key={f.id} draggableId={f.id} index={index}>
                                 {(p, s) => (
@@ -380,9 +408,9 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                             <Building2 size={10} className="shrink-0" />
                                             {supplier ? supplier.name : 'Fornecedor não vinculado'}
                                           </div>
-                                          <div className="flex items-center gap-1.5 text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                                          <div className={`flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest ${dateColor}`}>
                                             <Calendar size={9} className="shrink-0" />
-                                            Previsto: {financial.formatDate(f.estimatedDate)}
+                                            {dateLabel}: {financial.formatDate(dateValue)} <span className="ml-1 opacity-70">{statusText}</span>
                                           </div>
                                         </div>
                                       </div>
@@ -418,13 +446,13 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                       <div className="flex gap-2 justify-center">
                                         <StatusCircle active={f.status === 'pending'} onClick={() => onUpdatePlanning(planningService.updateForecast(planning, f.id, { status: 'pending' }))} icon={<AlertCircle size={12}/>} color="amber" label="Pendente" />
                                         <StatusCircle active={f.status === 'ordered'} onClick={() => setConfirmingForecast(f)} icon={<ShoppingCart size={12}/>} color="blue" label="Comprado" />
-                                        <StatusCircle active={f.status === 'delivered'} onClick={() => onUpdatePlanning(planningService.updateForecast(planning, f.id, { status: 'delivered' }))} icon={<Truck size={12}/>} color="emerald" label="No Local" />
+                                        <StatusCircle active={f.status === 'delivered'} onClick={() => onUpdatePlanning(planningService.updateForecast(planning, f.id, { status: 'delivered', deliveryDate: new Date().toISOString().split('T')[0] }))} icon={<Truck size={12}/>} color="emerald" label="No Local" />
                                       </div>
                                     </td>
                                     <td className="py-6">
                                       <button 
                                         onClick={() => {
-                                          if (!f.isPaid && f.status !== 'ordered') {
+                                          if (f.status === 'pending') {
                                             setConfirmingForecast(f);
                                           } else {
                                             onUpdatePlanning(planningService.updateForecast(planning, f.id, { isPaid: !f.isPaid }));
@@ -448,7 +476,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                         )}
                                         {f.status === 'ordered' && (
                                           <button 
-                                            onClick={() => onUpdatePlanning(planningService.updateForecast(planning, f.id, { status: 'delivered' }))}
+                                            onClick={() => onUpdatePlanning(planningService.updateForecast(planning, f.id, { status: 'delivered', deliveryDate: new Date().toISOString().split('T')[0] }))}
                                             className="p-2 text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/40 rounded-xl"
                                             title="Receber no Local"
                                           >
@@ -603,7 +631,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
         <ConfirmForecastModal 
           forecast={confirmingForecast} 
           onClose={() => setConfirmingForecast(null)} 
-          onConfirm={(parentId: string | null, proof?: string) => handleFinalizePurchase(confirmingForecast, parentId, proof)}
+          onConfirm={(isPaid: boolean, parentId: string | null, proof?: string, purchaseDate?: string) => handleFinalizePurchase(confirmingForecast, parentId, isPaid, proof, purchaseDate)}
           financialCategories={financialCategories}
         />
       )}
@@ -782,7 +810,7 @@ const ForecastModal = ({ onClose, onSave, allWorkItems, suppliers, editingItem }
            <button 
             onClick={() => onSave(data)} 
             disabled={!data.description} 
-            className="flex-[2] py-6 bg-indigo-600 hover:bg-indigo-50 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-[0_15px_35px_-10px_rgba(79,70,229,0.5)] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="flex-[2] py-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-[0_15px_35px_-10px_rgba(79,70,229,0.5)] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-30 disabled:cursor-not-allowed"
            >
              <Save size={20} /> {editingItem ? 'Atualizar Registro' : 'Confirmar Inclusão'}
            </button>
@@ -981,6 +1009,8 @@ const MilestoneModal = ({ milestone, onClose, onSave }: any) => {
 // --- CONFIRM PURCHASE MODAL (DARK & COMPACT) ---
 const ConfirmForecastModal = ({ forecast, onClose, onConfirm, financialCategories }: any) => {
   const [parentId, setParentId] = useState<string | null>(null);
+  const [purchaseDate, setPurchaseDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [isPaid, setIsPaid] = useState(true);
   const [paymentProof, setPaymentProof] = useState<string | undefined>(forecast.paymentProof);
 
   return (
@@ -1002,33 +1032,61 @@ const ConfirmForecastModal = ({ forecast, onClose, onConfirm, financialCategorie
            </p>
            
            <div className="text-left space-y-6">
-              <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest ml-1">Vincular ao Grupo Financeiro (MDO)</label>
-                <div className="relative">
-                  <FolderTree className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={14} />
-                  <select 
-                    className="w-full pl-10 pr-4 py-4 rounded-2xl bg-slate-900 border-2 border-slate-800 text-white text-xs font-bold outline-none appearance-none focus:border-indigo-600 transition-all" 
-                    value={parentId || ''} 
-                    onChange={e => setParentId(e.target.value || null)}
-                  >
-                    <option value="">Sem grupo (Raiz do Financeiro)</option>
-                    {financialCategories.map((c: any) => <option key={c.id} value={c.id}>{c.description}</option>)}
-                  </select>
-                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none" size={14} />
+              <div className="grid grid-cols-1 gap-6">
+                <div>
+                  <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest ml-1">Data da Compra</label>
+                  <div className="relative">
+                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={14} />
+                    <input 
+                      type="date"
+                      className="w-full pl-10 pr-4 py-4 rounded-2xl bg-slate-900 border-2 border-slate-800 text-white text-xs font-bold outline-none appearance-none focus:border-indigo-600 transition-all [color-scheme:dark]"
+                      value={purchaseDate}
+                      onChange={e => setPurchaseDate(e.target.value)}
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                 <ExpenseAttachmentZone 
-                    label="Comprovante de Pagamento (Obrigatório)"
-                    requiredStatus="PAID"
-                    currentFile={paymentProof}
-                    onUpload={(base64) => setPaymentProof(base64)}
-                    onRemove={() => setPaymentProof(undefined)}
-                 />
-                 <p className="text-[8px] text-slate-500 font-bold uppercase text-center italic">
-                   O status só será alterado após o upload do comprovante.
-                 </p>
+                <div className="flex items-center justify-between p-4 bg-slate-900/50 rounded-2xl border border-slate-800">
+                  <div className="flex items-center gap-3">
+                    <CreditCard size={18} className={isPaid ? "text-emerald-500" : "text-slate-500"} />
+                    <span className="text-[10px] font-black text-white uppercase">Marcar como Pago agora?</span>
+                  </div>
+                  <button 
+                    type="button" 
+                    onClick={() => setIsPaid(!isPaid)}
+                    className={`w-12 h-6 rounded-full relative transition-all ${isPaid ? 'bg-emerald-500' : 'bg-slate-700'}`}
+                  >
+                    <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${isPaid ? 'left-6.5' : 'left-0.5'}`} />
+                  </button>
+                </div>
+
+                {isPaid && (
+                  <div className="space-y-2 animate-in slide-in-from-top-2">
+                    <ExpenseAttachmentZone 
+                        label="Comprovante de Pagamento"
+                        requiredStatus="PAID"
+                        currentFile={paymentProof}
+                        onUpload={(base64) => setPaymentProof(base64)}
+                        onRemove={() => setPaymentProof(undefined)}
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest ml-1">Vincular ao Grupo Financeiro (Opcional)</label>
+                  <div className="relative">
+                    <FolderTree className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={14} />
+                    <select 
+                      className="w-full pl-10 pr-4 py-4 rounded-2xl bg-slate-900 border-2 border-slate-800 text-white text-xs font-bold outline-none appearance-none focus:border-indigo-600 transition-all" 
+                      value={parentId || ''} 
+                      onChange={e => setParentId(e.target.value || null)}
+                    >
+                      <option value="">Sem grupo (Raiz do Financeiro)</option>
+                      {financialCategories.map((c: any) => <option key={c.id} value={c.id}>{c.description}</option>)}
+                    </select>
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none" size={14} />
+                  </div>
+                </div>
               </div>
            </div>
         </div>
@@ -1036,11 +1094,12 @@ const ConfirmForecastModal = ({ forecast, onClose, onConfirm, financialCategorie
         <div className="flex items-center gap-4 w-full">
            <button onClick={onClose} className="flex-1 py-4 text-slate-500 font-black uppercase text-xs tracking-widest hover:text-white transition-colors">Voltar</button>
            <button 
-              onClick={() => onConfirm(parentId, paymentProof)} 
-              disabled={!paymentProof}
-              className="flex-[2] py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-[1.5rem] font-black uppercase text-xs tracking-widest shadow-xl shadow-emerald-500/20 active:scale-95 transition-all"
+              onClick={() => onConfirm(isPaid, parentId, paymentProof, purchaseDate)} 
+              className={`flex-[2] py-4 rounded-[1.5rem] font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all ${
+                isPaid ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/20 text-white' : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-500/20 text-white'
+              }`}
            >
-              Confirmar Lançamento
+              {isPaid ? 'Confirmar e Pagar' : 'Confirmar Pedido'}
            </button>
         </div>
       </div>
