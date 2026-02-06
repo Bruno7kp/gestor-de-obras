@@ -85,6 +85,103 @@ export class WorkItemsService {
     });
   }
 
+  async replaceAll(
+    projectId: string,
+    items: Array<Omit<CreateWorkItemInput, 'instanceId'>>,
+    instanceId: string,
+  ): Promise<{ created: number }> {
+    await this.ensureProject(projectId, instanceId);
+
+    // Prepare data for bulk insert
+    const createData = items.map((i) => ({
+      id: i.id,
+      projectId: projectId,
+      parentId: i.parentId ?? null,
+      name: i.name,
+      type: i.type,
+      wbs: i.wbs || '',
+      order: i.order ?? 0,
+      unit: i.unit || 'un',
+      cod: i.cod ?? null,
+      fonte: i.fonte ?? null,
+      contractQuantity: i.contractQuantity ?? 0,
+      unitPrice: i.unitPrice ?? 0,
+      unitPriceNoBdi: i.unitPriceNoBdi ?? 0,
+      contractTotal: i.contractTotal ?? 0,
+      previousQuantity: i.previousQuantity ?? 0,
+      previousTotal: i.previousTotal ?? 0,
+      currentQuantity: i.currentQuantity ?? 0,
+      currentTotal: i.currentTotal ?? 0,
+      currentPercentage: i.currentPercentage ?? 0,
+      accumulatedQuantity: i.accumulatedQuantity ?? 0,
+      accumulatedTotal: i.accumulatedTotal ?? 0,
+      accumulatedPercentage: i.accumulatedPercentage ?? 0,
+      balanceQuantity: i.balanceQuantity ?? 0,
+      balanceTotal: i.balanceTotal ?? 0,
+    }));
+
+    await this.prisma.$transaction([
+      this.prisma.workItemResponsibility.deleteMany({
+        where: { workItem: { projectId } },
+      }),
+      this.prisma.workItem.deleteMany({ where: { projectId } }),
+      this.prisma.workItem.createMany({ data: createData }),
+    ]);
+
+    return { created: items.length };
+  }
+
+  async batchInsert(
+    projectId: string,
+    items: Array<Omit<CreateWorkItemInput, 'instanceId'>>,
+    replaceFlag: boolean,
+    instanceId: string,
+  ): Promise<{ created: number }> {
+    await this.ensureProject(projectId, instanceId);
+
+    const createData = items.map((i) => ({
+      id: i.id,
+      projectId: projectId,
+      parentId: i.parentId ?? null,
+      name: i.name,
+      type: i.type,
+      wbs: i.wbs || '',
+      order: i.order ?? 0,
+      unit: i.unit || 'un',
+      cod: i.cod ?? null,
+      fonte: i.fonte ?? null,
+      contractQuantity: i.contractQuantity ?? 0,
+      unitPrice: i.unitPrice ?? 0,
+      unitPriceNoBdi: i.unitPriceNoBdi ?? 0,
+      contractTotal: i.contractTotal ?? 0,
+      previousQuantity: i.previousQuantity ?? 0,
+      previousTotal: i.previousTotal ?? 0,
+      currentQuantity: i.currentQuantity ?? 0,
+      currentTotal: i.currentTotal ?? 0,
+      currentPercentage: i.currentPercentage ?? 0,
+      accumulatedQuantity: i.accumulatedQuantity ?? 0,
+      accumulatedTotal: i.accumulatedTotal ?? 0,
+      accumulatedPercentage: i.accumulatedPercentage ?? 0,
+      balanceQuantity: i.balanceQuantity ?? 0,
+      balanceTotal: i.balanceTotal ?? 0,
+    }));
+
+    if (replaceFlag) {
+      await this.prisma.$transaction([
+        this.prisma.workItemResponsibility.deleteMany({
+          where: { workItem: { projectId } },
+        }),
+        this.prisma.workItem.deleteMany({ where: { projectId } }),
+        this.prisma.workItem.createMany({ data: createData }),
+      ]);
+    } else {
+      // Only insert provided batch
+      await this.prisma.workItem.createMany({ data: createData });
+    }
+
+    return { created: items.length };
+  }
+
   async update(input: UpdateWorkItemInput) {
     const existing = await this.prisma.workItem.findFirst({
       where: {

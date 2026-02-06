@@ -108,32 +108,45 @@ export const WbsView: React.FC<WbsViewProps> = ({
     }
   };
 
+  const [importProgress, setImportProgress] = useState<{ sent: number; total: number }>({ sent: 0, total: 0 });
+
   const confirmImport = async () => {
     if (!importSummary) return;
+    setIsImporting(true);
+    setImportProgress({ sent: 0, total: importSummary.items.length });
+
     try {
-      const roots = project.items.filter(item => !item.parentId);
-      for (const root of roots) {
-        await workItemsApi.remove(root.id);
+      // Sort items by depth (parents first) to avoid FK constraint failures when inserting chunks
+      const itemsById = new Map(importSummary.items.map(i => [i.id, i] as const));
+      const depthMap = new Map<string, number>();
+
+      const computeDepth = (id: string, visited = new Set<string>()): number => {
+        if (depthMap.has(id)) return depthMap.get(id)!;
+        if (visited.has(id)) return 0; // cycle -> treat as root
+        visited.add(id);
+        const item = itemsById.get(id);
+        if (!item || !item.parentId) return 0;
+        const d = 1 + (item.parentId && itemsById.has(item.parentId) ? computeDepth(item.parentId, visited) : 0);
+        depthMap.set(id, d);
+        return d;
+      };
+
+      for (const it of importSummary.items) computeDepth(it.id);
+
+      const sorted = [...importSummary.items].sort((a, b) => (depthMap.get(a.id) || 0) - (depthMap.get(b.id) || 0));
+
+      const CHUNK_SIZE = 500;
+      const chunks: typeof sorted[] = [];
+      for (let i = 0; i < sorted.length; i += CHUNK_SIZE) {
+        chunks.push(sorted.slice(i, i + CHUNK_SIZE));
       }
 
-      const pending = new Map(importSummary.items.map(item => [item.id, item] as const));
-      const created = new Set<string>();
-      let progress = true;
-
-      while (pending.size > 0 && progress) {
-        progress = false;
-        for (const [id, item] of pending) {
-          if (!item.parentId || created.has(item.parentId)) {
-            await workItemsApi.create(project.id, item);
-            created.add(id);
-            pending.delete(id);
-            progress = true;
-          }
-        }
-      }
-
-      if (pending.size > 0) {
-        throw new Error('Dependencias de itens nao resolvidas');
+      let sent = 0;
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        await workItemsApi.batch(project.id, chunk, i === 0); // first chunk replace=true
+        sent += chunk.length;
+        setImportProgress({ sent, total: sorted.length });
       }
 
       updateItemsState(importSummary.items);
@@ -141,6 +154,9 @@ export const WbsView: React.FC<WbsViewProps> = ({
     } catch (error) {
       console.error('Erro ao importar itens:', error);
       alert('Erro ao importar itens. Tente novamente.');
+    } finally {
+      setIsImporting(false);
+      setImportProgress({ sent: 0, total: 0 });
     }
   };
 
@@ -457,17 +473,42 @@ export const WbsView: React.FC<WbsViewProps> = ({
             </div>
 
             <div className="px-8 py-6 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-3 shrink-0">
+              {isImporting && (
+                <div className="px-2">
+                  <div className="w-full bg-slate-100 dark:bg-slate-900 h-3 rounded-full overflow-hidden">
+                    <div
+                      className="h-3 bg-emerald-500"
+                      style={{ width: `${importProgress.total > 0 ? (importProgress.sent / importProgress.total) * 100 : 0}%` }}
+                    />
+                  </div>
+                  <p className="text-[10px] mt-2 text-center text-slate-500">
+                    Enviando {importProgress.sent}/{importProgress.total} itens ({Math.round(importProgress.total > 0 ? (importProgress.sent / importProgress.total) * 100 : 0)}%)
+                  </p>
+                </div>
+              )}
+
               <button 
                 type="button" 
                 onClick={() => void confirmImport()} 
                 className="w-full py-5 bg-emerald-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-emerald-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                disabled={isImporting}
               >
-                <CheckCircle2 size={18} /> Confirmar Substituição
+                {isImporting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                    <span>Enviando...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={18} /> Confirmar Substituição
+                  </>
+                )}
               </button>
               <button 
                 type="button" 
                 onClick={() => setImportSummary(null)} 
                 className="w-full py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                disabled={isImporting}
               >
                 Cancelar
               </button>

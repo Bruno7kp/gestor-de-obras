@@ -66,6 +66,33 @@ export class WorkItemsController {
     });
   }
 
+  @Post('replace')
+  async replace(
+    @Body()
+    body: { projectId: string; items: CreateWorkItemBody[] },
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ created: number }> {
+    return this.workItemsService.replaceAll(
+      body.projectId,
+      body.items,
+      req.user.instanceId,
+    );
+  }
+
+  @Post('batch')
+  async batch(
+    @Body()
+    body: { projectId: string; items: CreateWorkItemBody[]; replace?: boolean },
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ created: number }> {
+    return this.workItemsService.batchInsert(
+      body.projectId,
+      body.items,
+      !!body.replace,
+      req.user.instanceId,
+    );
+  }
+
   @Patch(':id')
   update(
     @Param('id') id: string,

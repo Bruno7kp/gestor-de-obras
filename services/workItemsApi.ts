@@ -88,6 +88,32 @@ export const workItemsApi = {
     return response.json();
   },
 
+  async replace(projectId: string, items: WorkItem[]): Promise<void> {
+    const response = await fetch(`${API_BASE}/work-items/replace`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ projectId, items: items.map(i => toPayload(i, projectId)) }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Falha ao substituir itens');
+    }
+  },
+
+  async batch(projectId: string, items: WorkItem[], replaceFlag = false): Promise<void> {
+    const response = await fetch(`${API_BASE}/work-items/batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ projectId, items: items.map(i => toPayload(i, projectId)), replace: replaceFlag }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Falha ao enviar batch de itens');
+    }
+  },
+
   async update(id: string, input: Partial<WorkItemPayload>): Promise<WorkItem> {
     const response = await fetch(`${API_BASE}/work-items/${id}`, {
       method: 'PATCH',
