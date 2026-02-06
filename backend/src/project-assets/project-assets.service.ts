@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { removeLocalUpload } from '../uploads/file.utils';
 
 interface CreateAssetInput {
   id?: string;
@@ -80,6 +81,7 @@ export class ProjectAssetsService {
 
     if (!existing) throw new NotFoundException('Arquivo nao encontrado');
 
+    await removeLocalUpload(existing.data);
     await this.prisma.projectAsset.delete({ where: { id } });
     return { deleted: 1 };
   }

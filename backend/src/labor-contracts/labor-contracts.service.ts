@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { removeLocalUploads } from '../uploads/file.utils';
 
 interface LaborPaymentInput {
   id?: string;
@@ -188,6 +189,13 @@ export class LaborContractsService {
     });
 
     if (!existing) throw new NotFoundException('Contrato nao encontrado');
+
+    const payments = await this.prisma.laborPayment.findMany({
+      where: { laborContractId: existing.id },
+      select: { comprovante: true },
+    });
+
+    await removeLocalUploads(payments.map(payment => payment.comprovante));
 
     await this.prisma.laborPayment.deleteMany({
       where: { laborContractId: existing.id },

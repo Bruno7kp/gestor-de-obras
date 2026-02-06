@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { removeLocalUpload } from '../uploads/file.utils';
 
 interface CreateTaskInput {
   id?: string;
@@ -196,10 +197,11 @@ export class PlanningService {
   async deleteForecast(id: string, instanceId: string) {
     const forecast = await this.prisma.materialForecast.findFirst({
       where: { id, projectPlanning: { project: { instanceId } } },
-      select: { id: true },
+      select: { id: true, paymentProof: true },
     });
     if (!forecast) throw new NotFoundException('Previsao nao encontrada');
 
+    await removeLocalUpload(forecast.paymentProof);
     await this.prisma.materialForecast.delete({ where: { id } });
     return { deleted: 1 };
   }

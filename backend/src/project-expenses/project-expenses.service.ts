@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { ExpenseStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { removeLocalUploads } from '../uploads/file.utils';
 
 interface CreateExpenseInput {
   id?: string;
@@ -165,6 +166,15 @@ export class ProjectExpensesService {
     });
 
     const ids = this.collectDescendants(allItems, id);
+
+    const attachments = await this.prisma.projectExpense.findMany({
+      where: { id: { in: ids } },
+      select: { paymentProof: true, invoiceDoc: true },
+    });
+
+    await removeLocalUploads(
+      attachments.flatMap((item) => [item.paymentProof, item.invoiceDoc]),
+    );
 
     await this.prisma.projectExpense.deleteMany({
       where: { id: { in: ids } },

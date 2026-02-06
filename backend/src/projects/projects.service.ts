@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { removeLocalUpload, removeLocalUploads } from '../uploads/file.utils';
 
 interface CreateProjectInput {
   name: string;
@@ -201,6 +202,53 @@ export class ProjectsService {
     });
 
     if (!existing) throw new NotFoundException('Projeto nao encontrado');
+
+    const [assets, expenses, forecasts, journalEntries, workforce, payments] =
+      await Promise.all([
+        this.prisma.projectAsset.findMany({
+          where: { projectId: id },
+          select: { data: true },
+        }),
+        this.prisma.projectExpense.findMany({
+          where: { projectId: id },
+          select: { paymentProof: true, invoiceDoc: true },
+        }),
+        this.prisma.materialForecast.findMany({
+          where: { projectPlanning: { projectId: id } },
+          select: { paymentProof: true },
+        }),
+        this.prisma.journalEntry.findMany({
+          where: { projectJournal: { projectId: id } },
+          select: { photoUrls: true },
+        }),
+        this.prisma.workforceMember.findMany({
+          where: { projectId: id },
+          select: { foto: true, documentos: { select: { arquivoUrl: true } } },
+        }),
+        this.prisma.laborPayment.findMany({
+          where: { laborContract: { projectId: id } },
+          select: { comprovante: true },
+        }),
+      ]);
+
+    await removeLocalUpload(existing.logo);
+    await removeLocalUploads(assets.map((asset) => asset.data));
+    await removeLocalUploads(
+      expenses.flatMap((expense) => [expense.paymentProof, expense.invoiceDoc]),
+    );
+    await removeLocalUploads(
+      forecasts.map((forecast) => forecast.paymentProof),
+    );
+    await removeLocalUploads(
+      journalEntries.flatMap((entry) => entry.photoUrls ?? []),
+    );
+    await removeLocalUploads(workforce.map((member) => member.foto));
+    await removeLocalUploads(
+      workforce.flatMap((member) =>
+        member.documentos.map((doc) => doc.arquivoUrl),
+      ),
+    );
+    await removeLocalUploads(payments.map((payment) => payment.comprovante));
 
     await this.prisma.workItemResponsibility.deleteMany({
       where: { workItem: { projectId: id } },

@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { removeLocalUpload, removeLocalUploads } from '../uploads/file.utils';
 
 interface CreateWorkforceInput {
   projectId: string;
@@ -71,7 +72,7 @@ export class WorkforceService {
 
     if (input.documentos?.length) {
       await this.prisma.staffDocument.createMany({
-        data: input.documentos.map(doc => ({
+        data: input.documentos.map((doc) => ({
           nome: doc.nome,
           dataVencimento: doc.dataVencimento,
           arquivoUrl: doc.arquivoUrl ?? null,
@@ -83,7 +84,7 @@ export class WorkforceService {
 
     if (input.linkedWorkItemIds?.length) {
       await this.prisma.workItemResponsibility.createMany({
-        data: input.linkedWorkItemIds.map(workItemId => ({
+        data: input.linkedWorkItemIds.map((workItemId) => ({
           workItemId,
           workforceMemberId: member.id,
         })),
@@ -105,14 +106,24 @@ export class WorkforceService {
       data: {
         nome: input.nome ?? existing.nome,
         cpf_cnpj: input.cpf_cnpj ?? existing.cpf_cnpj,
-        empresa_vinculada: input.empresa_vinculada ?? existing.empresa_vinculada,
+        empresa_vinculada:
+          input.empresa_vinculada ?? existing.empresa_vinculada,
         foto: input.foto ?? existing.foto,
         cargo: input.cargo ?? existing.cargo,
       },
     });
   }
 
-  async addDocument(id: string, instanceId: string, document: { nome: string; dataVencimento: string; arquivoUrl?: string | null; status: string }) {
+  async addDocument(
+    id: string,
+    instanceId: string,
+    document: {
+      nome: string;
+      dataVencimento: string;
+      arquivoUrl?: string | null;
+      status: string;
+    },
+  ) {
     await this.ensureMember(id, instanceId);
     return this.prisma.staffDocument.create({
       data: {
@@ -127,6 +138,18 @@ export class WorkforceService {
 
   async removeDocument(id: string, documentId: string, instanceId: string) {
     await this.ensureMember(id, instanceId);
+
+    const doc = await this.prisma.staffDocument.findFirst({
+      where: {
+        id: documentId,
+        workforceMember: { id, project: { instanceId } },
+      },
+      select: { id: true, arquivoUrl: true },
+    });
+
+    if (!doc) throw new NotFoundException('Documento nao encontrado');
+
+    await removeLocalUpload(doc.arquivoUrl);
     await this.prisma.staffDocument.delete({ where: { id: documentId } });
     return { deleted: 1 };
   }
@@ -141,7 +164,11 @@ export class WorkforceService {
     });
   }
 
-  async removeResponsibility(id: string, workItemId: string, instanceId: string) {
+  async removeResponsibility(
+    id: string,
+    workItemId: string,
+    instanceId: string,
+  ) {
     await this.ensureMember(id, instanceId);
     await this.prisma.workItemResponsibility.deleteMany({
       where: {
@@ -153,9 +180,22 @@ export class WorkforceService {
   }
 
   async remove(id: string, instanceId: string) {
-    await this.ensureMember(id, instanceId);
-    await this.prisma.staffDocument.deleteMany({ where: { workforceMemberId: id } });
-    await this.prisma.workItemResponsibility.deleteMany({ where: { workforceMemberId: id } });
+    const member = await this.prisma.workforceMember.findFirst({
+      where: { id, project: { instanceId } },
+      include: { documentos: { select: { arquivoUrl: true } } },
+    });
+
+    if (!member) throw new NotFoundException('Membro nao encontrado');
+
+    await removeLocalUpload(member.foto);
+    await removeLocalUploads(member.documentos.map((doc) => doc.arquivoUrl));
+
+    await this.prisma.staffDocument.deleteMany({
+      where: { workforceMemberId: id },
+    });
+    await this.prisma.workItemResponsibility.deleteMany({
+      where: { workforceMemberId: id },
+    });
     await this.prisma.workforceMember.delete({ where: { id } });
     return { deleted: 1 };
   }

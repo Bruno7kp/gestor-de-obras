@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { removeLocalUploads } from '../uploads/file.utils';
 
 interface CreateJournalEntryInput {
   id?: string;
@@ -93,10 +94,11 @@ export class JournalService {
   async deleteEntry(id: string, instanceId: string) {
     const entry = await this.prisma.journalEntry.findFirst({
       where: { id, projectJournal: { project: { instanceId } } },
-      select: { id: true },
+      select: { id: true, photoUrls: true },
     });
     if (!entry) throw new NotFoundException('Registro nao encontrado');
 
+    await removeLocalUploads(entry.photoUrls ?? []);
     await this.prisma.journalEntry.delete({ where: { id } });
     return { deleted: 1 };
   }
