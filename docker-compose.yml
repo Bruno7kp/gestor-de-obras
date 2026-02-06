@@ -23,7 +23,7 @@ services:
       - DATABASE_URL=postgresql://gestor:gestor@db:5432/gestor_obras?schema=public
       - JWT_SECRET=${JWT_SECRET}
       - RESEND_API_KEY=${RESEND_API_KEY}
-      - RESEND_FROM_EMAIL=no-reply@promedicao.com
+      - RESEND_FROM_EMAIL=no-reply@canteirodigital.com
     depends_on:
       - db
 
