@@ -13,19 +13,49 @@ async function bootstrap() {
     .filter(Boolean);
 
   const defaultOrigins = [
+    'http://localhost',
     'http://localhost:3000',
     'http://localhost:5173',
+    'http://127.0.0.1',
     'http://127.0.0.1:3000',
     'http://127.0.0.1:5173',
   ];
 
+  // Use explicitly provided CORS_ORIGINS in production; fall back to local defaults when none provided
   const corsAllowlist =
     allowedOrigins.length > 0 ? allowedOrigins : defaultOrigins;
 
   app.enableCors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
-      if (corsAllowlist.includes(origin)) return callback(null, true);
+      try {
+        const url = new URL(origin);
+        const originHost = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}`;
+        const originHostOnly = `${url.protocol}//${url.hostname}`;
+
+        const allowed =
+          corsAllowlist.includes(origin) ||
+          corsAllowlist.includes(originHost) ||
+          corsAllowlist.includes(originHostOnly) ||
+          corsAllowlist.some((o) => {
+            try {
+              const oUrl = new URL(o);
+              return oUrl.hostname === url.hostname;
+            } catch {
+              return o === origin || origin.endsWith(o);
+            }
+          });
+
+        if (allowed) return callback(null, true);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (e) {
+        // fallback to basic check
+        if (corsAllowlist.includes(origin)) return callback(null, true);
+      }
+
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(`[CORS] Rejected origin: ${origin}`);
+      }
       return callback(new Error('CORS origin not allowed'), false);
     },
     credentials: true,
