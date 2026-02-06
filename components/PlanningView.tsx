@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Project, PlanningTask, MaterialForecast, Milestone, WorkItem, TaskStatus, ProjectPlanning, ProjectExpense, Supplier } from '../types';
+import { planningApi } from '../services/planningApi';
 import { planningService } from '../services/planningService';
 import { excelService } from '../services/excelService';
 import { financial } from '../utils/math';
@@ -128,16 +129,28 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     win?.document.write(`<iframe src="${proof}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
   };
 
+  const [isImportingPlan, setIsImportingPlan] = useState(false);
+
   const handleImportPlanning = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setIsImportingPlan(true);
     try {
       const newPlanning = await excelService.parsePlanningExcel(file);
+      // send as replace to backend (single request)
+      await planningApi.replace(project.id, {
+        tasks: newPlanning.tasks,
+        forecasts: newPlanning.forecasts,
+        milestones: newPlanning.milestones,
+      });
+
       onUpdatePlanning(newPlanning);
     } catch (err) {
+      console.error('Erro ao importar planejamento:', err);
       alert("Erro ao importar planejamento.");
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
+      setIsImportingPlan(false);
     }
   };
 

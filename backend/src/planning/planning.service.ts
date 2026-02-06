@@ -250,6 +250,77 @@ export class PlanningService {
     });
   }
 
+  async replaceAll(
+    projectId: string,
+    tasks: Array<Omit<CreateTaskInput, 'instanceId'>>,
+    forecasts: Array<Omit<CreateForecastInput, 'instanceId'>>,
+    milestones: Array<Omit<CreateMilestoneInput, 'instanceId'>>,
+    instanceId: string,
+  ): Promise<{ replaced: number }> {
+    await this.ensureProject(projectId, instanceId);
+    const planning = await this.ensurePlanning(projectId);
+
+    const taskData = tasks.map((t) => ({
+      id: t.id,
+      projectPlanningId: planning.id,
+      categoryId: t.categoryId ?? null,
+      description: t.description,
+      status: t.status,
+      isCompleted: t.isCompleted,
+      dueDate: t.dueDate,
+      createdAt: t.createdAt,
+      completedAt: t.completedAt ?? null,
+    }));
+
+    const forecastData = forecasts.map((f) => ({
+      id: f.id,
+      projectPlanningId: planning.id,
+      description: f.description,
+      unit: f.unit,
+      quantityNeeded: f.quantityNeeded,
+      unitPrice: f.unitPrice,
+      estimatedDate: f.estimatedDate,
+      purchaseDate: f.purchaseDate ?? null,
+      deliveryDate: f.deliveryDate ?? null,
+      status: f.status,
+      isPaid: f.isPaid,
+      order: f.order ?? 0,
+      supplierId: f.supplierId ?? null,
+      paymentProof: f.paymentProof ?? null,
+    }));
+
+    const milestoneData = milestones.map((m) => ({
+      id: m.id,
+      projectPlanningId: planning.id,
+      title: m.title,
+      date: m.date,
+      isCompleted: m.isCompleted,
+    }));
+
+    await this.prisma.$transaction([
+      this.prisma.planningTask.deleteMany({
+        where: {
+          projectPlanningId: planning.id,
+        },
+      }),
+      this.prisma.materialForecast.deleteMany({
+        where: {
+          projectPlanningId: planning.id,
+        },
+      }),
+      this.prisma.milestone.deleteMany({
+        where: {
+          projectPlanningId: planning.id,
+        },
+      }),
+      this.prisma.planningTask.createMany({ data: taskData }),
+      this.prisma.materialForecast.createMany({ data: forecastData }),
+      this.prisma.milestone.createMany({ data: milestoneData }),
+    ]);
+
+    return { replaced: tasks.length + forecasts.length + milestones.length };
+  }
+
   async deleteMilestone(id: string, instanceId: string) {
     const milestone = await this.prisma.milestone.findFirst({
       where: { id, projectPlanning: { project: { instanceId } } },

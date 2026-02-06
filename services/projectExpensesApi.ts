@@ -54,6 +54,19 @@ export const projectExpensesApi = {
     return response.json();
   },
 
+  async batch(projectId: string, expenses: ProjectExpense[], replaceTypes?: string[]): Promise<void> {
+    const response = await fetch(`${API_BASE}/project-expenses/batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ projectId, expenses: expenses.map(e => ({ ...e })), replaceTypes }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Falha ao enviar batch de despesas');
+    }
+  },
+
   async remove(id: string) {
     const response = await fetch(`${API_BASE}/project-expenses/${id}`, {
       method: 'DELETE',

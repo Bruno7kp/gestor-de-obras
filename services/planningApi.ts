@@ -188,4 +188,17 @@ export const planningApi = {
       throw new Error('Falha ao remover marco');
     }
   },
+
+  async replace(projectId: string, payload: { tasks?: any[]; forecasts?: any[]; milestones?: any[] }): Promise<void> {
+    const response = await fetch(`${API_BASE}/planning/replace`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ projectId, ...payload }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Falha ao substituir planejamento');
+    }
+  },
 };

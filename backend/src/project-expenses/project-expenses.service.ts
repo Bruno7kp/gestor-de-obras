@@ -152,6 +152,60 @@ export class ProjectExpensesService {
     return Array.from(ids);
   }
 
+  async batchInsert(
+    projectId: string,
+    expenses: Array<Omit<CreateExpenseInput, 'instanceId'>>,
+    replaceTypes: string[] | null,
+    instanceId: string,
+  ): Promise<{ created: number }> {
+    await this.ensureProject(projectId, instanceId);
+
+    const createData = expenses.map((e) => ({
+      id: e.id,
+      projectId,
+      parentId: e.parentId ?? null,
+      type: e.type,
+      itemType: e.itemType,
+      wbs: e.wbs ?? '',
+      order: e.order ?? 0,
+      date: e.date,
+      description: e.description,
+      entityName: e.entityName,
+      unit: e.unit,
+      quantity: e.quantity,
+      unitPrice: e.unitPrice,
+      amount: e.amount,
+      isPaid: e.isPaid ?? false,
+      status: e.status ?? (e.isPaid ? 'PAID' : 'PENDING'),
+      paymentDate: e.paymentDate || null,
+      paymentProof: e.paymentProof || null,
+      invoiceDoc: e.invoiceDoc || null,
+      deliveryDate: e.deliveryDate || null,
+      discountValue: e.discountValue ?? null,
+      discountPercentage: e.discountPercentage ?? null,
+      issValue: e.issValue ?? null,
+      issPercentage: e.issPercentage ?? null,
+      linkedWorkItemId: e.linkedWorkItemId || null,
+    }));
+
+    if (replaceTypes && replaceTypes.length > 0) {
+      // delete only the specified types
+      await this.prisma.$transaction([
+        this.prisma.projectExpense.deleteMany({
+          where: {
+            projectId,
+            type: { in: replaceTypes },
+          },
+        }),
+        this.prisma.projectExpense.createMany({ data: createData }),
+      ]);
+    } else {
+      await this.prisma.projectExpense.createMany({ data: createData });
+    }
+
+    return { created: expenses.length };
+  }
+
   async remove(id: string, instanceId: string) {
     const target = await this.prisma.projectExpense.findFirst({
       where: { id, project: { instanceId } },

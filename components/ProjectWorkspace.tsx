@@ -220,6 +220,14 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
       .filter(Boolean) as { id: string; patch: Partial<ProjectExpense> }[];
 
     try {
+      const totalChanges = removed.length + added.length + updated.length;
+      // If this is a very large change (import), perform a replace by types in a single batch request
+      if (totalChanges > 50) {
+        const typesToReplace = Array.from(new Set(nextExpenses.map(e => e.type)));
+        await projectExpensesApi.batch(project.id, nextExpenses, typesToReplace);
+        return;
+      }
+
       await Promise.all(removed.map(expense => projectExpensesApi.remove(expense.id)));
       await Promise.all(added.map(expense => projectExpensesApi.create(project.id, expense)));
       await Promise.all(updated.map(update => projectExpensesApi.update(update.id, update.patch)));
@@ -360,6 +368,17 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     );
 
     try {
+      const totalChanges = taskDiff.removed.length + taskDiff.added.length + taskDiff.updated.length + forecastDiff.removed.length + forecastDiff.added.length + forecastDiff.updated.length + milestoneDiff.removed.length + milestoneDiff.added.length + milestoneDiff.updated.length;
+      if (totalChanges > 50) {
+        // Large change detected (likely an import) — replace whole planning in one request
+        await planningApi.replace(project.id, {
+          tasks: nextPlanning.tasks,
+          forecasts: nextPlanning.forecasts,
+          milestones: nextPlanning.milestones,
+        });
+        return;
+      }
+
       await Promise.all(taskDiff.removed.map(item => taskDiff.remove(item.id)));
       await Promise.all(forecastDiff.removed.map(item => forecastDiff.remove(item.id)));
       await Promise.all(milestoneDiff.removed.map(item => milestoneDiff.remove(item.id)));

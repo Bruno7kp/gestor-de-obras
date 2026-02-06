@@ -146,6 +146,26 @@ export class PlanningController {
     });
   }
 
+  @Post('replace')
+  replace(
+    @Body()
+    body: {
+      projectId: string;
+      tasks?: CreateTaskBody[];
+      forecasts?: CreateForecastBody[];
+      milestones?: CreateMilestoneBody[];
+    },
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ replaced: number }> {
+    return this.planningService.replaceAll(
+      body.projectId,
+      body.tasks ?? [],
+      body.forecasts ?? [],
+      body.milestones ?? [],
+      req.user.instanceId,
+    );
+  }
+
   @Patch('milestones/:id')
   updateMilestone(
     @Param('id') id: string,

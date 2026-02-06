@@ -70,6 +70,24 @@ export class ProjectExpensesController {
     });
   }
 
+  @Post('batch')
+  batch(
+    @Body()
+    body: {
+      projectId: string;
+      expenses: CreateExpenseBody[];
+      replaceTypes?: string[];
+    },
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ created: number }> {
+    return this.projectExpensesService.batchInsert(
+      body.projectId,
+      body.expenses,
+      body.replaceTypes ?? null,
+      req.user.instanceId,
+    );
+  }
+
   @Patch(':id')
   update(
     @Param('id') id: string,

@@ -5,6 +5,7 @@ import { financial } from '../utils/math';
 import { expenseService } from '../services/expenseService';
 import { treeService } from '../services/treeService';
 import { excelService, ExpenseImportResult } from '../services/excelService';
+import { projectExpensesApi } from '../services/projectExpensesApi';
 import { ExpenseTreeTable } from './ExpenseTreeTable';
 import { ExpenseModal } from './ExpenseModal';
 import {
@@ -91,13 +92,16 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
     }
   };
 
-  const confirmImport = () => {
+  const [importProgress, setImportProgress] = useState<{ sent: number; total: number }>({ sent: 0, total: 0 });
+
+  const confirmImport = async () => {
     if (!importSummary) return;
     const typesInFile = new Set<ExpenseType>();
     if (importSummary.stats.byType.labor > 0) typesInFile.add('labor');
     if (importSummary.stats.byType.material > 0) typesInFile.add('material');
     if (importSummary.stats.byType.revenue > 0) typesInFile.add('revenue');
 
+    // optimistic update
     let updatedExpenses = expenses.filter(e => !typesInFile.has(e.type));
     updatedExpenses = [...updatedExpenses, ...importSummary.expenses];
     onUpdateExpenses(updatedExpenses);
@@ -107,7 +111,33 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
       importSummary.expenses.filter(ex => ex.itemType === 'category').forEach(ex => next.add(ex.id));
       return next;
     });
-    setImportSummary(null);
+
+    // send batches to backend
+    setIsImporting(true);
+    setImportProgress({ sent: 0, total: importSummary.expenses.length });
+
+    const CHUNK_SIZE = 500;
+    const sorted = importSummary.expenses; // expenses already ordered by WBS mapping
+    const chunks: typeof sorted[] = [];
+    for (let i = 0; i < sorted.length; i += CHUNK_SIZE) chunks.push(sorted.slice(i, i + CHUNK_SIZE));
+
+    try {
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        // only for first chunk pass replaceTypes to remove existing of those types
+        await projectExpensesApi.batch(project.id, chunk, i === 0 ? Array.from(typesInFile) : undefined);
+        setImportProgress(prev => ({ sent: prev.sent + chunk.length, total: prev.total }));
+      }
+      setImportSummary(null);
+    } catch (err) {
+      console.error('Erro ao importar despesas:', err);
+      alert('Erro ao importar despesas. Tente novamente.');
+      // revert optimistic update by reloading from server could be added
+    } finally {
+      setIsImporting(false);
+      setImportProgress({ sent: 0, total: 0 });
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
   const handleSaveExpense = (data: Partial<ProjectExpense>) => {
@@ -240,6 +270,8 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
           summary={importSummary}
           onClose={() => setImportSummary(null)}
           onConfirm={confirmImport}
+          isImporting={isImporting}
+          progress={importProgress}
         />
       )}
 
@@ -257,7 +289,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
   );
 };
 
-const ExpenseImportReviewModal = ({ summary, onClose, onConfirm }: { summary: ExpenseImportResult, onClose: () => void, onConfirm: () => void }) => (
+const ExpenseImportReviewModal = ({ summary, onClose, onConfirm, isImporting, progress }: { summary: ExpenseImportResult, onClose: () => void, onConfirm: () => void, isImporting?: boolean, progress?: { sent: number; total: number } }) => (
   <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
     <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-[2.5rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col gap-6" onClick={e => e.stopPropagation()}>
       <div className="flex items-center justify-between">
@@ -293,9 +325,18 @@ const ExpenseImportReviewModal = ({ summary, onClose, onConfirm }: { summary: Ex
         </p>
       </div>
 
+      {isImporting && progress && (
+        <div className="px-2">
+          <div className="w-full bg-slate-100 dark:bg-slate-900 h-3 rounded-full overflow-hidden">
+            <div className="h-3 bg-emerald-500" style={{ width: `${progress.total > 0 ? (progress.sent / progress.total) * 100 : 0}%` }} />
+          </div>
+          <p className="text-[10px] mt-2 text-center text-slate-500">Enviando {progress.sent}/{progress.total} itens ({Math.round(progress.total > 0 ? (progress.sent / progress.total) * 100 : 0)}%)</p>
+        </div>
+      )}
+
       <div className="flex gap-3">
-        <button onClick={onClose} className="flex-1 py-4 text-slate-400 font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 rounded-2xl">Cancelar</button>
-        <button onClick={onConfirm} className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-indigo-500/20 active:scale-95 transition-all">Confirmar e Importar</button>
+        <button onClick={onClose} disabled={isImporting} className="flex-1 py-4 text-slate-400 font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 rounded-2xl">Cancelar</button>
+        <button onClick={onConfirm} disabled={isImporting} className={`flex-1 py-4 ${isImporting ? 'bg-slate-400' : 'bg-indigo-600'} text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-indigo-500/20 active:scale-95 transition-all`}>{isImporting ? 'Enviando...' : 'Confirmar e Importar'}</button>
       </div>
     </div>
   </div>
