@@ -6,7 +6,7 @@ services:
       args:
         - VITE_API_URL=${VITE_API_URL}
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O - http://localhost/ > /dev/null 2>&1"]
+      test: ["CMD-SHELL", "test -f /usr/share/nginx/html/index.html"]
       interval: 10s
       timeout: 5s
       retries: 5
