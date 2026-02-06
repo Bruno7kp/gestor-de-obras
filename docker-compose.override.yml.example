@@ -1,0 +1,12 @@
+# Este arquivo é específico para desenvolvimento local
+# Copie este arquivo para docker-compose.override.yml para usar
+# O arquivo docker-compose.override.yml NÃO é versionado no git
+
+services:
+  nginx:
+    volumes:
+      # Em dev, monta apenas o arquivo sem SSL
+      - ./nginx/conf.d/promedicao.dev.conf:/etc/nginx/conf.d/promedicao.dev.conf:ro
+      # Desabilita os arquivos de produção em dev
+      - /dev/null:/etc/nginx/conf.d/promedicao.conf
+      - /dev/null:/etc/nginx/conf.d/promedicao.prod.conf
