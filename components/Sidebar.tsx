@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Home, Cog, PlusCircle, Briefcase, Sun, Moon, Menu, HardHat, X, Folder, ChevronRight, ChevronLeft, ChevronDown, Landmark, AlertCircle, Truck, Shield } from 'lucide-react';
 import { Project, ProjectGroup, CompanyCertificate } from '../types';
 import { biddingService } from '../services/biddingService';
@@ -11,8 +11,6 @@ interface SidebarProps {
   setIsOpen: (open: boolean) => void;
   mobileOpen: boolean;
   setMobileOpen: (open: boolean) => void;
-  viewMode: string;
-  setViewMode: (mode: any) => void;
   projects: Project[];
   groups: ProjectGroup[];
   activeProjectId: string | null;
@@ -24,10 +22,11 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
-  isOpen, setIsOpen, mobileOpen, setMobileOpen, viewMode, setViewMode,
+  isOpen, setIsOpen, mobileOpen, setMobileOpen,
   projects, groups, activeProjectId, onOpenProject, onCreateProject, isDarkMode, toggleDarkMode, certificates
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   // Inicializa estado do localStorage para persistir pastas abertas
   // Fix: Explicitly type Set in lazy initializer to avoid 'Set<unknown>' inference
@@ -113,10 +112,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar">
-          <NavItem active={viewMode === 'global-dashboard'} onClick={() => { setViewMode('global-dashboard'); setMobileOpen(false); }} icon={<Home size={18}/>} label="Dashboard" />
-          <NavItem active={viewMode === 'bidding-view'} onClick={() => { setViewMode('bidding-view'); setMobileOpen(false); }} icon={<Landmark size={18}/>} label="Licitações" badge={hasAlerts} />
-          <NavItem active={viewMode === 'supplier-view'} onClick={() => { setViewMode('supplier-view'); setMobileOpen(false); }} icon={<Truck size={18}/>} label="Fornecedores" />
-          <NavItem active={viewMode === 'system-settings'} onClick={() => { setViewMode('system-settings'); setMobileOpen(false); }} icon={<Cog size={18}/>} label="Configurações" />
+          <NavItem
+            active={location.pathname.startsWith('/app/dashboard') || location.pathname === '/app'}
+            onClick={() => { navigate('/app/dashboard'); setMobileOpen(false); }}
+            icon={<Home size={18}/>}
+            label="Dashboard"
+          />
+          <NavItem
+            active={location.pathname.startsWith('/app/biddings')}
+            onClick={() => { navigate('/app/biddings'); setMobileOpen(false); }}
+            icon={<Landmark size={18}/>}
+            label="Licitações"
+            badge={hasAlerts}
+          />
+          <NavItem
+            active={location.pathname.startsWith('/app/suppliers')}
+            onClick={() => { navigate('/app/suppliers'); setMobileOpen(false); }}
+            icon={<Truck size={18}/>}
+            label="Fornecedores"
+          />
+          <NavItem
+            active={location.pathname.startsWith('/app/settings')}
+            onClick={() => { navigate('/app/settings'); setMobileOpen(false); }}
+            icon={<Cog size={18}/>}
+            label="Configurações"
+          />
           {isSuperAdmin && (
             <NavItem
               active={false}
@@ -137,7 +157,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="space-y-1">
             {groups.filter(g => !g.parentId).map(g => <GroupTreeItem key={g.id} group={g} depth={0} />)}
             {projects.filter(p => !p.groupId).map(p => (
-              <button key={p.id} onClick={() => onOpenProject(p.id)} className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${activeProjectId === p.id && viewMode === 'project-workspace' ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 font-bold' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'} ${!isOpen && 'justify-center'}`}>
+              <button key={p.id} onClick={() => onOpenProject(p.id)} className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${activeProjectId === p.id && location.pathname.startsWith('/app/projects') ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 font-bold' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'} ${!isOpen && 'justify-center'}`}>
                 <Briefcase size={16} className="shrink-0" />
                 {isOpen && <span className="text-xs truncate text-left">{p.name}</span>}
               </button>

@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Project, WorkforceMember, WorkforceRole, WorkItem } from '../types';
 import { workforceService } from '../services/workforceService';
+import { workforceApi } from '../services/workforceApi';
 import { 
   Users, Plus, Search, Trash2, Edit2, ShieldCheck, AlertCircle, HardHat, FileText,
   CheckCircle2, X, UserCircle, Briefcase, User
@@ -33,18 +34,99 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onU
     vencido: workforce.filter(m => workforceService.getMemberGlobalStatus(m) === 'vencido').length
   }), [workforce]);
 
-  const handleSave = (member: WorkforceMember) => {
-    const updated = workforce.find(m => m.id === member.id)
+  const refreshWorkforce = async () => {
+    const list = await workforceApi.list(project.id);
+    onUpdateProject({ workforce: list });
+  };
+
+  const handleSave = async (member: WorkforceMember) => {
+    const previous = workforce;
+    const exists = workforce.some(m => m.id === member.id);
+    const optimistic = exists
       ? workforce.map(m => m.id === member.id ? member : m)
       : [...workforce, member];
-    onUpdateProject({ workforce: updated });
+
+    onUpdateProject({ workforce: optimistic });
+
+    try {
+      if (exists) {
+        const prevMember = workforce.find(m => m.id === member.id);
+        await workforceApi.update(member.id, {
+          nome: member.nome,
+          cpf_cnpj: member.cpf_cnpj,
+          empresa_vinculada: member.empresa_vinculada,
+          foto: member.foto ?? null,
+          cargo: member.cargo,
+        });
+
+        if (prevMember) {
+          const prevDocs = prevMember.documentos ?? [];
+          const nextDocs = member.documentos ?? [];
+
+          const removedDocs = prevDocs.filter(doc => !nextDocs.find(next => next.id === doc.id));
+          const addedDocs = nextDocs.filter(doc => !prevDocs.find(prev => prev.id === doc.id));
+
+          const updatedDocs = nextDocs.filter(doc => {
+            const prev = prevDocs.find(prevDoc => prevDoc.id === doc.id);
+            if (!prev) return false;
+            return prev.nome !== doc.nome || prev.dataVencimento !== doc.dataVencimento || prev.status !== doc.status || prev.arquivoUrl !== doc.arquivoUrl;
+          });
+
+          await Promise.all(removedDocs.map(doc => workforceApi.removeDocument(member.id, doc.id)));
+          await Promise.all(updatedDocs.map(doc => workforceApi.removeDocument(member.id, doc.id)));
+          await Promise.all([
+            ...addedDocs,
+            ...updatedDocs,
+          ].map(doc => workforceApi.addDocument(member.id, {
+            id: doc.id,
+            nome: doc.nome,
+            dataVencimento: doc.dataVencimento,
+            arquivoUrl: doc.arquivoUrl,
+            status: doc.status,
+          })));
+
+          const prevLinks = prevMember.linkedWorkItemIds ?? [];
+          const nextLinks = member.linkedWorkItemIds ?? [];
+
+          const removedLinks = prevLinks.filter(id => !nextLinks.includes(id));
+          const addedLinks = nextLinks.filter(id => !prevLinks.includes(id));
+
+          await Promise.all(removedLinks.map(id => workforceApi.removeResponsibility(member.id, id)));
+          await Promise.all(addedLinks.map(id => workforceApi.addResponsibility(member.id, id)));
+        }
+      } else {
+        await workforceApi.create(project.id, {
+          nome: member.nome,
+          cpf_cnpj: member.cpf_cnpj,
+          empresa_vinculada: member.empresa_vinculada,
+          foto: member.foto ?? null,
+          cargo: member.cargo,
+          documentos: member.documentos,
+          linkedWorkItemIds: member.linkedWorkItemIds,
+        });
+      }
+
+      await refreshWorkforce();
+    } catch (error) {
+      console.error('Erro ao salvar colaborador:', error);
+      onUpdateProject({ workforce: previous });
+    }
+
     setIsModalOpen(false);
     setEditingMember(null);
   };
 
-  const removeMember = (id: string) => {
+  const removeMember = async (id: string) => {
     if (confirm("Excluir funcionário do quadro permanente?")) {
+      const previous = workforce;
       onUpdateProject({ workforce: workforce.filter(m => m.id !== id) });
+      try {
+        await workforceApi.remove(id);
+        await refreshWorkforce();
+      } catch (error) {
+        console.error('Erro ao remover colaborador:', error);
+        onUpdateProject({ workforce: previous });
+      }
     }
   };
 

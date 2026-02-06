@@ -3,6 +3,8 @@ import React, { useState, useMemo } from 'react';
 import { BiddingProcess, CompanyCertificate, BiddingStatus } from '../types';
 import { biddingService } from '../services/biddingService';
 import { financial } from '../utils/math';
+import { biddingsApi } from '../services/biddingsApi';
+import { globalSettingsApi } from '../services/globalSettingsApi';
 import { 
   Briefcase, Plus, FileText, Calendar, DollarSign, 
   TrendingUp, Search, Filter, ShieldCheck, AlertCircle, 
@@ -32,15 +34,45 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
     );
   }, [biddings, search]);
 
-  const handleAddBidding = () => {
-    onUpdateBiddings([...biddings, biddingService.createBidding()]);
+  const handleAddBidding = async () => {
+    const draft = biddingService.createBidding();
+    const previous = biddings;
+    onUpdateBiddings([...biddings, draft]);
+    try {
+      const created = await biddingsApi.create({
+        tenderNumber: draft.tenderNumber,
+        clientName: draft.clientName,
+        object: draft.object,
+        openingDate: draft.openingDate,
+        expirationDate: draft.expirationDate,
+        estimatedValue: draft.estimatedValue,
+        ourProposalValue: draft.ourProposalValue,
+        status: draft.status,
+        bdi: draft.bdi,
+        itemsSnapshot: draft.items,
+        assetsSnapshot: draft.assets,
+      });
+      onUpdateBiddings([...previous, created]);
+    } catch (error) {
+      console.error('Erro ao criar licitacao:', error);
+      onUpdateBiddings(previous);
+    }
   };
 
-  const handleStatusChange = (id: string, status: BiddingStatus) => {
-    onUpdateBiddings(biddings.map(b => b.id === id ? { ...b, status } : b));
+  const handleStatusChange = async (id: string, status: BiddingStatus) => {
+    const previous = biddings;
+    const updatedList = biddings.map(b => b.id === id ? { ...b, status } : b);
+    onUpdateBiddings(updatedList);
+    try {
+      const updated = await biddingsApi.update(id, { status });
+      onUpdateBiddings(updatedList.map(b => b.id === id ? updated : b));
+    } catch (error) {
+      console.error('Erro ao atualizar status:', error);
+      onUpdateBiddings(previous);
+    }
   };
 
-  const handleAddCertificate = () => {
+  const handleAddCertificate = async () => {
     const newCert: CompanyCertificate = {
       id: crypto.randomUUID(),
       name: 'Nova Certidão',
@@ -48,7 +80,31 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
       expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       status: 'valid'
     };
+    const previous = certificates;
     onUpdateCertificates([...certificates, newCert]);
+    try {
+      const created = await globalSettingsApi.addCertificate({
+        name: newCert.name,
+        issuer: newCert.issuer,
+        expirationDate: newCert.expirationDate,
+        status: newCert.status,
+      });
+      onUpdateCertificates([...previous, created]);
+    } catch (error) {
+      console.error('Erro ao criar certidao:', error);
+      onUpdateCertificates(previous);
+    }
+  };
+
+  const handleDeleteCertificate = async (id: string) => {
+    const previous = certificates;
+    onUpdateCertificates(certificates.filter(c => c.id !== id));
+    try {
+      await globalSettingsApi.removeCertificate(id);
+    } catch (error) {
+      console.error('Erro ao remover certidao:', error);
+      onUpdateCertificates(previous);
+    }
   };
 
   return (
@@ -183,7 +239,7 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
                              </span>
                           </td>
                           <td className="px-8 py-5 text-right">
-                             <button onClick={() => onUpdateCertificates(certificates.filter(c => c.id !== cert.id))} className="p-2 text-slate-300 hover:text-rose-500 transition-all opacity-0 group-hover:opacity-100"><Trash2 size={16}/></button>
+                             <button onClick={() => handleDeleteCertificate(cert.id)} className="p-2 text-slate-300 hover:text-rose-500 transition-all opacity-0 group-hover:opacity-100"><Trash2 size={16}/></button>
                           </td>
                         </tr>
                       );

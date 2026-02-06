@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { Project, JournalEntry, JournalCategory, WeatherType, ProjectJournal, WorkItem } from '../types';
 import { journalService } from '../services/journalService';
+import { journalApi } from '../services/journalApi';
 import { 
   BookOpen, Plus, Camera, Sun, CloudRain, Cloud, Zap, 
   Trash2, Search, Filter, History, Loader2,
@@ -34,7 +35,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
   const journal = project.journal;
 
   // Filtragem e Paginação
-  const filteredEntries = useMemo(() => {
+  const filteredEntries = useMemo(() => { 
     return journal.entries.filter(e => {
       const matchFilter = filter === 'ALL' || e.category === filter;
       const matchSearch = e.title.toLowerCase().includes(search.toLowerCase()) || 
@@ -62,29 +63,44 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
     });
   };
 
-  const handlePost = (e: React.FormEvent) => {
+  const handlePost = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEntry.description) return;
-    
-    // Título automático se não preenchido
-    const entryToSave = { 
-      ...newEntry, 
-      title: newEntry.title || `Registro de ${new Date().toLocaleDateString('pt-BR')}` 
+
+    const entryToSave: JournalEntry = {
+      id: crypto.randomUUID(),
+      timestamp: new Date().toISOString(),
+      type: 'MANUAL',
+      category: (newEntry.category ?? 'PROGRESS') as JournalCategory,
+      title: newEntry.title || `Registro de ${new Date().toLocaleDateString('pt-BR')}`,
+      description: newEntry.description,
+      weatherStatus: newEntry.category === 'WEATHER' ? (newEntry.weatherStatus ?? 'sunny') : undefined,
+      photoUrls: newEntry.photoUrls || [],
     };
 
-    const updated = journalService.addEntry(journal, entryToSave);
-    onUpdateJournal(updated);
-    
+    try {
+      const created = await journalApi.create(project.id, entryToSave);
+      onUpdateJournal({ entries: [created, ...journal.entries] });
+    } catch (error) {
+      console.error('Erro ao criar registro do diario:', error);
+      onUpdateJournal({ entries: [entryToSave, ...journal.entries] });
+    }
+
     // Reset Composer
     setNewEntry({ title: '', description: '', category: 'PROGRESS', weatherStatus: 'sunny', photoUrls: [] });
     setIsExpanded(false);
   };
 
-  // Fix: Adicionando função handleDelete que estava faltando para excluir registros do diário
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm('Deseja realmente excluir este registro do diário?')) {
-      const updated = journalService.deleteEntry(journal, id);
-      onUpdateJournal(updated);
+      const previous = journal.entries;
+      onUpdateJournal({ entries: previous.filter((entry) => entry.id !== id) });
+      try {
+        await journalApi.remove(id);
+      } catch (error) {
+        console.error('Erro ao remover registro do diario:', error);
+        onUpdateJournal({ entries: previous });
+      }
     }
   };
 

@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 interface CreateJournalEntryInput {
+  id?: string;
   projectId: string;
   instanceId: string;
   timestamp: string;
@@ -52,6 +53,7 @@ export class JournalService {
 
     return this.prisma.journalEntry.create({
       data: {
+        id: input.id,
         projectJournalId: journal.id,
         timestamp: input.timestamp,
         type: input.type,
@@ -64,7 +66,11 @@ export class JournalService {
     });
   }
 
-  async updateEntry(id: string, instanceId: string, data: Partial<CreateJournalEntryInput>) {
+  async updateEntry(
+    id: string,
+    instanceId: string,
+    data: Partial<CreateJournalEntryInput>,
+  ) {
     const entry = await this.prisma.journalEntry.findFirst({
       where: { id, projectJournal: { project: { instanceId } } },
     });

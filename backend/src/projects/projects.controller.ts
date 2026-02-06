@@ -31,10 +31,24 @@ interface UpdateProjectBody {
   companyCnpj?: string;
   location?: string;
   referenceDate?: string;
+  measurementNumber?: number;
+  logo?: string | null;
   bdi?: number;
   groupId?: string | null;
   contractTotalOverride?: number | null;
   currentTotalOverride?: number | null;
+  theme?: {
+    fontFamily?: string;
+    primary?: string;
+    accent?: string;
+    accentText?: string;
+    border?: string;
+    currencySymbol?: string;
+    header?: { bg?: string; text?: string };
+    category?: { bg?: string; text?: string };
+    footer?: { bg?: string; text?: string };
+    kpiHighlight?: { bg?: string; text?: string };
+  };
   config?: {
     strict?: boolean;
     printCards?: boolean;
@@ -50,7 +64,10 @@ export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
   @Get()
-  findAll(@Req() req: AuthenticatedRequest, @Query('groupId') groupId?: string) {
+  findAll(
+    @Req() req: AuthenticatedRequest,
+    @Query('groupId') groupId?: string,
+  ) {
     return this.projectsService.findAll(req.user.instanceId, groupId);
   }
 

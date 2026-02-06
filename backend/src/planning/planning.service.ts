@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 interface CreateTaskInput {
+  id?: string;
   projectId: string;
   instanceId: string;
   categoryId?: string | null;
@@ -14,6 +15,7 @@ interface CreateTaskInput {
 }
 
 interface CreateForecastInput {
+  id?: string;
   projectId: string;
   instanceId: string;
   description: string;
@@ -31,6 +33,7 @@ interface CreateForecastInput {
 }
 
 interface CreateMilestoneInput {
+  id?: string;
   projectId: string;
   instanceId: string;
   title: string;
@@ -80,6 +83,7 @@ export class PlanningService {
 
     return this.prisma.planningTask.create({
       data: {
+        id: input.id,
         projectPlanningId: planning.id,
         categoryId: input.categoryId ?? null,
         description: input.description,
@@ -92,7 +96,11 @@ export class PlanningService {
     });
   }
 
-  async updateTask(id: string, instanceId: string, data: Partial<CreateTaskInput>) {
+  async updateTask(
+    id: string,
+    instanceId: string,
+    data: Partial<CreateTaskInput>,
+  ) {
     const task = await this.prisma.planningTask.findFirst({
       where: { id, projectPlanning: { project: { instanceId } } },
     });
@@ -138,6 +146,7 @@ export class PlanningService {
 
     return this.prisma.materialForecast.create({
       data: {
+        id: input.id,
         projectPlanningId: planning.id,
         description: input.description,
         unit: input.unit,
@@ -155,7 +164,11 @@ export class PlanningService {
     });
   }
 
-  async updateForecast(id: string, instanceId: string, data: Partial<CreateForecastInput>) {
+  async updateForecast(
+    id: string,
+    instanceId: string,
+    data: Partial<CreateForecastInput>,
+  ) {
     const forecast = await this.prisma.materialForecast.findFirst({
       where: { id, projectPlanning: { project: { instanceId } } },
     });
@@ -206,6 +219,7 @@ export class PlanningService {
 
     return this.prisma.milestone.create({
       data: {
+        id: input.id,
         projectPlanningId: planning.id,
         title: input.title,
         date: input.date,
@@ -214,7 +228,11 @@ export class PlanningService {
     });
   }
 
-  async updateMilestone(id: string, instanceId: string, data: Partial<CreateMilestoneInput>) {
+  async updateMilestone(
+    id: string,
+    instanceId: string,
+    data: Partial<CreateMilestoneInput>,
+  ) {
     const milestone = await this.prisma.milestone.findFirst({
       where: { id, projectPlanning: { project: { instanceId } } },
     });

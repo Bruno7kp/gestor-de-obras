@@ -17,6 +17,7 @@ import type { ExpenseStatus } from '@prisma/client';
 import type { AuthenticatedRequest } from '../auth/auth.types';
 
 interface CreateExpenseBody {
+  id?: string;
   projectId: string;
   parentId?: string | null;
   type: string;
@@ -58,7 +59,6 @@ export class ProjectExpensesController {
     @Query('projectId') projectId: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
     return this.projectExpensesService.findAll(projectId, req.user.instanceId);
   }
 
@@ -66,7 +66,6 @@ export class ProjectExpensesController {
   create(@Body() body: CreateExpenseBody, @Req() req: AuthenticatedRequest) {
     return this.projectExpensesService.create({
       ...body,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
       instanceId: req.user.instanceId,
     });
   }
@@ -80,14 +79,12 @@ export class ProjectExpensesController {
     return this.projectExpensesService.update({
       ...body,
       id,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
       instanceId: req.user.instanceId,
     });
   }
 
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
     return this.projectExpensesService.remove(id, req.user.instanceId);
   }
 }

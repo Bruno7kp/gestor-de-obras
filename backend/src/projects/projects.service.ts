@@ -20,10 +20,24 @@ interface UpdateProjectInput {
   companyCnpj?: string;
   location?: string;
   referenceDate?: string;
+  measurementNumber?: number;
+  logo?: string | null;
   bdi?: number;
   groupId?: string | null;
   contractTotalOverride?: number | null;
   currentTotalOverride?: number | null;
+  theme?: {
+    fontFamily?: string;
+    primary?: string;
+    accent?: string;
+    accentText?: string;
+    border?: string;
+    currencySymbol?: string;
+    header?: { bg?: string; text?: string };
+    category?: { bg?: string; text?: string };
+    footer?: { bg?: string; text?: string };
+    kpiHighlight?: { bg?: string; text?: string };
+  };
   config?: {
     strict?: boolean;
     printCards?: boolean;
@@ -51,11 +65,18 @@ export class ProjectsService {
       where: { id, instanceId },
       include: {
         items: true,
+        history: true,
         expenses: true,
         assets: true,
-        planning: { include: { tasks: true, forecasts: true, milestones: true } },
+        theme: true,
+        planning: {
+          include: { tasks: true, forecasts: true, milestones: true },
+        },
         journal: { include: { entries: true } },
-        workforce: { include: { documentos: true } },
+        workforce: { include: { documentos: true, responsabilidades: true } },
+        laborContracts: {
+          include: { pagamentos: { orderBy: { data: 'asc' } } },
+        },
       },
     });
   }
@@ -67,7 +88,8 @@ export class ProjectsService {
         companyName: input.companyName,
         companyCnpj: input.companyCnpj || '',
         location: input.location || '',
-        referenceDate: input.referenceDate || new Date().toISOString().slice(0, 10),
+        referenceDate:
+          input.referenceDate || new Date().toISOString().slice(0, 10),
         measurementNumber: 1,
         logo: null,
         bdi: input.bdi ?? 25,
@@ -84,9 +106,69 @@ export class ProjectsService {
   async update(input: UpdateProjectInput) {
     const existing = await this.prisma.project.findFirst({
       where: { id: input.id, instanceId: input.instanceId },
+      include: { theme: true },
     });
 
     if (!existing) throw new NotFoundException('Projeto nao encontrado');
+
+    const themeInput = input.theme;
+    if (themeInput) {
+      const fallbackTheme = {
+        fontFamily: existing.theme?.fontFamily ?? 'Inter',
+        primary: existing.theme?.primary ?? '#1e293b',
+        accent: existing.theme?.accent ?? '#4f46e5',
+        accentText: existing.theme?.accentText ?? '#ffffff',
+        border: existing.theme?.border ?? '#e2e8f0',
+        currencySymbol: existing.theme?.currencySymbol ?? 'R$',
+        headerBg: existing.theme?.headerBg ?? '#1e293b',
+        headerText: existing.theme?.headerText ?? '#ffffff',
+        categoryBg: existing.theme?.categoryBg ?? '#f8fafc',
+        categoryText: existing.theme?.categoryText ?? '#1e293b',
+        footerBg: existing.theme?.footerBg ?? '#0f172a',
+        footerText: existing.theme?.footerText ?? '#ffffff',
+        kpiBg: existing.theme?.kpiBg ?? '#eff6ff',
+        kpiText: existing.theme?.kpiText ?? '#1e40af',
+      };
+
+      await this.prisma.pDFTheme.upsert({
+        where: { projectId: input.id },
+        create: {
+          projectId: input.id,
+          fontFamily: themeInput.fontFamily ?? fallbackTheme.fontFamily,
+          primary: themeInput.primary ?? fallbackTheme.primary,
+          accent: themeInput.accent ?? fallbackTheme.accent,
+          accentText: themeInput.accentText ?? fallbackTheme.accentText,
+          border: themeInput.border ?? fallbackTheme.border,
+          currencySymbol:
+            themeInput.currencySymbol ?? fallbackTheme.currencySymbol,
+          headerBg: themeInput.header?.bg ?? fallbackTheme.headerBg,
+          headerText: themeInput.header?.text ?? fallbackTheme.headerText,
+          categoryBg: themeInput.category?.bg ?? fallbackTheme.categoryBg,
+          categoryText: themeInput.category?.text ?? fallbackTheme.categoryText,
+          footerBg: themeInput.footer?.bg ?? fallbackTheme.footerBg,
+          footerText: themeInput.footer?.text ?? fallbackTheme.footerText,
+          kpiBg: themeInput.kpiHighlight?.bg ?? fallbackTheme.kpiBg,
+          kpiText: themeInput.kpiHighlight?.text ?? fallbackTheme.kpiText,
+        },
+        update: {
+          fontFamily: themeInput.fontFamily ?? fallbackTheme.fontFamily,
+          primary: themeInput.primary ?? fallbackTheme.primary,
+          accent: themeInput.accent ?? fallbackTheme.accent,
+          accentText: themeInput.accentText ?? fallbackTheme.accentText,
+          border: themeInput.border ?? fallbackTheme.border,
+          currencySymbol:
+            themeInput.currencySymbol ?? fallbackTheme.currencySymbol,
+          headerBg: themeInput.header?.bg ?? fallbackTheme.headerBg,
+          headerText: themeInput.header?.text ?? fallbackTheme.headerText,
+          categoryBg: themeInput.category?.bg ?? fallbackTheme.categoryBg,
+          categoryText: themeInput.category?.text ?? fallbackTheme.categoryText,
+          footerBg: themeInput.footer?.bg ?? fallbackTheme.footerBg,
+          footerText: themeInput.footer?.text ?? fallbackTheme.footerText,
+          kpiBg: themeInput.kpiHighlight?.bg ?? fallbackTheme.kpiBg,
+          kpiText: themeInput.kpiHighlight?.text ?? fallbackTheme.kpiText,
+        },
+      });
+    }
 
     return this.prisma.project.update({
       where: { id: input.id },
@@ -96,10 +178,15 @@ export class ProjectsService {
         companyCnpj: input.companyCnpj ?? existing.companyCnpj,
         location: input.location ?? existing.location,
         referenceDate: input.referenceDate ?? existing.referenceDate,
+        measurementNumber:
+          input.measurementNumber ?? existing.measurementNumber,
+        logo: input.logo ?? existing.logo,
         bdi: input.bdi ?? existing.bdi,
         groupId: input.groupId ?? existing.groupId,
-        contractTotalOverride: input.contractTotalOverride ?? existing.contractTotalOverride,
-        currentTotalOverride: input.currentTotalOverride ?? existing.currentTotalOverride,
+        contractTotalOverride:
+          input.contractTotalOverride ?? existing.contractTotalOverride,
+        currentTotalOverride:
+          input.currentTotalOverride ?? existing.currentTotalOverride,
         strict: input.config?.strict ?? existing.strict,
         printCards: input.config?.printCards ?? existing.printCards,
         printSubtotals: input.config?.printSubtotals ?? existing.printSubtotals,
@@ -121,7 +208,9 @@ export class ProjectsService {
 
     await this.prisma.workItem.deleteMany({ where: { projectId: id } });
     await this.prisma.projectExpense.deleteMany({ where: { projectId: id } });
-    await this.prisma.measurementSnapshot.deleteMany({ where: { projectId: id } });
+    await this.prisma.measurementSnapshot.deleteMany({
+      where: { projectId: id },
+    });
     await this.prisma.projectAsset.deleteMany({ where: { projectId: id } });
     await this.prisma.staffDocument.deleteMany({
       where: { workforceMember: { projectId: id } },
@@ -133,9 +222,15 @@ export class ProjectsService {
     });
 
     if (planning) {
-      await this.prisma.planningTask.deleteMany({ where: { projectPlanningId: planning.id } });
-      await this.prisma.materialForecast.deleteMany({ where: { projectPlanningId: planning.id } });
-      await this.prisma.milestone.deleteMany({ where: { projectPlanningId: planning.id } });
+      await this.prisma.planningTask.deleteMany({
+        where: { projectPlanningId: planning.id },
+      });
+      await this.prisma.materialForecast.deleteMany({
+        where: { projectPlanningId: planning.id },
+      });
+      await this.prisma.milestone.deleteMany({
+        where: { projectPlanningId: planning.id },
+      });
       await this.prisma.projectPlanning.delete({ where: { id: planning.id } });
     }
 
@@ -144,7 +239,9 @@ export class ProjectsService {
     });
 
     if (journal) {
-      await this.prisma.journalEntry.deleteMany({ where: { projectJournalId: journal.id } });
+      await this.prisma.journalEntry.deleteMany({
+        where: { projectJournalId: journal.id },
+      });
       await this.prisma.projectJournal.delete({ where: { id: journal.id } });
     }
 

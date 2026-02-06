@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 interface CreateWorkItemInput {
+  id?: string;
   projectId: string;
   instanceId: string;
   parentId?: string | null;
@@ -56,6 +57,7 @@ export class WorkItemsService {
     await this.ensureProject(input.projectId, input.instanceId);
     return this.prisma.workItem.create({
       data: {
+        id: input.id,
         projectId: input.projectId,
         parentId: input.parentId ?? null,
         name: input.name,
@@ -111,17 +113,23 @@ export class WorkItemsService {
         previousTotal: input.previousTotal ?? existing.previousTotal,
         currentQuantity: input.currentQuantity ?? existing.currentQuantity,
         currentTotal: input.currentTotal ?? existing.currentTotal,
-        currentPercentage: input.currentPercentage ?? existing.currentPercentage,
-        accumulatedQuantity: input.accumulatedQuantity ?? existing.accumulatedQuantity,
+        currentPercentage:
+          input.currentPercentage ?? existing.currentPercentage,
+        accumulatedQuantity:
+          input.accumulatedQuantity ?? existing.accumulatedQuantity,
         accumulatedTotal: input.accumulatedTotal ?? existing.accumulatedTotal,
-        accumulatedPercentage: input.accumulatedPercentage ?? existing.accumulatedPercentage,
+        accumulatedPercentage:
+          input.accumulatedPercentage ?? existing.accumulatedPercentage,
         balanceQuantity: input.balanceQuantity ?? existing.balanceQuantity,
         balanceTotal: input.balanceTotal ?? existing.balanceTotal,
       },
     });
   }
 
-  private collectDescendants(items: { id: string; parentId: string | null }[], id: string) {
+  private collectDescendants(
+    items: { id: string; parentId: string | null }[],
+    id: string,
+  ) {
     const ids = new Set<string>([id]);
     let changed = true;
 

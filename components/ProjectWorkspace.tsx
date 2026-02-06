@@ -1,6 +1,6 @@
 
-import React, { useState, useMemo, useRef } from 'react';
-import { Project, GlobalSettings, WorkItem, Supplier } from '../types';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { Project, GlobalSettings, WorkItem, Supplier, ProjectAsset, ProjectExpense, ProjectPlanning, PlanningTask, MaterialForecast, Milestone } from '../types';
 import {
   Layers, BarChart3, Coins, Users, HardHat, BookOpen, FileText, Sliders,
   CheckCircle2, History, Calendar, Lock, ChevronDown,
@@ -23,6 +23,11 @@ import { treeService } from '../services/treeService';
 import { projectService } from '../services/projectService';
 import { financial } from '../utils/math';
 import { expenseService } from '../services/expenseService';
+import { workItemsApi } from '../services/workItemsApi';
+import { projectExpensesApi } from '../services/projectExpensesApi';
+import { planningApi } from '../services/planningApi';
+import { projectAssetsApi } from '../services/projectAssetsApi';
+import { projectsApi } from '../services/projectsApi';
 
 interface ProjectWorkspaceProps {
   project: Project;
@@ -34,15 +39,17 @@ interface ProjectWorkspaceProps {
   canRedo: boolean;
   onUndo: () => void;
   onRedo: () => void;
+  activeTab: TabID;
+  onTabChange: (tab: TabID) => void;
 }
 
 export type TabID = 'wbs' | 'stats' | 'expenses' | 'workforce' | 'labor-contracts' | 'planning' | 'journal' | 'documents' | 'branding';
 
 export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   project, globalSettings, suppliers, onUpdateProject, onCloseMeasurement,
-  canUndo, canRedo, onUndo, onRedo
+  canUndo, canRedo, onUndo, onRedo, activeTab, onTabChange
 }) => {
-  const [tab, setTab] = useState<TabID>('wbs');
+  const tab = activeTab;
   const [viewingMeasurementId, setViewingMeasurementId] = useState<'current' | number>('current');
   const [isClosingModalOpen, setIsClosingModalOpen] = useState(false);
   const [isReopenModalOpen, setIsReopenModalOpen] = useState(false);
@@ -54,6 +61,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const [modalType, setModalType] = useState<'category' | 'item'>('item');
   const [editingItem, setEditingItem] = useState<WorkItem | null>(null);
   const [targetParentId, setTargetParentId] = useState<string | null>(null);
+  const brandingDebounceRef = useRef<number | null>(null);
+  const pendingBrandingRef = useRef<Partial<Project>>({});
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!tabsNavRef.current) return;
@@ -108,7 +117,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
   const handleTabClick = (newTab: TabID) => {
     if (dragStartRef.current?.moved) return;
-    setTab(newTab);
+    onTabChange(newTab);
   };
 
   const handleOpenModal = (type: 'category' | 'item', item: WorkItem | null, parentId: string | null) => {
@@ -116,16 +125,315 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     setModalType(type); setEditingItem(item); setTargetParentId(parentId); setIsModalOpen(true);
   };
 
-  const handleSaveWorkItem = (data: Partial<WorkItem>) => {
+  const handleSaveWorkItem = async (data: Partial<WorkItem>) => {
     if (editingItem) {
-      onUpdateProject({ items: project.items.map(it => it.id === editingItem.id ? { ...it, ...data } : it) });
+      const updated = { ...editingItem, ...data } as WorkItem;
+      onUpdateProject({ items: project.items.map(it => it.id === editingItem.id ? updated : it) });
+      try {
+        await workItemsApi.update(editingItem.id, {
+          parentId: updated.parentId,
+          name: updated.name,
+          type: updated.type,
+          unit: updated.unit,
+          cod: updated.cod,
+          fonte: updated.fonte,
+          contractQuantity: updated.contractQuantity,
+          unitPrice: updated.unitPrice,
+          unitPriceNoBdi: updated.unitPriceNoBdi,
+        });
+      } catch (error) {
+        console.error('Erro ao salvar item:', error);
+      }
     } else {
       const newItem: WorkItem = {
-        id: crypto.randomUUID(), parentId: targetParentId, name: data.name || '', type: modalType, wbs: '', order: project.items.length, unit: data.unit || 'un', cod: data.cod, fonte: data.fonte, contractQuantity: data.contractQuantity || 0, unitPrice: data.unitPrice || 0, unitPriceNoBdi: data.unitPriceNoBdi || 0, contractTotal: 0, previousQuantity: 0, previousTotal: 0, currentQuantity: 0, currentTotal: 0, currentPercentage: 0, accumulatedQuantity: 0, accumulatedTotal: 0, accumulatedPercentage: 0, balanceQuantity: 0, balanceTotal: 0,
+        id: crypto.randomUUID(),
+        parentId: targetParentId,
+        name: data.name || '',
+        type: modalType,
+        wbs: '',
+        order: project.items.length,
+        unit: data.unit || 'un',
+        cod: data.cod,
+        fonte: data.fonte,
+        contractQuantity: data.contractQuantity || 0,
+        unitPrice: data.unitPrice || 0,
+        unitPriceNoBdi: data.unitPriceNoBdi || 0,
+        contractTotal: 0,
+        previousQuantity: 0,
+        previousTotal: 0,
+        currentQuantity: 0,
+        currentTotal: 0,
+        currentPercentage: 0,
+        accumulatedQuantity: 0,
+        accumulatedTotal: 0,
+        accumulatedPercentage: 0,
+        balanceQuantity: 0,
+        balanceTotal: 0,
       };
-      onUpdateProject({ items: [...project.items, newItem] });
+      try {
+        const created = await workItemsApi.create(project.id, newItem);
+        onUpdateProject({ items: [...project.items, created] });
+      } catch (error) {
+        console.error('Erro ao criar item:', error);
+        onUpdateProject({ items: [...project.items, newItem] });
+      }
     }
   };
+
+  const syncExpenseChanges = useCallback(async (prevExpenses: ProjectExpense[], nextExpenses: ProjectExpense[]) => {
+    const prevMap = new Map(prevExpenses.map(expense => [expense.id, expense] as const));
+    const nextMap = new Map(nextExpenses.map(expense => [expense.id, expense] as const));
+
+    const removed = prevExpenses.filter(expense => !nextMap.has(expense.id));
+    const added = nextExpenses.filter(expense => !prevMap.has(expense.id));
+
+    const updated = nextExpenses
+      .map(expense => {
+        const prev = prevMap.get(expense.id);
+        if (!prev) return null;
+
+        const patch: Partial<ProjectExpense> = {};
+        if (prev.parentId !== expense.parentId) patch.parentId = expense.parentId;
+        if (prev.type !== expense.type) patch.type = expense.type;
+        if (prev.itemType !== expense.itemType) patch.itemType = expense.itemType;
+        if (prev.wbs !== expense.wbs) patch.wbs = expense.wbs;
+        if (prev.order !== expense.order) patch.order = expense.order;
+        if (prev.date !== expense.date) patch.date = expense.date;
+        if (prev.description !== expense.description) patch.description = expense.description;
+        if (prev.entityName !== expense.entityName) patch.entityName = expense.entityName;
+        if (prev.unit !== expense.unit) patch.unit = expense.unit;
+        if (prev.quantity !== expense.quantity) patch.quantity = expense.quantity;
+        if (prev.unitPrice !== expense.unitPrice) patch.unitPrice = expense.unitPrice;
+        if (prev.amount !== expense.amount) patch.amount = expense.amount;
+        if (prev.isPaid !== expense.isPaid) patch.isPaid = expense.isPaid;
+        if (prev.status !== expense.status) patch.status = expense.status;
+        if (prev.paymentDate !== expense.paymentDate) patch.paymentDate = expense.paymentDate;
+        if (prev.paymentProof !== expense.paymentProof) patch.paymentProof = expense.paymentProof;
+        if (prev.invoiceDoc !== expense.invoiceDoc) patch.invoiceDoc = expense.invoiceDoc;
+        if (prev.deliveryDate !== expense.deliveryDate) patch.deliveryDate = expense.deliveryDate;
+        if (prev.discountValue !== expense.discountValue) patch.discountValue = expense.discountValue;
+        if (prev.discountPercentage !== expense.discountPercentage) patch.discountPercentage = expense.discountPercentage;
+        if (prev.linkedWorkItemId !== expense.linkedWorkItemId) patch.linkedWorkItemId = expense.linkedWorkItemId;
+
+        return Object.keys(patch).length > 0 ? { id: expense.id, patch } : null;
+      })
+      .filter(Boolean) as { id: string; patch: Partial<ProjectExpense> }[];
+
+    try {
+      await Promise.all(removed.map(expense => projectExpensesApi.remove(expense.id)));
+      await Promise.all(added.map(expense => projectExpensesApi.create(project.id, expense)));
+      await Promise.all(updated.map(update => projectExpensesApi.update(update.id, update.patch)));
+    } catch (error) {
+      console.error('Erro ao sincronizar despesas:', error);
+    }
+  }, [project.id]);
+
+  const handleExpenseAdd = useCallback(async (expense: ProjectExpense) => {
+    try {
+      const created = await projectExpensesApi.create(project.id, expense);
+      onUpdateProject({ expenses: [...project.expenses, created] });
+    } catch (error) {
+      console.error('Erro ao criar despesa:', error);
+      onUpdateProject({ expenses: [...project.expenses, expense] });
+    }
+  }, [project.expenses, project.id, onUpdateProject]);
+
+  const handleExpenseAddMany = useCallback(async (expenses: ProjectExpense[]) => {
+    onUpdateProject({ expenses: [...project.expenses, ...expenses] });
+    try {
+      await Promise.all(expenses.map(expense => projectExpensesApi.create(project.id, expense)));
+    } catch (error) {
+      console.error('Erro ao importar despesas:', error);
+    }
+  }, [project.expenses, project.id, onUpdateProject]);
+
+  const handleExpenseUpdate = useCallback(async (id: string, data: Partial<ProjectExpense>) => {
+    const updatedExpenses = project.expenses.map(expense => expense.id === id ? { ...expense, ...data } : expense);
+    onUpdateProject({ expenses: updatedExpenses });
+    try {
+      await projectExpensesApi.update(id, data);
+    } catch (error) {
+      console.error('Erro ao atualizar despesa:', error);
+    }
+  }, [project.expenses, onUpdateProject]);
+
+  const handleExpenseDelete = useCallback(async (id: string) => {
+    const updatedExpenses = project.expenses.filter(expense => expense.id !== id && expense.parentId !== id);
+    onUpdateProject({ expenses: updatedExpenses });
+    try {
+      await projectExpensesApi.remove(id);
+    } catch (error) {
+      console.error('Erro ao excluir despesa:', error);
+    }
+  }, [project.expenses, onUpdateProject]);
+
+  const handleExpensesReplace = useCallback(async (nextExpenses: ProjectExpense[]) => {
+    const prevExpenses = project.expenses;
+    onUpdateProject({ expenses: nextExpenses });
+    await syncExpenseChanges(prevExpenses, nextExpenses);
+  }, [project.expenses, onUpdateProject, syncExpenseChanges]);
+
+  const syncPlanningEntities = useCallback(async (nextPlanning: ProjectPlanning) => {
+    const prevPlanning = project.planning;
+
+    const diffItems = <T extends { id: string }>(
+      prev: T[],
+      next: T[],
+      getPatch: (prevItem: T, nextItem: T) => Partial<T>,
+      create: (item: T) => Promise<T>,
+      update: (id: string, patch: Partial<T>) => Promise<T>,
+      remove: (id: string) => Promise<void>,
+    ) => {
+      const prevMap = new Map(prev.map(item => [item.id, item] as const));
+      const nextMap = new Map(next.map(item => [item.id, item] as const));
+
+      const removed = prev.filter(item => !nextMap.has(item.id));
+      const added = next.filter(item => !prevMap.has(item.id));
+      const updated = next
+        .map(item => {
+          const prevItem = prevMap.get(item.id);
+          if (!prevItem) return null;
+          const patch = getPatch(prevItem, item);
+          return Object.keys(patch).length > 0 ? { id: item.id, patch } : null;
+        })
+        .filter(Boolean) as { id: string; patch: Partial<T> }[];
+
+      return { removed, added, updated, create, update, remove };
+    };
+
+    const taskDiff = diffItems<PlanningTask>(
+      prevPlanning.tasks,
+      nextPlanning.tasks,
+      (prev, next) => {
+        const patch: Partial<PlanningTask> = {};
+        if (prev.categoryId !== next.categoryId) patch.categoryId = next.categoryId;
+        if (prev.description !== next.description) patch.description = next.description;
+        if (prev.status !== next.status) patch.status = next.status;
+        if (prev.isCompleted !== next.isCompleted) patch.isCompleted = next.isCompleted;
+        if (prev.dueDate !== next.dueDate) patch.dueDate = next.dueDate;
+        if (prev.createdAt !== next.createdAt) patch.createdAt = next.createdAt;
+        if (prev.completedAt !== next.completedAt) patch.completedAt = next.completedAt;
+        return patch;
+      },
+      (item) => planningApi.createTask(project.id, item),
+      (id, patch) => planningApi.updateTask(id, patch),
+      (id) => planningApi.deleteTask(id),
+    );
+
+    const forecastDiff = diffItems<MaterialForecast>(
+      prevPlanning.forecasts,
+      nextPlanning.forecasts,
+      (prev, next) => {
+        const patch: Partial<MaterialForecast> = {};
+        if (prev.description !== next.description) patch.description = next.description;
+        if (prev.unit !== next.unit) patch.unit = next.unit;
+        if (prev.quantityNeeded !== next.quantityNeeded) patch.quantityNeeded = next.quantityNeeded;
+        if (prev.unitPrice !== next.unitPrice) patch.unitPrice = next.unitPrice;
+        if (prev.estimatedDate !== next.estimatedDate) patch.estimatedDate = next.estimatedDate;
+        if (prev.purchaseDate !== next.purchaseDate) patch.purchaseDate = next.purchaseDate;
+        if (prev.deliveryDate !== next.deliveryDate) patch.deliveryDate = next.deliveryDate;
+        if (prev.status !== next.status) patch.status = next.status;
+        if (prev.isPaid !== next.isPaid) patch.isPaid = next.isPaid;
+        if (prev.order !== next.order) patch.order = next.order;
+        if (prev.supplierId !== next.supplierId) patch.supplierId = next.supplierId;
+        if (prev.paymentProof !== next.paymentProof) patch.paymentProof = next.paymentProof;
+        return patch;
+      },
+      (item) => planningApi.createForecast(project.id, item),
+      (id, patch) => planningApi.updateForecast(id, patch),
+      (id) => planningApi.deleteForecast(id),
+    );
+
+    const milestoneDiff = diffItems<Milestone>(
+      prevPlanning.milestones,
+      nextPlanning.milestones,
+      (prev, next) => {
+        const patch: Partial<Milestone> = {};
+        if (prev.title !== next.title) patch.title = next.title;
+        if (prev.date !== next.date) patch.date = next.date;
+        if (prev.isCompleted !== next.isCompleted) patch.isCompleted = next.isCompleted;
+        return patch;
+      },
+      (item) => planningApi.createMilestone(project.id, item),
+      (id, patch) => planningApi.updateMilestone(id, patch),
+      (id) => planningApi.deleteMilestone(id),
+    );
+
+    try {
+      await Promise.all(taskDiff.removed.map(item => taskDiff.remove(item.id)));
+      await Promise.all(forecastDiff.removed.map(item => forecastDiff.remove(item.id)));
+      await Promise.all(milestoneDiff.removed.map(item => milestoneDiff.remove(item.id)));
+
+      await Promise.all(taskDiff.added.map(item => taskDiff.create(item)));
+      await Promise.all(forecastDiff.added.map(item => forecastDiff.create(item)));
+      await Promise.all(milestoneDiff.added.map(item => milestoneDiff.create(item)));
+
+      await Promise.all(taskDiff.updated.map(item => taskDiff.update(item.id, item.patch)));
+      await Promise.all(forecastDiff.updated.map(item => forecastDiff.update(item.id, item.patch)));
+      await Promise.all(milestoneDiff.updated.map(item => milestoneDiff.update(item.id, item.patch)));
+    } catch (error) {
+      console.error('Erro ao sincronizar planejamento:', error);
+    }
+  }, [project.id, project.planning]);
+
+  const handleUpdatePlanning = useCallback(async (nextPlanning: ProjectPlanning) => {
+    onUpdateProject({ planning: nextPlanning });
+    await syncPlanningEntities(nextPlanning);
+  }, [onUpdateProject, syncPlanningEntities]);
+
+  const handleAssetAdd = useCallback(async (asset: ProjectAsset) => {
+    const nextAssets = [...project.assets, asset];
+    onUpdateProject({ assets: nextAssets });
+    try {
+      const created = await projectAssetsApi.create(project.id, asset);
+      onUpdateProject({
+        assets: nextAssets.map((item) => (item.id === asset.id ? created : item)),
+      });
+    } catch (error) {
+      console.error('Erro ao criar arquivo:', error);
+    }
+  }, [project.assets, project.id, onUpdateProject]);
+
+  const handleAssetDelete = useCallback(async (id: string) => {
+    const previous = project.assets;
+    const nextAssets = previous.filter((asset) => asset.id !== id);
+    onUpdateProject({ assets: nextAssets });
+    try {
+      await projectAssetsApi.remove(id);
+    } catch (error) {
+      console.error('Erro ao remover arquivo:', error);
+      onUpdateProject({ assets: previous });
+    }
+  }, [project.assets, onUpdateProject]);
+
+  const mergeBrandingPayload = (base: Partial<Project>, next: Partial<Project>) => ({
+    ...base,
+    ...next,
+    config: next.config ? { ...(base.config ?? {}), ...next.config } : base.config,
+    theme: next.theme ? { ...(base.theme ?? {}), ...next.theme } : base.theme,
+  });
+
+  const handleBrandingUpdate = useCallback((data: Partial<Project>) => {
+    onUpdateProject(data);
+    pendingBrandingRef.current = mergeBrandingPayload(pendingBrandingRef.current, data);
+
+    if (brandingDebounceRef.current) {
+      window.clearTimeout(brandingDebounceRef.current);
+    }
+
+    brandingDebounceRef.current = window.setTimeout(async () => {
+      const payload = pendingBrandingRef.current;
+      pendingBrandingRef.current = {};
+
+      if (Object.keys(payload).length === 0) return;
+
+      try {
+        await projectsApi.update(project.id, payload);
+      } catch (error) {
+        console.error('Erro ao atualizar projeto:', error);
+      }
+    }, 500);
+  }, [project.id, onUpdateProject]);
 
   const handleConfirmReopen = () => {
     const updated = projectService.reopenLatestMeasurement(project);
@@ -232,7 +540,20 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         <div className="max-w-[1600px] mx-auto">
           {tab === 'wbs' && <WbsView project={{ ...project, items: displayData.items }} onUpdateProject={onUpdateProject} onOpenModal={handleOpenModal} isReadOnly={displayData.isReadOnly} />}
           {tab === 'stats' && <StatsView project={{ ...project, items: displayData.items }} />}
-          {tab === 'expenses' && <ExpenseManager project={project} expenses={project.expenses} onAdd={(ex) => onUpdateProject({ expenses: [...project.expenses, ex] })} onAddMany={(exs) => onUpdateProject({ expenses: [...project.expenses, ...exs] })} onUpdate={(id, data) => onUpdateProject({ expenses: project.expenses.map(e => e.id === id ? { ...e, ...data } : e) })} onDelete={(id) => onUpdateProject({ expenses: project.expenses.filter(e => e.id !== id) })} workItems={displayData.items} measuredValue={treeService.calculateBasicStats(displayData.items, project.bdi).current} onUpdateExpenses={(exs) => onUpdateProject({ expenses: exs })} isReadOnly={displayData.isReadOnly} />}
+          {tab === 'expenses' && (
+            <ExpenseManager
+              project={project}
+              expenses={project.expenses}
+              onAdd={handleExpenseAdd}
+              onAddMany={handleExpenseAddMany}
+              onUpdate={handleExpenseUpdate}
+              onDelete={handleExpenseDelete}
+              workItems={displayData.items}
+              measuredValue={treeService.calculateBasicStats(displayData.items, project.bdi).current}
+              onUpdateExpenses={handleExpensesReplace}
+              isReadOnly={displayData.isReadOnly}
+            />
+          )}
           {tab === 'labor-contracts' && (
             <LaborContractsManager
               project={project}
@@ -241,10 +562,19 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
             />
           )}
           {tab === 'workforce' && <WorkforceManager project={project} onUpdateProject={onUpdateProject} />}
-          {tab === 'planning' && <PlanningView project={project} suppliers={suppliers} onUpdatePlanning={(p) => onUpdateProject({ planning: p })} onAddExpense={(ex) => onUpdateProject({ expenses: [...project.expenses, ex] })} categories={displayData.items.filter(i => i.type === 'category')} allWorkItems={displayData.items} />}
+          {tab === 'planning' && (
+            <PlanningView
+              project={project}
+              suppliers={suppliers}
+              onUpdatePlanning={handleUpdatePlanning}
+              onAddExpense={handleExpenseAdd}
+              categories={displayData.items.filter(i => i.type === 'category')}
+              allWorkItems={displayData.items}
+            />
+          )}
           {tab === 'journal' && <JournalView project={project} onUpdateJournal={(j) => onUpdateProject({ journal: j })} allWorkItems={displayData.items} />}
-          {tab === 'documents' && <AssetManager assets={project.assets} onAdd={(a) => onUpdateProject({ assets: [...project.assets, a] })} onDelete={(id) => onUpdateProject({ assets: project.assets.filter(as => as.id !== id) })} isReadOnly={displayData.isReadOnly} />}
-          {tab === 'branding' && <BrandingView project={project} onUpdateProject={onUpdateProject} isReadOnly={displayData.isReadOnly} />}
+          {tab === 'documents' && <AssetManager assets={project.assets} onAdd={handleAssetAdd} onDelete={handleAssetDelete} isReadOnly={displayData.isReadOnly} />}
+          {tab === 'branding' && <BrandingView project={project} onUpdateProject={handleBrandingUpdate} isReadOnly={displayData.isReadOnly} />}
         </div>
       </div>
 

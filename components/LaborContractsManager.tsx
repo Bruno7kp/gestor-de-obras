@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Project, LaborContract, LaborPayment, WorkforceMember } from '../types';
 import { laborContractService } from '../services/laborContractService';
 import { uploadService } from '../services/uploadService';
+import { laborContractsApi } from '../services/laborContractsApi';
 import { 
   Briefcase, Plus, Search, Trash2, Edit2, DollarSign, Calendar, 
   CheckCircle2, Clock, AlertCircle, User, FileText, Download, X,
@@ -43,21 +44,66 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
     [contracts]
   );
 
-  const handleSave = (contract: LaborContract) => {
+  const handleSave = async (contract: LaborContract) => {
     if (isReadOnly) return;
     const updated = laborContractService.updateContract(contract);
-    const newContracts = contracts.find(c => c.id === contract.id)
+    const exists = contracts.find(c => c.id === contract.id);
+    const previous = contracts;
+    const newContracts = exists
       ? contracts.map(c => c.id === contract.id ? updated : c)
       : [...contracts, updated];
     onUpdateProject({ laborContracts: newContracts });
+
+    try {
+      if (exists) {
+        const saved = await laborContractsApi.update(contract.id, {
+          tipo: updated.tipo,
+          descricao: updated.descricao,
+          associadoId: updated.associadoId,
+          valorTotal: updated.valorTotal,
+          dataInicio: updated.dataInicio,
+          dataFim: updated.dataFim,
+          linkedWorkItemId: updated.linkedWorkItemId,
+          observacoes: updated.observacoes,
+          ordem: updated.ordem,
+          pagamentos: updated.pagamentos,
+        });
+        onUpdateProject({ laborContracts: newContracts.map(c => c.id === contract.id ? saved : c) });
+      } else {
+        const created = await laborContractsApi.create(project.id, {
+          tipo: updated.tipo,
+          descricao: updated.descricao,
+          associadoId: updated.associadoId,
+          valorTotal: updated.valorTotal,
+          dataInicio: updated.dataInicio,
+          dataFim: updated.dataFim,
+          linkedWorkItemId: updated.linkedWorkItemId,
+          observacoes: updated.observacoes,
+          ordem: updated.ordem,
+          pagamentos: updated.pagamentos,
+        });
+        onUpdateProject({ laborContracts: [...contracts, created] });
+      }
+    } catch (error) {
+      console.error('Erro ao salvar contrato:', error);
+      onUpdateProject({ laborContracts: previous });
+    }
+
     setIsModalOpen(false);
     setEditingContract(null);
   };
 
-  const removeContract = (id: string) => {
+  const removeContract = async (id: string) => {
     if (isReadOnly) return;
     if (confirm("Excluir este contrato de mão de obra?")) {
+      const previous = contracts;
       onUpdateProject({ laborContracts: contracts.filter(c => c.id !== id) });
+      try {
+        await laborContractsApi.remove(id);
+      } catch (error) {
+        console.error('Erro ao remover contrato:', error);
+        onUpdateProject({ laborContracts: previous });
+      }
     }
   };
 

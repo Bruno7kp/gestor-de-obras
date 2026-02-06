@@ -16,6 +16,7 @@ import { Roles } from '../auth/roles.decorator';
 import type { AuthenticatedRequest } from '../auth/auth.types';
 
 interface CreateJournalEntryBody {
+  id?: string;
   projectId: string;
   timestamp: string;
   type: string;
@@ -39,7 +40,6 @@ export class JournalController {
     @Query('projectId') projectId: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
     return this.journalService.listEntries(projectId, req.user.instanceId);
   }
 
@@ -50,7 +50,6 @@ export class JournalController {
   ) {
     return this.journalService.createEntry({
       ...body,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
       instanceId: req.user.instanceId,
     });
   }
@@ -61,13 +60,11 @@ export class JournalController {
     @Body() body: UpdateJournalEntryBody,
     @Req() req: AuthenticatedRequest,
   ) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
     return this.journalService.updateEntry(id, req.user.instanceId, body);
   }
 
   @Delete('entries/:id')
   deleteEntry(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
     return this.journalService.deleteEntry(id, req.user.instanceId);
   }
 }

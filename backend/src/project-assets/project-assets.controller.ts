@@ -16,6 +16,7 @@ import { Roles } from '../auth/roles.decorator';
 import type { AuthenticatedRequest } from '../auth/auth.types';
 
 interface CreateAssetBody {
+  id?: string;
   projectId: string;
   name: string;
   fileType: string;
@@ -33,7 +34,10 @@ export class ProjectAssetsController {
   constructor(private readonly projectAssetsService: ProjectAssetsService) {}
 
   @Get()
-  findAll(@Query('projectId') projectId: string, @Req() req: AuthenticatedRequest) {
+  findAll(
+    @Query('projectId') projectId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.projectAssetsService.findAll(projectId, req.user.instanceId);
   }
 

@@ -16,6 +16,7 @@ import { Roles } from '../auth/roles.decorator';
 import type { AuthenticatedRequest } from '../auth/auth.types';
 
 interface CreateTaskBody {
+  id?: string;
   projectId: string;
   categoryId?: string | null;
   description: string;
@@ -29,6 +30,7 @@ interface CreateTaskBody {
 type UpdateTaskBody = Partial<CreateTaskBody>;
 
 interface CreateForecastBody {
+  id?: string;
   projectId: string;
   description: string;
   unit: string;
@@ -47,6 +49,7 @@ interface CreateForecastBody {
 type UpdateForecastBody = Partial<CreateForecastBody>;
 
 interface CreateMilestoneBody {
+  id?: string;
   projectId: string;
   title: string;
   date: string;
@@ -62,7 +65,10 @@ export class PlanningController {
   constructor(private readonly planningService: PlanningService) {}
 
   @Get('tasks')
-  listTasks(@Query('projectId') projectId: string, @Req() req: AuthenticatedRequest) {
+  listTasks(
+    @Query('projectId') projectId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.planningService.listTasks(projectId, req.user.instanceId);
   }
 
@@ -89,12 +95,18 @@ export class PlanningController {
   }
 
   @Get('forecasts')
-  listForecasts(@Query('projectId') projectId: string, @Req() req: AuthenticatedRequest) {
+  listForecasts(
+    @Query('projectId') projectId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.planningService.listForecasts(projectId, req.user.instanceId);
   }
 
   @Post('forecasts')
-  createForecast(@Body() body: CreateForecastBody, @Req() req: AuthenticatedRequest) {
+  createForecast(
+    @Body() body: CreateForecastBody,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.planningService.createForecast({
       ...body,
       instanceId: req.user.instanceId,
@@ -116,12 +128,18 @@ export class PlanningController {
   }
 
   @Get('milestones')
-  listMilestones(@Query('projectId') projectId: string, @Req() req: AuthenticatedRequest) {
+  listMilestones(
+    @Query('projectId') projectId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.planningService.listMilestones(projectId, req.user.instanceId);
   }
 
   @Post('milestones')
-  createMilestone(@Body() body: CreateMilestoneBody, @Req() req: AuthenticatedRequest) {
+  createMilestone(
+    @Body() body: CreateMilestoneBody,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.planningService.createMilestone({
       ...body,
       instanceId: req.user.instanceId,

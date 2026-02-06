@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { SupplierModal } from './SupplierModal';
+import { suppliersApi } from '../services/suppliersApi';
 
 interface SupplierManagerProps {
   suppliers: Supplier[];
@@ -43,8 +44,9 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, onU
   }, [suppliers]);
 
   // Fix: Explicitly ensure mapped items are treated as object types for spread operation
-  const handleDragEnd = (result: DropResult) => {
+  const handleDragEnd = async (result: DropResult) => {
     if (!result.destination) return;
+    const previous = suppliers;
     const items = Array.from(suppliers);
     const [reorderedItem] = items.splice(result.source.index, 1);
     
@@ -53,20 +55,44 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, onU
       // Fixed: Casting item to Supplier to satisfy "Spread types may only be created from object types" check
       const updated = items.map((item, index) => ({ ...(item as Supplier), order: index }));
       onUpdateSuppliers(updated);
+      const changed = updated.filter((item) => item.order !== previous.find((p) => p.id === item.id)?.order);
+
+      try {
+        await Promise.all(changed.map((item) => suppliersApi.update(item.id, { order: item.order })));
+      } catch (error) {
+        console.error('Erro ao reordenar fornecedores:', error);
+        onUpdateSuppliers(previous);
+      }
     }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm('Excluir este fornecedor?')) {
+      const previous = suppliers;
       onUpdateSuppliers(suppliers.filter(s => s.id !== id));
+      try {
+        await suppliersApi.remove(id);
+      } catch (error) {
+        console.error('Erro ao remover fornecedor:', error);
+        onUpdateSuppliers(previous);
+      }
     }
   };
 
-  const handleSave = (data: Partial<Supplier>) => {
+  const handleSave = async (data: Partial<Supplier>) => {
     if (editingSupplier) {
       // Fix: Capture ID in a local variable to maintain narrowing inside map callback
       const targetId = editingSupplier.id;
-      onUpdateSuppliers(suppliers.map(s => s.id === targetId ? { ...s, ...data } : s));
+      const previous = suppliers;
+      const updatedList = suppliers.map(s => s.id === targetId ? { ...s, ...data } : s);
+      onUpdateSuppliers(updatedList);
+      try {
+        const updated = await suppliersApi.update(targetId, data);
+        onUpdateSuppliers(updatedList.map((item) => (item.id === targetId ? updated : item)));
+      } catch (error) {
+        console.error('Erro ao atualizar fornecedor:', error);
+        onUpdateSuppliers(previous);
+      }
     } else {
       // Fix: Simplified assignment and removed redundant casting
       const newSupplier: Supplier = {
@@ -81,7 +107,24 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, onU
         notes: data.notes || '',
         order: suppliers.length,
       };
-      onUpdateSuppliers([...suppliers, newSupplier]);
+      const nextSuppliers = [...suppliers, newSupplier];
+      onUpdateSuppliers(nextSuppliers);
+      try {
+        const created = await suppliersApi.create({
+          name: newSupplier.name,
+          cnpj: newSupplier.cnpj,
+          contactName: newSupplier.contactName,
+          email: newSupplier.email,
+          phone: newSupplier.phone,
+          category: newSupplier.category,
+          rating: newSupplier.rating,
+          notes: newSupplier.notes,
+          order: newSupplier.order,
+        });
+        onUpdateSuppliers(nextSuppliers.map((item) => (item.id === newSupplier.id ? created : item)));
+      } catch (error) {
+        console.error('Erro ao criar fornecedor:', error);
+      }
     }
     setIsModalOpen(false);
     setEditingSupplier(null);

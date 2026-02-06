@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 interface CreateAssetInput {
+  id?: string;
   projectId: string;
   instanceId: string;
   name: string;
@@ -39,6 +40,7 @@ export class ProjectAssetsService {
     await this.ensureProject(input.projectId, input.instanceId);
     return this.prisma.projectAsset.create({
       data: {
+        id: input.id,
         projectId: input.projectId,
         name: input.name,
         fileType: input.fileType,

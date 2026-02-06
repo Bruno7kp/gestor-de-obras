@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import { treeService } from '../services/treeService';
 import { projectService } from '../services/projectService';
+import { projectsApi } from '../services/projectsApi';
+import { projectGroupsApi } from '../services/projectGroupsApi';
 import { DragDropContext, Droppable, Draggable, DropResult, DraggableProvided } from '@hello-pangea/dnd';
 
 interface DashboardViewProps {
@@ -51,7 +53,15 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
     return list;
   }, [currentGroupId, props.groups]);
 
-  const handleDragEnd = (result: DropResult) => {
+  const refreshLists = async () => {
+    const [projects, groups] = await Promise.all([
+      projectsApi.list(),
+      projectGroupsApi.list(),
+    ]);
+    props.onBulkUpdate({ projects, groups });
+  };
+
+  const handleDragEnd = async (result: DropResult) => {
     const sourceId = result.draggableId;
     const cleanSourceId = sourceId.replace('grp-', '').replace('prj-', '');
     const type = sourceId.startsWith('grp-') ? 'group' : 'project';
@@ -72,14 +82,16 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
 
       if (cleanSourceId === targetGroupId) return;
 
-      const { updatedProjects, updatedGroups } = projectService.moveItem(
-        cleanSourceId, 
-        type, 
-        targetGroupId, 
-        props.projects, 
-        props.groups
-      );
-      props.onBulkUpdate({ projects: updatedProjects, groups: updatedGroups });
+      try {
+        if (type === 'project') {
+          await projectsApi.update(cleanSourceId, { groupId: targetGroupId });
+        } else {
+          await projectGroupsApi.update(cleanSourceId, { parentId: targetGroupId });
+        }
+        await refreshLists();
+      } catch (error) {
+        console.error('Erro ao mover item:', error);
+      }
       return;
     }
 
@@ -88,58 +100,83 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
         ? null 
         : result.destination.droppableId.replace('breadcrumb-', '');
 
-      const { updatedProjects, updatedGroups } = projectService.moveItem(
-        cleanSourceId, 
-        type, 
-        targetGroupId, 
-        props.projects, 
-        props.groups
-      );
-      props.onBulkUpdate({ projects: updatedProjects, groups: updatedGroups });
+      try {
+        if (type === 'project') {
+          await projectsApi.update(cleanSourceId, { groupId: targetGroupId });
+        } else {
+          await projectGroupsApi.update(cleanSourceId, { parentId: targetGroupId });
+        }
+        await refreshLists();
+      } catch (error) {
+        console.error('Erro ao mover item:', error);
+      }
       return;
     }
   };
 
-  const handleConfirmMove = (targetGroupId: string | null) => {
+  const handleConfirmMove = async (targetGroupId: string | null) => {
     if (!movingItem) return;
-    const { updatedProjects, updatedGroups } = projectService.moveItem(
-      movingItem.id, 
-      movingItem.type, 
-      targetGroupId, 
-      props.projects, 
-      props.groups
-    );
-    props.onBulkUpdate({ projects: updatedProjects, groups: updatedGroups });
-    setMovingItem(null);
+    try {
+      if (movingItem.type === 'project') {
+        await projectsApi.update(movingItem.id, { groupId: targetGroupId });
+      } else {
+        await projectGroupsApi.update(movingItem.id, { parentId: targetGroupId });
+      }
+      await refreshLists();
+    } catch (error) {
+      console.error('Erro ao mover item:', error);
+    } finally {
+      setMovingItem(null);
+    }
   };
 
-  const handleCreateFolder = () => {
-    const newGroup = projectService.createGroup('Nova Pasta', currentGroupId, currentGroups.length);
-    props.onUpdateGroups([...props.groups, newGroup]);
+  const handleCreateFolder = async () => {
+    try {
+      const newGroup = await projectGroupsApi.create({
+        name: 'Nova Pasta',
+        parentId: currentGroupId,
+        order: currentGroups.length,
+      });
+      props.onUpdateGroups([...props.groups, newGroup]);
+    } catch (error) {
+      console.error('Erro ao criar pasta:', error);
+    }
   };
 
-  const handleConfirmRename = () => {
+  const handleConfirmRename = async () => {
     if (!newName.trim()) return;
-    if (editingGroup) {
-      props.onUpdateGroups(props.groups.map(g => g.id === editingGroup.id ? { ...g, name: newName.trim() } : g));
-      setEditingGroup(null);
-    } else if (editingProject) {
-      props.onUpdateProject(props.projects.map(p => p.id === editingProject.id ? { ...p, name: newName.trim() } : p));
-      setEditingProject(null);
+    try {
+      if (editingGroup) {
+        const updatedGroup = await projectGroupsApi.update(editingGroup.id, { name: newName.trim() });
+        props.onUpdateGroups(props.groups.map(g => g.id === editingGroup.id ? updatedGroup : g));
+        setEditingGroup(null);
+      } else if (editingProject) {
+        const updatedProject = await projectsApi.update(editingProject.id, { name: newName.trim() });
+        props.onUpdateProject(props.projects.map(p => p.id === editingProject.id ? { ...p, ...updatedProject } : p));
+        setEditingProject(null);
+      }
+    } catch (error) {
+      console.error('Erro ao renomear item:', error);
     }
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!isDeleting) return;
-    if (isDeleting.type === 'group') {
-      const { updatedGroups, updatedProjects, newParentId } = projectService.getReassignedItems(isDeleting.id, props.groups, props.projects);
-      props.onBulkUpdate({ groups: updatedGroups, projects: updatedProjects });
-      if (currentGroupId === isDeleting.id) setCurrentGroupId(newParentId);
-    } else {
-      const updatedList = props.projects.filter(p => p.id !== isDeleting.id);
-      props.onUpdateProject(updatedList);
+    try {
+      if (isDeleting.type === 'group') {
+        await projectGroupsApi.remove(isDeleting.id);
+        await refreshLists();
+        if (currentGroupId === isDeleting.id) setCurrentGroupId(null);
+      } else {
+        await projectsApi.remove(isDeleting.id);
+        const updatedList = props.projects.filter(p => p.id !== isDeleting.id);
+        props.onUpdateProject(updatedList);
+      }
+    } catch (error) {
+      console.error('Erro ao excluir item:', error);
+    } finally {
+      setIsDeleting(null);
     }
-    setIsDeleting(null);
   };
 
   const filteredGroups = searchQuery 

@@ -3,6 +3,8 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Project, WorkItem, ItemType } from '../types';
 import { treeService } from '../services/treeService';
 import { excelService, ImportResult } from '../services/excelService';
+import { workItemsApi } from '../services/workItemsApi';
+import { projectsApi } from '../services/projectsApi';
 import { financial } from '../utils/math';
 import { TreeTable } from './TreeTable';
 import { 
@@ -44,6 +46,43 @@ export const WbsView: React.FC<WbsViewProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [importSummary]);
 
+  const collectDescendants = (items: WorkItem[], id: string) => {
+    const ids = new Set<string>([id]);
+    let changed = true;
+
+    while (changed) {
+      changed = false;
+      for (const item of items) {
+        if (item.parentId && ids.has(item.parentId) && !ids.has(item.id)) {
+          ids.add(item.id);
+          changed = true;
+        }
+      }
+    }
+
+    return ids;
+  };
+
+  const updateItemsState = (items: WorkItem[]) => {
+    onUpdateProject({ items });
+  };
+
+  const syncItemUpdate = async (id: string, patch: Partial<WorkItem>) => {
+    try {
+      await workItemsApi.update(id, patch);
+    } catch (error) {
+      console.error('Erro ao salvar item:', error);
+    }
+  };
+
+  const syncItemsBulk = async (updates: { id: string; patch: Partial<WorkItem> }[]) => {
+    try {
+      await Promise.all(updates.map(update => workItemsApi.update(update.id, update.patch)));
+    } catch (error) {
+      console.error('Erro ao salvar itens:', error);
+    }
+  };
+
   const processedTree = useMemo(() => {
     const tree = treeService.buildTree<WorkItem>(project.items);
     return tree.map((root, idx) => treeService.processRecursive(root, '', idx, project.bdi));
@@ -69,17 +108,63 @@ export const WbsView: React.FC<WbsViewProps> = ({
     }
   };
 
-  const confirmImport = () => {
+  const confirmImport = async () => {
     if (!importSummary) return;
-    // Substituição total para evitar duplicação
-    onUpdateProject({ items: importSummary.items });
-    setImportSummary(null);
+    try {
+      const roots = project.items.filter(item => !item.parentId);
+      for (const root of roots) {
+        await workItemsApi.remove(root.id);
+      }
+
+      const pending = new Map(importSummary.items.map(item => [item.id, item] as const));
+      const created = new Set<string>();
+      let progress = true;
+
+      while (pending.size > 0 && progress) {
+        progress = false;
+        for (const [id, item] of pending) {
+          if (!item.parentId || created.has(item.parentId)) {
+            await workItemsApi.create(project.id, item);
+            created.add(id);
+            pending.delete(id);
+            progress = true;
+          }
+        }
+      }
+
+      if (pending.size > 0) {
+        throw new Error('Dependencias de itens nao resolvidas');
+      }
+
+      updateItemsState(importSummary.items);
+      setImportSummary(null);
+    } catch (error) {
+      console.error('Erro ao importar itens:', error);
+      alert('Erro ao importar itens. Tente novamente.');
+    }
   };
 
-  const handleForceRecalculate = () => {
+  const handleForceRecalculate = async () => {
     if (window.confirm("Isso irá recalcular todos os preços unitários c/ BDI e limpar os ajustes manuais do rodapé para sincronizar com o BDI atual. Continuar?")) {
       const recalculatedItems = treeService.forceRecalculate(project.items, project.bdi);
-      onUpdateProject({ 
+      updateItemsState(recalculatedItems);
+      await syncItemsBulk(
+        recalculatedItems
+          .filter(item => item.type !== 'category')
+          .map(item => ({
+            id: item.id,
+            patch: {
+              unitPrice: item.unitPrice,
+              unitPriceNoBdi: item.unitPriceNoBdi,
+              contractTotal: item.contractTotal,
+              previousTotal: item.previousTotal,
+              currentTotal: item.currentTotal,
+              accumulatedTotal: item.accumulatedTotal,
+              balanceTotal: item.balanceTotal,
+            },
+          })),
+      );
+      onUpdateProject({
         items: recalculatedItems,
         contractTotalOverride: undefined,
         currentTotalOverride: undefined
@@ -87,42 +172,50 @@ export const WbsView: React.FC<WbsViewProps> = ({
     }
   };
 
-  const handleClearOverrides = () => {
-    onUpdateProject({ 
+  const handleClearOverrides = async () => {
+    onUpdateProject({
       contractTotalOverride: undefined,
-      currentTotalOverride: undefined
+      currentTotalOverride: undefined,
     });
+    try {
+      await projectsApi.update(project.id, { contractTotalOverride: null, currentTotalOverride: null });
+    } catch (error) {
+      console.error('Erro ao limpar ajustes:', error);
+    }
   };
 
   // HANDLERS COM VALIDAÇÃO DE REGRA DE NEGÓCIO (CLAMPS)
-  const updateItemQuantity = (id: string, qty: number) => {
+  const updateItemQuantity = async (id: string, qty: number) => {
     if (isReadOnly) return;
-    onUpdateProject({
-      items: project.items.map(it => {
-        if (it.id === id) {
-          const maxPossible = Math.max(0, (it.contractQuantity || 0) - (it.previousQuantity || 0));
-          const safeQty = Math.min(Math.max(0, qty), maxPossible);
-          return { ...it, currentQuantity: safeQty };
-        }
-        return it;
-      })
+    const nextItems = project.items.map(it => {
+      if (it.id === id) {
+        const maxPossible = Math.max(0, (it.contractQuantity || 0) - (it.previousQuantity || 0));
+        const safeQty = Math.min(Math.max(0, qty), maxPossible);
+        return { ...it, currentQuantity: safeQty };
+      }
+      return it;
     });
+    updateItemsState(nextItems);
+    await syncItemUpdate(id, { currentQuantity: nextItems.find(it => it.id === id)?.currentQuantity ?? 0 });
   };
 
-  const updateItemPercentage = (id: string, pct: number) => {
+  const updateItemPercentage = async (id: string, pct: number) => {
     if (isReadOnly) return;
-    onUpdateProject({
-      items: project.items.map(it => {
-        if (it.id === id) {
-          const prevPct = it.contractQuantity > 0 ? (it.previousQuantity / it.contractQuantity) * 100 : 0;
-          const maxPctAllowed = Math.max(0, 100 - prevPct);
-          const safePct = Math.min(Math.max(0, pct), maxPctAllowed);
-          const calculatedQty = financial.round((safePct / 100) * it.contractQuantity);
-          return { ...it, currentQuantity: calculatedQty, currentPercentage: safePct };
-        }
-        return it;
-      })
+    const nextItems = project.items.map(it => {
+      if (it.id === id) {
+        const prevPct = it.contractQuantity > 0 ? (it.previousQuantity / it.contractQuantity) * 100 : 0;
+        const maxPctAllowed = Math.max(0, 100 - prevPct);
+        const safePct = Math.min(Math.max(0, pct), maxPctAllowed);
+        const calculatedQty = financial.round((safePct / 100) * it.contractQuantity);
+        return { ...it, currentQuantity: calculatedQty, currentPercentage: safePct };
+      }
+      return it;
     });
+    const updated = nextItems.find(it => it.id === id);
+    updateItemsState(nextItems);
+    if (updated) {
+      await syncItemUpdate(id, { currentQuantity: updated.currentQuantity, currentPercentage: updated.currentPercentage });
+    }
   };
 
   return (
@@ -143,7 +236,7 @@ export const WbsView: React.FC<WbsViewProps> = ({
           <div className="hidden sm:block w-px h-6 bg-slate-100 dark:bg-slate-800 mx-1" />
 
           <button 
-            onClick={handleForceRecalculate}
+            onClick={() => void handleForceRecalculate()}
             disabled={isReadOnly}
             className="flex items-center gap-2 px-4 py-3 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-amber-600 hover:text-white transition-all disabled:opacity-30"
             title="Recalcular todos os itens com base no BDI global"
@@ -153,7 +246,7 @@ export const WbsView: React.FC<WbsViewProps> = ({
 
           {(project.contractTotalOverride !== undefined || project.currentTotalOverride !== undefined) && (
             <button 
-              onClick={handleClearOverrides}
+              onClick={() => void handleClearOverrides()}
               disabled={isReadOnly}
               className="flex items-center gap-2 px-4 py-3 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-rose-600 hover:text-white transition-all"
               title="Limpar ajustes manuais do rodapé"
@@ -210,48 +303,90 @@ export const WbsView: React.FC<WbsViewProps> = ({
           onToggle={id => { const n = new Set<string>(expandedIds); n.has(id) ? n.delete(id) : n.add(id); setExpandedIds(n); }} 
           onExpandAll={() => setExpandedIds(new Set<string>(project.items.filter(i => i.type === 'category').map(i => i.id)))}
           onCollapseAll={() => setExpandedIds(new Set<string>())}
-          onDelete={id => !isReadOnly && onUpdateProject({ items: project.items.filter(i => i.id !== id && i.parentId !== id) })}
+          onDelete={async (id) => {
+            if (isReadOnly) return;
+            const idsToRemove = collectDescendants(project.items, id);
+            const nextItems = project.items.filter(item => !idsToRemove.has(item.id));
+            updateItemsState(nextItems);
+            try {
+              await workItemsApi.remove(id);
+            } catch (error) {
+              console.error('Erro ao remover item:', error);
+            }
+          }}
           onUpdateQuantity={updateItemQuantity}
           onUpdatePercentage={updateItemPercentage}
           
-          onUpdateTotal={(id, total) => {
+          onUpdateTotal={async (id, total) => {
             if (isReadOnly) return;
-            onUpdateProject({ 
-              items: project.items.map(it => {
-                if (it.id === id && it.contractQuantity > 0) {
-                  const newUnitPrice = financial.truncate(total / it.contractQuantity);
-                  const newUnitPriceNoBdi = financial.truncate(newUnitPrice / (1 + project.bdi/100));
-                  return { ...it, unitPrice: newUnitPrice, unitPriceNoBdi: newUnitPriceNoBdi };
-                }
-                return it;
-              }) 
+            const nextItems = project.items.map(it => {
+              if (it.id === id && it.contractQuantity > 0) {
+                const newUnitPrice = financial.truncate(total / it.contractQuantity);
+                const newUnitPriceNoBdi = financial.truncate(newUnitPrice / (1 + project.bdi/100));
+                return { ...it, unitPrice: newUnitPrice, unitPriceNoBdi: newUnitPriceNoBdi };
+              }
+              return it;
             });
+            const updated = nextItems.find(it => it.id === id);
+            updateItemsState(nextItems);
+            if (updated) {
+              await syncItemUpdate(id, { unitPrice: updated.unitPrice, unitPriceNoBdi: updated.unitPriceNoBdi });
+            }
           }}
-          onUpdateCurrentTotal={(id, total) => {
+          onUpdateCurrentTotal={async (id, total) => {
             if (isReadOnly) return;
-            onUpdateProject({ 
-              items: project.items.map(it => {
-                if (it.id === id && it.currentQuantity > 0) {
-                  const newUnitPrice = financial.truncate(total / it.currentQuantity);
-                  const newUnitPriceNoBdi = financial.truncate(newUnitPrice / (1 + project.bdi/100));
-                  return { ...it, unitPrice: newUnitPrice, unitPriceNoBdi: newUnitPriceNoBdi };
-                }
-                return it;
-              }) 
+            const nextItems = project.items.map(it => {
+              if (it.id === id && it.currentQuantity > 0) {
+                const newUnitPrice = financial.truncate(total / it.currentQuantity);
+                const newUnitPriceNoBdi = financial.truncate(newUnitPrice / (1 + project.bdi/100));
+                return { ...it, unitPrice: newUnitPrice, unitPriceNoBdi: newUnitPriceNoBdi };
+              }
+              return it;
             });
+            const updated = nextItems.find(it => it.id === id);
+            updateItemsState(nextItems);
+            if (updated) {
+              await syncItemUpdate(id, { unitPrice: updated.unitPrice, unitPriceNoBdi: updated.unitPriceNoBdi });
+            }
           }}
 
-          onUpdateGrandTotal={(overrides) => {
+          onUpdateGrandTotal={async (overrides) => {
             if (isReadOnly) return;
             onUpdateProject({
               contractTotalOverride: overrides.contract !== undefined ? overrides.contract : project.contractTotalOverride,
               currentTotalOverride: overrides.current !== undefined ? overrides.current : project.currentTotalOverride,
             });
+            try {
+              await projectsApi.update(project.id, {
+                contractTotalOverride: overrides.contract !== undefined ? overrides.contract : project.contractTotalOverride,
+                currentTotalOverride: overrides.current !== undefined ? overrides.current : project.currentTotalOverride,
+              });
+            } catch (error) {
+              console.error('Erro ao salvar ajustes:', error);
+            }
           }}
           
           onAddChild={(pid, type) => !isReadOnly && onOpenModal(type, null, pid)}
           onEdit={item => !isReadOnly && onOpenModal(item.type, item, item.parentId)}
-          onReorder={(src, tgt, pos) => !isReadOnly && onUpdateProject({ items: treeService.reorderItems<WorkItem>(project.items, src, tgt, pos) })}
+          onReorder={async (src, tgt, pos) => {
+            if (isReadOnly) return;
+            const nextItems = treeService.reorderItems<WorkItem>(project.items, src, tgt, pos);
+            updateItemsState(nextItems);
+            const updates = nextItems
+              .map(item => {
+                const prev = project.items.find(prevItem => prevItem.id === item.id);
+                if (!prev) return null;
+                if (prev.order !== item.order || prev.parentId !== item.parentId) {
+                  return { id: item.id, patch: { order: item.order, parentId: item.parentId } };
+                }
+                return null;
+              })
+              .filter(Boolean) as { id: string; patch: Partial<WorkItem> }[];
+
+            if (updates.length > 0) {
+              await syncItemsBulk(updates);
+            }
+          }}
           searchQuery={searchQuery}
           isReadOnly={isReadOnly}
           currencySymbol={project.theme?.currencySymbol || 'R$'}
@@ -324,7 +459,7 @@ export const WbsView: React.FC<WbsViewProps> = ({
             <div className="px-8 py-6 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-3 shrink-0">
               <button 
                 type="button" 
-                onClick={confirmImport} 
+                onClick={() => void confirmImport()} 
                 className="w-full py-5 bg-emerald-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-emerald-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
               >
                 <CheckCircle2 size={18} /> Confirmar Substituição

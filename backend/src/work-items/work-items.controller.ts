@@ -16,6 +16,7 @@ import { Roles } from '../auth/roles.decorator';
 import type { AuthenticatedRequest } from '../auth/auth.types';
 
 interface CreateWorkItemBody {
+  id?: string;
   projectId: string;
   parentId?: string | null;
   name: string;
@@ -50,7 +51,10 @@ export class WorkItemsController {
   constructor(private readonly workItemsService: WorkItemsService) {}
 
   @Get()
-  findAll(@Query('projectId') projectId: string, @Req() req: AuthenticatedRequest) {
+  findAll(
+    @Query('projectId') projectId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.workItemsService.findAll(projectId, req.user.instanceId);
   }
 

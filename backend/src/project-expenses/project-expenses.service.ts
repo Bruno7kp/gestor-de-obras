@@ -3,6 +3,7 @@ import type { ExpenseStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 interface CreateExpenseInput {
+  id?: string;
   projectId: string;
   instanceId: string;
   parentId?: string | null;
@@ -60,6 +61,7 @@ export class ProjectExpensesService {
 
     return this.prisma.projectExpense.create({
       data: {
+        id: input.id,
         projectId: input.projectId,
         parentId: input.parentId ?? null,
         type: input.type,
@@ -114,13 +116,14 @@ export class ProjectExpensesService {
         unitPrice: input.unitPrice ?? existing.unitPrice,
         amount: input.amount ?? existing.amount,
         isPaid: input.isPaid ?? existing.isPaid,
-        status: (input.status ?? existing.status) as ExpenseStatus,
+        status: input.status ?? existing.status,
         paymentDate: input.paymentDate ?? existing.paymentDate,
         paymentProof: input.paymentProof ?? existing.paymentProof,
         invoiceDoc: input.invoiceDoc ?? existing.invoiceDoc,
         deliveryDate: input.deliveryDate ?? existing.deliveryDate,
         discountValue: input.discountValue ?? existing.discountValue,
-        discountPercentage: input.discountPercentage ?? existing.discountPercentage,
+        discountPercentage:
+          input.discountPercentage ?? existing.discountPercentage,
         issValue: input.issValue ?? existing.issValue,
         issPercentage: input.issPercentage ?? existing.issPercentage,
         linkedWorkItemId: input.linkedWorkItemId ?? existing.linkedWorkItemId,
@@ -128,7 +131,10 @@ export class ProjectExpensesService {
     });
   }
 
-  private collectDescendants(items: { id: string; parentId: string | null }[], id: string) {
+  private collectDescendants(
+    items: { id: string; parentId: string | null }[],
+    id: string,
+  ) {
     const ids = new Set<string>([id]);
     let changed = true;
 

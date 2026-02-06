@@ -1,7 +1,13 @@
 
-import { useState, useCallback, useEffect } from 'react';
-import { Project, ProjectGroup, GlobalSettings, BiddingProcess, Supplier, CompanyCertificate } from '../types';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { Project, ProjectGroup, GlobalSettings, BiddingProcess, Supplier, CompanyCertificate, JournalEntry } from '../types';
 import { journalService } from '../services/journalService';
+import { journalApi } from '../services/journalApi';
+import { projectsApi, normalizeProject } from '../services/projectsApi';
+import { projectGroupsApi } from '../services/projectGroupsApi';
+import { suppliersApi } from '../services/suppliersApi';
+import { biddingsApi } from '../services/biddingsApi';
+import { globalSettingsApi } from '../services/globalSettingsApi';
 
 interface State {
   projects: Project[];
@@ -25,48 +31,86 @@ const INITIAL_SETTINGS: GlobalSettings = {
 const MAX_HISTORY = 20;
 
 export const useProjectState = () => {
-  const [present, setPresent] = useState<State>(() => {
-    const saved = localStorage.getItem('promeasure_v4_data');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return {
-          ...parsed,
-          suppliers: parsed.suppliers || [],
-          groups: parsed.groups || [],
-          biddings: parsed.biddings || [],
-          activeProjectId: parsed.activeProjectId || null,
-          activeBiddingId: parsed.activeBiddingId || null,
-          globalSettings: { ...INITIAL_SETTINGS, ...(parsed.globalSettings || {}) },
-          projects: (parsed.projects || []).map((p: any) => ({
-            ...p,
-            workforce: p.workforce || [],
-            laborContracts: p.laborContracts || [], // Garantia de inicialização
-            expenses: (p.expenses || []).map((e: any) => ({
-              ...e,
-              status: e.status || (e.isPaid ? 'PAID' : 'PENDING')
-            }))
-          }))
-        };
-      } catch (e) {
-        console.error("Erro ao carregar dados salvos:", e);
-      }
-    }
-    return { projects: [], biddings: [], groups: [], suppliers: [], activeProjectId: null, activeBiddingId: null, globalSettings: INITIAL_SETTINGS };
-  });
+  const [present, setPresent] = useState<State>(() => ({
+    projects: [],
+    biddings: [],
+    groups: [],
+    suppliers: [],
+    activeProjectId: null,
+    activeBiddingId: null,
+    globalSettings: INITIAL_SETTINGS,
+  }));
+
+  const loadedProjectIdsRef = useRef<Set<string>>(new Set());
 
   const [past, setPast] = useState<State[]>([]);
   const [future, setFuture] = useState<State[]>([]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem('promeasure_v4_data', JSON.stringify(present));
-    } catch (e) {
-      if (e instanceof DOMException && e.name === 'QuotaExceededError') {
-        alert("CRÍTICO: Limite excedido! Remova fotos ou obras antigas.");
+    let isMounted = true;
+    const load = async () => {
+      try {
+        const [projectsResult, groupsResult, suppliersResult, biddingsResult, settingsResult] = await Promise.allSettled([
+          projectsApi.list(),
+          projectGroupsApi.list(),
+          suppliersApi.list(),
+          biddingsApi.list(),
+          globalSettingsApi.get(),
+        ]);
+
+        const projects = projectsResult.status === 'fulfilled' ? projectsResult.value : [];
+        const groups = groupsResult.status === 'fulfilled' ? groupsResult.value : [];
+        const suppliers = suppliersResult.status === 'fulfilled' ? suppliersResult.value : [];
+        const biddings = biddingsResult.status === 'fulfilled' ? biddingsResult.value : [];
+        const globalSettings = settingsResult.status === 'fulfilled' ? settingsResult.value : INITIAL_SETTINGS;
+
+        if (!isMounted) return;
+
+        setPresent(prev => {
+          const activeProjectId = projects.some(p => p.id === prev.activeProjectId)
+            ? prev.activeProjectId
+            : null;
+          return { ...prev, projects, groups, suppliers, biddings, globalSettings, activeProjectId };
+        });
+      } catch (error) {
+        console.error('Falha ao carregar projetos/grupos:', error);
       }
-    }
-  }, [present]);
+    };
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const activeId = present.activeProjectId;
+    if (!activeId) return;
+    if (loadedProjectIdsRef.current.has(activeId)) return;
+
+    let isMounted = true;
+    const loadProject = async () => {
+      try {
+        const project = await projectsApi.get(activeId);
+        if (!isMounted) return;
+
+        loadedProjectIdsRef.current.add(activeId);
+        setPresent(prev => {
+          const updatedProjects = prev.projects.map(p => (p.id === project.id ? normalizeProject(project) : p));
+          return { ...prev, projects: updatedProjects };
+        });
+      } catch (error) {
+        console.error('Falha ao carregar projeto:', error);
+      }
+    };
+
+    loadProject();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [present.activeProjectId]);
 
   const commit = useCallback((updater: (prev: State) => State) => {
     setPresent(prev => {
@@ -102,21 +146,28 @@ export const useProjectState = () => {
   }, [future]);
 
   const updateActiveProject = useCallback((data: Partial<Project>) => {
+    let autoLogsToSync: JournalEntry[] = [];
+    let projectId: string | null = null;
+
     commit(prev => {
       const activeIdx = prev.projects.findIndex(p => p.id === prev.activeProjectId);
       if (activeIdx === -1) return prev;
 
       const active = prev.projects[activeIdx];
-      let autoLogs: any[] = [];
+      let autoLogs: JournalEntry[] = [];
       if (data.expenses) autoLogs = [...autoLogs, ...journalService.checkExpenseStatusDeltas(active.expenses, data.expenses)];
       if (data.items) autoLogs = [...autoLogs, ...journalService.checkWorkItemDeltas(active.items, data.items)];
+      autoLogsToSync = autoLogs;
+      projectId = active.id;
 
+      const baseEntries = data.journal?.entries ?? active.journal.entries;
       const updatedProject: Project = {
         ...active,
         ...data,
         journal: {
           ...active.journal,
-          entries: autoLogs.length > 0 ? [...autoLogs, ...active.journal.entries] : active.journal.entries
+          ...(data.journal ?? {}),
+          entries: autoLogs.length > 0 ? [...autoLogs, ...baseEntries] : baseEntries
         }
       };
 
@@ -124,6 +175,13 @@ export const useProjectState = () => {
       updatedProjects[activeIdx] = updatedProject;
       return { ...prev, projects: updatedProjects };
     });
+
+    if (autoLogsToSync.length > 0 && projectId) {
+      void Promise.all(autoLogsToSync.map((entry) => journalApi.create(projectId as string, entry)))
+        .catch((error) => {
+          console.error('Erro ao sincronizar registros automaticos:', error);
+        });
+    }
   }, [commit]);
 
   return {
@@ -143,7 +201,12 @@ export const useProjectState = () => {
       ...prev,
       globalSettings: { ...prev.globalSettings, certificates }
     })),
-    setGlobalSettings: (s: GlobalSettings) => commit(prev => ({ ...prev, globalSettings: s })),
+    setGlobalSettings: (s: GlobalSettings) => {
+      commit(prev => ({ ...prev, globalSettings: s }));
+      void globalSettingsApi.update(s).catch((error) => {
+        console.error('Falha ao atualizar configuracoes globais:', error);
+      });
+    },
     bulkUpdate: (updates: Partial<State>) => commit(prev => ({ ...prev, ...updates }))
   };
 };
