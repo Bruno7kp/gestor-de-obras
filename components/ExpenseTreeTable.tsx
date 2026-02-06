@@ -29,9 +29,9 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
 }) => {
   const isRevenueTable = data.some(d => d.type === 'revenue');
 
-  const handleDownloadDoc = (base64: string, name: string) => {
+  const handleDownloadDoc = (url: string, name: string) => {
     const link = document.createElement('a');
-    link.href = base64;
+    link.href = url;
     link.download = name;
     link.click();
   };

@@ -197,7 +197,7 @@ export interface MaterialForecast {
   isPaid: boolean;
   order: number;
   supplierId?: string;
-  paymentProof?: string; // NOVO: Base64 do comprovante de pagamento
+  paymentProof?: string; // URL do comprovante de pagamento
 }
 
 export interface Milestone {

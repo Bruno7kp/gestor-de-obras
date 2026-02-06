@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { ProjectAsset } from '../types';
 import { FileText, Download, Trash2, Eye, UploadCloud, Search, AlertCircle, Loader2 } from 'lucide-react';
+import { uploadService } from '../services/uploadService';
 
 interface AssetManagerProps {
   assets: ProjectAsset[];
@@ -14,7 +15,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ assets, onAdd, onDel
   const [isUploading, setIsUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
@@ -22,20 +23,22 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ assets, onAdd, onDel
       return;
     }
     setIsUploading(true);
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
+    try {
+      const uploaded = await uploadService.uploadFile(file);
       onAdd({
         id: crypto.randomUUID(),
         name: file.name,
         fileType: file.type,
         fileSize: file.size,
         uploadDate: new Date().toLocaleDateString('pt-BR'),
-        data: base64
+        data: uploaded.url,
       });
+    } catch (error) {
+      console.error('Erro ao enviar arquivo:', error);
+      alert('Falha ao enviar arquivo. Tente novamente.');
+    } finally {
       setIsUploading(false);
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   const openPreview = (asset: ProjectAsset) => {

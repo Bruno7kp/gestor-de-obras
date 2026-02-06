@@ -309,7 +309,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                       label={isLabor ? "Recibo de Pagamento (Pix/DOC)" : "Comprovante de Pagamento"}
                       requiredStatus="PAID"
                       currentFile={formData.paymentProof}
-                      onUpload={(base64) => setFormData(prev => ({ ...prev, paymentProof: base64 }))}
+                      onUploadUrl={(url) => setFormData(prev => ({ ...prev, paymentProof: url }))}
                       onRemove={() => setFormData(prev => ({ ...prev, paymentProof: undefined }))}
                     />
                   )}
@@ -319,7 +319,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                       label={isRevenue ? "Nota Fiscal de Faturamento" : "Nota Fiscal de Compra"}
                       requiredStatus="DELIVERED"
                       currentFile={formData.invoiceDoc}
-                      onUpload={(base64) => setFormData(prev => ({ ...prev, invoiceDoc: base64 }))}
+                      onUploadUrl={(url) => setFormData(prev => ({ ...prev, invoiceDoc: url }))}
                       onRemove={() => setFormData(prev => ({ ...prev, invoiceDoc: undefined }))}
                     />
                   )}

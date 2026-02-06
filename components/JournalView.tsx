@@ -3,6 +3,7 @@ import React, { useState, useMemo, useRef } from 'react';
 import { Project, JournalEntry, JournalCategory, WeatherType, ProjectJournal, WorkItem } from '../types';
 import { journalService } from '../services/journalService';
 import { journalApi } from '../services/journalApi';
+import { uploadService } from '../services/uploadService';
 import { 
   BookOpen, Plus, Camera, Sun, CloudRain, Cloud, Zap, 
   Trash2, Search, Filter, History, Loader2,
@@ -49,18 +50,26 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
   }, [filteredEntries, page]);
 
   // Handlers
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Fix: Explicitly cast Array.from result to File[] to satisfy strict TS checks on file.size and readAsDataURL
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Fix: Explicitly cast Array.from result to File[] to satisfy strict TS checks on file.size
     const files = Array.from(e.target.files || []) as File[];
-    files.forEach(file => {
-      if (file.size > 2 * 1024 * 1024) return alert("Imagem muito pesada (Max 2MB)");
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const base64 = ev.target?.result as string;
-        setNewEntry(prev => ({ ...prev, photoUrls: [...(prev.photoUrls || []), base64] }));
-      };
-      reader.readAsDataURL(file);
-    });
+    for (const file of files) {
+      if (file.size > 2 * 1024 * 1024) {
+        alert("Imagem muito pesada (Max 2MB)");
+        continue;
+      }
+
+      try {
+        const uploaded = await uploadService.uploadFile(file);
+        setNewEntry(prev => ({
+          ...prev,
+          photoUrls: [...(prev.photoUrls || []), uploaded.url],
+        }));
+      } catch (error) {
+        console.error('Erro ao enviar foto:', error);
+        alert('Falha ao enviar imagem. Tente novamente.');
+      }
+    }
   };
 
   const handlePost = async (e: React.FormEvent) => {

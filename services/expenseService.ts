@@ -55,7 +55,7 @@ export const expenseService = {
       status: expense.status,
       temComprovante: !!expense.paymentProof,
       temNotaFiscal: !!expense.invoiceDoc,
-      comprovanteBase64: expense.paymentProof,
+      comprovanteUrl: expense.paymentProof,
       detalhes: `${expense.quantity} ${expense.unit} x ${financial.formatBRL(expense.unitPrice)}`
     };
   }

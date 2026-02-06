@@ -2,6 +2,7 @@
 import React, { useRef } from 'react';
 import { Project, PDFTheme } from '../types';
 import { ThemeEditor } from './ThemeEditor';
+import { uploadService } from '../services/uploadService';
 import { 
   Percent, MapPin, Upload, 
   Image as ImageIcon, Trash2, FileText, 
@@ -20,7 +21,7 @@ export const BrandingView: React.FC<BrandingViewProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -29,11 +30,13 @@ export const BrandingView: React.FC<BrandingViewProps> = ({
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      onUpdateProject({ logo: event.target?.result as string });
-    };
-    reader.readAsDataURL(file);
+    try {
+      const uploaded = await uploadService.uploadFile(file);
+      onUpdateProject({ logo: uploaded.url });
+    } catch (error) {
+      console.error('Erro ao enviar logomarca:', error);
+      alert('Falha ao enviar imagem. Tente novamente.');
+    }
   };
 
   const toggleConfig = (key: keyof typeof project.config) => {

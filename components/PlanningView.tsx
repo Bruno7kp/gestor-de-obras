@@ -1066,7 +1066,7 @@ const ConfirmForecastModal = ({ forecast, onClose, onConfirm, financialCategorie
                         label="Comprovante de Pagamento"
                         requiredStatus="PAID"
                         currentFile={paymentProof}
-                        onUpload={(base64) => setPaymentProof(base64)}
+                      onUploadUrl={(url) => setPaymentProof(url)}
                         onRemove={() => setPaymentProof(undefined)}
                     />
                   </div>

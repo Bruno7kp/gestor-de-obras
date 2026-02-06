@@ -1,10 +1,11 @@
 
 import React, { useState } from 'react';
 import { UploadCloud, FileCheck, X, Loader2, FileText, ImageIcon } from 'lucide-react';
+import { uploadService } from '../services/uploadService';
 
 interface ExpenseAttachmentZoneProps {
   label: string;
-  onUpload: (base64: string) => void;
+  onUploadUrl: (url: string) => void;
   currentFile?: string;
   onRemove: () => void;
   accept?: string;
@@ -12,12 +13,12 @@ interface ExpenseAttachmentZoneProps {
 }
 
 export const ExpenseAttachmentZone: React.FC<ExpenseAttachmentZoneProps> = ({ 
-  label, onUpload, currentFile, onRemove, accept = "application/pdf, image/*", requiredStatus 
+  label, onUploadUrl, currentFile, onRemove, accept = "application/pdf, image/*", requiredStatus 
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const handleFile = (file: File) => {
+  const handleFile = async (file: File) => {
     if (!file) return;
     if (file.size > 3 * 1024 * 1024) {
       alert("Arquivo muito grande. Limite de 3MB.");
@@ -25,12 +26,15 @@ export const ExpenseAttachmentZone: React.FC<ExpenseAttachmentZoneProps> = ({
     }
 
     setIsProcessing(true);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      onUpload(e.target?.result as string);
+    try {
+      const uploaded = await uploadService.uploadFile(file);
+      onUploadUrl(uploaded.url);
+    } catch (error) {
+      console.error('Erro ao enviar arquivo:', error);
+      alert('Falha ao enviar arquivo. Tente novamente.');
+    } finally {
       setIsProcessing(false);
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   return (
