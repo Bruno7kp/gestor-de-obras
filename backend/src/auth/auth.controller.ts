@@ -30,7 +30,7 @@ export class AuthController {
     const result = await this.authService.login(body);
     res.cookie('promeasure_token', result.accessToken, {
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
       secure: process.env.NODE_ENV === 'production',
       maxAge: 12 * 60 * 60 * 1000,
       path: '/',
