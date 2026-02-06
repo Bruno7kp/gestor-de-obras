@@ -4,7 +4,6 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
 import * as bcrypt from 'bcrypt';
 
-// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
 const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
 });
@@ -15,6 +14,8 @@ async function main() {
   const instanceName = process.env.ADMIN_INSTANCE_NAME || 'Instancia Principal';
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@exemplo.com';
   const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+  const isSuperAdmin =
+    (process.env.ADMIN_IS_SUPERADMIN || 'true').toLowerCase() === 'true';
 
   const existingInstance = await prisma.instance.findFirst({
     where: { name: instanceName },
@@ -52,6 +53,10 @@ async function main() {
     where: { name: 'ADMIN', instanceId: instance.id },
   });
 
+  const superAdminRole = await prisma.role.findFirst({
+    where: { name: 'SUPER_ADMIN', instanceId: instance.id },
+  });
+
   const userRole = await prisma.role.findFirst({
     where: { name: 'USER', instanceId: instance.id },
   });
@@ -62,6 +67,16 @@ async function main() {
         data: {
           name: 'ADMIN',
           description: 'Administrador da instancia',
+          instanceId: instance.id,
+        },
+      });
+
+  const ensuredSuperAdminRole = superAdminRole
+    ? superAdminRole
+    : await prisma.role.create({
+        data: {
+          name: 'SUPER_ADMIN',
+          description: 'Administrador global',
           instanceId: instance.id,
         },
       });
@@ -102,7 +117,27 @@ async function main() {
     },
   });
 
-  console.log('Seed concluido:', { instanceId: instance.id, adminEmail });
+  if (isSuperAdmin) {
+    await prisma.userRole.upsert({
+      where: {
+        userId_roleId: {
+          userId: adminUser.id,
+          roleId: ensuredSuperAdminRole.id,
+        },
+      },
+      update: {},
+      create: {
+        userId: adminUser.id,
+        roleId: ensuredSuperAdminRole.id,
+      },
+    });
+  }
+
+  console.log('Seed concluido:', {
+    instanceId: instance.id,
+    adminEmail,
+    isSuperAdmin,
+  });
 }
 
 main()

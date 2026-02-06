@@ -1,8 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { Home, Cog, PlusCircle, Briefcase, Sun, Moon, Menu, HardHat, X, Folder, ChevronRight, ChevronLeft, ChevronDown, Landmark, AlertCircle, Truck } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Home, Cog, PlusCircle, Briefcase, Sun, Moon, Menu, HardHat, X, Folder, ChevronRight, ChevronLeft, ChevronDown, Landmark, AlertCircle, Truck, Shield } from 'lucide-react';
 import { Project, ProjectGroup, CompanyCertificate } from '../types';
 import { biddingService } from '../services/biddingService';
+import { useAuth } from '../auth/AuthContext';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -25,6 +27,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpen, setIsOpen, mobileOpen, setMobileOpen, viewMode, setViewMode,
   projects, groups, activeProjectId, onOpenProject, onCreateProject, isDarkMode, toggleDarkMode, certificates
 }) => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   // Inicializa estado do localStorage para persistir pastas abertas
   // Fix: Explicitly type Set in lazy initializer to avoid 'Set<unknown>' inference
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
@@ -37,6 +41,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }, [expandedGroups]);
 
   const hasAlerts = biddingService.hasGlobalAlerts(certificates);
+  const isSuperAdmin = user?.roles?.includes('SUPER_ADMIN');
 
   const NavItem = ({ active, onClick, icon, label, badge }: any) => (
     <button onClick={onClick} className={`w-full flex items-center gap-4 p-3.5 rounded-2xl transition-all relative ${active ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
@@ -112,6 +117,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <NavItem active={viewMode === 'bidding-view'} onClick={() => { setViewMode('bidding-view'); setMobileOpen(false); }} icon={<Landmark size={18}/>} label="Licitações" badge={hasAlerts} />
           <NavItem active={viewMode === 'supplier-view'} onClick={() => { setViewMode('supplier-view'); setMobileOpen(false); }} icon={<Truck size={18}/>} label="Fornecedores" />
           <NavItem active={viewMode === 'system-settings'} onClick={() => { setViewMode('system-settings'); setMobileOpen(false); }} icon={<Cog size={18}/>} label="Configurações" />
+          {isSuperAdmin && (
+            <NavItem
+              active={false}
+              onClick={() => {
+                setMobileOpen(false);
+                navigate('/superadmin');
+              }}
+              icon={<Shield size={18} />}
+              label="Super Admin"
+            />
+          )}
           
           <div className="py-6 px-3 flex items-center justify-between">
             {isOpen && <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Obras Ativas</h3>}

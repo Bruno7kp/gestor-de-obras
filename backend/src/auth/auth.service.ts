@@ -11,13 +11,29 @@ interface LoginInput {
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly prisma: PrismaService, private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jwtService: JwtService,
+  ) {}
 
   async login(input: LoginInput) {
+    const instance = await this.prisma.instance.findFirst({
+      where: {
+        OR: [
+          { id: input.instanceId },
+          { name: { equals: input.instanceId, mode: 'insensitive' } },
+        ],
+      },
+    });
+
+    if (!instance) {
+      throw new UnauthorizedException('Credenciais invalidas');
+    }
+
     const user = await this.prisma.user.findFirst({
       where: {
         email: input.email,
-        instanceId: input.instanceId,
+        instanceId: instance.id,
       },
       include: {
         roles: { include: { role: true } },
@@ -26,13 +42,17 @@ export class AuthService {
 
     if (!user) throw new UnauthorizedException('Credenciais invalidas');
 
-    const passwordValid = await bcrypt.compare(input.password, user.passwordHash);
-    if (!passwordValid) throw new UnauthorizedException('Credenciais invalidas');
+    const passwordValid = await bcrypt.compare(
+      input.password,
+      user.passwordHash,
+    );
+    if (!passwordValid)
+      throw new UnauthorizedException('Credenciais invalidas');
 
     const payload = {
       sub: user.id,
-      instanceId: user.instanceId,
-      roles: user.roles.map(r => r.role.name),
+      instanceId: instance.id,
+      roles: user.roles.map((r) => r.role.name),
     };
 
     return {
@@ -41,7 +61,7 @@ export class AuthService {
         id: user.id,
         name: user.name,
         email: user.email,
-        instanceId: user.instanceId,
+        instanceId: instance.id,
         roles: payload.roles,
       },
     };

@@ -1,7 +1,7 @@
 import type { Request } from 'express';
 
 export interface AuthUser {
-  sub: string;
+  id: string;
   instanceId: string;
   roles: string[];
 }
