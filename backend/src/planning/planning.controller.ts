@@ -13,6 +13,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { PlanningService } from './planning.service';
 import { Roles } from '../auth/roles.decorator';
+import { HasPermission } from '../auth/permissions.decorator';
 import type { AuthenticatedRequest } from '../auth/auth.types';
 
 interface CreateTaskBody {
@@ -73,6 +74,7 @@ export class PlanningController {
   }
 
   @Post('tasks')
+  @HasPermission('planning.edit')
   createTask(@Body() body: CreateTaskBody, @Req() req: AuthenticatedRequest) {
     return this.planningService.createTask({
       ...body,
@@ -81,6 +83,7 @@ export class PlanningController {
   }
 
   @Patch('tasks/:id')
+  @HasPermission('planning.edit')
   updateTask(
     @Param('id') id: string,
     @Body() body: UpdateTaskBody,
@@ -90,6 +93,7 @@ export class PlanningController {
   }
 
   @Delete('tasks/:id')
+  @HasPermission('planning.edit')
   deleteTask(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.planningService.deleteTask(id, req.user.instanceId);
   }
@@ -103,6 +107,7 @@ export class PlanningController {
   }
 
   @Post('forecasts')
+  @HasPermission('planning.edit')
   createForecast(
     @Body() body: CreateForecastBody,
     @Req() req: AuthenticatedRequest,
@@ -114,6 +119,7 @@ export class PlanningController {
   }
 
   @Patch('forecasts/:id')
+  @HasPermission('planning.edit')
   updateForecast(
     @Param('id') id: string,
     @Body() body: UpdateForecastBody,
@@ -123,6 +129,7 @@ export class PlanningController {
   }
 
   @Delete('forecasts/:id')
+  @HasPermission('planning.edit')
   deleteForecast(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.planningService.deleteForecast(id, req.user.instanceId);
   }
@@ -136,6 +143,7 @@ export class PlanningController {
   }
 
   @Post('milestones')
+  @HasPermission('planning.edit')
   createMilestone(
     @Body() body: CreateMilestoneBody,
     @Req() req: AuthenticatedRequest,
@@ -147,6 +155,7 @@ export class PlanningController {
   }
 
   @Post('replace')
+  @HasPermission('planning.edit')
   replace(
     @Body()
     body: {
@@ -167,6 +176,7 @@ export class PlanningController {
   }
 
   @Patch('milestones/:id')
+  @HasPermission('planning.edit')
   updateMilestone(
     @Param('id') id: string,
     @Body() body: UpdateMilestoneBody,
@@ -176,6 +186,7 @@ export class PlanningController {
   }
 
   @Delete('milestones/:id')
+  @HasPermission('planning.edit')
   deleteMilestone(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.planningService.deleteMilestone(id, req.user.instanceId);
   }

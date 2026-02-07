@@ -12,6 +12,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { SuppliersService } from './suppliers.service';
 import { Roles } from '../auth/roles.decorator';
+import { HasPermission } from '../auth/permissions.decorator';
 import type { AuthenticatedRequest } from '../auth/auth.types';
 
 interface CreateSupplierBody {
@@ -45,6 +46,7 @@ export class SuppliersController {
   }
 
   @Post()
+  @HasPermission('suppliers.edit')
   create(@Body() body: CreateSupplierBody, @Req() req: AuthenticatedRequest) {
     return this.suppliersService.create({
       ...body,
@@ -53,6 +55,7 @@ export class SuppliersController {
   }
 
   @Patch(':id')
+  @HasPermission('suppliers.edit')
   update(
     @Param('id') id: string,
     @Body() body: UpdateSupplierBody,
@@ -66,6 +69,7 @@ export class SuppliersController {
   }
 
   @Delete(':id')
+  @HasPermission('suppliers.edit')
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.suppliersService.remove(id, req.user.instanceId);
   }

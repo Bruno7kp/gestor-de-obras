@@ -12,6 +12,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { BiddingsService } from './biddings.service';
 import { Roles } from '../auth/roles.decorator';
+import { HasPermission } from '../auth/permissions.decorator';
 import type { AuthenticatedRequest } from '../auth/auth.types';
 
 interface CreateBiddingBody {
@@ -47,6 +48,7 @@ export class BiddingsController {
   }
 
   @Post()
+  @HasPermission('biddings.edit')
   create(@Body() body: CreateBiddingBody, @Req() req: AuthenticatedRequest) {
     return this.biddingsService.create({
       ...body,
@@ -55,6 +57,7 @@ export class BiddingsController {
   }
 
   @Patch(':id')
+  @HasPermission('biddings.edit')
   update(
     @Param('id') id: string,
     @Body() body: UpdateBiddingBody,
@@ -68,6 +71,7 @@ export class BiddingsController {
   }
 
   @Delete(':id')
+  @HasPermission('biddings.edit')
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.biddingsService.remove(id, req.user.instanceId);
   }

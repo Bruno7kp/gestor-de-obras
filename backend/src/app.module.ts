@@ -24,6 +24,7 @@ import { RolesModule } from './roles/roles.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { LaborContractsModule } from './labor-contracts/labor-contracts.module';
+import { DebugModule } from './debug/debug.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { LaborContractsModule } from './labor-contracts/labor-contracts.module';
     PermissionsModule,
     UploadsModule,
     LaborContractsModule,
+    DebugModule,
   ],
   controllers: [AppController],
   providers: [

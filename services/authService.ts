@@ -7,6 +7,7 @@ export type AuthUser = {
   instanceId: string;
   instanceName?: string;
   roles: string[];
+  permissions?: string[];
 };
 
 export type LoginInput = {

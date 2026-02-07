@@ -17,6 +17,48 @@ async function main() {
   const isSuperAdmin =
     (process.env.ADMIN_IS_SUPERADMIN || 'true').toLowerCase() === 'true';
 
+  // Create/ensure all permissions exist
+  const permissionsList = [
+    { code: 'biddings.view', description: 'View biddings' },
+    { code: 'biddings.edit', description: 'Edit biddings' },
+    { code: 'suppliers.view', description: 'View suppliers' },
+    { code: 'suppliers.edit', description: 'Edit suppliers' },
+    { code: 'projects.view', description: 'View projects' },
+    { code: 'projects.edit', description: 'Edit projects' },
+    { code: 'wbs.view', description: 'View WBS' },
+    { code: 'wbs.edit', description: 'Edit WBS' },
+    { code: 'technical_analysis.view', description: 'View technical analysis' },
+    { code: 'technical_analysis.edit', description: 'Edit technical analysis' },
+    { code: 'financial_flow.view', description: 'View financial flow' },
+    { code: 'financial_flow.edit', description: 'Edit financial flow' },
+    { code: 'supplies.view', description: 'View supplies' },
+    { code: 'supplies.edit', description: 'Edit supplies' },
+    { code: 'workforce.view', description: 'View workforce' },
+    { code: 'workforce.edit', description: 'Edit workforce' },
+    { code: 'planning.view', description: 'View planning' },
+    { code: 'planning.edit', description: 'Edit planning' },
+    { code: 'journal.view', description: 'View journal' },
+    { code: 'journal.edit', description: 'Edit journal' },
+    { code: 'documents.view', description: 'View documents' },
+    { code: 'documents.edit', description: 'Edit documents' },
+    { code: 'project_settings.view', description: 'View project settings' },
+    { code: 'project_settings.edit', description: 'Edit project settings' },
+    { code: 'global_settings.view', description: 'View global settings' },
+    { code: 'global_settings.edit', description: 'Edit global settings' },
+  ];
+
+  const createdPermissions = await Promise.all(
+    permissionsList.map((perm) =>
+      prisma.permission.upsert({
+        where: { code: perm.code },
+        update: {},
+        create: perm,
+      }),
+    ),
+  );
+
+  console.log('✓ Permissions created:', createdPermissions.length);
+
   const existingInstance = await prisma.instance.findFirst({
     where: { name: instanceName },
   });
@@ -133,10 +175,52 @@ async function main() {
     });
   }
 
+  // Assign all permissions to ADMIN and SUPER_ADMIN roles
+  const permissionIds = createdPermissions.map((p) => p.id);
+
+  // ADMIN role permissions
+  await Promise.all(
+    permissionIds.map((permId) =>
+      prisma.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: ensuredAdminRole.id,
+            permissionId: permId,
+          },
+        },
+        update: {},
+        create: {
+          roleId: ensuredAdminRole.id,
+          permissionId: permId,
+        },
+      }),
+    ),
+  );
+
+  // SUPER_ADMIN role permissions
+  await Promise.all(
+    permissionIds.map((permId) =>
+      prisma.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: ensuredSuperAdminRole.id,
+            permissionId: permId,
+          },
+        },
+        update: {},
+        create: {
+          roleId: ensuredSuperAdminRole.id,
+          permissionId: permId,
+        },
+      }),
+    ),
+  );
+
   console.log('Seed concluido:', {
     instanceId: instance.id,
     adminEmail,
     isSuperAdmin,
+    permissionsAssigned: permissionIds.length * 2,
   });
 }
 

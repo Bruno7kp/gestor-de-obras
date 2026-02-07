@@ -13,6 +13,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { ProjectExpensesService } from './project-expenses.service';
 import { Roles } from '../auth/roles.decorator';
+import { HasPermission } from '../auth/permissions.decorator';
 import type { ExpenseStatus } from '@prisma/client';
 import type { AuthenticatedRequest } from '../auth/auth.types';
 
@@ -63,6 +64,7 @@ export class ProjectExpensesController {
   }
 
   @Post()
+  @HasPermission('financial_flow.edit')
   create(@Body() body: CreateExpenseBody, @Req() req: AuthenticatedRequest) {
     return this.projectExpensesService.create({
       ...body,
@@ -71,6 +73,7 @@ export class ProjectExpensesController {
   }
 
   @Post('batch')
+  @HasPermission('financial_flow.edit')
   batch(
     @Body()
     body: {
@@ -89,6 +92,7 @@ export class ProjectExpensesController {
   }
 
   @Patch(':id')
+  @HasPermission('financial_flow.edit')
   update(
     @Param('id') id: string,
     @Body() body: UpdateExpenseBody,
@@ -102,6 +106,7 @@ export class ProjectExpensesController {
   }
 
   @Delete(':id')
+  @HasPermission('financial_flow.edit')
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.projectExpensesService.remove(id, req.user.instanceId);
   }

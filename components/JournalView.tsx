@@ -4,10 +4,11 @@ import { Project, JournalEntry, JournalCategory, WeatherType, ProjectJournal, Wo
 import { journalService } from '../services/journalService';
 import { journalApi } from '../services/journalApi';
 import { uploadService } from '../services/uploadService';
+import { usePermissions } from '../hooks/usePermissions';
 import { 
   BookOpen, Plus, Camera, Sun, CloudRain, Cloud, Zap, 
   Trash2, Search, Filter, History, Loader2,
-  AlertCircle, DollarSign, BarChart, Send, X, ShieldCheck, Edit3
+  AlertCircle, DollarSign, BarChart, Send, X, ShieldCheck, Edit3, Lock
 } from 'lucide-react';
 
 interface JournalViewProps {
@@ -17,6 +18,9 @@ interface JournalViewProps {
 }
 
 export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJournal, allWorkItems }) => {
+  const { canEdit, getLevel } = usePermissions();
+  const canEditJournal = canEdit('journal');
+
   const [filter, setFilter] = useState<JournalCategory | 'ALL'>('ALL');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -134,6 +138,13 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
   return (
     <div className="space-y-8 max-w-4xl mx-auto pb-20 animate-in fade-in slide-in-from-bottom-4 duration-700">
       
+      {!canEditJournal && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-3">
+          <Lock size={18} className="text-amber-600 flex-shrink-0" />
+          <span className="text-amber-800">Você tem apenas permissão de leitura. Para editar diário, solicite acesso ao administrador.</span>
+        </div>
+      )}
+
       {/* QUICK COMPOSER (Social Media Style) */}
       <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden transition-all">
         <form onSubmit={handlePost}>

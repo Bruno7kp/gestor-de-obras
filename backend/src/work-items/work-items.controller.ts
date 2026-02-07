@@ -13,6 +13,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { WorkItemsService } from './work-items.service';
 import { Roles } from '../auth/roles.decorator';
+import { HasPermission } from '../auth/permissions.decorator';
 import type { AuthenticatedRequest } from '../auth/auth.types';
 
 interface CreateWorkItemBody {
@@ -59,6 +60,7 @@ export class WorkItemsController {
   }
 
   @Post()
+  @HasPermission('wbs.edit')
   create(@Body() body: CreateWorkItemBody, @Req() req: AuthenticatedRequest) {
     return this.workItemsService.create({
       ...body,
@@ -67,6 +69,7 @@ export class WorkItemsController {
   }
 
   @Post('replace')
+  @HasPermission('wbs.edit')
   async replace(
     @Body()
     body: { projectId: string; items: CreateWorkItemBody[] },
@@ -80,6 +83,7 @@ export class WorkItemsController {
   }
 
   @Post('batch')
+  @HasPermission('wbs.edit')
   async batch(
     @Body()
     body: { projectId: string; items: CreateWorkItemBody[]; replace?: boolean },
@@ -94,6 +98,7 @@ export class WorkItemsController {
   }
 
   @Patch(':id')
+  @HasPermission('wbs.edit')
   update(
     @Param('id') id: string,
     @Body() body: UpdateWorkItemBody,
@@ -107,6 +112,7 @@ export class WorkItemsController {
   }
 
   @Delete(':id')
+  @HasPermission('wbs.edit')
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.workItemsService.remove(id, req.user.instanceId);
   }

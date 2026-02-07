@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from './roles.decorator';
+import { PERMISSIONS_KEY } from './permissions.decorator';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -12,7 +13,12 @@ export class RolesGuard implements CanActivate {
       context.getClass(),
     ]);
 
-    if (!requiredRoles || requiredRoles.length === 0) {
+    const requiredPermissions = this.reflector.getAllAndOverride<string[]>(PERMISSIONS_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    if ((!requiredRoles || requiredRoles.length === 0) && (!requiredPermissions || requiredPermissions.length === 0)) {
       return true;
     }
 
@@ -24,8 +30,24 @@ export class RolesGuard implements CanActivate {
       return true;
     }
 
-    const roles = Array.isArray(user.roles) ? user.roles : [];
+    // Check roles if required
+    if (requiredRoles && requiredRoles.length > 0) {
+      const roles = Array.isArray(user.roles) ? user.roles : [];
+      const hasRequiredRole = requiredRoles.some(role => roles.includes(role));
+      if (!hasRequiredRole) {
+        return false;
+      }
+    }
 
-    return requiredRoles.some(role => roles.includes(role));
+    // Check permissions if required (at least one permission must match)
+    if (requiredPermissions && requiredPermissions.length > 0) {
+      const permissions = Array.isArray(user.permissions) ? user.permissions : [];
+      const hasRequiredPermission = requiredPermissions.some(perm => permissions.includes(perm));
+      if (!hasRequiredPermission) {
+        return false;
+      }
+    }
+
+    return true;
   }
 }

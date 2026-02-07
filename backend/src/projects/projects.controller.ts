@@ -13,6 +13,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { ProjectsService } from './projects.service';
 import { Roles } from '../auth/roles.decorator';
+import { HasPermission } from '../auth/permissions.decorator';
 import type { AuthenticatedRequest } from '../auth/auth.types';
 
 interface CreateProjectBody {
@@ -77,6 +78,7 @@ export class ProjectsController {
   }
 
   @Post()
+  @HasPermission('projects.edit')
   create(@Body() body: CreateProjectBody, @Req() req: AuthenticatedRequest) {
     return this.projectsService.create({
       ...body,
@@ -85,6 +87,7 @@ export class ProjectsController {
   }
 
   @Patch(':id')
+  @HasPermission('projects.edit')
   update(
     @Param('id') id: string,
     @Body() body: UpdateProjectBody,
@@ -98,6 +101,7 @@ export class ProjectsController {
   }
 
   @Delete(':id')
+  @HasPermission('projects.edit')
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.projectsService.remove(id, req.user.instanceId);
   }

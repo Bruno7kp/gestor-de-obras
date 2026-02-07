@@ -1,10 +1,11 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, Cog, PlusCircle, Briefcase, Sun, Moon, Menu, HardHat, Folder, ChevronRight, ChevronLeft, ChevronDown, Landmark, Truck, Shield, User, LogOut, ChevronUp } from 'lucide-react';
+import { Home, Cog, PlusCircle, Briefcase, Sun, Moon, Menu, HardHat, Folder, ChevronRight, ChevronLeft, ChevronDown, Landmark, Truck, Shield, User, LogOut, ChevronUp, Lock } from 'lucide-react';
 import { Project, ProjectGroup, CompanyCertificate } from '../types';
 import { biddingService } from '../services/biddingService';
 import { useAuth } from '../auth/AuthContext';
+import { usePermissions } from '../hooks/usePermissions';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -28,6 +29,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+  const { canView, getLevel } = usePermissions();
   // Inicializa estado do localStorage para persistir pastas abertas
   // Fix: Explicitly type Set in lazy initializer to avoid 'Set<unknown>' inference
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
@@ -149,19 +151,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
             icon={<Home size={18}/>}
             label="Dashboard"
           />
-          <NavItem
-            active={location.pathname.startsWith('/app/biddings')}
-            onClick={() => { navigate('/app/biddings'); setMobileOpen(false); }}
-            icon={<Landmark size={18}/>}
-            label="Licitações"
-            badge={hasAlerts}
-          />
-          <NavItem
-            active={location.pathname.startsWith('/app/suppliers')}
-            onClick={() => { navigate('/app/suppliers'); setMobileOpen(false); }}
-            icon={<Truck size={18}/>}
-            label="Fornecedores"
-          />
+          {canView('biddings') && (
+            <NavItem
+              active={location.pathname.startsWith('/app/biddings')}
+              onClick={() => { navigate('/app/biddings'); setMobileOpen(false); }}
+              icon={<Landmark size={18}/>}
+              label={`Licitações ${getLevel('biddings') === 'view' ? '(leitura)' : ''}`}
+              badge={hasAlerts && canView('biddings')}
+            />
+          )}
+          {canView('suppliers') && (
+            <NavItem
+              active={location.pathname.startsWith('/app/suppliers')}
+              onClick={() => { navigate('/app/suppliers'); setMobileOpen(false); }}
+              icon={<Truck size={18}/>}
+              label={`Fornecedores ${getLevel('suppliers') === 'view' ? '(leitura)' : ''}`}
+            />
+          )}
           
           <div className="py-6 px-3 flex items-center justify-between">
             {isOpen && <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Obras Ativas</h3>}

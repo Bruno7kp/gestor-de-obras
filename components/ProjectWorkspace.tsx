@@ -6,6 +6,7 @@ import {
   CheckCircle2, History, Calendar, Lock, ChevronDown,
   ArrowRight, Clock, Undo2, Redo2, RotateCcw, AlertTriangle, X, Target, Info, RefreshCw, Briefcase
 } from 'lucide-react';
+import { usePermissions } from '../hooks/usePermissions';
 import { WbsView } from './WbsView';
 import { StatsView } from './StatsView';
 import { ExpenseManager } from './ExpenseManager';
@@ -49,6 +50,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   project, globalSettings, suppliers, onUpdateProject, onCloseMeasurement,
   canUndo, canRedo, onUndo, onRedo, activeTab, onTabChange
 }) => {
+  const { canView, getLevel } = usePermissions();
   const tab = activeTab;
   const [viewingMeasurementId, setViewingMeasurementId] = useState<'current' | number>('current');
   const [isClosingModalOpen, setIsClosingModalOpen] = useState(false);
@@ -542,15 +544,15 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
       {/* 2. SUB-NAVEGAÇÃO */}
       <nav className="no-print bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 shrink-0 sticky top-0 z-20 overflow-hidden">
         <div ref={tabsNavRef} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUpOrLeave} onMouseLeave={handleMouseUpOrLeave} className={`px-6 py-3 flex items-center gap-2 overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing select-none`}>
-          <TabBtn active={tab === 'wbs'} id="wbs" label="Planilha EAP" icon={<Layers size={16} />} />
-          <TabBtn active={tab === 'stats'} id="stats" label="Análise Técnica" icon={<BarChart3 size={16} />} />
-          <TabBtn active={tab === 'expenses'} id="expenses" label="Fluxo Financeiro" icon={<Coins size={16} />} />
-          <TabBtn active={tab === 'labor-contracts'} id="labor-contracts" label="Contratos M.O." icon={<Briefcase size={16} />} />
-          <TabBtn active={tab === 'planning'} id="planning" label="Canteiro Ágil" icon={<HardHat size={16} />} />
-          <TabBtn active={tab === 'journal'} id="journal" label="Diário de Obra" icon={<BookOpen size={16} />} />
-          <TabBtn active={tab === 'documents'} id="documents" label="Repositório" icon={<FileText size={16} />} />
-          <TabBtn active={tab === 'workforce'} id="workforce" label="Equipe Permanente" icon={<Users size={16} />} />
-          <TabBtn active={tab === 'branding'} id="branding" label="Ajustes" icon={<Sliders size={16} />} />
+          {canView('wbs') && <TabBtn active={tab === 'wbs'} id="wbs" label="Planilha EAP" icon={<Layers size={16} />} />}
+          {canView('technical_analysis') && <TabBtn active={tab === 'stats'} id="stats" label="Análise Técnica" icon={<BarChart3 size={16} />} />}
+          {canView('financial_flow') && <TabBtn active={tab === 'expenses'} id="expenses" label="Fluxo Financeiro" icon={<Coins size={16} />} />}
+          {canView('workforce') && <TabBtn active={tab === 'labor-contracts'} id="labor-contracts" label="Contratos M.O." icon={<Briefcase size={16} />} />}
+          {canView('planning') && <TabBtn active={tab === 'planning'} id="planning" label="Canteiro Ágil" icon={<HardHat size={16} />} />}
+          {canView('journal') && <TabBtn active={tab === 'journal'} id="journal" label="Diário de Obra" icon={<BookOpen size={16} />} />}
+          {canView('documents') && <TabBtn active={tab === 'documents'} id="documents" label="Repositório" icon={<FileText size={16} />} />}
+          {canView('workforce') && <TabBtn active={tab === 'workforce'} id="workforce" label="Equipe Permanente" icon={<Users size={16} />} />}
+          {canView('project_settings') && <TabBtn active={tab === 'branding'} id="branding" label="Ajustes" icon={<Sliders size={16} />} />}
         </div>
       </nav>
 

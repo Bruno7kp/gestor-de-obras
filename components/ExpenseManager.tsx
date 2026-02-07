@@ -8,11 +8,12 @@ import { excelService, ExpenseImportResult } from '../services/excelService';
 import { projectExpensesApi } from '../services/projectExpensesApi';
 import { ExpenseTreeTable } from './ExpenseTreeTable';
 import { ExpenseModal } from './ExpenseModal';
+import { usePermissions } from '../hooks/usePermissions';
 import {
   Plus, Search, CheckCircle2, Wallet, ArrowRightLeft,
   X, BarChart3, PieChart, Clock, ArrowUpRight,
   Maximize2, Minimize2, Truck, Users, Download, UploadCloud,
-  FileSpreadsheet, Landmark, Coins, AlertCircle, Printer, FolderPlus
+  FileSpreadsheet, Landmark, Coins, AlertCircle, Printer, FolderPlus, Lock
 } from 'lucide-react';
 
 interface ExpenseManagerProps {
@@ -31,6 +32,9 @@ interface ExpenseManagerProps {
 export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
   project, expenses, onAdd, onAddMany, onUpdate, onDelete, workItems, measuredValue, onUpdateExpenses, isReadOnly
 }) => {
+  const { canEdit, getLevel } = usePermissions();
+  const canEditFinancial = canEdit('financial_flow') && !isReadOnly;
+  
   const [activeTab, setActiveTab] = useState<ExpenseType | 'overview'>('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => {
@@ -172,6 +176,13 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
   return (
     <div className="space-y-8 max-w-[1600px] mx-auto pb-10">
       <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx, .xls" onChange={handleImportExpenses} />
+
+      {!canEditFinancial && !isReadOnly && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-3">
+          <Lock size={18} className="text-amber-600 flex-shrink-0" />
+          <span className="text-amber-800">Você tem apenas permissão de leitura. Para editar despesas, solicite acesso ao administrador.</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <CashKpi label="Recebido (Cash In)" value={stats.revenue} icon={<Landmark size={20} />} color="emerald" sub="Total liquidado na conta" />

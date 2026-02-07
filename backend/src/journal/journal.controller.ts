@@ -13,6 +13,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { JournalService } from './journal.service';
 import { Roles } from '../auth/roles.decorator';
+import { HasPermission } from '../auth/permissions.decorator';
 import type { AuthenticatedRequest } from '../auth/auth.types';
 
 interface CreateJournalEntryBody {
@@ -44,6 +45,7 @@ export class JournalController {
   }
 
   @Post('entries')
+  @HasPermission('journal.edit')
   createEntry(
     @Body() body: CreateJournalEntryBody,
     @Req() req: AuthenticatedRequest,
@@ -55,6 +57,7 @@ export class JournalController {
   }
 
   @Patch('entries/:id')
+  @HasPermission('journal.edit')
   updateEntry(
     @Param('id') id: string,
     @Body() body: UpdateJournalEntryBody,
@@ -64,6 +67,7 @@ export class JournalController {
   }
 
   @Delete('entries/:id')
+  @HasPermission('journal.edit')
   deleteEntry(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.journalService.deleteEntry(id, req.user.instanceId);
   }

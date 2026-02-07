@@ -13,10 +13,11 @@ import {
   ChevronUp, ChevronDown, List, CalendarDays, Filter, Users, Download, UploadCloud,
   Layers, FlagTriangleRight, Printer, CreditCard, ChevronLeft, ChevronRight,
   HardHat, Building2, User, FolderTree, FileCheck, ReceiptText, FileText, FileSpreadsheet,
-  ArrowRight
+  ArrowRight, Lock
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { ExpenseAttachmentZone } from './ExpenseAttachmentZone';
+import { usePermissions } from '../hooks/usePermissions';
 
 interface PlanningViewProps {
   project: Project;
@@ -30,6 +31,9 @@ interface PlanningViewProps {
 export const PlanningView: React.FC<PlanningViewProps> = ({ 
   project, suppliers, onUpdatePlanning, onAddExpense, categories, allWorkItems 
 }) => {
+  const { canEdit, getLevel } = usePermissions();
+  const canEditPlanning = canEdit('planning');
+
   const [activeSubTab, setActiveSubTab] = useState<'tasks' | 'forecast' | 'milestones'>('tasks');
   const [editingTask, setEditingTask] = useState<PlanningTask | null>(null);
   const [confirmingForecast, setConfirmingForecast] = useState<MaterialForecast | null>(null);
@@ -169,6 +173,13 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
         accept=".xlsx, .xls" 
         onChange={handleImportPlanning}
       />
+      
+      {!canEditPlanning && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-3">
+          <Lock size={18} className="text-amber-600 flex-shrink-0" />
+          <span className="text-amber-800">Você tem apenas permissão de leitura. Para editar planejamento, solicite acesso ao administrador.</span>
+        </div>
+      )}
       
       <div className="no-print flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-8 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-xl">
         <div className="flex items-center gap-5">

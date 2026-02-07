@@ -3,9 +3,10 @@ import React, { useState, useMemo } from 'react';
 import { Project, WorkforceMember, WorkforceRole, WorkItem } from '../types';
 import { workforceService } from '../services/workforceService';
 import { workforceApi } from '../services/workforceApi';
+import { usePermissions } from '../hooks/usePermissions';
 import { 
   Users, Plus, Search, Trash2, Edit2, ShieldCheck, AlertCircle, HardHat, FileText,
-  CheckCircle2, X, UserCircle, Briefcase, User
+  CheckCircle2, X, UserCircle, Briefcase, User, Lock
 } from 'lucide-react';
 
 interface WorkforceManagerProps {
@@ -14,6 +15,9 @@ interface WorkforceManagerProps {
 }
 
 export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onUpdateProject }) => {
+  const { canEdit, getLevel } = usePermissions();
+  const canEditWorkforce = canEdit('workforce');
+
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<WorkforceMember | null>(null);
@@ -132,6 +136,13 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onU
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
+      {!canEditWorkforce && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-3">
+          <Lock size={18} className="text-amber-600 flex-shrink-0" />
+          <span className="text-amber-800">Você tem apenas permissão de leitura. Para editar colaboradores, solicite acesso ao administrador.</span>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <KpiCard label="Quadro Total" value={stats.total} icon={<Users />} color="indigo" sub="Colaboradores" />
         <KpiCard label="Status Apto" value={stats.apto} icon={<CheckCircle2 />} color="emerald" sub="Docs em dia" />

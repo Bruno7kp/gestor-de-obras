@@ -7,9 +7,10 @@ import { workItemsApi } from '../services/workItemsApi';
 import { projectsApi } from '../services/projectsApi';
 import { financial } from '../utils/math';
 import { TreeTable } from './TreeTable';
+import { usePermissions } from '../hooks/usePermissions';
 import { 
   Plus, Layers, Search, FileSpreadsheet, UploadCloud, Download, 
-  X, CheckCircle2, AlertCircle, Package, RefreshCw, Printer, Eraser
+  X, CheckCircle2, AlertCircle, Package, RefreshCw, Printer, Eraser, Lock
 } from 'lucide-react';
 
 interface WbsViewProps {
@@ -22,6 +23,8 @@ interface WbsViewProps {
 export const WbsView: React.FC<WbsViewProps> = ({ 
   project, onUpdateProject, onOpenModal, isReadOnly 
 }) => {
+  const { canEdit, getLevel } = usePermissions();
+  const canEditWbs = canEdit('wbs') && !isReadOnly;
   const rootRef = useRef<HTMLDivElement | null>(null);
   const scrollParentRef = useRef<HTMLElement | null>(null);
   const scrollTopRef = useRef(0);
@@ -382,6 +385,15 @@ export const WbsView: React.FC<WbsViewProps> = ({
   return (
     <div ref={rootRef} className="space-y-6 animate-in fade-in duration-300">
       <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx, .xls" onChange={handleFileChange} />
+
+      {!canEditWbs && !isReadOnly && (
+        <div className="flex items-center gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-4 rounded-xl">
+          <Lock size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
+          <span className="text-sm font-semibold text-amber-700 dark:text-amber-300">
+            Você tem apenas permissão de leitura. Para editar a planilha, solicite acesso ao administrador.
+          </span>
+        </div>
+      )}
 
       <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
