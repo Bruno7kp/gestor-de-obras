@@ -20,7 +20,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdate, 
   const { tab } = useParams();
   const navigate = useNavigate();
 
-  const isAdmin = user?.roles.includes('ADMIN') || user?.roles.includes('SUPER_ADMIN');
+  const isAdmin = user?.roles.includes('ADMIN') || user?.roles.includes('SUPER_ADMIN') || user?.roles.includes('Gestor Principal');
 
   const tabs = useMemo(
     () => [

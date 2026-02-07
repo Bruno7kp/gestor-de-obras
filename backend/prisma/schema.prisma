@@ -20,7 +20,7 @@ enum ExpenseStatus {
 
 model Instance {
   id             String            @id @default(uuid())
-  name           String
+  name           String            @unique
   status         String
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt

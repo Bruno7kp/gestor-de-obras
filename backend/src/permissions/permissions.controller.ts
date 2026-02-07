@@ -5,7 +5,7 @@ import { PermissionsService } from './permissions.service';
 
 @Controller('permissions')
 @UseGuards(AuthGuard('jwt'))
-@Roles('ADMIN', 'SUPER_ADMIN')
+@Roles('ADMIN', 'SUPER_ADMIN', 'Gestor Principal')
 export class PermissionsController {
   constructor(private readonly permissionsService: PermissionsService) {}
 

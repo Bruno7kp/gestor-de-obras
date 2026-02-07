@@ -31,7 +31,7 @@ interface CreateCertificateBody {
 
 @Controller('global-settings')
 @UseGuards(AuthGuard('jwt'))
-@Roles('ADMIN', 'SUPER_ADMIN')
+@Roles('ADMIN', 'SUPER_ADMIN', 'Gestor Principal')
 export class GlobalSettingsController {
   constructor(private readonly settingsService: GlobalSettingsService) {}
 
@@ -41,7 +41,10 @@ export class GlobalSettingsController {
   }
 
   @Patch()
-  updateSettings(@Body() body: UpdateGlobalSettingsBody, @Req() req: AuthenticatedRequest) {
+  updateSettings(
+    @Body() body: UpdateGlobalSettingsBody,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.settingsService.updateSettings({
       ...body,
       instanceId: req.user.instanceId,
@@ -49,7 +52,10 @@ export class GlobalSettingsController {
   }
 
   @Post('certificates')
-  addCertificate(@Body() body: CreateCertificateBody, @Req() req: AuthenticatedRequest) {
+  addCertificate(
+    @Body() body: CreateCertificateBody,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.settingsService.addCertificate({
       ...body,
       instanceId: req.user.instanceId,

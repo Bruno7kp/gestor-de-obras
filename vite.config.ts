@@ -6,6 +6,11 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
+    host: '0.0.0.0',
+    watch: {
+      usePolling: false,
+      ignored: ['**/node_modules/**', '**/.git/**', '**/dist/**', '**/.env*'],
+    },
   },
   build: {
     outDir: 'dist',

@@ -52,7 +52,7 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  @Roles('ADMIN', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'SUPER_ADMIN', 'Gestor Principal')
   findAll(@Req() req: AuthenticatedRequest) {
     return this.usersService.findAll(req.user.instanceId);
   }
@@ -82,13 +82,13 @@ export class UsersController {
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'SUPER_ADMIN', 'Gestor Principal')
   findById(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.usersService.findById(id, req.user.instanceId);
   }
 
   @Post()
-  @Roles('ADMIN', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'SUPER_ADMIN', 'Gestor Principal')
   create(@Body() body: CreateUserBody, @Req() req: AuthenticatedRequest) {
     return this.usersService.create({
       ...body,
@@ -97,7 +97,7 @@ export class UsersController {
   }
 
   @Post(':id/roles')
-  @Roles('ADMIN', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'SUPER_ADMIN', 'Gestor Principal')
   assignRole(
     @Param('id') id: string,
     @Body() body: AssignRoleBody,
@@ -111,7 +111,7 @@ export class UsersController {
   }
 
   @Patch(':id/roles')
-  @Roles('ADMIN', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'SUPER_ADMIN', 'Gestor Principal')
   async setRoles(
     @Param('id') id: string,
     @Body() body: SetRolesBody,
@@ -121,7 +121,7 @@ export class UsersController {
 
     if (req.user.id === id) {
       const names = await this.usersService.resolveRoleNames(roleIds, req.user.instanceId);
-      const keepAdmin = names.includes('ADMIN') || names.includes('SUPER_ADMIN');
+      const keepAdmin = names.includes('ADMIN') || names.includes('SUPER_ADMIN') || names.includes('Gestor Principal');
       if (!keepAdmin) {
         throw new ForbiddenException('Admin nao pode alterar a propria role');
       }
@@ -135,13 +135,13 @@ export class UsersController {
   }
 
   @Get(':id/roles')
-  @Roles('ADMIN', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'SUPER_ADMIN', 'Gestor Principal')
   listRoles(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.usersService.listRoles(id, req.user.instanceId);
   }
 
   @Patch(':id')
-  @Roles('ADMIN', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'SUPER_ADMIN', 'Gestor Principal')
   updateUser(
     @Param('id') id: string,
     @Body() body: UpdateUserBody,
@@ -155,7 +155,7 @@ export class UsersController {
   }
 
   @Patch(':id/toggle-status')
-  @Roles('ADMIN', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'SUPER_ADMIN', 'Gestor Principal')
   toggleStatus(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.usersService.toggleStatus(id, req.user.instanceId);
   }

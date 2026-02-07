@@ -32,7 +32,7 @@ interface SetPermissionsBody {
 
 @Controller('roles')
 @UseGuards(AuthGuard('jwt'))
-@Roles('ADMIN', 'SUPER_ADMIN')
+@Roles('ADMIN', 'SUPER_ADMIN', 'Gestor Principal')
 export class RolesController {
   constructor(private readonly rolesService: RolesService) {}
 
