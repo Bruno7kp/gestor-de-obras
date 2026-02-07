@@ -61,7 +61,7 @@ async function bootstrap() {
     credentials: true,
   });
   app.use(cookieParser());
-  app.useStaticAssets(join(__dirname, '..', 'uploads'), { prefix: '/uploads' });
+  app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads' });
 
   const prismaService = app.get(PrismaService);
   await prismaService.enableShutdownHooks(app);
