@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { ProjectAsset } from '../types';
 import { FileText, Download, Trash2, Eye, UploadCloud, Search, AlertCircle, Loader2 } from 'lucide-react';
 import { uploadService } from '../services/uploadService';
+import { ConfirmModal } from './ConfirmModal';
+import { useToast } from '../hooks/useToast';
 
 interface AssetManagerProps {
   assets: ProjectAsset[];
@@ -14,12 +16,14 @@ interface AssetManagerProps {
 export const AssetManager: React.FC<AssetManagerProps> = ({ assets, onAdd, onDelete, isReadOnly }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const toast = useToast();
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
-      alert("Arquivo muito grande (Máx 5MB).");
+      toast.warning("Arquivo muito grande (Máx 5MB).");
       return;
     }
     setIsUploading(true);
@@ -35,7 +39,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ assets, onAdd, onDel
       });
     } catch (error) {
       console.error('Erro ao enviar arquivo:', error);
-      alert('Falha ao enviar arquivo. Tente novamente.');
+      toast.error('Falha ao enviar arquivo. Tente novamente.');
     } finally {
       setIsUploading(false);
     }
@@ -83,7 +87,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ assets, onAdd, onDel
             <div key={asset.id} className="group bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 hover:border-indigo-500 transition-all shadow-sm relative overflow-hidden">
               <div className="flex items-start justify-between mb-4">
                 <div className="p-3 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 rounded-xl"><FileText size={20} /></div>
-                {!isReadOnly && <button onClick={() => onDelete(asset.id)} className="p-2 text-slate-300 hover:text-rose-600 transition-all"><Trash2 size={16} /></button>}
+                {!isReadOnly && <button onClick={() => setConfirmDeleteId(asset.id)} className="p-2 text-slate-300 hover:text-rose-600 transition-all"><Trash2 size={16} /></button>}
               </div>
               <h4 className="text-xs sm:text-sm font-black text-slate-800 dark:text-white truncate mb-1" title={asset.name}>{asset.name}</h4>
               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mb-4">{(asset.fileSize / 1024).toFixed(0)} KB • {asset.uploadDate}</p>
@@ -95,6 +99,23 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ assets, onAdd, onDel
           ))
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={!!confirmDeleteId}
+        title="Excluir documento"
+        message="Deseja realmente excluir este documento? Esta ação não pode ser desfeita."
+        confirmLabel="Excluir"
+        cancelLabel="Cancelar"
+        variant="danger"
+        onConfirm={() => {
+          if (confirmDeleteId) {
+            onDelete(confirmDeleteId);
+            toast.success('Documento removido com sucesso.');
+          }
+          setConfirmDeleteId(null);
+        }}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
     </div>
   );
 };

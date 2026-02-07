@@ -23,7 +23,7 @@ interface State {
 const INITIAL_SETTINGS: GlobalSettings = {
   defaultCompanyName: 'Sua Empresa de Engenharia',
   companyCnpj: '',
-  userName: 'Usuário ProMeasure',
+  userName: 'Usuário',
   language: 'pt-BR',
   currencySymbol: 'R$',
   certificates: []

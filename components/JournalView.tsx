@@ -5,6 +5,8 @@ import { journalService } from '../services/journalService';
 import { journalApi } from '../services/journalApi';
 import { uploadService } from '../services/uploadService';
 import { usePermissions } from '../hooks/usePermissions';
+import { ConfirmModal } from './ConfirmModal';
+import { useToast } from '../hooks/useToast';
 import { 
   BookOpen, Plus, Camera, Sun, CloudRain, Cloud, Zap, 
   Trash2, Search, Filter, History, Loader2,
@@ -20,11 +22,13 @@ interface JournalViewProps {
 export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJournal, allWorkItems }) => {
   const { canEdit, getLevel } = usePermissions();
   const canEditJournal = canEdit('journal');
+  const toast = useToast();
 
   const [filter, setFilter] = useState<JournalCategory | 'ALL'>('ALL');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   
   // Quick Composer State
   const [isExpanded, setIsExpanded] = useState(false);
@@ -59,7 +63,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
     const files = Array.from(e.target.files || []) as File[];
     for (const file of files) {
       if (file.size > 2 * 1024 * 1024) {
-        alert("Imagem muito pesada (Max 2MB)");
+        toast.warning("Imagem muito pesada (Max 2MB)");
         continue;
       }
 
@@ -71,7 +75,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
         }));
       } catch (error) {
         console.error('Erro ao enviar foto:', error);
-        alert('Falha ao enviar imagem. Tente novamente.');
+        toast.error('Falha ao enviar imagem. Tente novamente.');
       }
     }
   };
@@ -105,15 +109,16 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Deseja realmente excluir este registro do diário?')) {
-      const previous = journal.entries;
-      onUpdateJournal({ entries: previous.filter((entry) => entry.id !== id) });
-      try {
-        await journalApi.remove(id);
-      } catch (error) {
-        console.error('Erro ao remover registro do diario:', error);
-        onUpdateJournal({ entries: previous });
-      }
+    setConfirmDeleteId(null);
+    const previous = journal.entries;
+    onUpdateJournal({ entries: previous.filter((entry) => entry.id !== id) });
+    try {
+      await journalApi.remove(id);
+      toast.success('Registro removido com sucesso.');
+    } catch (error) {
+      console.error('Erro ao remover registro do diario:', error);
+      onUpdateJournal({ entries: previous });
+      toast.error('Erro ao remover registro.');
     }
   };
 
@@ -305,7 +310,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
                       <Edit3 size={18} />
                     </button>
                   )}
-                  <button onClick={() => handleDelete(entry.id)} className="p-2.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all">
+                  <button onClick={() => setConfirmDeleteId(entry.id)} className="p-2.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all">
                     <Trash2 size={18} />
                   </button>
                 </div>
@@ -356,6 +361,17 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
           Exemplos recomendados: Atraso de cronograma, estouro de orçamento por categoria,
           ou anexação de documentos técnicos importantes.
       */}
+
+      <ConfirmModal
+        isOpen={!!confirmDeleteId}
+        title="Excluir registro"
+        message="Deseja realmente excluir este registro do diário? Esta ação não pode ser desfeita."
+        confirmLabel="Excluir"
+        cancelLabel="Cancelar"
+        variant="danger"
+        onConfirm={() => confirmDeleteId && handleDelete(confirmDeleteId)}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
     </div>
   );
 };

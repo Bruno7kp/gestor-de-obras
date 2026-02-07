@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { UploadCloud, FileCheck, X, Loader2, FileText, ImageIcon } from 'lucide-react';
 import { uploadService } from '../services/uploadService';
+import { useToast } from '../hooks/useToast';
 
 interface ExpenseAttachmentZoneProps {
   label: string;
@@ -17,11 +18,12 @@ export const ExpenseAttachmentZone: React.FC<ExpenseAttachmentZoneProps> = ({
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const toast = useToast();
 
   const handleFile = async (file: File) => {
     if (!file) return;
     if (file.size > 3 * 1024 * 1024) {
-      alert("Arquivo muito grande. Limite de 3MB.");
+      toast.warning("Arquivo muito grande. Limite de 3MB.");
       return;
     }
 
@@ -31,7 +33,7 @@ export const ExpenseAttachmentZone: React.FC<ExpenseAttachmentZoneProps> = ({
       onUploadUrl(uploaded.url);
     } catch (error) {
       console.error('Erro ao enviar arquivo:', error);
-      alert('Falha ao enviar arquivo. Tente novamente.');
+      toast.error('Falha ao enviar arquivo. Tente novamente.');
     } finally {
       setIsProcessing(false);
     }

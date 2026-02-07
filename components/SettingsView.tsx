@@ -53,8 +53,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdate, 
               <Cog size={24} />
             </div>
             <div>
-              <h1 className="text-3xl font-black tracking-tight text-slate-800 dark:text-white">Configuracoes da instancia</h1>
-              <p className="text-slate-500 dark:text-slate-400 font-medium">Gerencie conta, permissoes e preferencias globais.</p>
+              <h1 className="text-3xl font-black tracking-tight text-slate-800 dark:text-white">Configurações da instância</h1>
+              <p className="text-slate-500 dark:text-slate-400 font-medium">Gerencie conta, permissões e preferências globais.</p>
             </div>
           </div>
           <div className="flex flex-wrap bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">

@@ -33,7 +33,7 @@ export const SuperAdminPage: React.FC = () => {
       setInstances(data);
       setError(null);
     } catch (err) {
-      setError('Nao foi possivel carregar as instancias.');
+      setError('Não foi possível carregar as instâncias.');
       toast.error('Erro ao carregar instâncias');
     }
   };
@@ -180,7 +180,7 @@ export const SuperAdminPage: React.FC = () => {
         price: 'R$ 0,00',
         cadence: '30 dias',
         highlight: false,
-        features: ['1 instancia', 'Suporte basico', 'Exportacao PDF'],
+        features: ['1 instância', 'Suporte básico', 'Exportação PDF'],
       },
       {
         id: 'pro',
@@ -188,7 +188,7 @@ export const SuperAdminPage: React.FC = () => {
         price: 'Em breve',
         cadence: 'Mensal',
         highlight: true,
-        features: ['Ate 5 instancias', 'Suporte prioritario', 'Relatorios custom'],
+        features: ['Até 5 instâncias', 'Suporte prioritário', 'Relatórios custom'],
       },
       {
         id: 'enterprise',
@@ -196,7 +196,7 @@ export const SuperAdminPage: React.FC = () => {
         price: 'Sob consulta',
         cadence: 'Personalizado',
         highlight: false,
-        features: ['Instancias ilimitadas', 'SLA dedicado', 'Gestao multi-empresa'],
+        features: ['Instâncias ilimitadas', 'SLA dedicado', 'Gestão multi-empresa'],
       },
     ],
     [],
@@ -230,7 +230,7 @@ export const SuperAdminPage: React.FC = () => {
         const data = await instancesService.list();
         if (isMounted) setInstances(data);
       } catch (err) {
-        if (isMounted) setError('Nao foi possivel carregar as instancias.');
+        if (isMounted) setError('Não foi possível carregar as instâncias.');
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -249,7 +249,7 @@ export const SuperAdminPage: React.FC = () => {
         <div>
           <p className="text-[11px] uppercase tracking-[0.3em] text-slate-400">Superadmin</p>
           <h1 className="text-2xl font-display font-semibold">Painel de controle</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-300">Visao geral de instancias, planos e cobranca.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-300">Visão geral de instâncias, planos e cobrança.</p>
         </div>
         <button
           onClick={() => logout()}
@@ -262,7 +262,7 @@ export const SuperAdminPage: React.FC = () => {
       <main className="mx-auto max-w-6xl space-y-8 px-6 py-10">
         <section className="grid gap-4 md:grid-cols-3">
           {[
-            { label: 'Instancias ativas', value: `${instances.length}`, tone: 'indigo' },
+            { label: 'Instâncias ativas', value: `${instances.length}`, tone: 'indigo' },
             { label: 'Planos em trial', value: '0', tone: 'emerald' },
             { label: 'Faturamento', value: 'Em breve', tone: 'slate' },
           ].map((card) => (
@@ -300,7 +300,7 @@ export const SuperAdminPage: React.FC = () => {
                     : 'border border-slate-200 text-slate-500 hover:text-indigo-600 dark:border-slate-800 dark:text-slate-300'
                 }`}
               >
-                Instancias
+                Instâncias
               </button>
               <button
                 onClick={() => setActiveTab('plans')}
@@ -320,7 +320,7 @@ export const SuperAdminPage: React.FC = () => {
                     : 'border border-slate-200 text-slate-500 hover:text-indigo-600 dark:border-slate-800 dark:text-slate-300'
                 }`}
               >
-                Cobranca
+                Cobrança
               </button>
             </div>
           </div>
@@ -329,25 +329,25 @@ export const SuperAdminPage: React.FC = () => {
             <div className="mt-6 space-y-4">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <p className="text-sm text-slate-500 dark:text-slate-300">Controle e status das operacoes.</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-300">Controle e status das operações.</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <input
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
-                    placeholder="Buscar instancia..."
+                    placeholder="Buscar instância..."
                     className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-600 focus:border-indigo-300 focus:outline-none dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-200"
                   />
                   <button
                     onClick={() => setShowCreateModal(true)}
                     className="rounded-full bg-indigo-600 px-4 py-2 text-[11px] font-black uppercase tracking-widest text-white shadow-lg hover:bg-indigo-700"
                   >
-                    Nova instancia
+                    Nova instância
                   </button>
                 </div>
               </div>
 
-              {loading && <p className="mt-6 text-sm text-slate-400">Carregando instancias...</p>}
+              {loading && <p className="mt-6 text-sm text-slate-400">Carregando instâncias...</p>}
               {error && <p className="mt-6 text-sm text-rose-500">{error}</p>}
 
               {!loading && !error && (
@@ -383,7 +383,7 @@ export const SuperAdminPage: React.FC = () => {
                     </div>
                   ))}
                   {filteredInstances.length === 0 && (
-                    <p className="text-sm text-slate-400">Nenhuma instancia encontrada.</p>
+                    <p className="text-sm text-slate-400">Nenhuma instância encontrada.</p>
                   )}
                 </div>
               )}
@@ -419,7 +419,7 @@ export const SuperAdminPage: React.FC = () => {
 
           {activeTab === 'billing' && (
             <div className="mt-6 rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-300">
-              Modulo de cobranca em preparacao. Nesta etapa, vamos conectar o billing e os eventos de renovacao.
+              Módulo de cobrança em preparação. Nesta etapa, vamos conectar o billing e os eventos de renovação.
             </div>
           )}
         </section>
@@ -430,7 +430,7 @@ export const SuperAdminPage: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
           <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900">
             <div className="border-b border-slate-200 px-6 py-5 dark:border-slate-800">
-              <p className="text-[11px] uppercase tracking-[0.3em] text-slate-400">Nova Instancia</p>
+              <p className="text-[11px] uppercase tracking-[0.3em] text-slate-400">Nova Instância</p>
               <h2 className="text-xl font-display font-semibold text-slate-900 dark:text-white">Criar instância</h2>
             </div>
 

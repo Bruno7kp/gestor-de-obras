@@ -18,6 +18,7 @@ import {
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { ExpenseAttachmentZone } from './ExpenseAttachmentZone';
 import { usePermissions } from '../hooks/usePermissions';
+import { useToast } from '../hooks/useToast';
 
 interface PlanningViewProps {
   project: Project;
@@ -32,6 +33,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   project, suppliers, onUpdatePlanning, onAddExpense, categories, allWorkItems 
 }) => {
   const { canEdit, getLevel } = usePermissions();
+  const toast = useToast();
   const canEditPlanning = canEdit('planning');
 
   const [activeSubTab, setActiveSubTab] = useState<'tasks' | 'forecast' | 'milestones'>('tasks');
@@ -151,7 +153,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
       onUpdatePlanning(newPlanning);
     } catch (err) {
       console.error('Erro ao importar planejamento:', err);
-      alert("Erro ao importar planejamento.");
+      toast.error("Erro ao importar planejamento.");
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
       setIsImportingPlan(false);

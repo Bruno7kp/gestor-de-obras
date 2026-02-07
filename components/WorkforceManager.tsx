@@ -4,6 +4,8 @@ import { Project, WorkforceMember, WorkforceRole, WorkItem } from '../types';
 import { workforceService } from '../services/workforceService';
 import { workforceApi } from '../services/workforceApi';
 import { usePermissions } from '../hooks/usePermissions';
+import { ConfirmModal } from './ConfirmModal';
+import { useToast } from '../hooks/useToast';
 import { 
   Users, Plus, Search, Trash2, Edit2, ShieldCheck, AlertCircle, HardHat, FileText,
   CheckCircle2, X, UserCircle, Briefcase, User, Lock
@@ -17,10 +19,12 @@ interface WorkforceManagerProps {
 export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onUpdateProject }) => {
   const { canEdit, getLevel } = usePermissions();
   const canEditWorkforce = canEdit('workforce');
+  const toast = useToast();
 
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<WorkforceMember | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const workforce = project.workforce || [];
 
@@ -121,16 +125,17 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onU
   };
 
   const removeMember = async (id: string) => {
-    if (confirm("Excluir funcionário do quadro permanente?")) {
-      const previous = workforce;
-      onUpdateProject({ workforce: workforce.filter(m => m.id !== id) });
-      try {
-        await workforceApi.remove(id);
-        await refreshWorkforce();
-      } catch (error) {
-        console.error('Erro ao remover colaborador:', error);
-        onUpdateProject({ workforce: previous });
-      }
+    setConfirmDeleteId(null);
+    const previous = workforce;
+    onUpdateProject({ workforce: workforce.filter(m => m.id !== id) });
+    try {
+      await workforceApi.remove(id);
+      await refreshWorkforce();
+      toast.success('Funcionário removido com sucesso.');
+    } catch (error) {
+      console.error('Erro ao remover colaborador:', error);
+      onUpdateProject({ workforce: previous });
+      toast.error('Erro ao remover funcionário.');
     }
   };
 
@@ -193,7 +198,7 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onU
 
                <div className="flex gap-2">
                   <button onClick={() => { setEditingMember(member); setIsModalOpen(true); }} className="p-3 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-indigo-600 rounded-xl transition-all"><Edit2 size={16}/></button>
-                  <button onClick={() => removeMember(member.id)} className="p-3 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-rose-500 rounded-xl transition-all"><Trash2 size={16}/></button>
+                  <button onClick={() => setConfirmDeleteId(member.id)} className="p-3 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-rose-500 rounded-xl transition-all"><Trash2 size={16}/></button>
                </div>
             </div>
           );
@@ -208,6 +213,17 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onU
           allWorkItems={project.items.filter(i => i.type === 'item')}
         />
       )}
+
+      <ConfirmModal
+        isOpen={!!confirmDeleteId}
+        title="Excluir funcionário"
+        message="Deseja realmente excluir este funcionário do quadro permanente? Esta ação não pode ser desfeita."
+        confirmLabel="Excluir"
+        cancelLabel="Cancelar"
+        variant="danger"
+        onConfirm={() => confirmDeleteId && removeMember(confirmDeleteId)}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
     </div>
   );
 };

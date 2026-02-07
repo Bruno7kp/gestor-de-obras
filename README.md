@@ -1,7 +1,7 @@
-# ProMeasure Pro v0.4
+# Canteiro Digital v0.5
 ### High-Precision Engineering Measurement & Lifecycle Management Platform
 
-O **ProMeasure Pro** é uma plataforma de classe empresarial (SaaS-ready) projetada para suprir a lacuna entre o orçamento teórico e a execução física em obras de infraestrutura e edificações de alta complexidade. 
+O **Canteiro Digital** é uma plataforma de classe empresarial (SaaS-ready) projetada para suprir a lacuna entre o orçamento teórico e a execução física em obras de infraestrutura e edificações de alta complexidade. 
 
 Diferente de planilhas convencionais, o sistema implementa um **Motor de Cálculo Hierárquico Relacional**, garantindo integridade matemática absoluta em estruturas analíticas (EAP) multiníveis.
 

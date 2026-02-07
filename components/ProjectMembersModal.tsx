@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { X, UserPlus, Trash2, Shield, Eye, Mail, Globe } from 'lucide-react';
+import { ConfirmModal } from './ConfirmModal';
+import { useToast } from '../hooks/useToast';
 
 interface AssignedRole {
   id: string;
@@ -62,6 +64,8 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
   const [selectedRoleId, setSelectedRoleId] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmRemoveUserId, setConfirmRemoveUserId] = useState<string | null>(null);
+  const toast = useToast();
 
   // Check if the typed email matches a user that's already in _this_ instance
   const isEmailInternal = useMemo(() => {
@@ -150,7 +154,7 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
   };
 
   const handleRemoveMember = async (userId: string) => {
-    if (!confirm('Deseja remover este membro do projeto?')) return;
+    setConfirmRemoveUserId(null);
 
     setLoading(true);
     setError(null);
@@ -167,8 +171,10 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
       }
 
       onMembersChange();
+      toast.success('Membro removido com sucesso.');
     } catch (err: any) {
       setError(err.message);
+      toast.error('Erro ao remover membro.');
     } finally {
       setLoading(false);
     }
@@ -393,7 +399,7 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
                     {/* Remove Button — external members or internal without general access */}
                     {canEdit && row.isMember && !row.isGeneralAccess && (
                       <button
-                        onClick={() => handleRemoveMember(row.user.id)}
+                        onClick={() => setConfirmRemoveUserId(row.user.id)}
                         disabled={loading}
                         className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                         title="Remover membro"
@@ -418,6 +424,17 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
           </button>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={!!confirmRemoveUserId}
+        title="Remover membro"
+        message="Deseja realmente remover este membro do projeto? Esta ação não pode ser desfeita."
+        confirmLabel="Remover"
+        cancelLabel="Cancelar"
+        variant="danger"
+        onConfirm={() => confirmRemoveUserId && handleRemoveMember(confirmRemoveUserId)}
+        onCancel={() => setConfirmRemoveUserId(null)}
+      />
     </div>
   );
 };

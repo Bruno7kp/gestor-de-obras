@@ -15,14 +15,16 @@ export class MailService {
 
   async sendWelcomeEmail(to: string, name: string) {
     if (!this.resend) {
-      this.logger.warn('Resend nao configurado; email de boas-vindas ignorado.');
+      this.logger.warn(
+        'Resend nao configurado; email de boas-vindas ignorado.',
+      );
       return;
     }
 
     await this.resend.emails.send({
       from: this.fromEmail,
       to,
-      subject: 'Bem-vindo ao ProMeasure',
+      subject: 'Bem-vindo ao Canteiro Digital',
       html: `<p>Ola ${name}, sua conta foi criada com sucesso.</p>`,
     });
   }

@@ -6,8 +6,10 @@ import { financial } from '../utils/math';
 import { biddingsApi } from '../services/biddingsApi';
 import { globalSettingsApi } from '../services/globalSettingsApi';
 import { usePermissions } from '../hooks/usePermissions';
+import { useToast } from '../hooks/useToast';
 import { BiddingModal } from './BiddingModal';
 import { CertificateModal } from './CertificateModal';
+import { ConfirmModal } from './ConfirmModal';
 import { 
   Briefcase, Plus, FileText, Calendar, DollarSign, 
   TrendingUp, Search, Filter, ShieldCheck, AlertCircle, 
@@ -31,9 +33,11 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
   const [editingBidding, setEditingBidding] = useState<BiddingProcess | null>(null);
   const [certModalOpen, setCertModalOpen] = useState(false);
   const [editingCert, setEditingCert] = useState<CompanyCertificate | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ type: 'bidding' | 'certificate'; id: string; name: string } | null>(null);
 
   const { canEdit } = usePermissions();
   const canEditBiddings = canEdit('biddings');
+  const toast = useToast();
 
   const stats = useMemo(() => biddingService.getStats(biddings), [biddings]);
 
@@ -116,14 +120,41 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
     }
   };
 
-  const handleDeleteBidding = async (id: string) => {
-    const previous = biddings;
-    onUpdateBiddings(biddings.filter(b => b.id !== id));
-    try {
-      await biddingsApi.remove(id);
-    } catch (error) {
-      console.error('Erro ao remover licitacao:', error);
-      onUpdateBiddings(previous);
+  const requestDeleteBidding = (b: BiddingProcess) => {
+    setConfirmDelete({ type: 'bidding', id: b.id, name: b.clientName || b.tenderNumber });
+  };
+
+  const requestDeleteCertificate = (cert: CompanyCertificate) => {
+    setConfirmDelete({ type: 'certificate', id: cert.id, name: cert.name });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!confirmDelete) return;
+    const { type, id } = confirmDelete;
+    setConfirmDelete(null);
+
+    if (type === 'bidding') {
+      const previous = biddings;
+      onUpdateBiddings(biddings.filter(b => b.id !== id));
+      try {
+        await biddingsApi.remove(id);
+        toast.success('Proposta removida com sucesso.');
+      } catch (error) {
+        console.error('Erro ao remover licitacao:', error);
+        onUpdateBiddings(previous);
+        toast.error('Erro ao remover proposta.');
+      }
+    } else {
+      const previous = certificates;
+      onUpdateCertificates(certificates.filter(c => c.id !== id));
+      try {
+        await globalSettingsApi.removeCertificate(id);
+        toast.success('Certidão removida com sucesso.');
+      } catch (error) {
+        console.error('Erro ao remover certidao:', error);
+        onUpdateCertificates(previous);
+        toast.error('Erro ao remover certidão.');
+      }
     }
   };
 
@@ -195,17 +226,6 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
     }
   };
 
-  const handleDeleteCertificate = async (id: string) => {
-    const previous = certificates;
-    onUpdateCertificates(certificates.filter(c => c.id !== id));
-    try {
-      await globalSettingsApi.removeCertificate(id);
-    } catch (error) {
-      console.error('Erro ao remover certidao:', error);
-      onUpdateCertificates(previous);
-    }
-  };
-
   return (
     <div className="flex-1 overflow-y-auto p-6 sm:p-12 animate-in fade-in duration-500 bg-slate-50 dark:bg-slate-950 custom-scrollbar">
       <div className="max-w-6xl mx-auto space-y-10">
@@ -217,7 +237,7 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
             <p className="text-slate-500 dark:text-slate-400 font-medium">Gestão de propostas e compliance documental.</p>
           </div>
           <div className="flex bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-             <button onClick={() => setActiveTab('pipeline')} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'pipeline' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>Pipeline</button>
+             <button onClick={() => setActiveTab('pipeline')} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'pipeline' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>Propostas</button>
              <button onClick={() => setActiveTab('certificates')} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'certificates' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>Certidões</button>
           </div>
         </div>
@@ -226,7 +246,7 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
           <div className="space-y-8">
             {/* KPI GRID */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <KpiCard label="Pipeline Total" value={financial.formatBRL(stats.totalPipeline)} icon={<TrendingUp size={20}/>} color="indigo" />
+              <KpiCard label="Propostas Total" value={financial.formatBRL(stats.totalPipeline)} icon={<TrendingUp size={20}/>} color="indigo" />
               <KpiCard label="Contratos Ganhos" value={financial.formatBRL(stats.wonValue)} icon={<CheckCircle2 size={20}/>} color="emerald" />
               <KpiCard label="Em Aberto" value={financial.formatBRL(stats.openValue)} icon={<Clock size={20}/>} color="amber" />
               <KpiCard label="Win Rate" value={`${stats.winRate.toFixed(1)}%`} icon={<Briefcase size={20}/>} color="blue" />
@@ -290,7 +310,7 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
                               <option value="LOST">Perdida</option>
                             </select>
                             <button onClick={() => handleEditBidding(b)} className="p-2 text-slate-300 hover:text-indigo-500 transition-all"><Pencil size={16}/></button>
-                            <button onClick={() => handleDeleteBidding(b.id)} className="p-2 text-slate-300 hover:text-rose-500 transition-all"><Trash2 size={16}/></button>
+                            <button onClick={() => requestDeleteBidding(b)} className="p-2 text-slate-300 hover:text-rose-500 transition-all"><Trash2 size={16}/></button>
                           </>
                         )}
                         {!canEditBiddings && (
@@ -354,7 +374,7 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
                              {canEditBiddings && (
                                <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
                                  <button onClick={() => handleEditCertificate(cert)} className="p-2 text-slate-300 hover:text-indigo-500 transition-all"><Pencil size={16}/></button>
-                                 <button onClick={() => handleDeleteCertificate(cert.id)} className="p-2 text-slate-300 hover:text-rose-500 transition-all"><Trash2 size={16}/></button>
+                                 <button onClick={() => requestDeleteCertificate(cert)} className="p-2 text-slate-300 hover:text-rose-500 transition-all"><Trash2 size={16}/></button>
                                </div>
                              )}
                           </td>
@@ -381,6 +401,17 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
         onClose={() => setCertModalOpen(false)}
         onSave={handleSaveCertificate}
         certificate={editingCert}
+      />
+
+      <ConfirmModal
+        isOpen={!!confirmDelete}
+        title="Confirmar exclusão"
+        message={confirmDelete ? `Deseja realmente excluir "${confirmDelete.name}"? Esta ação não pode ser desfeita.` : ''}
+        confirmLabel="Excluir"
+        cancelLabel="Cancelar"
+        variant="danger"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setConfirmDelete(null)}
       />
     </div>
   );

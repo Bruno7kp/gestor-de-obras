@@ -124,7 +124,7 @@ async function main() {
     : await prisma.role.create({
         data: {
           name: 'ADMIN',
-          description: 'Administrador da instancia',
+          description: 'Administrador da instância',
           instanceId: instance.id,
         },
       });
@@ -143,7 +143,7 @@ async function main() {
     await prisma.role.create({
       data: {
         name: 'USER',
-        description: 'Usuario padrao',
+        description: 'Usuário padrão',
         instanceId: instance.id,
       },
     });

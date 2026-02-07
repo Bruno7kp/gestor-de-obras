@@ -13,7 +13,7 @@ const LoadingScreen: React.FC = () => (
   <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-100">
     <div className="text-center">
       <p className="text-lg font-semibold tracking-wide">Carregando...</p>
-      <p className="text-sm text-slate-400">Preparando sua instancia</p>
+      <p className="text-sm text-slate-400">Preparando sua instância</p>
     </div>
   </div>
 );

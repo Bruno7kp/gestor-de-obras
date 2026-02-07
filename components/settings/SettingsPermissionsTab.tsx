@@ -3,6 +3,7 @@ import { PlusCircle, RefreshCw, Save, Trash2 } from 'lucide-react';
 import type { PermissionLevel, Role } from '../../types';
 import { rolesApi } from '../../services/rolesApi';
 import { useToast } from '../../hooks/useToast';
+import { ConfirmModal } from '../ConfirmModal';
 
 const PERMISSION_MODULES = [
   { key: 'biddings', label: 'Licitacoes' },
@@ -55,6 +56,7 @@ export const SettingsPermissionsTab: React.FC = () => {
   const [newRoleDescription, setNewRoleDescription] = useState('');
   const [showResetModal, setShowResetModal] = useState(false);
   const [resettingDefaults, setResettingDefaults] = useState(false);
+  const [confirmRemoveRoleId, setConfirmRemoveRoleId] = useState<string | null>(null);
   const toast = useToast();
 
   const visibleRoles = useMemo(() => roles.filter((role) => !SYSTEM_ROLE_NAMES.has(role.name)), [roles]);
@@ -146,17 +148,22 @@ export const SettingsPermissionsTab: React.FC = () => {
   const handleRemoveRole = async (roleId: string) => {
     const target = roles.find((role) => role.id === roleId);
     if (!target) return;
-    const confirmed = window.confirm(`Deseja remover o tipo de usuario ${target.name}?`);
-    if (!confirmed) return;
+    setConfirmRemoveRoleId(roleId);
+  };
+
+  const doRemoveRole = async (roleId: string) => {
+    setConfirmRemoveRoleId(null);
 
     try {
       await rolesApi.remove(roleId);
       const nextRoles = roles.filter((role) => role.id !== roleId);
       setRoles(nextRoles);
       hydrateLevels(nextRoles);
+      toast.success('Tipo de usuário removido com sucesso.');
     } catch (err) {
       console.error('Erro ao remover tipo de usuario:', err);
       setError('Nao foi possivel remover o tipo de usuario.');
+      toast.error('Erro ao remover tipo de usuário.');
     }
   };
 
@@ -192,8 +199,8 @@ export const SettingsPermissionsTab: React.FC = () => {
     <div className="space-y-8">
       <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
         <div className="space-y-2">
-          <h3 className="text-xl font-black text-slate-800 dark:text-white">Permissoes por tipo de usuario</h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Defina o nivel de acesso de cada papel da sua instancia.</p>
+          <h3 className="text-xl font-black text-slate-800 dark:text-white">Permissões por tipo de usuário</h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Defina o nível de acesso de cada papel da sua instância.</p>
         </div>
         <div className="flex flex-wrap gap-3">
           <button
@@ -201,7 +208,7 @@ export const SettingsPermissionsTab: React.FC = () => {
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
           >
             <RefreshCw size={14} />
-            Reverter Padrao
+            Reverter Padrão
           </button>
           <button
             onClick={handleSave}
@@ -209,23 +216,23 @@ export const SettingsPermissionsTab: React.FC = () => {
             className="flex items-center gap-2 px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-indigo-600 text-white shadow-lg hover:scale-105 active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <Save size={14} />
-            {saving ? 'Salvando...' : 'Salvar Alteracoes'}
+            {saving ? 'Salvando...' : 'Salvar Alterações'}
           </button>
         </div>
       </div>
 
       <div className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-        <h4 className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-widest">Novo tipo de usuario</h4>
+        <h4 className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-widest">Novo tipo de usuário</h4>
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_auto] gap-4">
           <input
             className="px-5 py-3 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none"
-            placeholder="Nome do tipo de usuario"
+            placeholder="Nome do tipo de usuário"
             value={newRoleName}
             onChange={(event) => setNewRoleName(event.target.value)}
           />
           <input
             className="px-5 py-3 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none"
-            placeholder="Descricao (opcional)"
+            placeholder="Descrição (opcional)"
             value={newRoleDescription}
             onChange={(event) => setNewRoleDescription(event.target.value)}
           />
@@ -243,13 +250,13 @@ export const SettingsPermissionsTab: React.FC = () => {
         <table className="min-w-[1200px] w-full text-left text-[11px]">
           <thead className="text-[10px] uppercase tracking-widest text-slate-400">
             <tr>
-              <th className="py-3 pr-4">Tipo de Usuario</th>
+              <th className="py-3 pr-4">Tipo de Usuário</th>
               {PERMISSION_MODULES.map((module) => (
                 <th key={module.key} className="py-3 px-3 whitespace-nowrap">
                   {module.label}
                 </th>
               ))}
-              <th className="py-3 pl-4">Acoes</th>
+              <th className="py-3 pl-4">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -259,7 +266,7 @@ export const SettingsPermissionsTab: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <span className="font-black">{role.name}</span>
                     {DEFAULT_ROLE_NAMES.has(role.name) && (
-                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-indigo-100 text-indigo-600">Padrao</span>
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-indigo-100 text-indigo-600">Padrão</span>
                     )}
                   </div>
                   {role.description && (
@@ -297,9 +304,9 @@ export const SettingsPermissionsTab: React.FC = () => {
       {showResetModal && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-[9999]">
           <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-lg p-8 max-w-md z-[10000]">
-            <h3 className="text-lg font-black text-slate-800 dark:text-white mb-3">Restaurar tipos de usuario padrao?</h3>
+            <h3 className="text-lg font-black text-slate-800 dark:text-white mb-3">Restaurar tipos de usuário padrão?</h3>
             <p className="text-sm text-slate-600 dark:text-slate-300 mb-6">
-              Deseja restaurar os tipos de usuario padrao? Isso remove todos os tipos de usuario personalizados.
+              Deseja restaurar os tipos de usuário padrão? Isso remove todos os tipos de usuário personalizados.
             </p>
             <div className="flex gap-3 justify-end">
               <button
@@ -320,6 +327,17 @@ export const SettingsPermissionsTab: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={!!confirmRemoveRoleId}
+        title="Remover tipo de usuário"
+        message={`Deseja realmente remover este tipo de usuário? Esta ação não pode ser desfeita.`}
+        confirmLabel="Remover"
+        cancelLabel="Cancelar"
+        variant="danger"
+        onConfirm={() => confirmRemoveRoleId && doRemoveRole(confirmRemoveRoleId)}
+        onCancel={() => setConfirmRemoveRoleId(null)}
+      />
     </div>
   );
 };

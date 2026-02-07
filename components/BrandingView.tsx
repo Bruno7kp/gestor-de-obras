@@ -4,6 +4,7 @@ import { Project, PDFTheme } from '../types';
 import { ThemeEditor } from './ThemeEditor';
 import { uploadService } from '../services/uploadService';
 import { usePermissions } from '../hooks/usePermissions';
+import { useToast } from '../hooks/useToast';
 import { 
   Percent, MapPin, Upload, 
   Image as ImageIcon, Trash2, FileText, 
@@ -21,6 +22,7 @@ export const BrandingView: React.FC<BrandingViewProps> = ({
   project, onUpdateProject, isReadOnly 
 }) => {
   const { canEdit, getLevel } = usePermissions();
+  const toast = useToast();
   const canEditBranding = canEdit('project_settings') && !isReadOnly;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -30,7 +32,7 @@ export const BrandingView: React.FC<BrandingViewProps> = ({
     if (!file) return;
 
     if (file.size > 2 * 1024 * 1024) {
-      alert("A imagem deve ter no máximo 2MB.");
+      toast.warning("A imagem deve ter no máximo 2MB.");
       return;
     }
 
@@ -39,7 +41,7 @@ export const BrandingView: React.FC<BrandingViewProps> = ({
       onUpdateProject({ logo: uploaded.url });
     } catch (error) {
       console.error('Erro ao enviar logomarca:', error);
-      alert('Falha ao enviar imagem. Tente novamente.');
+      toast.error('Falha ao enviar imagem. Tente novamente.');
     }
   };
 

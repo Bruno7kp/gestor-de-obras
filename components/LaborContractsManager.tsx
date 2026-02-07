@@ -3,6 +3,8 @@ import { Project, LaborContract, LaborPayment, WorkforceMember } from '../types'
 import { laborContractService } from '../services/laborContractService';
 import { uploadService } from '../services/uploadService';
 import { laborContractsApi } from '../services/laborContractsApi';
+import { ConfirmModal } from './ConfirmModal';
+import { useToast } from '../hooks/useToast';
 import { 
   Briefcase, Plus, Search, Trash2, Edit2, DollarSign, Calendar, 
   CheckCircle2, Clock, AlertCircle, User, FileText, Download, X,
@@ -24,6 +26,8 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingContract, setEditingContract] = useState<LaborContract | null>(null);
   const [filterType, setFilterType] = useState<'all' | 'empreita' | 'diaria'>('all');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const toast = useToast();
 
   const contracts = project.laborContracts || [];
   const workforce = project.workforce || [];
@@ -95,15 +99,16 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
 
   const removeContract = async (id: string) => {
     if (isReadOnly) return;
-    if (confirm("Excluir este contrato de mão de obra?")) {
-      const previous = contracts;
-      onUpdateProject({ laborContracts: contracts.filter(c => c.id !== id) });
-      try {
-        await laborContractsApi.remove(id);
-      } catch (error) {
-        console.error('Erro ao remover contrato:', error);
-        onUpdateProject({ laborContracts: previous });
-      }
+    setConfirmDeleteId(null);
+    const previous = contracts;
+    onUpdateProject({ laborContracts: contracts.filter(c => c.id !== id) });
+    try {
+      await laborContractsApi.remove(id);
+      toast.success('Contrato removido com sucesso.');
+    } catch (error) {
+      console.error('Erro ao remover contrato:', error);
+      onUpdateProject({ laborContracts: previous });
+      toast.error('Erro ao remover contrato.');
     }
   };
 
@@ -244,7 +249,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
                     <Edit2 size={16}/>
                   </button>
                   <button 
-                    onClick={() => removeContract(contract.id)}
+                    onClick={() => !isReadOnly && setConfirmDeleteId(contract.id)}
                     disabled={isReadOnly}
                     className={`p-3 rounded-xl transition-all ${
                       isReadOnly
@@ -348,6 +353,17 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
           onSave={handleSave}
         />
       )}
+
+      <ConfirmModal
+        isOpen={!!confirmDeleteId}
+        title="Excluir contrato"
+        message="Deseja realmente excluir este contrato de mão de obra? Esta ação não pode ser desfeita."
+        confirmLabel="Excluir"
+        cancelLabel="Cancelar"
+        variant="danger"
+        onConfirm={() => confirmDeleteId && removeContract(confirmDeleteId)}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
     </div>
   );
 };
@@ -389,7 +405,7 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, onClose, on
         handleUpdatePayment(paymentId, { comprovante: response.url });
       } catch (error) {
         console.error('Falha no upload do comprovante:', error);
-        alert('Falha ao enviar o comprovante. Tente novamente.');
+        toast.error('Falha ao enviar o comprovante. Tente novamente.');
       }
     }
   };

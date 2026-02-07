@@ -208,7 +208,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {isOpen && (
             <div className="flex items-center gap-3 animate-in fade-in duration-300">
               <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg"><HardHat size={20} /></div>
-              <span className="text-sm font-black tracking-tighter uppercase">ProMeasure</span>
+              <span className="text-sm font-black tracking-tighter uppercase">Canteiro Digital</span>
             </div>
           )}
           

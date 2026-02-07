@@ -217,7 +217,7 @@ export const SettingsUsersTab: React.FC = () => {
     <div className="space-y-8">
       <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
         <div className="space-y-2">
-          <h3 className="text-xl font-black text-slate-800 dark:text-white">Usuarios da instancia</h3>
+          <h3 className="text-xl font-black text-slate-800 dark:text-white">Usuários da instância</h3>
           <p className="text-sm text-slate-500 dark:text-slate-400">Gerencie quem acessa o sistema e quais papeis cada pessoa possui.</p>
         </div>
         <button
@@ -335,10 +335,10 @@ export const SettingsUsersTab: React.FC = () => {
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-[9999]">
           <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-lg p-8 max-w-md w-full z-[10000]">
             <h3 className="text-lg font-black text-slate-800 dark:text-white mb-4">
-              {userToToggle.status === 'ACTIVE' ? 'Desativar' : 'Ativar'} Usuario
+              {userToToggle.status === 'ACTIVE' ? 'Desativar' : 'Ativar'} Usuário
             </h3>
             <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
-              Deseja {userToToggle.status === 'ACTIVE' ? 'desativar' : 'ativar'} o usuario <strong>{userToToggle.name}</strong>?
+              Deseja {userToToggle.status === 'ACTIVE' ? 'desativar' : 'ativar'} o usuário <strong>{userToToggle.name}</strong>?
             </p>
             <div className="flex gap-3 justify-end">
               <button
@@ -362,7 +362,7 @@ export const SettingsUsersTab: React.FC = () => {
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-[9999]">
           <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-lg p-8 max-w-md w-full z-[10000]">
             <h3 className="text-lg font-black text-slate-800 dark:text-white mb-6">
-              {editingUser ? 'Editar Usuario' : 'Novo Usuario'}
+              {editingUser ? 'Editar Usuário' : 'Novo Usuário'}
             </h3>
 
             <div className="space-y-4">
@@ -408,14 +408,14 @@ export const SettingsUsersTab: React.FC = () => {
                     className="w-full pl-12 pr-6 py-3 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-white text-sm font-black outline-none"
                     value={userForm.password}
                     onChange={(e) => setUserForm((prev) => ({ ...prev, password: e.target.value }))}
-                    placeholder={editingUser ? 'Deixe vazio para nao alterar' : 'Minimo 8 caracteres'}
+                    placeholder={editingUser ? 'Deixe vazio para não alterar' : 'mínimo 8 caracteres'}
                   />
                 </div>
               </div>
 
               <div>
                 <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase mb-2 block tracking-widest ml-1">
-                  Tipo de Usuario
+                  Tipo de Usuário
                 </label>
                 <select
                   className="w-full px-6 py-3 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-white text-sm font-black outline-none"

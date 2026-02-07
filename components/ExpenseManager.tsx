@@ -9,6 +9,7 @@ import { projectExpensesApi } from '../services/projectExpensesApi';
 import { ExpenseTreeTable } from './ExpenseTreeTable';
 import { ExpenseModal } from './ExpenseModal';
 import { usePermissions } from '../hooks/usePermissions';
+import { useToast } from '../hooks/useToast';
 import {
   Plus, Search, CheckCircle2, Wallet, ArrowRightLeft,
   X, BarChart3, PieChart, Clock, ArrowUpRight,
@@ -33,6 +34,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
   project, expenses, onAdd, onAddMany, onUpdate, onDelete, workItems, measuredValue, onUpdateExpenses, isReadOnly
 }) => {
   const { canEdit, getLevel } = usePermissions();
+  const toast = useToast();
   const canEditFinancial = canEdit('financial_flow') && !isReadOnly;
   
   const [activeTab, setActiveTab] = useState<ExpenseType | 'overview'>('overview');
@@ -89,7 +91,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
       const res = await excelService.parseExpensesExcel(file);
       setImportSummary(res);
     } catch (err) {
-      alert("Erro ao importar despesas: " + (err instanceof Error ? err.message : 'Arquivo inválido'));
+      toast.error("Erro ao importar despesas: " + (err instanceof Error ? err.message : 'Arquivo inválido'));
     } finally {
       setIsImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -135,7 +137,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
       setImportSummary(null);
     } catch (err) {
       console.error('Erro ao importar despesas:', err);
-      alert('Erro ao importar despesas. Tente novamente.');
+      toast.error('Erro ao importar despesas. Tente novamente.');
       // revert optimistic update by reloading from server could be added
     } finally {
       setIsImporting(false);

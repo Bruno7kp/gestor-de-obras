@@ -8,6 +8,7 @@ import { projectsApi } from '../services/projectsApi';
 import { financial } from '../utils/math';
 import { TreeTable } from './TreeTable';
 import { usePermissions } from '../hooks/usePermissions';
+import { useToast } from '../hooks/useToast';
 import { 
   Plus, Layers, Search, FileSpreadsheet, UploadCloud, Download, 
   X, CheckCircle2, AlertCircle, Package, RefreshCw, Printer, Eraser, Lock
@@ -24,6 +25,7 @@ export const WbsView: React.FC<WbsViewProps> = ({
   project, onUpdateProject, onOpenModal, isReadOnly 
 }) => {
   const { canEdit, getLevel } = usePermissions();
+  const toast = useToast();
   const canEditWbs = canEdit('wbs') && !isReadOnly;
   const rootRef = useRef<HTMLDivElement | null>(null);
   const scrollParentRef = useRef<HTMLElement | null>(null);
@@ -223,7 +225,7 @@ export const WbsView: React.FC<WbsViewProps> = ({
       const result = await excelService.parseAndValidate(file);
       setImportSummary(result);
     } catch (err) {
-      alert("Erro ao processar o arquivo. Verifique se o formato está correto.");
+      toast.error("Erro ao processar o arquivo. Verifique se o formato está correto.");
     } finally {
       setIsImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -280,7 +282,7 @@ export const WbsView: React.FC<WbsViewProps> = ({
       setImportSummary(null);
     } catch (error) {
       console.error('Erro ao importar itens:', error);
-      alert('Erro ao importar itens. Tente novamente.');
+      toast.error('Erro ao importar itens. Tente novamente.');
     } finally {
       setIsImporting(false);
       setImportProgress({ sent: 0, total: 0 });

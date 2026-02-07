@@ -28,7 +28,7 @@ const App: React.FC = () => {
   const safeGlobalSettings = globalSettings || {
     defaultCompanyName: 'Sua Empresa de Engenharia',
     companyCnpj: '',
-    userName: 'Usuário ProMeasure',
+    userName: 'Usuário',
     language: 'pt-BR',
     currencySymbol: 'R$',
     certificates: []

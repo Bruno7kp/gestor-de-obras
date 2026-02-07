@@ -1,8 +1,8 @@
 
-# ProMeasure System Architecture
+# Canteiro Digital System Architecture
 
 ## 1. High-Level Design
-ProMeasure is architected using a **Decoupled Client-Server Model**. 
+Canteiro Digital is architected using a **Decoupled Client-Server Model**. 
 
 ### Frontend (Modern React SPA)
 - **UI Framework:** React 18+ with TypeScript for strict type safety.

@@ -9,7 +9,7 @@ export const SignupPage: React.FC = () => {
           <Link to="/" className="text-[11px] uppercase tracking-[0.3em] text-slate-400">Voltar para o site</Link>
           <h1 className="text-4xl font-display font-semibold">Assine seu plano</h1>
           <p className="text-lg text-slate-500 dark:text-slate-300">
-            O onboarding e feito com nosso time para garantir configuracao perfeita. Escolha um plano e envie sua solicitacao.
+            O onboarding é feito com nosso time para garantir configuração perfeita. Escolha um plano e envie sua solicitação.
           </p>
         </div>
 
@@ -19,9 +19,9 @@ export const SignupPage: React.FC = () => {
               <p className="text-[11px] uppercase tracking-[0.3em] text-slate-400">Plano {plan}</p>
               <p className="mt-4 text-3xl font-display font-semibold">{index === 2 ? 'Sob consulta' : 'Em breve'}</p>
               <ul className="mt-4 space-y-2 text-sm text-slate-500 dark:text-slate-300">
-                <li>Instancias dedicadas</li>
+                <li>Instâncias dedicadas</li>
                 <li>Suporte especializado</li>
-                <li>Treinamento incluido</li>
+                <li>Treinamento incluído</li>
               </ul>
               <button className="mt-6 w-full rounded-full bg-indigo-600 px-4 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg">
                 Solicitar proposta
@@ -36,7 +36,7 @@ export const SignupPage: React.FC = () => {
             Precisa migrar dados ou integrar times? Fale conosco e montamos um plano personalizado.
           </p>
           <button className="mt-6 rounded-full border border-slate-200 bg-slate-50 px-6 py-3 text-xs font-black uppercase tracking-widest text-slate-600 hover:text-indigo-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200">
-            Agendar demonstracao
+            Agendar demonstração
           </button>
         </div>
       </div>

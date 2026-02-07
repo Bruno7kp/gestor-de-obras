@@ -55,13 +55,13 @@ export const SettingsGlobalTab: React.FC<SettingsGlobalTabProps> = ({ settings, 
             <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-2xl">
               <ShieldCheck size={24} />
             </div>
-            <h3 className="font-black uppercase text-xs tracking-widest text-slate-800 dark:text-white">Seguranca de Dados</h3>
+            <h3 className="font-black uppercase text-xs tracking-widest text-slate-800 dark:text-white">Segurança de Dados</h3>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-            O ProMeasure opera em modo "Privacy First". Seus projetos ({projectCount}) ficam protegidos no servidor com controle de acesso por instancia.
+            O Canteiro Digital opera em modo "Privacy First". Seus projetos ({projectCount}) ficam protegidos no servidor com controle de acesso por instância.
           </p>
           <div className="pt-4 flex items-center justify-between border-t border-slate-100 dark:border-slate-800">
-            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">Sincronizacao</span>
+            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">Sincronização</span>
             <span className="px-3 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full text-[9px] font-black uppercase tracking-widest">Ativa</span>
           </div>
         </div>

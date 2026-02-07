@@ -8,8 +8,10 @@ import {
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { SupplierModal } from './SupplierModal';
+import { ConfirmModal } from './ConfirmModal';
 import { suppliersApi } from '../services/suppliersApi';
 import { usePermissions } from '../hooks/usePermissions';
+import { useToast } from '../hooks/useToast';
 
 interface SupplierManagerProps {
   suppliers: Supplier[];
@@ -19,10 +21,12 @@ interface SupplierManagerProps {
 export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, onUpdateSuppliers }) => {
   const { getLevel } = usePermissions();
   const canEditSuppliers = getLevel('suppliers') === 'edit';
+  const toast = useToast();
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | Supplier['category']>('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const filteredSuppliers = useMemo(() => {
     return suppliers
@@ -71,15 +75,16 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, onU
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Excluir este fornecedor?')) {
-      const previous = suppliers;
-      onUpdateSuppliers(suppliers.filter(s => s.id !== id));
-      try {
-        await suppliersApi.remove(id);
-      } catch (error) {
-        console.error('Erro ao remover fornecedor:', error);
-        onUpdateSuppliers(previous);
-      }
+    setConfirmDeleteId(null);
+    const previous = suppliers;
+    onUpdateSuppliers(suppliers.filter(s => s.id !== id));
+    try {
+      await suppliersApi.remove(id);
+      toast.success('Fornecedor removido com sucesso.');
+    } catch (error) {
+      console.error('Erro ao remover fornecedor:', error);
+      onUpdateSuppliers(previous);
+      toast.error('Erro ao remover fornecedor.');
     }
   };
 
@@ -237,7 +242,7 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, onU
                              )}
                              {canEditSuppliers && (
                                <button 
-                                 onClick={() => handleDelete(supplier.id)}
+                                 onClick={() => setConfirmDeleteId(supplier.id)}
                                  className="p-3 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
                                >
                                  <Trash2 size={18} />
@@ -267,6 +272,17 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, onU
         onClose={() => setIsModalOpen(false)}
         onSave={handleSave}
         supplier={editingSupplier}
+      />
+
+      <ConfirmModal
+        isOpen={!!confirmDeleteId}
+        title="Excluir fornecedor"
+        message={`Deseja realmente excluir este fornecedor? Esta ação não pode ser desfeita.`}
+        confirmLabel="Excluir"
+        cancelLabel="Cancelar"
+        variant="danger"
+        onConfirm={() => confirmDeleteId && handleDelete(confirmDeleteId)}
+        onCancel={() => setConfirmDeleteId(null)}
       />
     </div>
   );

@@ -16,7 +16,7 @@ export const instancesService = {
     });
 
     if (!response.ok) {
-      throw new Error('Falha ao carregar instancias');
+      throw new Error('Falha ao carregar instâncias');
     }
 
     return response.json();
@@ -29,7 +29,7 @@ export const instancesService = {
     });
 
     if (!response.ok) {
-      throw new Error('Falha ao carregar instancia');
+      throw new Error('Falha ao carregar instância');
     }
 
     return response.json();
@@ -54,7 +54,7 @@ export const instancesService = {
     });
 
     if (!response.ok) {
-      throw new Error('Falha ao criar instancia');
+      throw new Error('Falha ao criar instância');
     }
 
     return response.json();
@@ -71,7 +71,7 @@ export const instancesService = {
     });
 
     if (!response.ok) {
-      throw new Error('Falha ao atualizar instancia');
+      throw new Error('Falha ao atualizar instância');
     }
 
     return response.json();
@@ -84,7 +84,7 @@ export const instancesService = {
     });
 
     if (!response.ok) {
-      throw new Error('Falha ao deletar instancia');
+      throw new Error('Falha ao deletar instância');
     }
   },
 };

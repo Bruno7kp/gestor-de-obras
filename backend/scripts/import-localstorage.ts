@@ -29,7 +29,7 @@ const getLaborTotals = (
 
 async function main() {
   const filePath = process.argv[2];
-  const instanceName = process.argv[3] || 'Instancia Importada';
+  const instanceName = process.argv[3] || 'Instância Importada';
 
   if (!filePath) {
     console.error(
@@ -390,7 +390,7 @@ async function main() {
   }
 
   await prisma.$disconnect();
-  console.log('Importacao concluida para instancia:', instanceId);
+  console.log('Importação concluída para instância:', instanceId);
 }
 
 main().catch((error) => {

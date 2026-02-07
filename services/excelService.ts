@@ -69,8 +69,8 @@ export const excelService = {
       ["2.1", "item", "PR-01", "Alvenaria de bloco cerâmico 14cm", "m2", "300", "85.90", "Próprio", "100", "50"],
     ];
     const ws = XLSX.utils.aoa_to_sheet(data);
-    XLSX.utils.book_append_sheet(wb, ws, "Template_EAP_ProMeasure");
-    XLSX.writeFile(wb, "ProMeasure_Template_Complexo.xlsx");
+    XLSX.utils.book_append_sheet(wb, ws, "Template_EAP_Canteiro_Digital");
+    XLSX.writeFile(wb, "Canteiro_Digital_Template_Complexo.xlsx");
   },
 
   downloadExpenseTemplate: () => {
@@ -84,7 +84,7 @@ export const excelService = {
     ];
     const ws = XLSX.utils.aoa_to_sheet(data);
     XLSX.utils.book_append_sheet(wb, ws, "Modelo_Financeiro");
-    XLSX.writeFile(wb, "Template_Financeiro_ProMeasure.xlsx");
+    XLSX.writeFile(wb, "Template_Financeiro_Canteiro_Digital.xlsx");
   },
 
   exportProjectToExcel: (project: Project) => {

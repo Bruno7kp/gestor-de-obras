@@ -26,7 +26,7 @@ export interface DefaultRoleDefinition {
 export const DEFAULT_ROLES: DefaultRoleDefinition[] = [
   {
     name: 'Gestor Principal',
-    description: 'Permissao total na instancia',
+    description: 'Permissão total na instância',
     access: PERMISSION_MODULES.reduce(
       (acc, module) => {
         acc[module.key] = 'edit';
@@ -37,7 +37,7 @@ export const DEFAULT_ROLES: DefaultRoleDefinition[] = [
   },
   {
     name: 'Gestor de Suprimentos',
-    description: 'Operacao focada em suprimentos e fornecedores',
+    description: 'Operação focada em suprimentos e fornecedores',
     access: {
       biddings: 'none',
       suppliers: 'edit',
@@ -57,7 +57,7 @@ export const DEFAULT_ROLES: DefaultRoleDefinition[] = [
   },
   {
     name: 'Arquiteto',
-    description: 'Acesso de acompanhamento tecnico e diario',
+    description: 'Acesso de acompanhamento técnico e diário',
     access: {
       biddings: 'none',
       suppliers: 'view',
