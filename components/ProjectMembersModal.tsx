@@ -258,8 +258,18 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
                           value={emailInput}
                           onChange={(e) => setEmailInput(e.target.value)}
                           placeholder="usuario@exemplo.com"
+                          list="project-member-email-suggestions"
                           className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
+                        <datalist id="project-member-email-suggestions">
+                          {allUsers.map((user) => (
+                            <option
+                              key={user.id}
+                              value={user.email}
+                              label={`${user.name} <${user.email}>`}
+                            />
+                          ))}
+                        </datalist>
                       </div>
                       <p className="text-xs text-gray-500 mt-1">
                         Digite o e-mail do usuário. Ele pode pertencer a qualquer instância.
