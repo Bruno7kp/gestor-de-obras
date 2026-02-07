@@ -325,6 +325,7 @@ model MaterialForecast {
   deliveryDate     String?
   status           String
   isPaid           Boolean
+  isCleared        Boolean  @default(false)
   order            Int
   supplierId       String?
   paymentProof     String?

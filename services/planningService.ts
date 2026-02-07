@@ -121,6 +121,7 @@ export const planningService = {
       estimatedDate: data.estimatedDate || new Date().toISOString(),
       status: data.status || 'pending',
       isPaid: data.isPaid || false,
+      isCleared: data.isCleared || false,
       order: planning.forecasts.length
     }]
   }),

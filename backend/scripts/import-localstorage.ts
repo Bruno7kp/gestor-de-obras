@@ -352,6 +352,7 @@ async function main() {
           deliveryDate: forecast.deliveryDate || null,
           status: forecast.status,
           isPaid: forecast.isPaid,
+          isCleared: forecast.isCleared ?? false,
           order: forecast.order || 0,
           supplierId: forecast.supplierId || null,
           paymentProof: forecast.paymentProof || null,

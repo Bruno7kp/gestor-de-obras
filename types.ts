@@ -195,6 +195,7 @@ export interface MaterialForecast {
   deliveryDate?: string;
   status: 'pending' | 'ordered' | 'delivered';
   isPaid: boolean;
+  isCleared: boolean;
   order: number;
   supplierId?: string;
   paymentProof?: string; // URL do comprovante de pagamento

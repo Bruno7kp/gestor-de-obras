@@ -31,6 +31,7 @@ interface CreateForecastInput {
   deliveryDate?: string | null;
   status: string;
   isPaid: boolean;
+  isCleared: boolean;
   order?: number;
   supplierId?: string | null;
   paymentProof?: string | null;
@@ -180,6 +181,7 @@ export class PlanningService {
         deliveryDate: input.deliveryDate ?? null,
         status: input.status,
         isPaid: input.isPaid,
+        isCleared: input.isCleared ?? false,
         order: input.order ?? 0,
         supplierId: input.supplierId ?? null,
         paymentProof: input.paymentProof ?? null,
@@ -218,6 +220,7 @@ export class PlanningService {
         deliveryDate: data.deliveryDate ?? forecast.deliveryDate,
         status: data.status ?? forecast.status,
         isPaid: data.isPaid ?? forecast.isPaid,
+        isCleared: data.isCleared ?? forecast.isCleared,
         order: data.order ?? forecast.order,
         supplierId: data.supplierId ?? forecast.supplierId,
         paymentProof: data.paymentProof ?? forecast.paymentProof,
@@ -334,6 +337,7 @@ export class PlanningService {
       deliveryDate: f.deliveryDate ?? null,
       status: f.status,
       isPaid: f.isPaid,
+      isCleared: f.isCleared ?? false,
       order: f.order ?? 0,
       supplierId: f.supplierId ?? null,
       paymentProof: f.paymentProof ?? null,

@@ -114,12 +114,22 @@ export const excelService = {
     const wb = XLSX.utils.book_new();
     const { tasks, forecasts, milestones } = project.planning;
     const taskData = tasks.map(t => [t.description, t.status, t.dueDate, t.isCompleted ? "SIM" : "NÃO"]);
-    // Added 'isPaid' (converted to SIM/NÃO) to the forecast export data
-    const forecastData = forecasts.map(f => [f.description, f.unit, f.quantityNeeded, f.unitPrice, f.estimatedDate, f.status, f.isPaid ? "SIM" : "NÃO"]);
+    const forecastData = forecasts.map(f => [
+      f.description,
+      f.unit,
+      f.quantityNeeded,
+      f.unitPrice,
+      f.estimatedDate,
+      f.status,
+      f.isPaid ? "SIM" : "NÃO",
+      f.isCleared ? "SIM" : "NÃO"
+    ]);
     const milestoneData = milestones.map(m => [m.title, m.date, m.isCompleted ? "SIM" : "NÃO"]);
     const wsTasks = XLSX.utils.aoa_to_sheet([["DESCRICAO", "STATUS", "VENCIMENTO", "CONCLUIDO"], ...taskData]);
-    // Added 'PAGO' column to the forecast worksheet headers
-    const wsForecasts = XLSX.utils.aoa_to_sheet([["MATERIAL", "UND", "QNT", "PRECO_UNIT", "DATA_COMPRA", "STATUS", "PAGO"], ...forecastData]);
+    const wsForecasts = XLSX.utils.aoa_to_sheet([
+      ["MATERIAL", "UND", "QNT", "PRECO_UNIT", "DATA_COMPRA", "STATUS", "PAGO", "BAIXA"],
+      ...forecastData
+    ]);
     const wsMilestones = XLSX.utils.aoa_to_sheet([["TITULO", "DATA_META", "CONCLUIDA"], ...milestoneData]);
     XLSX.utils.book_append_sheet(wb, wsTasks, "Tarefas");
     XLSX.utils.book_append_sheet(wb, wsForecasts, "Suprimentos");
@@ -155,7 +165,7 @@ export const excelService = {
           if (workbook.Sheets["Suprimentos"]) {
             const raw: any[] = XLSX.utils.sheet_to_json(workbook.Sheets["Suprimentos"]);
             raw.forEach((r, idx) => {
-              // Fix: Added missing 'isPaid' property to the MaterialForecast object to match the interface requirements
+              // Fix: Added missing 'isPaid' and 'isCleared' properties to match the interface requirements
               forecasts.push({
                 id: crypto.randomUUID(),
                 description: String(r.MATERIAL || ""),
@@ -165,7 +175,8 @@ export const excelService = {
                 estimatedDate: r.DATA_COMPRA instanceof Date ? r.DATA_COMPRA.toISOString() : new Date().toISOString(),
                 status: (r.STATUS || "pending") as any,
                 order: idx,
-                isPaid: String(r.PAGO || "").toUpperCase() === "SIM"
+                isPaid: String(r.PAGO || "").toUpperCase() === "SIM",
+                isCleared: String(r.BAIXA || "").toUpperCase() === "SIM"
               });
             });
           }

@@ -42,6 +42,7 @@ interface CreateForecastBody {
   deliveryDate?: string | null;
   status: string;
   isPaid: boolean;
+  isCleared: boolean;
   order?: number;
   supplierId?: string | null;
   paymentProof?: string | null;

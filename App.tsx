@@ -58,6 +58,7 @@ const App: React.FC = () => {
     'wbs',
     'stats',
     'expenses',
+    'supplies',
     'workforce',
     'labor-contracts',
     'planning',

@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Project, GlobalSettings, WorkItem, Supplier, ProjectAsset, ProjectExpense, ProjectPlanning, PlanningTask, MaterialForecast, Milestone } from '../types';
 import {
-  Layers, BarChart3, Coins, Users, HardHat, BookOpen, FileText, Sliders,
+  Layers, BarChart3, Coins, Users, HardHat, BookOpen, FileText, Sliders, Boxes,
   CheckCircle2, History, Calendar, Lock, ChevronDown,
   ArrowRight, Clock, Undo2, Redo2, RotateCcw, AlertTriangle, X, Target, Info, RefreshCw, Briefcase
 } from 'lucide-react';
@@ -53,7 +53,7 @@ interface ProjectWorkspaceProps {
   onTabChange: (tab: TabID) => void;
 }
 
-export type TabID = 'wbs' | 'stats' | 'expenses' | 'workforce' | 'labor-contracts' | 'planning' | 'journal' | 'documents' | 'branding';
+export type TabID = 'wbs' | 'stats' | 'expenses' | 'supplies' | 'workforce' | 'labor-contracts' | 'planning' | 'journal' | 'documents' | 'branding';
 
 export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   project, globalSettings, suppliers, isExternalProject: isExternalProjectProp = false, onUpdateProject, onCloseMeasurement,
@@ -507,6 +507,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         if (prev.deliveryDate !== next.deliveryDate) patch.deliveryDate = next.deliveryDate;
         if (prev.status !== next.status) patch.status = next.status;
         if (prev.isPaid !== next.isPaid) patch.isPaid = next.isPaid;
+        if (prev.isCleared !== next.isCleared) patch.isCleared = next.isCleared;
         if (prev.order !== next.order) patch.order = next.order;
         if (prev.supplierId !== next.supplierId) patch.supplierId = next.supplierId;
         if (prev.paymentProof !== next.paymentProof) patch.paymentProof = next.paymentProof;
@@ -717,6 +718,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           {canView('wbs') && <TabBtn active={tab === 'wbs'} id="wbs" label="Planilha EAP" icon={<Layers size={16} />} />}
           {canView('technical_analysis') && <TabBtn active={tab === 'stats'} id="stats" label="Análise Técnica" icon={<BarChart3 size={16} />} />}
           {canView('financial_flow') && <TabBtn active={tab === 'expenses'} id="expenses" label="Fluxo Financeiro" icon={<Coins size={16} />} />}
+          {canView('supplies') && <TabBtn active={tab === 'supplies'} id="supplies" label="Suprimentos" icon={<Boxes size={16} />} />}
           {canView('workforce') && <TabBtn active={tab === 'labor-contracts'} id="labor-contracts" label="Contratos M.O." icon={<Briefcase size={16} />} />}
           {canView('planning') && <TabBtn active={tab === 'planning'} id="planning" label="Canteiro Ágil" icon={<HardHat size={16} />} />}
           {canView('journal') && <TabBtn active={tab === 'journal'} id="journal" label="Diário de Obra" icon={<BookOpen size={16} />} />}
@@ -746,6 +748,17 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
               measuredValue={treeService.calculateBasicStats(displayData.items, project.bdi).current}
               onUpdateExpenses={handleExpensesReplace}
               isReadOnly={displayData.isReadOnly}
+            />
+          )}
+          {tab === 'supplies' && (
+            <PlanningView
+              project={project}
+              suppliers={effectiveSuppliers}
+              onUpdatePlanning={handleUpdatePlanning}
+              onAddExpense={handleExpenseAdd}
+              categories={displayData.items.filter(i => i.type === 'category')}
+              allWorkItems={displayData.items}
+              viewMode="supplies"
             />
           )}
           {tab === 'labor-contracts' && (
@@ -792,7 +805,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
             stats={expenseStats}
           />
         )}
-        {tab === 'planning' && (
+        {(tab === 'planning' || tab === 'supplies') && (
           <PrintPlanningReport
             project={project}
           />

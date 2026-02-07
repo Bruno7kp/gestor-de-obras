@@ -27,16 +27,20 @@ interface PlanningViewProps {
   onAddExpense: (expense: ProjectExpense) => void;
   categories: WorkItem[];
   allWorkItems: WorkItem[];
+  viewMode?: 'planning' | 'supplies';
 }
 
 export const PlanningView: React.FC<PlanningViewProps> = ({ 
-  project, suppliers, onUpdatePlanning, onAddExpense, categories, allWorkItems 
+  project, suppliers, onUpdatePlanning, onAddExpense, categories, allWorkItems, viewMode = 'planning'
 }) => {
   const { canEdit, getLevel } = usePermissions();
   const toast = useToast();
-  const canEditPlanning = canEdit('planning');
+  const isSuppliesView = viewMode === 'supplies';
+  const canEditPlanning = isSuppliesView ? canEdit('supplies') : canEdit('planning');
 
-  const [activeSubTab, setActiveSubTab] = useState<'tasks' | 'forecast' | 'milestones'>('tasks');
+  const [activeSubTab, setActiveSubTab] = useState<'tasks' | 'forecast' | 'milestones'>(
+    isSuppliesView ? 'forecast' : 'tasks'
+  );
   const [editingTask, setEditingTask] = useState<PlanningTask | null>(null);
   const [confirmingForecast, setConfirmingForecast] = useState<MaterialForecast | null>(null);
   const [isAddingForecast, setIsAddingForecast] = useState(false);
@@ -54,6 +58,10 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   
   const planning = project.planning;
 
+  useEffect(() => {
+    setActiveSubTab(isSuppliesView ? 'forecast' : 'tasks');
+  }, [isSuppliesView]);
+
   const financialCategories = useMemo(() => {
     return project.expenses.filter(e => e.itemType === 'category' && e.type === 'labor');
   }, [project.expenses]);
@@ -69,7 +77,9 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
 
   const forecastStats = useMemo(() => {
     const list = planning.forecasts || [];
-    const total = list.reduce((acc, f) => acc + ((f.quantityNeeded || 0) * (f.unitPrice || 0)), 0);
+    const total = list
+      .filter(f => !f.isCleared)
+      .reduce((acc, f) => acc + ((f.quantityNeeded || 0) * (f.unitPrice || 0)), 0);
     
     const countPending = list.filter(f => f.status === 'pending').length;
     const countOrdered = list.filter(f => f.status === 'ordered').length;
@@ -179,19 +189,25 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
       {!canEditPlanning && (
         <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-3">
           <Lock size={18} className="text-amber-600 flex-shrink-0" />
-          <span className="text-amber-800">Você tem apenas permissão de leitura. Para editar planejamento, solicite acesso ao administrador.</span>
+          <span className="text-amber-800">
+            Você tem apenas permissão de leitura. Para editar {isSuppliesView ? 'suprimentos' : 'planejamento'}, solicite acesso ao administrador.
+          </span>
         </div>
       )}
       
       <div className="no-print flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-8 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-xl">
         <div className="flex items-center gap-5">
           <div className="p-4 bg-indigo-600 rounded-[1.5rem] text-white shadow-xl shadow-indigo-500/20">
-            <HardHat size={28} />
+            {isSuppliesView ? <Boxes size={28} /> : <HardHat size={28} />}
           </div>
           <div>
-            <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">Planejamento Operacional</h2>
+            <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">
+              {isSuppliesView ? 'Suprimentos' : 'Planejamento Operacional'}
+            </h2>
             <div className="flex flex-wrap items-center gap-2 mt-1">
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Gestão Ágil de Canteiro</p>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">
+                {isSuppliesView ? 'Previsão e compras de materiais' : 'Gestão Ágil de Canteiro'}
+              </p>
               <div className="h-3 w-px bg-slate-200 dark:bg-slate-700 mx-1" />
               <button 
                 onClick={() => window.print()}
@@ -220,11 +236,12 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
           </div>
         </div>
 
-        <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl gap-1 overflow-x-auto no-scrollbar">
-          <SubTabBtn active={activeSubTab === 'tasks'} onClick={() => setActiveSubTab('tasks')} label="Quadro Kanban" icon={<ListChecks size={14}/>} />
-          <SubTabBtn active={activeSubTab === 'forecast'} onClick={() => setActiveSubTab('forecast')} label="Suprimentos" icon={<Boxes size={14}/>} />
-          <SubTabBtn active={activeSubTab === 'milestones'} onClick={() => setActiveSubTab('milestones')} label="Cronograma" icon={<Target size={14}/>} />
-        </div>
+        {!isSuppliesView && (
+          <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl gap-1 overflow-x-auto no-scrollbar">
+            <SubTabBtn active={activeSubTab === 'tasks'} onClick={() => setActiveSubTab('tasks')} label="Quadro Kanban" icon={<ListChecks size={14}/>} />
+            <SubTabBtn active={activeSubTab === 'milestones'} onClick={() => setActiveSubTab('milestones')} label="Cronograma" icon={<Target size={14}/>} />
+          </div>
+        )}
       </div>
 
       <DragDropContext onDragEnd={onDragEnd}>
@@ -370,7 +387,12 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                         <th className="pb-2">Unitário</th>
                         <th className="pb-2">Total Previsto</th>
                         <th className="pb-2">Status</th>
-                        <th className="pb-2">Pago?</th>
+                        {forecastStatusFilter === 'ordered' && (
+                          <th className="pb-2">Pago?</th>
+                        )}
+                        {forecastStatusFilter === 'delivered' && (
+                          <th className="pb-2">Dar Baixa?</th>
+                        )}
                         <th className="pb-2 text-right pr-4">Ações</th>
                       </tr>
                     </thead>
@@ -475,20 +497,32 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                         <StatusCircle active={f.status === 'delivered'} onClick={() => onUpdatePlanning(planningService.updateForecast(planning, f.id, { status: 'delivered', deliveryDate: new Date().toISOString().split('T')[0] }))} icon={<Truck size={12}/>} color="emerald" label="No Local" />
                                       </div>
                                     </td>
-                                    <td className="py-6">
-                                      <button 
-                                        onClick={() => {
-                                          if (f.status === 'pending') {
-                                            setConfirmingForecast(f);
-                                          } else {
-                                            onUpdatePlanning(planningService.updateForecast(planning, f.id, { isPaid: !f.isPaid }));
-                                          }
-                                        }}
-                                        className={`p-2.5 rounded-full transition-all ${f.isPaid ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 shadow-sm' : 'text-slate-200 hover:text-rose-400 bg-slate-50 dark:bg-slate-800'}`}
-                                      >
-                                        {f.isPaid ? <CheckCircle2 size={20}/> : <Circle size={20}/>}
-                                      </button>
-                                    </td>
+                                    {forecastStatusFilter === 'ordered' && (
+                                      <td className="py-6">
+                                        <button 
+                                          onClick={() => {
+                                            if (f.status === 'pending') {
+                                              setConfirmingForecast(f);
+                                            } else {
+                                              onUpdatePlanning(planningService.updateForecast(planning, f.id, { isPaid: !f.isPaid }));
+                                            }
+                                          }}
+                                          className={`p-2.5 rounded-full transition-all ${f.isPaid ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 shadow-sm' : 'text-slate-200 hover:text-rose-400 bg-slate-50 dark:bg-slate-800'}`}
+                                        >
+                                          {f.isPaid ? <CheckCircle2 size={20}/> : <Circle size={20}/>}
+                                        </button>
+                                      </td>
+                                    )}
+                                    {forecastStatusFilter === 'delivered' && (
+                                      <td className="py-6">
+                                        <button
+                                          onClick={() => onUpdatePlanning(planningService.updateForecast(planning, f.id, { isCleared: !f.isCleared }))}
+                                          className={`p-2.5 rounded-full transition-all ${f.isCleared ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 shadow-sm' : 'text-slate-200 hover:text-emerald-400 bg-slate-50 dark:bg-slate-800'}`}
+                                        >
+                                          {f.isCleared ? <CheckCircle2 size={20}/> : <Circle size={20}/>}
+                                        </button>
+                                      </td>
+                                    )}
                                     <td className="py-6 text-right pr-6 rounded-r-3xl">
                                       <div className="flex items-center justify-end gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity">
                                         {f.status === 'pending' && (
@@ -696,6 +730,7 @@ const ForecastModal = ({ onClose, onSave, allWorkItems, suppliers, editingItem }
     unitPrice: editingItem?.unitPrice || 0,
     unit: editingItem?.unit || 'un',
     isPaid: editingItem?.isPaid || false,
+    isCleared: editingItem?.isCleared || false,
     estimatedDate: (editingItem?.estimatedDate || new Date().toISOString()).split('T')[0],
     supplierId: editingItem?.supplierId || '',
     categoryId: editingItem?.categoryId || '',
