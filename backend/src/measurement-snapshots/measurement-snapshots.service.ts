@@ -1,10 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { ensureProjectAccess } from '../common/project-access.util';
 
 interface CreateSnapshotInput {
   projectId: string;
   instanceId: string;
+  userId?: string;
   measurementNumber: number;
   date: string;
   itemsSnapshot: unknown;
@@ -13,22 +15,23 @@ interface CreateSnapshotInput {
 
 interface UpdateSnapshotInput extends Partial<CreateSnapshotInput> {
   id: string;
+  userId?: string;
 }
 
 @Injectable()
 export class MeasurementSnapshotsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private async ensureProject(projectId: string, instanceId: string) {
-    const project = await this.prisma.project.findFirst({
-      where: { id: projectId, instanceId },
-      select: { id: true },
-    });
-    if (!project) throw new NotFoundException('Projeto nao encontrado');
+  private async ensureProject(
+    projectId: string,
+    instanceId: string,
+    userId?: string,
+  ) {
+    return ensureProjectAccess(this.prisma, projectId, instanceId, userId);
   }
 
-  async findAll(projectId: string, instanceId: string) {
-    await this.ensureProject(projectId, instanceId);
+  async findAll(projectId: string, instanceId: string, userId?: string) {
+    await this.ensureProject(projectId, instanceId, userId);
     return this.prisma.measurementSnapshot.findMany({
       where: { projectId },
       orderBy: { measurementNumber: 'desc' },
@@ -36,7 +39,7 @@ export class MeasurementSnapshotsService {
   }
 
   async create(input: CreateSnapshotInput) {
-    await this.ensureProject(input.projectId, input.instanceId);
+    await this.ensureProject(input.projectId, input.instanceId, input.userId);
     return this.prisma.measurementSnapshot.create({
       data: {
         projectId: input.projectId,
@@ -49,27 +52,42 @@ export class MeasurementSnapshotsService {
   }
 
   async update(input: UpdateSnapshotInput) {
-    const existing = await this.prisma.measurementSnapshot.findFirst({
+    let existing = await this.prisma.measurementSnapshot.findFirst({
       where: { id: input.id, project: { instanceId: input.instanceId } },
     });
+    if (!existing && input.userId) {
+      existing = await this.prisma.measurementSnapshot.findFirst({
+        where: {
+          id: input.id,
+          project: { members: { some: { userId: input.userId } } },
+        },
+      });
+    }
 
     if (!existing) throw new NotFoundException('Snapshot nao encontrado');
 
     return this.prisma.measurementSnapshot.update({
       where: { id: input.id },
       data: {
-        measurementNumber: input.measurementNumber ?? existing.measurementNumber,
+        measurementNumber:
+          input.measurementNumber ?? existing.measurementNumber,
         date: input.date ?? existing.date,
-        itemsSnapshot: (input.itemsSnapshot ?? existing.itemsSnapshot) as Prisma.InputJsonValue,
+        itemsSnapshot: (input.itemsSnapshot ??
+          existing.itemsSnapshot) as Prisma.InputJsonValue,
         totals: (input.totals ?? existing.totals) as Prisma.InputJsonValue,
       },
     });
   }
 
-  async remove(id: string, instanceId: string) {
-    const existing = await this.prisma.measurementSnapshot.findFirst({
+  async remove(id: string, instanceId: string, userId?: string) {
+    let existing = await this.prisma.measurementSnapshot.findFirst({
       where: { id, project: { instanceId } },
     });
+    if (!existing && userId) {
+      existing = await this.prisma.measurementSnapshot.findFirst({
+        where: { id, project: { members: { some: { userId } } } },
+      });
+    }
 
     if (!existing) throw new NotFoundException('Snapshot nao encontrado');
 

@@ -60,7 +60,11 @@ export class ProjectExpensesController {
     @Query('projectId') projectId: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.projectExpensesService.findAll(projectId, req.user.instanceId);
+    return this.projectExpensesService.findAll(
+      projectId,
+      req.user.instanceId,
+      req.user.id,
+    );
   }
 
   @Post()
@@ -69,6 +73,7 @@ export class ProjectExpensesController {
     return this.projectExpensesService.create({
       ...body,
       instanceId: req.user.instanceId,
+      userId: req.user.id,
     });
   }
 
@@ -88,6 +93,7 @@ export class ProjectExpensesController {
       body.expenses,
       body.replaceTypes ?? null,
       req.user.instanceId,
+      req.user.id,
     );
   }
 
@@ -102,12 +108,17 @@ export class ProjectExpensesController {
       ...body,
       id,
       instanceId: req.user.instanceId,
+      userId: req.user.id,
     });
   }
 
   @Delete(':id')
   @HasPermission('financial_flow.edit')
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    return this.projectExpensesService.remove(id, req.user.instanceId);
+    return this.projectExpensesService.remove(
+      id,
+      req.user.instanceId,
+      req.user.id,
+    );
   }
 }

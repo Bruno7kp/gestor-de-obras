@@ -39,7 +39,11 @@ export class ProjectAssetsController {
     @Query('projectId') projectId: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.projectAssetsService.findAll(projectId, req.user.instanceId);
+    return this.projectAssetsService.findAll(
+      projectId,
+      req.user.instanceId,
+      req.user.id,
+    );
   }
 
   @Post()
@@ -48,6 +52,7 @@ export class ProjectAssetsController {
     return this.projectAssetsService.create({
       ...body,
       instanceId: req.user.instanceId,
+      userId: req.user.id,
     });
   }
 
@@ -62,12 +67,17 @@ export class ProjectAssetsController {
       ...body,
       id,
       instanceId: req.user.instanceId,
+      userId: req.user.id,
     });
   }
 
   @Delete(':id')
   @HasPermission('documents.edit')
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    return this.projectAssetsService.remove(id, req.user.instanceId);
+    return this.projectAssetsService.remove(
+      id,
+      req.user.instanceId,
+      req.user.id,
+    );
   }
 }

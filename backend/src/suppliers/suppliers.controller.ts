@@ -40,6 +40,14 @@ export class SuppliersController {
     return this.suppliersService.findAll(req.user.instanceId);
   }
 
+  @Get('by-instance/:instanceId')
+  findByInstance(
+    @Param('instanceId') instanceId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.suppliersService.findAllByInstance(instanceId, req.user.id);
+  }
+
   @Get(':id')
   findById(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.suppliersService.findById(id, req.user.instanceId);

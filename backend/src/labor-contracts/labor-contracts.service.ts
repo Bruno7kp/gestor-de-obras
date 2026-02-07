@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { removeLocalUploads } from '../uploads/file.utils';
+import { ensureProjectAccess } from '../common/project-access.util';
 
 interface LaborPaymentInput {
   id?: string;
@@ -13,6 +14,7 @@ interface LaborPaymentInput {
 interface CreateLaborContractInput {
   projectId: string;
   instanceId: string;
+  userId?: string;
   tipo: string;
   descricao: string;
   associadoId: string;
@@ -27,18 +29,15 @@ interface CreateLaborContractInput {
 
 interface UpdateLaborContractInput extends Partial<CreateLaborContractInput> {
   id: string;
+  userId?: string;
 }
 
 @Injectable()
 export class LaborContractsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private async ensureProject(projectId: string, instanceId: string) {
-    const project = await this.prisma.project.findFirst({
-      where: { id: projectId, instanceId },
-      select: { id: true },
-    });
-    if (!project) throw new NotFoundException('Projeto nao encontrado');
+  private async ensureProject(projectId: string, instanceId: string, userId?: string) {
+    return ensureProjectAccess(this.prisma, projectId, instanceId, userId);
   }
 
   private async ensureWorkforceMember(id: string, projectId: string) {
@@ -63,8 +62,8 @@ export class LaborContractsService {
     return { valorPago, status };
   }
 
-  async findAll(projectId: string, instanceId: string) {
-    await this.ensureProject(projectId, instanceId);
+  async findAll(projectId: string, instanceId: string, userId?: string) {
+    await this.ensureProject(projectId, instanceId, userId);
     return this.prisma.laborContract.findMany({
       where: { projectId },
       orderBy: { ordem: 'asc' },
@@ -73,7 +72,7 @@ export class LaborContractsService {
   }
 
   async create(input: CreateLaborContractInput) {
-    await this.ensureProject(input.projectId, input.instanceId);
+    await this.ensureProject(input.projectId, input.instanceId, input.userId);
     await this.ensureWorkforceMember(input.associadoId, input.projectId);
     if (input.linkedWorkItemId) {
       await this.ensureWorkItem(input.linkedWorkItemId, input.projectId);
@@ -121,9 +120,14 @@ export class LaborContractsService {
   }
 
   async update(input: UpdateLaborContractInput) {
-    const existing = await this.prisma.laborContract.findFirst({
+    let existing = await this.prisma.laborContract.findFirst({
       where: { id: input.id, project: { instanceId: input.instanceId } },
     });
+    if (!existing && input.userId) {
+      existing = await this.prisma.laborContract.findFirst({
+        where: { id: input.id, project: { members: { some: { userId: input.userId } } } },
+      });
+    }
 
     if (!existing) throw new NotFoundException('Contrato nao encontrado');
 
@@ -183,10 +187,15 @@ export class LaborContractsService {
     });
   }
 
-  async remove(id: string, instanceId: string) {
-    const existing = await this.prisma.laborContract.findFirst({
+  async remove(id: string, instanceId: string, userId?: string) {
+    let existing = await this.prisma.laborContract.findFirst({
       where: { id, project: { instanceId } },
     });
+    if (!existing && userId) {
+      existing = await this.prisma.laborContract.findFirst({
+        where: { id, project: { members: { some: { userId } } } },
+      });
+    }
 
     if (!existing) throw new NotFoundException('Contrato nao encontrado');
 

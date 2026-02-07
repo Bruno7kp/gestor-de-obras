@@ -1,11 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { removeLocalUpload } from '../uploads/file.utils';
+import { ensureProjectAccess } from '../common/project-access.util';
 
 interface CreateTaskInput {
   id?: string;
   projectId: string;
   instanceId: string;
+  userId?: string;
   categoryId?: string | null;
   description: string;
   status: string;
@@ -19,6 +21,7 @@ interface CreateForecastInput {
   id?: string;
   projectId: string;
   instanceId: string;
+  userId?: string;
   description: string;
   unit: string;
   quantityNeeded: number;
@@ -37,6 +40,7 @@ interface CreateMilestoneInput {
   id?: string;
   projectId: string;
   instanceId: string;
+  userId?: string;
   title: string;
   date: string;
   isCompleted: boolean;
@@ -46,12 +50,12 @@ interface CreateMilestoneInput {
 export class PlanningService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private async ensureProject(projectId: string, instanceId: string) {
-    const project = await this.prisma.project.findFirst({
-      where: { id: projectId, instanceId },
-      select: { id: true },
-    });
-    if (!project) throw new NotFoundException('Projeto nao encontrado');
+  private async ensureProject(
+    projectId: string,
+    instanceId: string,
+    userId?: string,
+  ) {
+    return ensureProjectAccess(this.prisma, projectId, instanceId, userId);
   }
 
   private async ensurePlanning(projectId: string) {
@@ -69,8 +73,8 @@ export class PlanningService {
     });
   }
 
-  async listTasks(projectId: string, instanceId: string) {
-    await this.ensureProject(projectId, instanceId);
+  async listTasks(projectId: string, instanceId: string, userId?: string) {
+    await this.ensureProject(projectId, instanceId, userId);
     const planning = await this.ensurePlanning(projectId);
     return this.prisma.planningTask.findMany({
       where: { projectPlanningId: planning.id },
@@ -79,7 +83,7 @@ export class PlanningService {
   }
 
   async createTask(input: CreateTaskInput) {
-    await this.ensureProject(input.projectId, input.instanceId);
+    await this.ensureProject(input.projectId, input.instanceId, input.userId);
     const planning = await this.ensurePlanning(input.projectId);
 
     return this.prisma.planningTask.create({
@@ -101,10 +105,19 @@ export class PlanningService {
     id: string,
     instanceId: string,
     data: Partial<CreateTaskInput>,
+    userId?: string,
   ) {
-    const task = await this.prisma.planningTask.findFirst({
+    let task = await this.prisma.planningTask.findFirst({
       where: { id, projectPlanning: { project: { instanceId } } },
     });
+    if (!task && userId) {
+      task = await this.prisma.planningTask.findFirst({
+        where: {
+          id,
+          projectPlanning: { project: { members: { some: { userId } } } },
+        },
+      });
+    }
     if (!task) throw new NotFoundException('Tarefa nao encontrada');
 
     return this.prisma.planningTask.update({
@@ -121,19 +134,28 @@ export class PlanningService {
     });
   }
 
-  async deleteTask(id: string, instanceId: string) {
-    const task = await this.prisma.planningTask.findFirst({
+  async deleteTask(id: string, instanceId: string, userId?: string) {
+    let task = await this.prisma.planningTask.findFirst({
       where: { id, projectPlanning: { project: { instanceId } } },
       select: { id: true },
     });
+    if (!task && userId) {
+      task = await this.prisma.planningTask.findFirst({
+        where: {
+          id,
+          projectPlanning: { project: { members: { some: { userId } } } },
+        },
+        select: { id: true },
+      });
+    }
     if (!task) throw new NotFoundException('Tarefa nao encontrada');
 
     await this.prisma.planningTask.delete({ where: { id } });
     return { deleted: 1 };
   }
 
-  async listForecasts(projectId: string, instanceId: string) {
-    await this.ensureProject(projectId, instanceId);
+  async listForecasts(projectId: string, instanceId: string, userId?: string) {
+    await this.ensureProject(projectId, instanceId, userId);
     const planning = await this.ensurePlanning(projectId);
     return this.prisma.materialForecast.findMany({
       where: { projectPlanningId: planning.id },
@@ -142,7 +164,7 @@ export class PlanningService {
   }
 
   async createForecast(input: CreateForecastInput) {
-    await this.ensureProject(input.projectId, input.instanceId);
+    await this.ensureProject(input.projectId, input.instanceId, input.userId);
     const planning = await this.ensurePlanning(input.projectId);
 
     return this.prisma.materialForecast.create({
@@ -169,10 +191,19 @@ export class PlanningService {
     id: string,
     instanceId: string,
     data: Partial<CreateForecastInput>,
+    userId?: string,
   ) {
-    const forecast = await this.prisma.materialForecast.findFirst({
+    let forecast = await this.prisma.materialForecast.findFirst({
       where: { id, projectPlanning: { project: { instanceId } } },
     });
+    if (!forecast && userId) {
+      forecast = await this.prisma.materialForecast.findFirst({
+        where: {
+          id,
+          projectPlanning: { project: { members: { some: { userId } } } },
+        },
+      });
+    }
     if (!forecast) throw new NotFoundException('Previsao nao encontrada');
 
     return this.prisma.materialForecast.update({
@@ -194,11 +225,20 @@ export class PlanningService {
     });
   }
 
-  async deleteForecast(id: string, instanceId: string) {
-    const forecast = await this.prisma.materialForecast.findFirst({
+  async deleteForecast(id: string, instanceId: string, userId?: string) {
+    let forecast = await this.prisma.materialForecast.findFirst({
       where: { id, projectPlanning: { project: { instanceId } } },
       select: { id: true, paymentProof: true },
     });
+    if (!forecast && userId) {
+      forecast = await this.prisma.materialForecast.findFirst({
+        where: {
+          id,
+          projectPlanning: { project: { members: { some: { userId } } } },
+        },
+        select: { id: true, paymentProof: true },
+      });
+    }
     if (!forecast) throw new NotFoundException('Previsao nao encontrada');
 
     await removeLocalUpload(forecast.paymentProof);
@@ -206,8 +246,8 @@ export class PlanningService {
     return { deleted: 1 };
   }
 
-  async listMilestones(projectId: string, instanceId: string) {
-    await this.ensureProject(projectId, instanceId);
+  async listMilestones(projectId: string, instanceId: string, userId?: string) {
+    await this.ensureProject(projectId, instanceId, userId);
     const planning = await this.ensurePlanning(projectId);
     return this.prisma.milestone.findMany({
       where: { projectPlanningId: planning.id },
@@ -216,7 +256,7 @@ export class PlanningService {
   }
 
   async createMilestone(input: CreateMilestoneInput) {
-    await this.ensureProject(input.projectId, input.instanceId);
+    await this.ensureProject(input.projectId, input.instanceId, input.userId);
     const planning = await this.ensurePlanning(input.projectId);
 
     return this.prisma.milestone.create({
@@ -234,10 +274,19 @@ export class PlanningService {
     id: string,
     instanceId: string,
     data: Partial<CreateMilestoneInput>,
+    userId?: string,
   ) {
-    const milestone = await this.prisma.milestone.findFirst({
+    let milestone = await this.prisma.milestone.findFirst({
       where: { id, projectPlanning: { project: { instanceId } } },
     });
+    if (!milestone && userId) {
+      milestone = await this.prisma.milestone.findFirst({
+        where: {
+          id,
+          projectPlanning: { project: { members: { some: { userId } } } },
+        },
+      });
+    }
     if (!milestone) throw new NotFoundException('Marco nao encontrado');
 
     return this.prisma.milestone.update({
@@ -256,8 +305,9 @@ export class PlanningService {
     forecasts: Array<Omit<CreateForecastInput, 'instanceId'>>,
     milestones: Array<Omit<CreateMilestoneInput, 'instanceId'>>,
     instanceId: string,
+    userId?: string,
   ): Promise<{ replaced: number }> {
-    await this.ensureProject(projectId, instanceId);
+    await this.ensureProject(projectId, instanceId, userId);
     const planning = await this.ensurePlanning(projectId);
 
     const taskData = tasks.map((t) => ({
@@ -321,11 +371,20 @@ export class PlanningService {
     return { replaced: tasks.length + forecasts.length + milestones.length };
   }
 
-  async deleteMilestone(id: string, instanceId: string) {
-    const milestone = await this.prisma.milestone.findFirst({
+  async deleteMilestone(id: string, instanceId: string, userId?: string) {
+    let milestone = await this.prisma.milestone.findFirst({
       where: { id, projectPlanning: { project: { instanceId } } },
       select: { id: true },
     });
+    if (!milestone && userId) {
+      milestone = await this.prisma.milestone.findFirst({
+        where: {
+          id,
+          projectPlanning: { project: { members: { some: { userId } } } },
+        },
+        select: { id: true },
+      });
+    }
     if (!milestone) throw new NotFoundException('Marco nao encontrado');
 
     await this.prisma.milestone.delete({ where: { id } });

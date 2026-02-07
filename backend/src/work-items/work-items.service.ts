@@ -1,10 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ensureProjectAccess } from '../common/project-access.util';
 
 interface CreateWorkItemInput {
   id?: string;
   projectId: string;
   instanceId: string;
+  userId?: string;
   parentId?: string | null;
   name: string;
   type: string;
@@ -31,22 +33,23 @@ interface CreateWorkItemInput {
 
 interface UpdateWorkItemInput extends Partial<CreateWorkItemInput> {
   id: string;
+  userId?: string;
 }
 
 @Injectable()
 export class WorkItemsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private async ensureProject(projectId: string, instanceId: string) {
-    const project = await this.prisma.project.findFirst({
-      where: { id: projectId, instanceId },
-      select: { id: true },
-    });
-    if (!project) throw new NotFoundException('Projeto nao encontrado');
+  private async ensureProject(
+    projectId: string,
+    instanceId: string,
+    userId?: string,
+  ) {
+    return ensureProjectAccess(this.prisma, projectId, instanceId, userId);
   }
 
-  async findAll(projectId: string, instanceId: string) {
-    await this.ensureProject(projectId, instanceId);
+  async findAll(projectId: string, instanceId: string, userId?: string) {
+    await this.ensureProject(projectId, instanceId, userId);
     return this.prisma.workItem.findMany({
       where: { projectId },
       orderBy: { order: 'asc' },
@@ -54,7 +57,7 @@ export class WorkItemsService {
   }
 
   async create(input: CreateWorkItemInput) {
-    await this.ensureProject(input.projectId, input.instanceId);
+    await this.ensureProject(input.projectId, input.instanceId, input.userId);
     return this.prisma.workItem.create({
       data: {
         id: input.id,
@@ -89,8 +92,9 @@ export class WorkItemsService {
     projectId: string,
     items: Array<Omit<CreateWorkItemInput, 'instanceId'>>,
     instanceId: string,
+    userId?: string,
   ): Promise<{ created: number }> {
-    await this.ensureProject(projectId, instanceId);
+    await this.ensureProject(projectId, instanceId, userId);
 
     // Prepare data for bulk insert
     const createData = items.map((i) => ({
@@ -136,8 +140,9 @@ export class WorkItemsService {
     items: Array<Omit<CreateWorkItemInput, 'instanceId'>>,
     replaceFlag: boolean,
     instanceId: string,
+    userId?: string,
   ): Promise<{ created: number }> {
-    await this.ensureProject(projectId, instanceId);
+    await this.ensureProject(projectId, instanceId, userId);
 
     const createData = items.map((i) => ({
       id: i.id,
@@ -183,12 +188,27 @@ export class WorkItemsService {
   }
 
   async update(input: UpdateWorkItemInput) {
-    const existing = await this.prisma.workItem.findFirst({
+    let existing = await this.prisma.workItem.findFirst({
       where: {
         id: input.id,
         project: { instanceId: input.instanceId },
       },
     });
+
+    // Fallback: check cross-instance project membership
+    if (!existing && input.userId) {
+      const item = await this.prisma.workItem.findFirst({
+        where: { id: input.id },
+        include: { project: { select: { id: true } } },
+      });
+      if (item) {
+        const membership = await this.prisma.projectMember.findFirst({
+          where: { projectId: item.project.id, user: { id: input.userId } },
+        });
+        if (membership) existing = item;
+      }
+    }
+
     if (!existing) throw new NotFoundException('Item nao encontrado');
 
     return this.prisma.workItem.update({
@@ -243,11 +263,25 @@ export class WorkItemsService {
     return Array.from(ids);
   }
 
-  async remove(id: string, instanceId: string) {
-    const target = await this.prisma.workItem.findFirst({
+  async remove(id: string, instanceId: string, userId?: string) {
+    let target = await this.prisma.workItem.findFirst({
       where: { id, project: { instanceId } },
       select: { id: true, projectId: true },
     });
+
+    // Fallback: check cross-instance project membership
+    if (!target && userId) {
+      const item = await this.prisma.workItem.findFirst({
+        where: { id },
+        select: { id: true, projectId: true },
+      });
+      if (item) {
+        const membership = await this.prisma.projectMember.findFirst({
+          where: { projectId: item.projectId, user: { id: userId } },
+        });
+        if (membership) target = item;
+      }
+    }
 
     if (!target) throw new NotFoundException('Item nao encontrado');
 

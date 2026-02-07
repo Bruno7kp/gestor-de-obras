@@ -36,6 +36,7 @@ import { projectAssetsApi } from '../services/projectAssetsApi';
 import { projectsApi } from '../services/projectsApi';
 import { rolesApi } from '../services/rolesApi';
 import { usersApi } from '../services/usersApi';
+import { suppliersApi } from '../services/suppliersApi';
 
 interface ProjectWorkspaceProps {
   project: Project;
@@ -66,9 +67,11 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const [isReopenModalOpen, setIsReopenModalOpen] = useState(false);
   const [showMembersModal, setShowMembersModal] = useState(false);
   const [projectMembers, setProjectMembers] = useState<any[]>([]);
+  const [membersLoading, setMembersLoading] = useState(true);
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [allRoles, setAllRoles] = useState<any[]>([]);
   const [generalAccessUserIds, setGeneralAccessUserIds] = useState<string[]>([]);
+  const [externalSuppliers, setExternalSuppliers] = useState<Supplier[]>([]);
 
   const tabsNavRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef<{ x: number; scrollLeft: number; moved: boolean } | null>(null);
@@ -102,6 +105,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
   // Fetch project members, users, and general access list
   useEffect(() => {
+    setMembersLoading(true);
+    setProjectMembers([]);
+
     const fetchMembers = async () => {
       try {
         const response = await fetch(`/api/projects/${project.id}/members`, {
@@ -113,6 +119,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         }
       } catch (error) {
         console.error('Error fetching project members:', error);
+      } finally {
+        setMembersLoading(false);
       }
     };
 
@@ -152,6 +160,23 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     fetchUsersAndRoles();
   }, [project.id]);
 
+  // For external projects, fetch the suppliers from the project's owning instance
+  useEffect(() => {
+    if (!isExternalProjectProp) {
+      setExternalSuppliers([]);
+      return;
+    }
+    const pid = (project as any).instanceId;
+    if (!pid) return;
+    suppliersApi.listByInstance(pid).then(setExternalSuppliers).catch(() => setExternalSuppliers([]));
+  }, [isExternalProjectProp, (project as any).instanceId]);
+
+  // Merge external suppliers with the ones passed from the parent
+  const effectiveSuppliers = useMemo(
+    () => (isExternalProjectProp && externalSuppliers.length > 0 ? externalSuppliers : suppliers),
+    [isExternalProjectProp, externalSuppliers, suppliers],
+  );
+
   const handleMembersChange = async () => {
     try {
       const response = await fetch(`/api/projects/${project.id}/members`, {
@@ -177,7 +202,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     const member = projectMembers.find((entry) => entry.user?.id === user.id);
     if (!member?.assignedRole?.permissions) return [];
     return member.assignedRole.permissions.map(
-      (rp: any) => rp.permission?.code ?? rp.code,
+      (rp: any) => typeof rp === 'string' ? rp : (rp.permission?.code ?? rp.code),
     ).filter(Boolean);
   }, [projectMembers, user?.id]);
 
@@ -205,6 +230,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   }, [projectMembers, user?.id]);
 
   const canEditProject = useMemo(() => {
+    // While members are still loading, don't mark as read-only to avoid flashing banner
+    if (membersLoading) return true;
     if (isExternalProject) {
       // For external projects, check the assigned role permissions
       return checkCanEdit(memberPermissions, 'projects_specific') ||
@@ -213,7 +240,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     return getLevelGlobal('projects_general') === 'edit' ||
            checkCanEdit(memberPermissions, 'projects_specific') ||
            checkCanEdit(memberPermissions, 'projects_general');
-  }, [isExternalProject, memberPermissions, getLevelGlobal]);
+  }, [membersLoading, isExternalProject, memberPermissions, getLevelGlobal]);
 
   const currentStats = useMemo(() =>
     treeService.calculateBasicStats(project.items, project.bdi, project),
@@ -732,7 +759,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           {tab === 'planning' && (
             <PlanningView
               project={project}
-              suppliers={suppliers}
+              suppliers={effectiveSuppliers}
               onUpdatePlanning={handleUpdatePlanning}
               onAddExpense={handleExpenseAdd}
               categories={displayData.items.filter(i => i.type === 'category')}

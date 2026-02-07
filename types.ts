@@ -340,6 +340,7 @@ export interface Supplier {
 // --- PROJETO ---
 export interface Project {
   id: string;
+  instanceId?: string;
   groupId: string | null;
   name: string;
   companyName: string;

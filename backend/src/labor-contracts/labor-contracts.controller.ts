@@ -47,7 +47,7 @@ export class LaborContractsController {
 
   @Get()
   findAll(@Query('projectId') projectId: string, @Req() req: AuthenticatedRequest) {
-    return this.laborContractsService.findAll(projectId, req.user.instanceId);
+    return this.laborContractsService.findAll(projectId, req.user.instanceId, req.user.id);
   }
 
   @Post()
@@ -55,6 +55,7 @@ export class LaborContractsController {
     return this.laborContractsService.create({
       ...body,
       instanceId: req.user.instanceId,
+      userId: req.user.id,
     });
   }
 
@@ -68,11 +69,12 @@ export class LaborContractsController {
       ...body,
       id,
       instanceId: req.user.instanceId,
+      userId: req.user.id,
     });
   }
 
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    return this.laborContractsService.remove(id, req.user.instanceId);
+    return this.laborContractsService.remove(id, req.user.instanceId, req.user.id);
   }
 }

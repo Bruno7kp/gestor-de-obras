@@ -41,7 +41,11 @@ export class JournalController {
     @Query('projectId') projectId: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.journalService.listEntries(projectId, req.user.instanceId);
+    return this.journalService.listEntries(
+      projectId,
+      req.user.instanceId,
+      req.user.id,
+    );
   }
 
   @Post('entries')
@@ -53,6 +57,7 @@ export class JournalController {
     return this.journalService.createEntry({
       ...body,
       instanceId: req.user.instanceId,
+      userId: req.user.id,
     });
   }
 
@@ -63,12 +68,21 @@ export class JournalController {
     @Body() body: UpdateJournalEntryBody,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.journalService.updateEntry(id, req.user.instanceId, body);
+    return this.journalService.updateEntry(
+      id,
+      req.user.instanceId,
+      body,
+      req.user.id,
+    );
   }
 
   @Delete('entries/:id')
   @HasPermission('journal.edit')
   deleteEntry(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    return this.journalService.deleteEntry(id, req.user.instanceId);
+    return this.journalService.deleteEntry(
+      id,
+      req.user.instanceId,
+      req.user.id,
+    );
   }
 }

@@ -194,7 +194,7 @@ export class ProjectsService {
       throw new NotFoundException('Projeto nao encontrado');
     }
 
-    return this.prisma.project.findFirst({
+    let project = await this.prisma.project.findFirst({
       where: { id, instanceId },
       include: {
         items: true,
@@ -236,6 +236,54 @@ export class ProjectsService {
         },
       },
     });
+
+    if (!project) {
+      // Cross-instance: user is a member from another instance
+      project = await this.prisma.project.findFirst({
+        where: { id, members: { some: { userId } } },
+        include: {
+          items: true,
+          history: true,
+          expenses: true,
+          assets: true,
+          theme: true,
+          members: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  profileImage: true,
+                  instanceId: true,
+                },
+              },
+              assignedRole: {
+                select: {
+                  id: true,
+                  name: true,
+                  permissions: {
+                    include: {
+                      permission: { select: { code: true } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          planning: {
+            include: { tasks: true, forecasts: true, milestones: true },
+          },
+          journal: { include: { entries: true } },
+          workforce: { include: { documentos: true, responsabilidades: true } },
+          laborContracts: {
+            include: { pagamentos: { orderBy: { data: 'asc' } } },
+          },
+        },
+      });
+    }
+
+    return project;
   }
 
   create(input: CreateProjectInput) {
@@ -271,10 +319,17 @@ export class ProjectsService {
       throw new ForbiddenException('Sem permissao para editar o projeto');
     }
 
-    const existing = await this.prisma.project.findFirst({
+    let existing = await this.prisma.project.findFirst({
       where: { id: input.id, instanceId: input.instanceId },
       include: { theme: true },
     });
+
+    if (!existing && input.userId) {
+      existing = await this.prisma.project.findFirst({
+        where: { id: input.id, members: { some: { userId: input.userId } } },
+        include: { theme: true },
+      });
+    }
 
     if (!existing) throw new NotFoundException('Projeto nao encontrado');
 

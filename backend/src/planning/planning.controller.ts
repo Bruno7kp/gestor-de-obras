@@ -70,7 +70,11 @@ export class PlanningController {
     @Query('projectId') projectId: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.planningService.listTasks(projectId, req.user.instanceId);
+    return this.planningService.listTasks(
+      projectId,
+      req.user.instanceId,
+      req.user.id,
+    );
   }
 
   @Post('tasks')
@@ -79,6 +83,7 @@ export class PlanningController {
     return this.planningService.createTask({
       ...body,
       instanceId: req.user.instanceId,
+      userId: req.user.id,
     });
   }
 
@@ -89,13 +94,22 @@ export class PlanningController {
     @Body() body: UpdateTaskBody,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.planningService.updateTask(id, req.user.instanceId, body);
+    return this.planningService.updateTask(
+      id,
+      req.user.instanceId,
+      body,
+      req.user.id,
+    );
   }
 
   @Delete('tasks/:id')
   @HasPermission('planning.edit')
   deleteTask(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    return this.planningService.deleteTask(id, req.user.instanceId);
+    return this.planningService.deleteTask(
+      id,
+      req.user.instanceId,
+      req.user.id,
+    );
   }
 
   @Get('forecasts')
@@ -103,7 +117,11 @@ export class PlanningController {
     @Query('projectId') projectId: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.planningService.listForecasts(projectId, req.user.instanceId);
+    return this.planningService.listForecasts(
+      projectId,
+      req.user.instanceId,
+      req.user.id,
+    );
   }
 
   @Post('forecasts')
@@ -115,6 +133,7 @@ export class PlanningController {
     return this.planningService.createForecast({
       ...body,
       instanceId: req.user.instanceId,
+      userId: req.user.id,
     });
   }
 
@@ -125,13 +144,22 @@ export class PlanningController {
     @Body() body: UpdateForecastBody,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.planningService.updateForecast(id, req.user.instanceId, body);
+    return this.planningService.updateForecast(
+      id,
+      req.user.instanceId,
+      body,
+      req.user.id,
+    );
   }
 
   @Delete('forecasts/:id')
   @HasPermission('planning.edit')
   deleteForecast(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    return this.planningService.deleteForecast(id, req.user.instanceId);
+    return this.planningService.deleteForecast(
+      id,
+      req.user.instanceId,
+      req.user.id,
+    );
   }
 
   @Get('milestones')
@@ -139,7 +167,11 @@ export class PlanningController {
     @Query('projectId') projectId: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.planningService.listMilestones(projectId, req.user.instanceId);
+    return this.planningService.listMilestones(
+      projectId,
+      req.user.instanceId,
+      req.user.id,
+    );
   }
 
   @Post('milestones')
@@ -151,6 +183,7 @@ export class PlanningController {
     return this.planningService.createMilestone({
       ...body,
       instanceId: req.user.instanceId,
+      userId: req.user.id,
     });
   }
 
@@ -172,6 +205,7 @@ export class PlanningController {
       body.forecasts ?? [],
       body.milestones ?? [],
       req.user.instanceId,
+      req.user.id,
     );
   }
 
@@ -182,12 +216,21 @@ export class PlanningController {
     @Body() body: UpdateMilestoneBody,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.planningService.updateMilestone(id, req.user.instanceId, body);
+    return this.planningService.updateMilestone(
+      id,
+      req.user.instanceId,
+      body,
+      req.user.id,
+    );
   }
 
   @Delete('milestones/:id')
   @HasPermission('planning.edit')
   deleteMilestone(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    return this.planningService.deleteMilestone(id, req.user.instanceId);
+    return this.planningService.deleteMilestone(
+      id,
+      req.user.instanceId,
+      req.user.id,
+    );
   }
 }

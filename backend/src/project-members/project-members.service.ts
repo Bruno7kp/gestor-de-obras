@@ -48,11 +48,23 @@ const MEMBER_INCLUDE = {
 export class ProjectMembersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listMembers(projectId: string, instanceId: string) {
-    // Verify project exists and belongs to instance
-    const project = await this.prisma.project.findFirst({
+  async listMembers(projectId: string, instanceId: string, userId?: string) {
+    // First check if project belongs to user's instance
+    let project = await this.prisma.project.findFirst({
       where: { id: projectId, instanceId },
     });
+
+    // If not found in user's instance, check if user is a member of this project (cross-instance)
+    if (!project && userId) {
+      const membership = await this.prisma.projectMember.findFirst({
+        where: { projectId, userId },
+      });
+      if (membership) {
+        project = await this.prisma.project.findFirst({
+          where: { id: projectId },
+        });
+      }
+    }
 
     if (!project) {
       throw new NotFoundException('Projeto nao encontrado');

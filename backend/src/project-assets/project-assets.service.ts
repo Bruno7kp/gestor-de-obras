@@ -1,11 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { removeLocalUpload } from '../uploads/file.utils';
+import { ensureProjectAccess } from '../common/project-access.util';
 
 interface CreateAssetInput {
   id?: string;
   projectId: string;
   instanceId: string;
+  userId?: string;
   name: string;
   fileType: string;
   fileSize: number;
@@ -15,22 +17,23 @@ interface CreateAssetInput {
 
 interface UpdateAssetInput extends Partial<CreateAssetInput> {
   id: string;
+  userId?: string;
 }
 
 @Injectable()
 export class ProjectAssetsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private async ensureProject(projectId: string, instanceId: string) {
-    const project = await this.prisma.project.findFirst({
-      where: { id: projectId, instanceId },
-      select: { id: true },
-    });
-    if (!project) throw new NotFoundException('Projeto nao encontrado');
+  private async ensureProject(
+    projectId: string,
+    instanceId: string,
+    userId?: string,
+  ) {
+    return ensureProjectAccess(this.prisma, projectId, instanceId, userId);
   }
 
-  async findAll(projectId: string, instanceId: string) {
-    await this.ensureProject(projectId, instanceId);
+  async findAll(projectId: string, instanceId: string, userId?: string) {
+    await this.ensureProject(projectId, instanceId, userId);
     return this.prisma.projectAsset.findMany({
       where: { projectId },
       orderBy: { uploadDate: 'desc' },
@@ -38,7 +41,7 @@ export class ProjectAssetsService {
   }
 
   async create(input: CreateAssetInput) {
-    await this.ensureProject(input.projectId, input.instanceId);
+    await this.ensureProject(input.projectId, input.instanceId, input.userId);
     return this.prisma.projectAsset.create({
       data: {
         id: input.id,
@@ -53,12 +56,20 @@ export class ProjectAssetsService {
   }
 
   async update(input: UpdateAssetInput) {
-    const existing = await this.prisma.projectAsset.findFirst({
+    let existing = await this.prisma.projectAsset.findFirst({
       where: {
         id: input.id,
         project: { instanceId: input.instanceId },
       },
     });
+    if (!existing && input.userId) {
+      existing = await this.prisma.projectAsset.findFirst({
+        where: {
+          id: input.id,
+          project: { members: { some: { userId: input.userId } } },
+        },
+      });
+    }
 
     if (!existing) throw new NotFoundException('Arquivo nao encontrado');
 
@@ -74,10 +85,15 @@ export class ProjectAssetsService {
     });
   }
 
-  async remove(id: string, instanceId: string) {
-    const existing = await this.prisma.projectAsset.findFirst({
+  async remove(id: string, instanceId: string, userId?: string) {
+    let existing = await this.prisma.projectAsset.findFirst({
       where: { id, project: { instanceId } },
     });
+    if (!existing && userId) {
+      existing = await this.prisma.projectAsset.findFirst({
+        where: { id, project: { members: { some: { userId } } } },
+      });
+    }
 
     if (!existing) throw new NotFoundException('Arquivo nao encontrado');
 

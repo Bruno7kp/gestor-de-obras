@@ -21,6 +21,18 @@ export const suppliersApi = {
     return Array.isArray(data) ? data : [];
   },
 
+  async listByInstance(instanceId: string): Promise<Supplier[]> {
+    const response = await fetch(`${API_BASE}/suppliers/by-instance/${instanceId}`, {
+      method: 'GET',
+      credentials: 'include',
+    });
+
+    if (!response.ok) return [];
+
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  },
+
   async create(input: SupplierInput): Promise<Supplier> {
     const response = await fetch(`${API_BASE}/suppliers`, {
       method: 'POST',

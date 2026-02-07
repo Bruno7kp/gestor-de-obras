@@ -56,7 +56,11 @@ export class WorkItemsController {
     @Query('projectId') projectId: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.workItemsService.findAll(projectId, req.user.instanceId);
+    return this.workItemsService.findAll(
+      projectId,
+      req.user.instanceId,
+      req.user.id,
+    );
   }
 
   @Post()
@@ -65,6 +69,7 @@ export class WorkItemsController {
     return this.workItemsService.create({
       ...body,
       instanceId: req.user.instanceId,
+      userId: req.user.id,
     });
   }
 
@@ -79,6 +84,7 @@ export class WorkItemsController {
       body.projectId,
       body.items,
       req.user.instanceId,
+      req.user.id,
     );
   }
 
@@ -94,6 +100,7 @@ export class WorkItemsController {
       body.items,
       !!body.replace,
       req.user.instanceId,
+      req.user.id,
     );
   }
 
@@ -108,12 +115,13 @@ export class WorkItemsController {
       ...body,
       id,
       instanceId: req.user.instanceId,
+      userId: req.user.id,
     });
   }
 
   @Delete(':id')
   @HasPermission('wbs.edit')
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    return this.workItemsService.remove(id, req.user.instanceId);
+    return this.workItemsService.remove(id, req.user.instanceId, req.user.id);
   }
 }

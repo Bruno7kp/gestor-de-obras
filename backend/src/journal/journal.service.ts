@@ -1,11 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { removeLocalUploads } from '../uploads/file.utils';
+import { ensureProjectAccess } from '../common/project-access.util';
 
 interface CreateJournalEntryInput {
   id?: string;
   projectId: string;
   instanceId: string;
+  userId?: string;
   timestamp: string;
   type: string;
   category: string;
@@ -19,12 +21,12 @@ interface CreateJournalEntryInput {
 export class JournalService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private async ensureProject(projectId: string, instanceId: string) {
-    const project = await this.prisma.project.findFirst({
-      where: { id: projectId, instanceId },
-      select: { id: true },
-    });
-    if (!project) throw new NotFoundException('Projeto nao encontrado');
+  private async ensureProject(
+    projectId: string,
+    instanceId: string,
+    userId?: string,
+  ) {
+    return ensureProjectAccess(this.prisma, projectId, instanceId, userId);
   }
 
   private async ensureJournal(projectId: string) {
@@ -39,8 +41,8 @@ export class JournalService {
     });
   }
 
-  async listEntries(projectId: string, instanceId: string) {
-    await this.ensureProject(projectId, instanceId);
+  async listEntries(projectId: string, instanceId: string, userId?: string) {
+    await this.ensureProject(projectId, instanceId, userId);
     const journal = await this.ensureJournal(projectId);
     return this.prisma.journalEntry.findMany({
       where: { projectJournalId: journal.id },
@@ -49,7 +51,7 @@ export class JournalService {
   }
 
   async createEntry(input: CreateJournalEntryInput) {
-    await this.ensureProject(input.projectId, input.instanceId);
+    await this.ensureProject(input.projectId, input.instanceId, input.userId);
     const journal = await this.ensureJournal(input.projectId);
 
     return this.prisma.journalEntry.create({
@@ -71,10 +73,19 @@ export class JournalService {
     id: string,
     instanceId: string,
     data: Partial<CreateJournalEntryInput>,
+    userId?: string,
   ) {
-    const entry = await this.prisma.journalEntry.findFirst({
+    let entry = await this.prisma.journalEntry.findFirst({
       where: { id, projectJournal: { project: { instanceId } } },
     });
+    if (!entry && userId) {
+      entry = await this.prisma.journalEntry.findFirst({
+        where: {
+          id,
+          projectJournal: { project: { members: { some: { userId } } } },
+        },
+      });
+    }
     if (!entry) throw new NotFoundException('Registro nao encontrado');
 
     return this.prisma.journalEntry.update({
@@ -91,11 +102,20 @@ export class JournalService {
     });
   }
 
-  async deleteEntry(id: string, instanceId: string) {
-    const entry = await this.prisma.journalEntry.findFirst({
+  async deleteEntry(id: string, instanceId: string, userId?: string) {
+    let entry = await this.prisma.journalEntry.findFirst({
       where: { id, projectJournal: { project: { instanceId } } },
       select: { id: true, photoUrls: true },
     });
+    if (!entry && userId) {
+      entry = await this.prisma.journalEntry.findFirst({
+        where: {
+          id,
+          projectJournal: { project: { members: { some: { userId } } } },
+        },
+        select: { id: true, photoUrls: true },
+      });
+    }
     if (!entry) throw new NotFoundException('Registro nao encontrado');
 
     await removeLocalUploads(entry.photoUrls ?? []);

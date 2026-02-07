@@ -29,6 +29,28 @@ export class SuppliersService {
     });
   }
 
+  /**
+   * Returns suppliers for a given instance (read-only).
+   * Verifies the user has at least one project membership in that instance.
+   */
+  async findAllByInstance(instanceId: string, userId: string) {
+    const membershipCount = await this.prisma.projectMember.count({
+      where: {
+        userId,
+        project: { instanceId },
+      },
+    });
+
+    if (membershipCount === 0) {
+      return [];
+    }
+
+    return this.prisma.supplier.findMany({
+      where: { instanceId },
+      orderBy: { order: 'asc' },
+    });
+  }
+
   findById(id: string, instanceId: string) {
     return this.prisma.supplier.findFirst({
       where: { id, instanceId },

@@ -1,10 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { removeLocalUpload, removeLocalUploads } from '../uploads/file.utils';
+import { ensureProjectAccess } from '../common/project-access.util';
 
 interface CreateWorkforceInput {
   projectId: string;
   instanceId: string;
+  userId?: string;
   nome: string;
   cpf_cnpj: string;
   empresa_vinculada: string;
@@ -22,30 +24,36 @@ interface CreateWorkforceInput {
 interface UpdateWorkforceInput extends Partial<CreateWorkforceInput> {
   id: string;
   instanceId: string;
+  userId?: string;
 }
 
 @Injectable()
 export class WorkforceService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private async ensureProject(projectId: string, instanceId: string) {
-    const project = await this.prisma.project.findFirst({
-      where: { id: projectId, instanceId },
-      select: { id: true },
-    });
-    if (!project) throw new NotFoundException('Projeto nao encontrado');
+  private async ensureProject(
+    projectId: string,
+    instanceId: string,
+    userId?: string,
+  ) {
+    return ensureProjectAccess(this.prisma, projectId, instanceId, userId);
   }
 
-  private async ensureMember(id: string, instanceId: string) {
-    const member = await this.prisma.workforceMember.findFirst({
+  private async ensureMember(id: string, instanceId: string, userId?: string) {
+    let member = await this.prisma.workforceMember.findFirst({
       where: { id, project: { instanceId } },
     });
+    if (!member && userId) {
+      member = await this.prisma.workforceMember.findFirst({
+        where: { id, project: { members: { some: { userId } } } },
+      });
+    }
     if (!member) throw new NotFoundException('Membro nao encontrado');
     return member;
   }
 
-  async findAll(projectId: string, instanceId: string) {
-    await this.ensureProject(projectId, instanceId);
+  async findAll(projectId: string, instanceId: string, userId?: string) {
+    await this.ensureProject(projectId, instanceId, userId);
     return this.prisma.workforceMember.findMany({
       where: { projectId },
       include: {
@@ -57,7 +65,7 @@ export class WorkforceService {
   }
 
   async create(input: CreateWorkforceInput) {
-    await this.ensureProject(input.projectId, input.instanceId);
+    await this.ensureProject(input.projectId, input.instanceId, input.userId);
 
     const member = await this.prisma.workforceMember.create({
       data: {
@@ -99,7 +107,11 @@ export class WorkforceService {
   }
 
   async update(input: UpdateWorkforceInput) {
-    const existing = await this.ensureMember(input.id, input.instanceId);
+    const existing = await this.ensureMember(
+      input.id,
+      input.instanceId,
+      input.userId,
+    );
 
     return this.prisma.workforceMember.update({
       where: { id: existing.id },
@@ -123,8 +135,9 @@ export class WorkforceService {
       arquivoUrl?: string | null;
       status: string;
     },
+    userId?: string,
   ) {
-    await this.ensureMember(id, instanceId);
+    await this.ensureMember(id, instanceId, userId);
     return this.prisma.staffDocument.create({
       data: {
         workforceMemberId: id,
@@ -136,16 +149,30 @@ export class WorkforceService {
     });
   }
 
-  async removeDocument(id: string, documentId: string, instanceId: string) {
-    await this.ensureMember(id, instanceId);
+  async removeDocument(
+    id: string,
+    documentId: string,
+    instanceId: string,
+    userId?: string,
+  ) {
+    await this.ensureMember(id, instanceId, userId);
 
-    const doc = await this.prisma.staffDocument.findFirst({
+    let doc = await this.prisma.staffDocument.findFirst({
       where: {
         id: documentId,
         workforceMember: { id, project: { instanceId } },
       },
       select: { id: true, arquivoUrl: true },
     });
+    if (!doc && userId) {
+      doc = await this.prisma.staffDocument.findFirst({
+        where: {
+          id: documentId,
+          workforceMember: { id, project: { members: { some: { userId } } } },
+        },
+        select: { id: true, arquivoUrl: true },
+      });
+    }
 
     if (!doc) throw new NotFoundException('Documento nao encontrado');
 
@@ -154,8 +181,13 @@ export class WorkforceService {
     return { deleted: 1 };
   }
 
-  async addResponsibility(id: string, workItemId: string, instanceId: string) {
-    await this.ensureMember(id, instanceId);
+  async addResponsibility(
+    id: string,
+    workItemId: string,
+    instanceId: string,
+    userId?: string,
+  ) {
+    await this.ensureMember(id, instanceId, userId);
     return this.prisma.workItemResponsibility.create({
       data: {
         workforceMemberId: id,
@@ -168,8 +200,9 @@ export class WorkforceService {
     id: string,
     workItemId: string,
     instanceId: string,
+    userId?: string,
   ) {
-    await this.ensureMember(id, instanceId);
+    await this.ensureMember(id, instanceId, userId);
     await this.prisma.workItemResponsibility.deleteMany({
       where: {
         workforceMemberId: id,
@@ -179,11 +212,17 @@ export class WorkforceService {
     return { deleted: 1 };
   }
 
-  async remove(id: string, instanceId: string) {
-    const member = await this.prisma.workforceMember.findFirst({
+  async remove(id: string, instanceId: string, userId?: string) {
+    let member = await this.prisma.workforceMember.findFirst({
       where: { id, project: { instanceId } },
       include: { documentos: { select: { arquivoUrl: true } } },
     });
+    if (!member && userId) {
+      member = await this.prisma.workforceMember.findFirst({
+        where: { id, project: { members: { some: { userId } } } },
+        include: { documentos: { select: { arquivoUrl: true } } },
+      });
+    }
 
     if (!member) throw new NotFoundException('Membro nao encontrado');
 

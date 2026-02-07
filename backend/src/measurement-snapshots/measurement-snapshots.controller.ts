@@ -32,8 +32,15 @@ export class MeasurementSnapshotsController {
   constructor(private readonly snapshotsService: MeasurementSnapshotsService) {}
 
   @Get()
-  findAll(@Query('projectId') projectId: string, @Req() req: AuthenticatedRequest) {
-    return this.snapshotsService.findAll(projectId, req.user.instanceId);
+  findAll(
+    @Query('projectId') projectId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.snapshotsService.findAll(
+      projectId,
+      req.user.instanceId,
+      req.user.id,
+    );
   }
 
   @Post()
@@ -41,6 +48,7 @@ export class MeasurementSnapshotsController {
     return this.snapshotsService.create({
       ...body,
       instanceId: req.user.instanceId,
+      userId: req.user.id,
     });
   }
 
@@ -54,11 +62,12 @@ export class MeasurementSnapshotsController {
       ...body,
       id,
       instanceId: req.user.instanceId,
+      userId: req.user.id,
     });
   }
 
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    return this.snapshotsService.remove(id, req.user.instanceId);
+    return this.snapshotsService.remove(id, req.user.instanceId, req.user.id);
   }
 }

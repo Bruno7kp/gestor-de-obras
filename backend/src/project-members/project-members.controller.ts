@@ -29,12 +29,15 @@ export class ProjectMembersController {
   constructor(private readonly membersService: ProjectMembersService) {}
 
   @Get()
-  @HasPermission('projects_general.view', 'projects_specific.view')
   listMembers(
     @Param('projectId') projectId: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.membersService.listMembers(projectId, req.user.instanceId);
+    return this.membersService.listMembers(
+      projectId,
+      req.user.instanceId,
+      req.user.id,
+    );
   }
 
   @Post()

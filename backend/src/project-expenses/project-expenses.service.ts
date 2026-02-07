@@ -2,11 +2,13 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import type { ExpenseStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { removeLocalUploads } from '../uploads/file.utils';
+import { ensureProjectAccess } from '../common/project-access.util';
 
 interface CreateExpenseInput {
   id?: string;
   projectId: string;
   instanceId: string;
+  userId?: string;
   parentId?: string | null;
   type: string;
   itemType: string;
@@ -34,22 +36,23 @@ interface CreateExpenseInput {
 
 interface UpdateExpenseInput extends Partial<CreateExpenseInput> {
   id: string;
+  userId?: string;
 }
 
 @Injectable()
 export class ProjectExpensesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private async ensureProject(projectId: string, instanceId: string) {
-    const project = await this.prisma.project.findFirst({
-      where: { id: projectId, instanceId },
-      select: { id: true },
-    });
-    if (!project) throw new NotFoundException('Projeto nao encontrado');
+  private async ensureProject(
+    projectId: string,
+    instanceId: string,
+    userId?: string,
+  ) {
+    return ensureProjectAccess(this.prisma, projectId, instanceId, userId);
   }
 
-  async findAll(projectId: string, instanceId: string) {
-    await this.ensureProject(projectId, instanceId);
+  async findAll(projectId: string, instanceId: string, userId?: string) {
+    await this.ensureProject(projectId, instanceId, userId);
     return this.prisma.projectExpense.findMany({
       where: { projectId },
       orderBy: { order: 'asc' },
@@ -57,7 +60,7 @@ export class ProjectExpensesService {
   }
 
   async create(input: CreateExpenseInput) {
-    await this.ensureProject(input.projectId, input.instanceId);
+    await this.ensureProject(input.projectId, input.instanceId, input.userId);
     const fallbackStatus: ExpenseStatus = input.isPaid ? 'PAID' : 'PENDING';
 
     return this.prisma.projectExpense.create({
@@ -92,12 +95,25 @@ export class ProjectExpensesService {
   }
 
   async update(input: UpdateExpenseInput) {
-    const existing = await this.prisma.projectExpense.findFirst({
+    let existing = await this.prisma.projectExpense.findFirst({
       where: {
         id: input.id,
         project: { instanceId: input.instanceId },
       },
     });
+
+    if (!existing && input.userId) {
+      const expense = await this.prisma.projectExpense.findFirst({
+        where: { id: input.id },
+        include: { project: { select: { id: true } } },
+      });
+      if (expense) {
+        const membership = await this.prisma.projectMember.findFirst({
+          where: { projectId: expense.project.id, user: { id: input.userId } },
+        });
+        if (membership) existing = expense;
+      }
+    }
 
     if (!existing) throw new NotFoundException('Despesa nao encontrada');
 
@@ -157,8 +173,9 @@ export class ProjectExpensesService {
     expenses: Array<Omit<CreateExpenseInput, 'instanceId'>>,
     replaceTypes: string[] | null,
     instanceId: string,
+    userId?: string,
   ): Promise<{ created: number }> {
-    await this.ensureProject(projectId, instanceId);
+    await this.ensureProject(projectId, instanceId, userId);
 
     const createData = expenses.map((e) => ({
       id: e.id,
@@ -206,11 +223,24 @@ export class ProjectExpensesService {
     return { created: expenses.length };
   }
 
-  async remove(id: string, instanceId: string) {
-    const target = await this.prisma.projectExpense.findFirst({
+  async remove(id: string, instanceId: string, userId?: string) {
+    let target = await this.prisma.projectExpense.findFirst({
       where: { id, project: { instanceId } },
       select: { id: true, projectId: true },
     });
+
+    if (!target && userId) {
+      const expense = await this.prisma.projectExpense.findFirst({
+        where: { id },
+        select: { id: true, projectId: true },
+      });
+      if (expense) {
+        const membership = await this.prisma.projectMember.findFirst({
+          where: { projectId: expense.projectId, user: { id: userId } },
+        });
+        if (membership) target = expense;
+      }
+    }
 
     if (!target) throw new NotFoundException('Despesa nao encontrada');
 
