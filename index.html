@@ -36,6 +36,11 @@
         }
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
+
+        /* Evita espaco extra causado por space-y em overlays fixos */
+        .fixed.inset-0 {
+          margin-top: 0 !important;
+        }
         
         @media print {
           @page { 

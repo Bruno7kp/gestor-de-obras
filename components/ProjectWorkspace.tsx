@@ -555,7 +555,10 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
       </nav>
 
       {/* 3. CONTEÚDO DINÂMICO */}
-      <div className="flex-1 overflow-y-auto p-4 lg:p-8 custom-scrollbar no-print">
+      <div
+        className="flex-1 overflow-y-auto p-4 lg:p-8 custom-scrollbar no-print project-scroll"
+        style={{ overflowAnchor: 'none' }}
+      >
         <div className="max-w-[1600px] mx-auto">
           {tab === 'wbs' && <WbsView project={{ ...project, items: displayData.items }} onUpdateProject={onUpdateProject} onOpenModal={handleOpenModal} isReadOnly={displayData.isReadOnly} />}
           {tab === 'stats' && <StatsView project={{ ...project, items: displayData.items }} />}

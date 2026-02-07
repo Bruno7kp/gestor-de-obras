@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useLayoutEffect } from 'react';
 import { Project, WorkItem, ItemType } from '../types';
 import { treeService } from '../services/treeService';
 import { excelService, ImportResult } from '../services/excelService';
@@ -9,7 +9,7 @@ import { financial } from '../utils/math';
 import { TreeTable } from './TreeTable';
 import { 
   Plus, Layers, Search, FileSpreadsheet, UploadCloud, Download, 
-  X, CheckCircle2, AlertCircle, Package, RefreshCw, Eraser, Printer
+  X, CheckCircle2, AlertCircle, Package, RefreshCw, Printer, Eraser
 } from 'lucide-react';
 
 interface WbsViewProps {
@@ -22,12 +22,28 @@ interface WbsViewProps {
 export const WbsView: React.FC<WbsViewProps> = ({ 
   project, onUpdateProject, onOpenModal, isReadOnly 
 }) => {
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const scrollParentRef = useRef<HTMLElement | null>(null);
+  const scrollTopRef = useRef(0);
+  const tableScrollRef = useRef<HTMLDivElement | null>(null);
+  const pendingScrollRestoreRef = useRef<{ pageTop: number; tableTop: number; tableLeft: number } | null>(null);
+  const lastEditedIdRef = useRef<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   
   // Estados para controle de importação e UI
   const [isImporting, setIsImporting] = useState(false);
   const [importSummary, setImportSummary] = useState<ImportResult | null>(null);
+  const [isRecalcModalOpen, setIsRecalcModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [localItems, setLocalItems] = useState<WorkItem[]>(project.items);
+  const localItemsRef = useRef<WorkItem[]>(project.items);
+  const [localContractOverride, setLocalContractOverride] = useState<number | undefined>(project.contractTotalOverride);
+  const [localCurrentOverride, setLocalCurrentOverride] = useState<number | undefined>(project.currentTotalOverride);
+  const initialSnapshotRef = useRef<{
+    items: WorkItem[];
+    contractOverride: number | undefined;
+    currentOverride: number | undefined;
+  } | null>(null);
 
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => {
     const saved = localStorage.getItem(`exp_wbs_${project.id}`);
@@ -39,12 +55,101 @@ export const WbsView: React.FC<WbsViewProps> = ({
   }, [expandedIds, project.id]);
 
   useEffect(() => {
+    localItemsRef.current = project.items;
+    setLocalItems(project.items);
+    setLocalContractOverride(project.contractTotalOverride);
+    setLocalCurrentOverride(project.currentTotalOverride);
+    initialSnapshotRef.current = {
+      items: project.items,
+      contractOverride: project.contractTotalOverride,
+      currentOverride: project.currentTotalOverride,
+    };
+  }, [project.id]);
+
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && importSummary) setImportSummary(null);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [importSummary]);
+
+  useEffect(() => {
+    if (!rootRef.current) return;
+    const parent = rootRef.current.closest('.project-scroll') as HTMLElement | null;
+    if (!parent) return;
+    scrollParentRef.current = parent;
+
+    const handleScroll = () => {
+      scrollTopRef.current = parent.scrollTop;
+    };
+
+    parent.addEventListener('scroll', handleScroll, { passive: true });
+    return () => parent.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useLayoutEffect(() => {
+    const pending = pendingScrollRestoreRef.current;
+    if (pending) {
+      restoreScrollSnapshot(pending);
+      pendingScrollRestoreRef.current = null;
+      return;
+    }
+
+    const parent = scrollParentRef.current;
+    if (!parent) return;
+    parent.scrollTop = scrollTopRef.current;
+  }, [project.items]);
+
+  useLayoutEffect(() => {
+    const lastId = lastEditedIdRef.current;
+    if (!lastId || !tableScrollRef.current) return;
+
+    const row = tableScrollRef.current.querySelector(`[data-row-id="${lastId}"]`) as HTMLElement | null;
+    if (row) {
+      row.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+    lastEditedIdRef.current = null;
+  }, [project.items]);
+
+  const getScrollSnapshot = () => {
+    const page = scrollParentRef.current;
+    const table = tableScrollRef.current;
+    return {
+      pageTop: page?.scrollTop ?? 0,
+      tableTop: table?.scrollTop ?? 0,
+      tableLeft: table?.scrollLeft ?? 0,
+    };
+  };
+
+  const restoreScrollSnapshot = (snapshot: { pageTop: number; tableTop: number; tableLeft: number }) => {
+    const apply = () => {
+      const page = scrollParentRef.current;
+      const table = tableScrollRef.current;
+      if (page) page.scrollTop = snapshot.pageTop;
+      if (table) {
+        table.scrollTop = snapshot.tableTop;
+        table.scrollLeft = snapshot.tableLeft;
+      }
+    };
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        apply();
+        setTimeout(apply, 0);
+        setTimeout(apply, 50);
+      });
+    });
+  };
+
+  const preserveScroll = (action: () => void) => {
+    const snapshot = getScrollSnapshot();
+    pendingScrollRestoreRef.current = snapshot;
+
+    action();
+
+    restoreScrollSnapshot(snapshot);
+  };
 
   const collectDescendants = (items: WorkItem[], id: string) => {
     const ids = new Set<string>([id]);
@@ -63,30 +168,44 @@ export const WbsView: React.FC<WbsViewProps> = ({
     return ids;
   };
 
+  const updateLocalItems = (items: WorkItem[]) => {
+    localItemsRef.current = items;
+    setLocalItems(items);
+  };
+
   const updateItemsState = (items: WorkItem[]) => {
-    onUpdateProject({ items });
+    preserveScroll(() => {
+      updateLocalItems(items);
+      onUpdateProject({ items });
+    });
   };
 
   const syncItemUpdate = async (id: string, patch: Partial<WorkItem>) => {
+    const snapshot = getScrollSnapshot();
     try {
       await workItemsApi.update(id, patch);
     } catch (error) {
       console.error('Erro ao salvar item:', error);
+    } finally {
+      restoreScrollSnapshot(snapshot);
     }
   };
 
   const syncItemsBulk = async (updates: { id: string; patch: Partial<WorkItem> }[]) => {
+    const snapshot = getScrollSnapshot();
     try {
       await Promise.all(updates.map(update => workItemsApi.update(update.id, update.patch)));
     } catch (error) {
       console.error('Erro ao salvar itens:', error);
+    } finally {
+      restoreScrollSnapshot(snapshot);
     }
   };
 
   const processedTree = useMemo(() => {
-    const tree = treeService.buildTree<WorkItem>(project.items);
+    const tree = treeService.buildTree<WorkItem>(localItems);
     return tree.map((root, idx) => treeService.processRecursive(root, '', idx, project.bdi));
-  }, [project.items, project.bdi]);
+  }, [localItems, project.bdi]);
 
   const flattenedList = useMemo(() => 
     treeService.flattenTree(processedTree, expandedIds)
@@ -161,49 +280,69 @@ export const WbsView: React.FC<WbsViewProps> = ({
   };
 
   const handleForceRecalculate = async () => {
-    if (window.confirm("Isso irá recalcular todos os preços unitários c/ BDI e limpar os ajustes manuais do rodapé para sincronizar com o BDI atual. Continuar?")) {
-      const recalculatedItems = treeService.forceRecalculate(project.items, project.bdi);
-      updateItemsState(recalculatedItems);
-      await syncItemsBulk(
-        recalculatedItems
-          .filter(item => item.type !== 'category')
-          .map(item => ({
-            id: item.id,
-            patch: {
-              unitPrice: item.unitPrice,
-              unitPriceNoBdi: item.unitPriceNoBdi,
-              contractTotal: item.contractTotal,
-              previousTotal: item.previousTotal,
-              currentTotal: item.currentTotal,
-              accumulatedTotal: item.accumulatedTotal,
-              balanceTotal: item.balanceTotal,
-            },
-          })),
-      );
-      onUpdateProject({
-        items: recalculatedItems,
-        contractTotalOverride: undefined,
-        currentTotalOverride: undefined
-      });
-    }
+    const recalculatedItems = treeService.forceRecalculate(localItems, project.bdi);
+    updateItemsState(recalculatedItems);
+    await syncItemsBulk(
+      recalculatedItems
+        .filter(item => item.type !== 'category')
+        .map(item => ({
+          id: item.id,
+          patch: {
+            unitPrice: item.unitPrice,
+            unitPriceNoBdi: item.unitPriceNoBdi,
+            contractTotal: item.contractTotal,
+            previousTotal: item.previousTotal,
+            currentTotal: item.currentTotal,
+            accumulatedTotal: item.accumulatedTotal,
+            balanceTotal: item.balanceTotal,
+          },
+        })),
+    );
+    onUpdateProject({
+      items: recalculatedItems,
+      contractTotalOverride: undefined,
+      currentTotalOverride: undefined
+    });
   };
 
-  const handleClearOverrides = async () => {
-    onUpdateProject({
-      contractTotalOverride: undefined,
-      currentTotalOverride: undefined,
-    });
+  const handleClearAdjustments = async () => {
+    if (isReadOnly) return;
+    const snapshot = initialSnapshotRef.current;
+    if (!snapshot) return;
+
+    updateItemsState(snapshot.items);
+    setLocalContractOverride(snapshot.contractOverride);
+    setLocalCurrentOverride(snapshot.currentOverride);
+
     try {
-      await projectsApi.update(project.id, { contractTotalOverride: null, currentTotalOverride: null });
+      await projectsApi.update(project.id, {
+        contractTotalOverride: snapshot.contractOverride ?? null,
+        currentTotalOverride: snapshot.currentOverride ?? null,
+      });
     } catch (error) {
       console.error('Erro ao limpar ajustes:', error);
     }
   };
 
+  const hasAdjustments = useMemo(() => {
+    const snapshot = initialSnapshotRef.current;
+    if (!snapshot) return false;
+
+    if (snapshot.contractOverride !== localContractOverride) return true;
+    if (snapshot.currentOverride !== localCurrentOverride) return true;
+
+    if (snapshot.items.length !== localItems.length) return true;
+    for (let i = 0; i < snapshot.items.length; i += 1) {
+      if (snapshot.items[i].id !== localItems[i].id) return true;
+    }
+    return false;
+  }, [localContractOverride, localCurrentOverride, localItems]);
+
   // HANDLERS COM VALIDAÇÃO DE REGRA DE NEGÓCIO (CLAMPS)
   const updateItemQuantity = async (id: string, qty: number) => {
     if (isReadOnly) return;
-    const nextItems = project.items.map(it => {
+    lastEditedIdRef.current = id;
+    const nextItems = localItemsRef.current.map(it => {
       if (it.id === id) {
         const maxPossible = Math.max(0, (it.contractQuantity || 0) - (it.previousQuantity || 0));
         const safeQty = Math.min(Math.max(0, qty), maxPossible);
@@ -211,13 +350,14 @@ export const WbsView: React.FC<WbsViewProps> = ({
       }
       return it;
     });
-    updateItemsState(nextItems);
+    updateLocalItems(nextItems);
     await syncItemUpdate(id, { currentQuantity: nextItems.find(it => it.id === id)?.currentQuantity ?? 0 });
   };
 
   const updateItemPercentage = async (id: string, pct: number) => {
     if (isReadOnly) return;
-    const nextItems = project.items.map(it => {
+    lastEditedIdRef.current = id;
+    const nextItems = localItemsRef.current.map(it => {
       if (it.id === id) {
         const prevPct = it.contractQuantity > 0 ? (it.previousQuantity / it.contractQuantity) * 100 : 0;
         const maxPctAllowed = Math.max(0, 100 - prevPct);
@@ -228,14 +368,14 @@ export const WbsView: React.FC<WbsViewProps> = ({
       return it;
     });
     const updated = nextItems.find(it => it.id === id);
-    updateItemsState(nextItems);
+    updateLocalItems(nextItems);
     if (updated) {
       await syncItemUpdate(id, { currentQuantity: updated.currentQuantity, currentPercentage: updated.currentPercentage });
     }
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div ref={rootRef} className="space-y-6 animate-in fade-in duration-300">
       <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx, .xls" onChange={handleFileChange} />
 
       <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -252,7 +392,7 @@ export const WbsView: React.FC<WbsViewProps> = ({
           <div className="hidden sm:block w-px h-6 bg-slate-100 dark:bg-slate-800 mx-1" />
 
           <button 
-            onClick={() => void handleForceRecalculate()}
+            onClick={() => setIsRecalcModalOpen(true)}
             disabled={isReadOnly}
             className="flex items-center gap-2 px-4 py-3 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-amber-600 hover:text-white transition-all disabled:opacity-30"
             title="Recalcular todos os itens com base no BDI global"
@@ -260,17 +400,17 @@ export const WbsView: React.FC<WbsViewProps> = ({
             <RefreshCw size={14} /> Recalcular Tudo
           </button>
 
-          {(project.contractTotalOverride !== undefined || project.currentTotalOverride !== undefined) && (
-            <button 
-              onClick={() => void handleClearOverrides()}
+          {hasAdjustments && (
+            <button
+              onClick={() => void handleClearAdjustments()}
               disabled={isReadOnly}
-              className="flex items-center gap-2 px-4 py-3 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-rose-600 hover:text-white transition-all"
-              title="Limpar ajustes manuais do rodapé"
+              className="flex items-center gap-2 px-4 py-3 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-rose-600 hover:text-white transition-all disabled:opacity-30"
+              title="Voltar ao estado inicial da planilha"
             >
               <Eraser size={14} /> Limpar Ajustes
             </button>
           )}
-          
+
           <div className="hidden sm:block w-px h-6 bg-slate-100 dark:bg-slate-800 mx-1" />
           
           <button type="button" onClick={() => excelService.downloadTemplate()} className="p-2 text-slate-400 hover:text-indigo-600 transition-colors" title="Download Template Excel">
@@ -317,12 +457,13 @@ export const WbsView: React.FC<WbsViewProps> = ({
           data={flattenedList} 
           expandedIds={expandedIds} 
           onToggle={id => { const n = new Set<string>(expandedIds); n.has(id) ? n.delete(id) : n.add(id); setExpandedIds(n); }} 
-          onExpandAll={() => setExpandedIds(new Set<string>(project.items.filter(i => i.type === 'category').map(i => i.id)))}
+          onExpandAll={() => setExpandedIds(new Set<string>(localItemsRef.current.filter(i => i.type === 'category').map(i => i.id)))}
           onCollapseAll={() => setExpandedIds(new Set<string>())}
+          onScrollContainer={(el) => { tableScrollRef.current = el; }}
           onDelete={async (id) => {
             if (isReadOnly) return;
-            const idsToRemove = collectDescendants(project.items, id);
-            const nextItems = project.items.filter(item => !idsToRemove.has(item.id));
+            const idsToRemove = collectDescendants(localItemsRef.current, id);
+            const nextItems = localItemsRef.current.filter(item => !idsToRemove.has(item.id));
             updateItemsState(nextItems);
             try {
               await workItemsApi.remove(id);
@@ -335,7 +476,8 @@ export const WbsView: React.FC<WbsViewProps> = ({
           
           onUpdateTotal={async (id, total) => {
             if (isReadOnly) return;
-            const nextItems = project.items.map(it => {
+            lastEditedIdRef.current = id;
+            const nextItems = localItemsRef.current.map(it => {
               if (it.id === id && it.contractQuantity > 0) {
                 const newUnitPrice = financial.truncate(total / it.contractQuantity);
                 const newUnitPriceNoBdi = financial.truncate(newUnitPrice / (1 + project.bdi/100));
@@ -344,14 +486,15 @@ export const WbsView: React.FC<WbsViewProps> = ({
               return it;
             });
             const updated = nextItems.find(it => it.id === id);
-            updateItemsState(nextItems);
+            updateLocalItems(nextItems);
             if (updated) {
               await syncItemUpdate(id, { unitPrice: updated.unitPrice, unitPriceNoBdi: updated.unitPriceNoBdi });
             }
           }}
           onUpdateCurrentTotal={async (id, total) => {
             if (isReadOnly) return;
-            const nextItems = project.items.map(it => {
+            lastEditedIdRef.current = id;
+            const nextItems = localItemsRef.current.map(it => {
               if (it.id === id && it.currentQuantity > 0) {
                 const newUnitPrice = financial.truncate(total / it.currentQuantity);
                 const newUnitPriceNoBdi = financial.truncate(newUnitPrice / (1 + project.bdi/100));
@@ -360,7 +503,7 @@ export const WbsView: React.FC<WbsViewProps> = ({
               return it;
             });
             const updated = nextItems.find(it => it.id === id);
-            updateItemsState(nextItems);
+            updateLocalItems(nextItems);
             if (updated) {
               await syncItemUpdate(id, { unitPrice: updated.unitPrice, unitPriceNoBdi: updated.unitPriceNoBdi });
             }
@@ -368,10 +511,8 @@ export const WbsView: React.FC<WbsViewProps> = ({
 
           onUpdateGrandTotal={async (overrides) => {
             if (isReadOnly) return;
-            onUpdateProject({
-              contractTotalOverride: overrides.contract !== undefined ? overrides.contract : project.contractTotalOverride,
-              currentTotalOverride: overrides.current !== undefined ? overrides.current : project.currentTotalOverride,
-            });
+            if (overrides.contract !== undefined) setLocalContractOverride(overrides.contract);
+            if (overrides.current !== undefined) setLocalCurrentOverride(overrides.current);
             try {
               await projectsApi.update(project.id, {
                 contractTotalOverride: overrides.contract !== undefined ? overrides.contract : project.contractTotalOverride,
@@ -386,11 +527,11 @@ export const WbsView: React.FC<WbsViewProps> = ({
           onEdit={item => !isReadOnly && onOpenModal(item.type, item, item.parentId)}
           onReorder={async (src, tgt, pos) => {
             if (isReadOnly) return;
-            const nextItems = treeService.reorderItems<WorkItem>(project.items, src, tgt, pos);
+            const nextItems = treeService.reorderItems<WorkItem>(localItemsRef.current, src, tgt, pos);
             updateItemsState(nextItems);
             const updates = nextItems
               .map(item => {
-                const prev = project.items.find(prevItem => prevItem.id === item.id);
+                const prev = localItemsRef.current.find(prevItem => prevItem.id === item.id);
                 if (!prev) return null;
                 if (prev.order !== item.order || prev.parentId !== item.parentId) {
                   return { id: item.id, patch: { order: item.order, parentId: item.parentId } };
@@ -406,8 +547,8 @@ export const WbsView: React.FC<WbsViewProps> = ({
           searchQuery={searchQuery}
           isReadOnly={isReadOnly}
           currencySymbol={project.theme?.currencySymbol || 'R$'}
-          contractTotalOverride={project.contractTotalOverride}
-          currentTotalOverride={project.currentTotalOverride}
+          contractTotalOverride={localContractOverride}
+          currentTotalOverride={localCurrentOverride}
         />
       </div>
 
@@ -511,6 +652,64 @@ export const WbsView: React.FC<WbsViewProps> = ({
                 disabled={isImporting}
               >
                 Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isRecalcModalOpen && (
+        <div
+          className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300"
+          onClick={() => setIsRecalcModalOpen(false)}
+        >
+          <div
+            className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="px-8 pt-8 pb-4 flex items-center justify-between border-b border-slate-50 dark:border-slate-800 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-amber-100 dark:bg-amber-900/30 text-amber-600 rounded-2xl">
+                  <RefreshCw size={22} />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Recalcular Tudo</h2>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-300">BDI e ajustes manuais</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsRecalcModalOpen(false)}
+                className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
+                title="Fechar"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-8 space-y-4">
+              <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                Isso vai recalcular todos os precos unitarios com base no BDI atual e limpar os ajustes manuais do rodape.
+              </p>
+              <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-2xl text-[11px] text-amber-700 dark:text-amber-300">
+                Recomendado fazer antes de gerar relatorios ou finalizar a medicao.
+              </div>
+            </div>
+
+            <div className="px-8 pb-8 flex items-center gap-3">
+              <button
+                onClick={() => setIsRecalcModalOpen(false)}
+                className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  setIsRecalcModalOpen(false);
+                  await handleForceRecalculate();
+                }}
+                className="flex-1 py-3 rounded-xl bg-amber-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-700"
+              >
+                Recalcular
               </button>
             </div>
           </div>

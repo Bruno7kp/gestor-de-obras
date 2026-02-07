@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { WorkItem } from '../types';
 import { financial } from '../utils/math';
 import { 
@@ -40,6 +40,7 @@ interface TreeTableProps {
   currencySymbol?: string;
   contractTotalOverride?: number;
   currentTotalOverride?: number;
+  onScrollContainer?: (el: HTMLDivElement | null) => void;
 }
 
 type ColumnView = 'full' | 'contractual' | 'measurement' | 'minimal';
@@ -63,8 +64,10 @@ export const TreeTable: React.FC<TreeTableProps> = ({
   isReadOnly = false,
   currencySymbol = 'R$',
   contractTotalOverride,
-  currentTotalOverride
+  currentTotalOverride,
+  onScrollContainer
 }) => {
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   const [view, setView] = useState<ColumnView>(() => {
     return (localStorage.getItem('promeasure_table_view') as ColumnView) || 'full';
   });
@@ -82,6 +85,12 @@ export const TreeTable: React.FC<TreeTableProps> = ({
     localStorage.setItem('promeasure_col_fonte', String(showFonte));
     localStorage.setItem('promeasure_col_cod', String(showCod));
   }, [view, showMover, showAcoes, showFonte, showCod]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !onScrollContainer) return;
+    onScrollContainer(el);
+  }, [onScrollContainer]);
 
   const handleToggleDesc = (id: string) => {
     const next = new Set(expandedDescriptions);
@@ -171,7 +180,11 @@ export const TreeTable: React.FC<TreeTableProps> = ({
         </div>
       </div>
 
-      <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 shadow-xl custom-scrollbar max-h-[70vh]">
+      <div
+        ref={scrollRef}
+        className="overflow-x-auto overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 shadow-xl custom-scrollbar max-h-[70vh]"
+        style={{ overflowAnchor: 'none' }}
+      >
         <DragDropContext onDragEnd={handleDragEnd}>
           <table className="min-w-max w-full border-collapse text-[11px]">
             <thead className="bg-slate-900 dark:bg-black text-white sticky top-0 z-30">
@@ -248,7 +261,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                         const isFullyMeasuredPreviously = item.type === 'item' && item.previousQuantity >= item.contractQuantity;
                         
                         return (
-                          <tr ref={provided.innerRef} {...provided.draggableProps} className={`group transition-all duration-150 ${item.type === 'category' ? 'bg-slate-50/80 dark:bg-slate-800/40 font-bold' : 'hover:bg-blue-50/40 dark:hover:bg-blue-900/10'} ${snapshot.isDragging ? 'dragging-row shadow-2xl z-50' : ''} ${isFullyMeasuredPreviously ? 'opacity-70 bg-slate-50/30' : ''}`}>
+                          <tr ref={provided.innerRef} data-row-id={item.id} {...provided.draggableProps} className={`group transition-all duration-150 ${item.type === 'category' ? 'bg-slate-50/80 dark:bg-slate-800/40 font-bold' : 'hover:bg-blue-50/40 dark:hover:bg-blue-900/10'} ${snapshot.isDragging ? 'dragging-row shadow-2xl z-50' : ''} ${isFullyMeasuredPreviously ? 'opacity-70 bg-slate-50/30' : ''}`}>
                             {showMover && (
                               <td className="p-2 border-r border-slate-100 dark:border-slate-800 no-print text-center">
                                 <div {...provided.dragHandleProps} className="inline-flex p-1.5 text-slate-300 hover:text-indigo-500 transition-colors cursor-grab active:cursor-grabbing">
