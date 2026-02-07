@@ -79,27 +79,35 @@ export class ProjectsService {
       });
     }
 
-    // Check if user has specific project access
-    const hasSpecificAccess =
-      permissions.includes('projects_specific.view') ||
-      permissions.includes('projects_specific.edit');
-
-    if (hasSpecificAccess) {
-      // Return only projects where user is a member
-      return this.prisma.project.findMany({
-        where: {
-          instanceId,
-          ...(groupId ? { groupId } : {}),
-          members: {
-            some: { userId },
+    // Return only projects where user is a member with project permissions
+    return this.prisma.project.findMany({
+      where: {
+        instanceId,
+        ...(groupId ? { groupId } : {}),
+        members: {
+          some: {
+            userId,
+            assignedRole: {
+              permissions: {
+                some: {
+                  permission: {
+                    code: {
+                      in: [
+                        'projects_specific.view',
+                        'projects_specific.edit',
+                        'projects_general.view',
+                        'projects_general.edit',
+                      ],
+                    },
+                  },
+                },
+              },
+            },
           },
         },
-        orderBy: { name: 'asc' },
-      });
-    }
-
-    // No access - return empty array
-    return [];
+      },
+      orderBy: { name: 'asc' },
+    });
   }
 
   async canAccessProject(
@@ -116,26 +124,37 @@ export class ProjectsService {
       return true;
     }
 
-    // Check if user has specific access
-    const hasSpecificAccess =
-      permissions.includes('projects_specific.view') ||
-      permissions.includes('projects_specific.edit');
-
-    if (hasSpecificAccess) {
-      // Check if user is a member of this project
-      const membership = await this.prisma.projectMember.findUnique({
-        where: {
-          userId_projectId: {
-            userId,
-            projectId,
+    // Check if user is a member of this project with project permissions
+    const membership = await this.prisma.projectMember.findUnique({
+      where: {
+        userId_projectId: {
+          userId,
+          projectId,
+        },
+      },
+      include: {
+        assignedRole: {
+          include: {
+            permissions: {
+              include: { permission: { select: { code: true } } },
+            },
           },
         },
-      });
+      },
+    });
 
-      return !!membership;
-    }
+    if (!membership) return false;
 
-    return false;
+    const roleCodes = membership.assignedRole.permissions.map(
+      (rp) => rp.permission.code,
+    );
+
+    return (
+      roleCodes.includes('projects_specific.view') ||
+      roleCodes.includes('projects_specific.edit') ||
+      roleCodes.includes('projects_general.view') ||
+      roleCodes.includes('projects_general.edit')
+    );
   }
 
   async canEditProject(
@@ -145,12 +164,6 @@ export class ProjectsService {
   ): Promise<boolean> {
     const hasGeneralEdit = permissions.includes('projects_general.edit');
     if (hasGeneralEdit) return true;
-
-    const hasSpecificAccess =
-      permissions.includes('projects_specific.view') ||
-      permissions.includes('projects_specific.edit');
-
-    if (!hasSpecificAccess) return false;
 
     const membership = await this.prisma.projectMember.findUnique({
       where: {

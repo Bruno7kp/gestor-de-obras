@@ -94,6 +94,11 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
     [generalAccessUsers, memberIds],
   );
 
+  const selectableRoles = useMemo(
+    () => allRoles.filter((role) => !['ADMIN', 'SUPER_ADMIN'].includes(role.name)),
+    [allRoles],
+  );
+
   const displayRows = useMemo(
     () => [
       ...members.map((member) => ({
@@ -287,7 +292,7 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                           <option value="">Selecione um cargo</option>
-                          {allRoles.map((role) => (
+                          {selectableRoles.map((role) => (
                             <option key={role.id} value={role.id}>
                               {role.name}
                             </option>
@@ -371,24 +376,24 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
                       <p className="text-sm text-gray-500 truncate">{row.user.email}</p>
                     </div>
 
-                    {/* Role Selector — only for external members */}
-                    {canEdit && row.isMember && row.isExternal ? (
+                    {/* Role Selector — editable for non-general members */}
+                    {canEdit && row.isMember && !row.isGeneralAccess ? (
                       <select
                         value={row.roleId}
                         onChange={(e) => handleUpdateRole(row.user.id, e.target.value)}
                         disabled={loading}
                         className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                       >
-                        {allRoles.map((role) => (
+                        {selectableRoles.map((role) => (
                           <option key={role.id} value={role.id}>
                             {role.name}
                           </option>
                         ))}
                       </select>
-                    ) : row.isMember && !row.isExternal ? (
+                    ) : row.isMember ? (
                       <div className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 rounded-lg text-sm text-blue-700">
                         <Shield size={14} />
-                        <span>{row.roleName}</span>
+                        <span>{row.isGeneralAccess ? 'Obras gerais' : row.roleName}</span>
                       </div>
                     ) : (
                       <div className="flex items-center gap-1 px-3 py-1.5 bg-gray-200 rounded-lg text-sm text-gray-700">

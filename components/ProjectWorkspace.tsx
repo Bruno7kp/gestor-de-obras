@@ -206,21 +206,32 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     ).filter(Boolean);
   }, [projectMembers, user?.id]);
 
+  const isCurrentUserGeneralAccess = useMemo(() => {
+    if (!user?.id) return false;
+    return generalAccessUserIds.includes(user.id);
+  }, [generalAccessUserIds, user?.id]);
+
+  const useMemberPermissions = useMemo(() => {
+    if (isExternalProject) return true;
+    if (!user?.id) return false;
+    return !isCurrentUserGeneralAccess && memberPermissions.length > 0;
+  }, [isExternalProject, isCurrentUserGeneralAccess, memberPermissions, user?.id]);
+
   // Permission wrappers that handle external vs internal projects
   const canView = useCallback(
     (module: PermissionModule): boolean => {
-      if (isExternalProject) return checkCanView(memberPermissions, module);
+      if (useMemberPermissions) return checkCanView(memberPermissions, module);
       return canViewGlobal(module);
     },
-    [isExternalProject, memberPermissions, canViewGlobal],
+    [useMemberPermissions, memberPermissions, canViewGlobal],
   );
 
   const getLevel = useCallback(
     (module: PermissionModule): 'none' | 'view' | 'edit' => {
-      if (isExternalProject) return getPermissionLevel(memberPermissions, module);
+      if (useMemberPermissions) return getPermissionLevel(memberPermissions, module);
       return getLevelGlobal(module);
     },
-    [isExternalProject, memberPermissions, getLevelGlobal],
+    [useMemberPermissions, memberPermissions, getLevelGlobal],
   );
 
   const currentMemberRole = useMemo(() => {
@@ -232,15 +243,15 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const canEditProject = useMemo(() => {
     // While members are still loading, don't mark as read-only to avoid flashing banner
     if (membersLoading) return true;
-    if (isExternalProject) {
-      // For external projects, check the assigned role permissions
+    if (useMemberPermissions) {
+      // Use the assigned role permissions for project-specific access
       return checkCanEdit(memberPermissions, 'projects_specific') ||
              checkCanEdit(memberPermissions, 'projects_general');
     }
     return getLevelGlobal('projects_general') === 'edit' ||
            checkCanEdit(memberPermissions, 'projects_specific') ||
            checkCanEdit(memberPermissions, 'projects_general');
-  }, [membersLoading, isExternalProject, memberPermissions, getLevelGlobal]);
+  }, [membersLoading, useMemberPermissions, memberPermissions, getLevelGlobal]);
 
   const currentStats = useMemo(() =>
     treeService.calculateBasicStats(project.items, project.bdi, project),
