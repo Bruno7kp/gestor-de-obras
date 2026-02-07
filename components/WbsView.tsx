@@ -269,6 +269,11 @@ export const WbsView: React.FC<WbsViewProps> = ({
       }
 
       updateItemsState(importSummary.items);
+      initialSnapshotRef.current = {
+        items: importSummary.items,
+        contractOverride: localContractOverride,
+        currentOverride: localCurrentOverride,
+      };
       setImportSummary(null);
     } catch (error) {
       console.error('Erro ao importar itens:', error);
