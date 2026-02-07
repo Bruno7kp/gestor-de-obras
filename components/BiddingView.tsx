@@ -5,10 +5,13 @@ import { biddingService } from '../services/biddingService';
 import { financial } from '../utils/math';
 import { biddingsApi } from '../services/biddingsApi';
 import { globalSettingsApi } from '../services/globalSettingsApi';
+import { usePermissions } from '../hooks/usePermissions';
+import { BiddingModal } from './BiddingModal';
+import { CertificateModal } from './CertificateModal';
 import { 
   Briefcase, Plus, FileText, Calendar, DollarSign, 
   TrendingUp, Search, Filter, ShieldCheck, AlertCircle, 
-  ArrowUpRight, Trash2, CheckCircle2, Clock, Landmark, ExternalLink
+  ArrowUpRight, Trash2, CheckCircle2, Clock, Landmark, ExternalLink, Pencil
 } from 'lucide-react';
 
 interface BiddingViewProps {
@@ -24,6 +27,13 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'pipeline' | 'certificates'>('pipeline');
   const [search, setSearch] = useState('');
+  const [biddingModalOpen, setBiddingModalOpen] = useState(false);
+  const [editingBidding, setEditingBidding] = useState<BiddingProcess | null>(null);
+  const [certModalOpen, setCertModalOpen] = useState(false);
+  const [editingCert, setEditingCert] = useState<CompanyCertificate | null>(null);
+
+  const { canEdit } = usePermissions();
+  const canEditBiddings = canEdit('biddings');
 
   const stats = useMemo(() => biddingService.getStats(biddings), [biddings]);
 
@@ -34,27 +44,85 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
     );
   }, [biddings, search]);
 
-  const handleAddBidding = async () => {
-    const draft = biddingService.createBidding();
+  const handleAddBidding = () => {
+    setEditingBidding(null);
+    setBiddingModalOpen(true);
+  };
+
+  const handleEditBidding = (b: BiddingProcess) => {
+    setEditingBidding(b);
+    setBiddingModalOpen(true);
+  };
+
+  const handleSaveBidding = async (data: Partial<BiddingProcess>) => {
+    setBiddingModalOpen(false);
+    if (editingBidding) {
+      // Update
+      const previous = biddings;
+      const updatedList = biddings.map(b => b.id === editingBidding.id ? { ...b, ...data } : b);
+      onUpdateBiddings(updatedList);
+      try {
+        const updated = await biddingsApi.update(editingBidding.id, {
+          tenderNumber: data.tenderNumber,
+          clientName: data.clientName,
+          object: data.object,
+          openingDate: data.openingDate,
+          expirationDate: data.expirationDate,
+          estimatedValue: data.estimatedValue,
+          ourProposalValue: data.ourProposalValue,
+          status: data.status,
+          bdi: data.bdi,
+        });
+        onUpdateBiddings(updatedList.map(b => b.id === editingBidding.id ? updated : b));
+      } catch (error) {
+        console.error('Erro ao atualizar licitacao:', error);
+        onUpdateBiddings(previous);
+      }
+    } else {
+      // Create
+      const previous = biddings;
+      const draft: BiddingProcess = {
+        id: crypto.randomUUID(),
+        tenderNumber: data.tenderNumber || '',
+        clientName: data.clientName || '',
+        object: data.object || '',
+        openingDate: data.openingDate || '',
+        expirationDate: data.expirationDate || '',
+        estimatedValue: data.estimatedValue || 0,
+        ourProposalValue: data.ourProposalValue || 0,
+        status: (data.status as BiddingStatus) || 'PROSPECTING',
+        bdi: data.bdi ?? 25,
+        items: [],
+        assets: [],
+      };
+      onUpdateBiddings([...biddings, draft]);
+      try {
+        const created = await biddingsApi.create({
+          tenderNumber: draft.tenderNumber,
+          clientName: draft.clientName,
+          object: draft.object,
+          openingDate: draft.openingDate,
+          expirationDate: draft.expirationDate,
+          estimatedValue: draft.estimatedValue,
+          ourProposalValue: draft.ourProposalValue,
+          status: draft.status,
+          bdi: draft.bdi,
+        });
+        onUpdateBiddings([...previous, created]);
+      } catch (error) {
+        console.error('Erro ao criar licitacao:', error);
+        onUpdateBiddings(previous);
+      }
+    }
+  };
+
+  const handleDeleteBidding = async (id: string) => {
     const previous = biddings;
-    onUpdateBiddings([...biddings, draft]);
+    onUpdateBiddings(biddings.filter(b => b.id !== id));
     try {
-      const created = await biddingsApi.create({
-        tenderNumber: draft.tenderNumber,
-        clientName: draft.clientName,
-        object: draft.object,
-        openingDate: draft.openingDate,
-        expirationDate: draft.expirationDate,
-        estimatedValue: draft.estimatedValue,
-        ourProposalValue: draft.ourProposalValue,
-        status: draft.status,
-        bdi: draft.bdi,
-        itemsSnapshot: draft.items,
-        assetsSnapshot: draft.assets,
-      });
-      onUpdateBiddings([...previous, created]);
+      await biddingsApi.remove(id);
     } catch (error) {
-      console.error('Erro ao criar licitacao:', error);
+      console.error('Erro ao remover licitacao:', error);
       onUpdateBiddings(previous);
     }
   };
@@ -72,27 +140,58 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
     }
   };
 
-  const handleAddCertificate = async () => {
-    const newCert: CompanyCertificate = {
-      id: crypto.randomUUID(),
-      name: 'Nova Certidão',
-      issuer: 'Órgão Emissor',
-      expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      status: 'valid'
-    };
-    const previous = certificates;
-    onUpdateCertificates([...certificates, newCert]);
-    try {
-      const created = await globalSettingsApi.addCertificate({
-        name: newCert.name,
-        issuer: newCert.issuer,
-        expirationDate: newCert.expirationDate,
-        status: newCert.status,
-      });
-      onUpdateCertificates([...previous, created]);
-    } catch (error) {
-      console.error('Erro ao criar certidao:', error);
-      onUpdateCertificates(previous);
+  const handleAddCertificate = () => {
+    setEditingCert(null);
+    setCertModalOpen(true);
+  };
+
+  const handleEditCertificate = (cert: CompanyCertificate) => {
+    setEditingCert(cert);
+    setCertModalOpen(true);
+  };
+
+  const handleSaveCertificate = async (data: Partial<CompanyCertificate>) => {
+    setCertModalOpen(false);
+    if (editingCert) {
+      // Update
+      const previous = certificates;
+      const updatedList = certificates.map(c => c.id === editingCert.id ? { ...c, ...data } : c);
+      onUpdateCertificates(updatedList);
+      try {
+        const updated = await globalSettingsApi.updateCertificate(editingCert.id, {
+          name: data.name,
+          issuer: data.issuer,
+          expirationDate: data.expirationDate,
+          status: data.status,
+        });
+        onUpdateCertificates(updatedList.map(c => c.id === editingCert.id ? { ...c, ...updated } : c));
+      } catch (error) {
+        console.error('Erro ao atualizar certidao:', error);
+        onUpdateCertificates(previous);
+      }
+    } else {
+      // Create
+      const previous = certificates;
+      const newCert: CompanyCertificate = {
+        id: crypto.randomUUID(),
+        name: data.name || 'Nova Certidão',
+        issuer: data.issuer || '',
+        expirationDate: data.expirationDate || new Date().toISOString().split('T')[0],
+        status: (data.status as CompanyCertificate['status']) || 'valid',
+      };
+      onUpdateCertificates([...certificates, newCert]);
+      try {
+        const created = await globalSettingsApi.addCertificate({
+          name: newCert.name,
+          issuer: newCert.issuer,
+          expirationDate: newCert.expirationDate,
+          status: newCert.status,
+        });
+        onUpdateCertificates([...previous, created]);
+      } catch (error) {
+        console.error('Erro ao criar certidao:', error);
+        onUpdateCertificates(previous);
+      }
     }
   };
 
@@ -139,9 +238,11 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                  <input placeholder="Buscar edital ou cliente..." className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs outline-none" value={search} onChange={e => setSearch(e.target.value)} />
                </div>
-               <button onClick={handleAddBidding} className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg hover:scale-105 active:scale-95 transition-all">
-                  <Plus size={16} /> Nova Proposta
-               </button>
+               {canEditBiddings && (
+                 <button onClick={handleAddBidding} className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg hover:scale-105 active:scale-95 transition-all">
+                    <Plus size={16} /> Nova Proposta
+                 </button>
+               )}
             </div>
 
             {/* BIDDING LIST */}
@@ -175,17 +276,28 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
                         {b.status === 'WON' && (
                           <button onClick={() => onCreateProjectFromBidding(b)} className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 hover:scale-105 transition-all">Criar Projeto</button>
                         )}
-                        <select 
-                          className="bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-[9px] font-black uppercase tracking-widest px-4 py-2 outline-none"
-                          value={b.status}
-                          onChange={e => handleStatusChange(b.id, e.target.value as BiddingStatus)}
-                        >
-                          <option value="PROSPECTING">Prospecção</option>
-                          <option value="DRAFTING">Em Elaboração</option>
-                          <option value="SUBMITTED">Enviada</option>
-                          <option value="WON">Ganha</option>
-                          <option value="LOST">Perdida</option>
-                        </select>
+                        {canEditBiddings && (
+                          <>
+                            <select 
+                              className="bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-[9px] font-black uppercase tracking-widest px-4 py-2 outline-none"
+                              value={b.status}
+                              onChange={e => handleStatusChange(b.id, e.target.value as BiddingStatus)}
+                            >
+                              <option value="PROSPECTING">Prospecção</option>
+                              <option value="DRAFTING">Em Elaboração</option>
+                              <option value="SUBMITTED">Enviada</option>
+                              <option value="WON">Ganha</option>
+                              <option value="LOST">Perdida</option>
+                            </select>
+                            <button onClick={() => handleEditBidding(b)} className="p-2 text-slate-300 hover:text-indigo-500 transition-all"><Pencil size={16}/></button>
+                            <button onClick={() => handleDeleteBidding(b.id)} className="p-2 text-slate-300 hover:text-rose-500 transition-all"><Trash2 size={16}/></button>
+                          </>
+                        )}
+                        {!canEditBiddings && (
+                          <span className="bg-slate-50 dark:bg-slate-800 rounded-xl text-[9px] font-black uppercase tracking-widest px-4 py-2">
+                            {b.status === 'PROSPECTING' ? 'Prospecção' : b.status === 'DRAFTING' ? 'Em Elaboração' : b.status === 'SUBMITTED' ? 'Enviada' : b.status === 'WON' ? 'Ganha' : 'Perdida'}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -200,7 +312,7 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
                 <h3 className="text-xl font-black dark:text-white tracking-tight">Certidões e Compliance</h3>
                 <p className="text-sm text-slate-500">Documentação legal para habilitação em editais.</p>
               </div>
-              <button onClick={handleAddCertificate} className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg active:scale-95 transition-all">
+              <button onClick={handleAddCertificate} className={`flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg active:scale-95 transition-all ${!canEditBiddings ? 'hidden' : ''}`}>
                 <Plus size={16} /> Adicionar Certidão
               </button>
             </div>
@@ -239,7 +351,12 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
                              </span>
                           </td>
                           <td className="px-8 py-5 text-right">
-                             <button onClick={() => handleDeleteCertificate(cert.id)} className="p-2 text-slate-300 hover:text-rose-500 transition-all opacity-0 group-hover:opacity-100"><Trash2 size={16}/></button>
+                             {canEditBiddings && (
+                               <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                                 <button onClick={() => handleEditCertificate(cert)} className="p-2 text-slate-300 hover:text-indigo-500 transition-all"><Pencil size={16}/></button>
+                                 <button onClick={() => handleDeleteCertificate(cert.id)} className="p-2 text-slate-300 hover:text-rose-500 transition-all"><Trash2 size={16}/></button>
+                               </div>
+                             )}
                           </td>
                         </tr>
                       );
@@ -251,6 +368,20 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
           </div>
         )}
       </div>
+
+      <BiddingModal
+        isOpen={biddingModalOpen}
+        onClose={() => setBiddingModalOpen(false)}
+        onSave={handleSaveBidding}
+        bidding={editingBidding}
+      />
+
+      <CertificateModal
+        isOpen={certModalOpen}
+        onClose={() => setCertModalOpen(false)}
+        onSave={handleSaveCertificate}
+        certificate={editingCert}
+      />
     </div>
   );
 };

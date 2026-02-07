@@ -29,6 +29,8 @@ interface CreateCertificateBody {
   status: string;
 }
 
+type UpdateCertificateBody = Partial<CreateCertificateBody>;
+
 @Controller('global-settings')
 @UseGuards(AuthGuard('jwt'))
 @Roles('ADMIN', 'SUPER_ADMIN', 'Gestor Principal')
@@ -57,6 +59,18 @@ export class GlobalSettingsController {
     @Req() req: AuthenticatedRequest,
   ) {
     return this.settingsService.addCertificate({
+      ...body,
+      instanceId: req.user.instanceId,
+    });
+  }
+
+  @Patch('certificates/:id')
+  updateCertificate(
+    @Param('id') id: string,
+    @Body() body: UpdateCertificateBody,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.settingsService.updateCertificate(id, {
       ...body,
       instanceId: req.user.instanceId,
     });

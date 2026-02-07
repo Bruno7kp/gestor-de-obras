@@ -76,4 +76,21 @@ export const globalSettingsApi = {
       throw new Error('Falha ao remover certidao');
     }
   },
+
+  async updateCertificate(id: string, input: Partial<Omit<CompanyCertificate, 'id'>>): Promise<CompanyCertificate> {
+    const response = await fetch(`${API_BASE}/global-settings/certificates/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(input),
+    });
+
+    if (!response.ok) {
+      throw new Error('Falha ao atualizar certidao');
+    }
+
+    return response.json();
+  },
 };

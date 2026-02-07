@@ -53,7 +53,8 @@ export class GlobalSettingsService {
     return this.prisma.globalSettings.update({
       where: { id: existing.id },
       data: {
-        defaultCompanyName: input.defaultCompanyName ?? existing.defaultCompanyName,
+        defaultCompanyName:
+          input.defaultCompanyName ?? existing.defaultCompanyName,
         companyCnpj: input.companyCnpj ?? existing.companyCnpj,
         userName: input.userName ?? existing.userName,
         language: input.language ?? existing.language,
@@ -77,6 +78,38 @@ export class GlobalSettingsService {
         issuer: input.issuer,
         expirationDate: new Date(input.expirationDate),
         status: input.status,
+      },
+    });
+  }
+
+  async updateCertificate(
+    id: string,
+    input: {
+      instanceId: string;
+      name?: string;
+      issuer?: string;
+      expirationDate?: string;
+      status?: string;
+    },
+  ) {
+    const settings = await this.prisma.globalSettings.findFirst({
+      where: { instanceId: input.instanceId },
+      include: { certificates: { where: { id } } },
+    });
+
+    if (!settings || settings.certificates.length === 0) {
+      throw new NotFoundException('Certificado nao encontrado');
+    }
+
+    return this.prisma.companyCertificate.update({
+      where: { id },
+      data: {
+        ...(input.name !== undefined && { name: input.name }),
+        ...(input.issuer !== undefined && { issuer: input.issuer }),
+        ...(input.expirationDate !== undefined && {
+          expirationDate: new Date(input.expirationDate),
+        }),
+        ...(input.status !== undefined && { status: input.status }),
       },
     });
   }
