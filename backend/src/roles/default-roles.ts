@@ -3,7 +3,8 @@ export type PermissionLevel = 'none' | 'view' | 'edit';
 export const PERMISSION_MODULES = [
   { key: 'biddings', label: 'Licitacoes' },
   { key: 'suppliers', label: 'Fornecedores' },
-  { key: 'projects', label: 'Obras' },
+  { key: 'projects_general', label: 'Obras gerais' },
+  { key: 'projects_specific', label: 'Obras especificas' },
   { key: 'wbs', label: 'Planilha EAP' },
   { key: 'technical_analysis', label: 'Analise Tecnica' },
   { key: 'financial_flow', label: 'Fluxo Financeiro' },
@@ -40,7 +41,8 @@ export const DEFAULT_ROLES: DefaultRoleDefinition[] = [
     access: {
       biddings: 'none',
       suppliers: 'edit',
-      projects: 'view',
+      projects_general: 'none',
+      projects_specific: 'view',
       wbs: 'none',
       technical_analysis: 'none',
       financial_flow: 'none',
@@ -59,7 +61,8 @@ export const DEFAULT_ROLES: DefaultRoleDefinition[] = [
     access: {
       biddings: 'none',
       suppliers: 'view',
-      projects: 'view',
+      projects_general: 'none',
+      projects_specific: 'edit',
       wbs: 'none',
       technical_analysis: 'none',
       financial_flow: 'none',

@@ -1,6 +1,6 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Project, ProjectGroup, GlobalSettings, BiddingProcess, Supplier, CompanyCertificate, JournalEntry } from '../types';
+import { Project, ProjectGroup, GlobalSettings, BiddingProcess, Supplier, CompanyCertificate, JournalEntry, ExternalProject } from '../types';
 import { journalService } from '../services/journalService';
 import { journalApi } from '../services/journalApi';
 import { projectsApi, normalizeProject } from '../services/projectsApi';
@@ -11,6 +11,7 @@ import { globalSettingsApi } from '../services/globalSettingsApi';
 
 interface State {
   projects: Project[];
+  externalProjects: ExternalProject[];
   biddings: BiddingProcess[];
   groups: ProjectGroup[];
   suppliers: Supplier[];
@@ -33,6 +34,7 @@ const MAX_HISTORY = 20;
 export const useProjectState = () => {
   const [present, setPresent] = useState<State>(() => ({
     projects: [],
+    externalProjects: [],
     biddings: [],
     groups: [],
     suppliers: [],
@@ -50,12 +52,13 @@ export const useProjectState = () => {
     let isMounted = true;
     const load = async () => {
       try {
-        const [projectsResult, groupsResult, suppliersResult, biddingsResult, settingsResult] = await Promise.allSettled([
+        const [projectsResult, groupsResult, suppliersResult, biddingsResult, settingsResult, externalResult] = await Promise.allSettled([
           projectsApi.list(),
           projectGroupsApi.list(),
           suppliersApi.list(),
           biddingsApi.list(),
           globalSettingsApi.get(),
+          projectsApi.listExternal(),
         ]);
 
         const projects = projectsResult.status === 'fulfilled' ? projectsResult.value : [];
@@ -63,6 +66,7 @@ export const useProjectState = () => {
         const suppliers = suppliersResult.status === 'fulfilled' ? suppliersResult.value : [];
         const biddings = biddingsResult.status === 'fulfilled' ? biddingsResult.value : [];
         const globalSettings = settingsResult.status === 'fulfilled' ? settingsResult.value : INITIAL_SETTINGS;
+        const externalProjects = externalResult.status === 'fulfilled' ? externalResult.value : [];
 
         if (!isMounted) return;
 
@@ -70,7 +74,7 @@ export const useProjectState = () => {
           const activeProjectId = projects.some(p => p.id === prev.activeProjectId)
             ? prev.activeProjectId
             : null;
-          return { ...prev, projects, groups, suppliers, biddings, globalSettings, activeProjectId };
+          return { ...prev, projects, externalProjects, groups, suppliers, biddings, globalSettings, activeProjectId };
         });
       } catch (error) {
         console.error('Falha ao carregar projetos/grupos:', error);
@@ -89,15 +93,24 @@ export const useProjectState = () => {
     if (!activeId) return;
     if (loadedProjectIdsRef.current.has(activeId)) return;
 
+    const isExternal = present.externalProjects.some(
+      (ep) => ep.projectId === activeId,
+    );
+
     let isMounted = true;
     const loadProject = async () => {
       try {
-        const project = await projectsApi.get(activeId);
+        const project = isExternal
+          ? await projectsApi.getExternal(activeId)
+          : await projectsApi.get(activeId);
         if (!isMounted) return;
 
         loadedProjectIdsRef.current.add(activeId);
         setPresent(prev => {
-          const updatedProjects = prev.projects.map(p => (p.id === project.id ? normalizeProject(project) : p));
+          const exists = prev.projects.some(p => p.id === project.id);
+          const updatedProjects = exists
+            ? prev.projects.map(p => (p.id === project.id ? normalizeProject(project) : p))
+            : [...prev.projects, normalizeProject(project)];
           return { ...prev, projects: updatedProjects };
         });
       } catch (error) {

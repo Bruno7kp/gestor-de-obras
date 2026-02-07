@@ -69,16 +69,39 @@ export class ProjectsController {
     @Req() req: AuthenticatedRequest,
     @Query('groupId') groupId?: string,
   ) {
-    return this.projectsService.findAll(req.user.instanceId, groupId);
+    return this.projectsService.findAll(
+      req.user.instanceId,
+      req.user.id,
+      req.user.permissions || [],
+      groupId,
+    );
+  }
+
+  @Get('external')
+  listExternalProjects(@Req() req: AuthenticatedRequest) {
+    return this.projectsService.getExternalProjects(
+      req.user.id,
+      req.user.instanceId,
+    );
+  }
+
+  @Get('external/:id')
+  findExternalById(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.projectsService.findExternalById(id, req.user.id);
   }
 
   @Get(':id')
   findById(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    return this.projectsService.findById(id, req.user.instanceId);
+    return this.projectsService.findById(
+      id,
+      req.user.instanceId,
+      req.user.id,
+      req.user.permissions || [],
+    );
   }
 
   @Post()
-  @HasPermission('projects.edit')
+  @HasPermission('projects_general.edit')
   create(@Body() body: CreateProjectBody, @Req() req: AuthenticatedRequest) {
     return this.projectsService.create({
       ...body,
@@ -87,7 +110,11 @@ export class ProjectsController {
   }
 
   @Patch(':id')
-  @HasPermission('projects.edit')
+  @HasPermission(
+    'projects_general.edit',
+    'projects_specific.view',
+    'projects_specific.edit',
+  )
   update(
     @Param('id') id: string,
     @Body() body: UpdateProjectBody,
@@ -97,12 +124,19 @@ export class ProjectsController {
       ...body,
       id,
       instanceId: req.user.instanceId,
+      userId: req.user.id,
+      permissions: req.user.permissions || [],
     });
   }
 
   @Delete(':id')
-  @HasPermission('projects.edit')
+  @HasPermission('projects_general.edit')
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    return this.projectsService.remove(id, req.user.instanceId);
+    return this.projectsService.remove(
+      id,
+      req.user.instanceId,
+      req.user.id,
+      req.user.permissions || [],
+    );
   }
 }

@@ -1,4 +1,4 @@
-import { DEFAULT_THEME, type LaborContract, type Project, type ProjectExpense, type WorkforceMember } from '../types';
+import { DEFAULT_THEME, type ExternalProject, type LaborContract, type Project, type ProjectExpense, type WorkforceMember } from '../types';
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL ?? '/api';
 
@@ -189,5 +189,31 @@ export const projectsApi = {
     if (!response.ok) {
       throw new Error('Falha ao excluir projeto');
     }
+  },
+
+  async listExternal(): Promise<ExternalProject[]> {
+    const response = await fetch(`${API_BASE}/projects/external`, {
+      method: 'GET',
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error('Falha ao carregar projetos externos');
+    }
+
+    return response.json();
+  },
+
+  async getExternal(id: string): Promise<Project> {
+    const response = await fetch(`${API_BASE}/projects/external/${id}`, {
+      method: 'GET',
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error('Falha ao carregar projeto externo');
+    }
+
+    return normalizeProject(await response.json());
   },
 };

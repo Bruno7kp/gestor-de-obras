@@ -9,6 +9,7 @@ import {
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { SupplierModal } from './SupplierModal';
 import { suppliersApi } from '../services/suppliersApi';
+import { usePermissions } from '../hooks/usePermissions';
 
 interface SupplierManagerProps {
   suppliers: Supplier[];
@@ -16,6 +17,8 @@ interface SupplierManagerProps {
 }
 
 export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, onUpdateSuppliers }) => {
+  const { getLevel } = usePermissions();
+  const canEditSuppliers = getLevel('suppliers') === 'edit';
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | Supplier['category']>('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -45,6 +48,7 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, onU
 
   // Fix: Explicitly ensure mapped items are treated as object types for spread operation
   const handleDragEnd = async (result: DropResult) => {
+    if (!canEditSuppliers) return;
     if (!result.destination) return;
     const previous = suppliers;
     const items = Array.from(suppliers);
@@ -142,7 +146,7 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, onU
           </div>
           <button 
             onClick={() => { setEditingSupplier(null); setIsModalOpen(true); }}
-            className="flex items-center gap-2 px-8 py-4 bg-indigo-600 text-white font-black uppercase tracking-widest text-[11px] rounded-2xl shadow-xl shadow-indigo-500/20 hover:scale-105 active:scale-95 transition-all"
+            className={`flex items-center gap-2 px-8 py-4 bg-indigo-600 text-white font-black uppercase tracking-widest text-[11px] rounded-2xl shadow-xl shadow-indigo-500/20 hover:scale-105 active:scale-95 transition-all ${!canEditSuppliers && 'hidden'}`}
           >
             <Plus size={18} /> Novo Parceiro
           </button>
@@ -197,7 +201,7 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, onU
                         className={`bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all flex flex-col md:flex-row md:items-center justify-between gap-6 group ${snapshot.isDragging ? 'shadow-2xl ring-2 ring-indigo-500 z-50' : ''}`}
                       >
                         <div className="flex items-center gap-5">
-                          <div {...p.dragHandleProps} className="p-1 text-slate-300 hover:text-indigo-500 transition-colors cursor-grab active:cursor-grabbing">
+                          <div {...p.dragHandleProps} className={`p-1 text-slate-300 hover:text-indigo-500 transition-colors cursor-grab active:cursor-grabbing ${!canEditSuppliers && 'invisible'}`}>
                             <GripVertical size={20} />
                           </div>
                           <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg shrink-0 ${getCategoryColor(supplier.category)}`}>
@@ -223,18 +227,22 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, onU
                           </div>
                           
                           <div className="flex items-center gap-2">
-                             <button 
-                               onClick={() => { setEditingSupplier(supplier); setIsModalOpen(true); }}
-                               className="p-3 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                             >
-                               <Edit2 size={18} />
-                             </button>
-                             <button 
-                               onClick={() => handleDelete(supplier.id)}
-                               className="p-3 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
-                             >
-                               <Trash2 size={18} />
-                             </button>
+                             {canEditSuppliers && (
+                               <button 
+                                 onClick={() => { setEditingSupplier(supplier); setIsModalOpen(true); }}
+                                 className="p-3 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                               >
+                                 <Edit2 size={18} />
+                               </button>
+                             )}
+                             {canEditSuppliers && (
+                               <button 
+                                 onClick={() => handleDelete(supplier.id)}
+                                 className="p-3 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                               >
+                                 <Trash2 size={18} />
+                               </button>
+                             )}
                           </div>
                         </div>
                       </div>

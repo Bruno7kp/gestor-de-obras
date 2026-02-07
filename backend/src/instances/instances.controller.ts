@@ -53,13 +53,11 @@ export class InstancesController {
     @Param('id') id: string,
     @Body() body: UpdateInstanceBody,
   ): Promise<any> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call
     return this.instancesService.update(id, body);
   }
 
   @Delete(':id')
   delete(@Param('id') id: string): Promise<any> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call
     return this.instancesService.delete(id);
   }
 }

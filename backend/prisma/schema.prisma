@@ -68,26 +68,28 @@ model CompanyCertificate {
 }
 
 model User {
-  id         String     @id @default(uuid())
-  name       String
-  email      String     @unique
-  passwordHash String
-  profileImage String?
-  status     String
-  createdAt  DateTime   @default(now())
-  instanceId String
-  instance   Instance   @relation(fields: [instanceId], references: [id])
-  roles      UserRole[]
+  id            String          @id @default(uuid())
+  name          String
+  email         String          @unique
+  passwordHash  String
+  profileImage  String?
+  status        String
+  createdAt     DateTime        @default(now())
+  instanceId    String
+  instance      Instance        @relation(fields: [instanceId], references: [id])
+  roles         UserRole[]
+  projectAccess ProjectMember[]
 }
 
 model Role {
-  id          String           @id @default(uuid())
-  name        String
-  description String?
-  instanceId  String
-  instance    Instance         @relation(fields: [instanceId], references: [id])
-  users       UserRole[]
-  permissions RolePermission[]
+  id             String           @id @default(uuid())
+  name           String
+  description    String?
+  instanceId     String
+  instance       Instance         @relation(fields: [instanceId], references: [id])
+  users          UserRole[]
+  permissions    RolePermission[]
+  projectMembers ProjectMember[]
 }
 
 model Permission {
@@ -115,6 +117,20 @@ model RolePermission {
   permission   Permission @relation(fields: [permissionId], references: [id])
 
   @@unique([roleId, permissionId])
+}
+
+model ProjectMember {
+  id        String   @id @default(uuid())
+  userId    String
+  projectId String
+  roleId    String
+  createdAt DateTime @default(now())
+  addedById String?
+  user      User     @relation(fields: [userId], references: [id])
+  project   Project  @relation(fields: [projectId], references: [id])
+  assignedRole Role  @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, projectId])
 }
 
 model ProjectGroup {
@@ -149,6 +165,7 @@ model Project {
   instanceId            String
   instance              Instance              @relation(fields: [instanceId], references: [id])
   group                 ProjectGroup?         @relation(fields: [groupId], references: [id])
+  members               ProjectMember[]
   items                 WorkItem[]
   history               MeasurementSnapshot[]
   assets                ProjectAsset[]

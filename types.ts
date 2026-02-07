@@ -291,6 +291,20 @@ export interface UserAccount {
   roles?: Role[];
 }
 
+// --- CROSS-INSTANCE PROJECT ACCESS ---
+export interface ExternalProject {
+  projectId: string;
+  projectName: string;
+  companyName: string;
+  instanceId: string;
+  instanceName: string;
+  assignedRole: {
+    id: string;
+    name: string;
+    permissions: string[];
+  };
+}
+
 // --- LICITAÇÕES ---
 export type BiddingStatus = 'PROSPECTING' | 'DRAFTING' | 'SUBMITTED' | 'WON' | 'LOST';
 

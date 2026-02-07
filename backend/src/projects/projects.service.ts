@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { removeLocalUpload, removeLocalUploads } from '../uploads/file.utils';
 
@@ -16,6 +20,8 @@ interface CreateProjectInput {
 interface UpdateProjectInput {
   id: string;
   instanceId: string;
+  userId: string;
+  permissions: string[];
   name?: string;
   companyName?: string;
   companyCnpj?: string;
@@ -51,17 +57,143 @@ interface UpdateProjectInput {
 export class ProjectsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  findAll(instanceId: string, groupId?: string) {
-    return this.prisma.project.findMany({
-      where: {
-        instanceId,
-        ...(groupId ? { groupId } : {}),
-      },
-      orderBy: { name: 'asc' },
-    });
+  async findAll(
+    instanceId: string,
+    userId: string,
+    permissions: string[],
+    groupId?: string,
+  ) {
+    // Check if user has general access to all projects
+    const hasGeneralAccess =
+      permissions.includes('projects_general.view') ||
+      permissions.includes('projects_general.edit');
+
+    if (hasGeneralAccess) {
+      // Return all projects in instance
+      return this.prisma.project.findMany({
+        where: {
+          instanceId,
+          ...(groupId ? { groupId } : {}),
+        },
+        orderBy: { name: 'asc' },
+      });
+    }
+
+    // Check if user has specific project access
+    const hasSpecificAccess =
+      permissions.includes('projects_specific.view') ||
+      permissions.includes('projects_specific.edit');
+
+    if (hasSpecificAccess) {
+      // Return only projects where user is a member
+      return this.prisma.project.findMany({
+        where: {
+          instanceId,
+          ...(groupId ? { groupId } : {}),
+          members: {
+            some: { userId },
+          },
+        },
+        orderBy: { name: 'asc' },
+      });
+    }
+
+    // No access - return empty array
+    return [];
   }
 
-  findById(id: string, instanceId: string) {
+  async canAccessProject(
+    projectId: string,
+    userId: string,
+    permissions: string[],
+  ): Promise<boolean> {
+    // Check if user has general access
+    const hasGeneralAccess =
+      permissions.includes('projects_general.view') ||
+      permissions.includes('projects_general.edit');
+
+    if (hasGeneralAccess) {
+      return true;
+    }
+
+    // Check if user has specific access
+    const hasSpecificAccess =
+      permissions.includes('projects_specific.view') ||
+      permissions.includes('projects_specific.edit');
+
+    if (hasSpecificAccess) {
+      // Check if user is a member of this project
+      const membership = await this.prisma.projectMember.findUnique({
+        where: {
+          userId_projectId: {
+            userId,
+            projectId,
+          },
+        },
+      });
+
+      return !!membership;
+    }
+
+    return false;
+  }
+
+  async canEditProject(
+    projectId: string,
+    userId: string,
+    permissions: string[],
+  ): Promise<boolean> {
+    const hasGeneralEdit = permissions.includes('projects_general.edit');
+    if (hasGeneralEdit) return true;
+
+    const hasSpecificAccess =
+      permissions.includes('projects_specific.view') ||
+      permissions.includes('projects_specific.edit');
+
+    if (!hasSpecificAccess) return false;
+
+    const membership = await this.prisma.projectMember.findUnique({
+      where: {
+        userId_projectId: {
+          userId,
+          projectId,
+        },
+      },
+      include: {
+        assignedRole: {
+          include: {
+            permissions: {
+              include: { permission: { select: { code: true } } },
+            },
+          },
+        },
+      },
+    });
+
+    if (!membership) return false;
+
+    const roleCodes = membership.assignedRole.permissions.map(
+      (rp) => rp.permission.code,
+    );
+
+    return (
+      roleCodes.includes('projects_specific.edit') ||
+      roleCodes.includes('projects_general.edit')
+    );
+  }
+
+  async findById(
+    id: string,
+    instanceId: string,
+    userId: string,
+    permissions: string[],
+  ) {
+    // Check if user can access this project
+    const canAccess = await this.canAccessProject(id, userId, permissions);
+    if (!canAccess) {
+      throw new NotFoundException('Projeto nao encontrado');
+    }
+
     return this.prisma.project.findFirst({
       where: { id, instanceId },
       include: {
@@ -70,6 +202,30 @@ export class ProjectsService {
         expenses: true,
         assets: true,
         theme: true,
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                profileImage: true,
+                instanceId: true,
+              },
+            },
+            assignedRole: {
+              select: {
+                id: true,
+                name: true,
+                permissions: {
+                  include: {
+                    permission: { select: { code: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
         planning: {
           include: { tasks: true, forecasts: true, milestones: true },
         },
@@ -105,6 +261,16 @@ export class ProjectsService {
   }
 
   async update(input: UpdateProjectInput) {
+    const canEdit = await this.canEditProject(
+      input.id,
+      input.userId,
+      input.permissions,
+    );
+
+    if (!canEdit) {
+      throw new ForbiddenException('Sem permissao para editar o projeto');
+    }
+
     const existing = await this.prisma.project.findFirst({
       where: { id: input.id, instanceId: input.instanceId },
       include: { theme: true },
@@ -196,7 +362,16 @@ export class ProjectsService {
     });
   }
 
-  async remove(id: string, instanceId: string) {
+  async remove(
+    id: string,
+    instanceId: string,
+    userId: string,
+    permissions: string[],
+  ) {
+    if (!permissions.includes('projects_general.edit')) {
+      throw new ForbiddenException('Sem permissao para remover o projeto');
+    }
+
     const existing = await this.prisma.project.findFirst({
       where: { id, instanceId },
     });
@@ -296,5 +471,123 @@ export class ProjectsService {
     await this.prisma.pDFTheme.deleteMany({ where: { projectId: id } });
 
     return this.prisma.project.delete({ where: { id } });
+  }
+
+  /**
+   * Returns projects from OTHER instances where the user is a member.
+   */
+  async getExternalProjects(userId: string, instanceId: string) {
+    const memberships = await this.prisma.projectMember.findMany({
+      where: { userId },
+      include: {
+        project: {
+          select: {
+            id: true,
+            name: true,
+            instanceId: true,
+            instance: { select: { id: true, name: true } },
+          },
+        },
+        assignedRole: {
+          select: {
+            id: true,
+            name: true,
+            permissions: {
+              include: { permission: { select: { code: true } } },
+            },
+          },
+        },
+      },
+    });
+
+    return memberships
+      .filter((m) => m.project.instanceId !== instanceId)
+      .map((m) => ({
+        projectId: m.project.id,
+        projectName: m.project.name,
+        companyName: m.project.instance?.name ?? m.project.instanceId,
+        instanceId: m.project.instanceId,
+        instanceName: m.project.instance?.name ?? m.project.instanceId,
+        assignedRole: {
+          id: m.assignedRole.id,
+          name: m.assignedRole.name,
+          permissions: m.assignedRole.permissions.map((p) => p.permission.code),
+        },
+      }));
+  }
+
+  /**
+   * Loads a project for a cross-instance member.
+   * The user's access is verified via ProjectMember, not instance membership.
+   */
+  async findExternalById(projectId: string, userId: string) {
+    // Verify user is a member of this project
+    const membership = await this.prisma.projectMember.findUnique({
+      where: {
+        userId_projectId: { userId, projectId },
+      },
+      include: {
+        assignedRole: {
+          include: {
+            permissions: {
+              include: { permission: { select: { code: true } } },
+            },
+          },
+        },
+      },
+    });
+
+    if (!membership) {
+      throw new NotFoundException('Projeto nao encontrado');
+    }
+
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      include: {
+        items: true,
+        history: true,
+        expenses: true,
+        assets: true,
+        theme: true,
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                profileImage: true,
+                instanceId: true,
+              },
+            },
+            assignedRole: {
+              select: {
+                id: true,
+                name: true,
+                permissions: {
+                  include: {
+                    permission: { select: { code: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
+        planning: {
+          include: { tasks: true, forecasts: true, milestones: true },
+        },
+        journal: { include: { entries: true } },
+        workforce: { include: { documentos: true, responsabilidades: true } },
+        laborContracts: {
+          include: { pagamentos: { orderBy: { data: 'asc' } } },
+        },
+      },
+    });
+
+    if (!project) {
+      throw new NotFoundException('Projeto nao encontrado');
+    }
+
+    return project;
   }
 }

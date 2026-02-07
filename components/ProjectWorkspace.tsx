@@ -1,12 +1,15 @@
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Project, GlobalSettings, WorkItem, Supplier, ProjectAsset, ProjectExpense, ProjectPlanning, PlanningTask, MaterialForecast, Milestone } from '../types';
 import {
   Layers, BarChart3, Coins, Users, HardHat, BookOpen, FileText, Sliders,
   CheckCircle2, History, Calendar, Lock, ChevronDown,
   ArrowRight, Clock, Undo2, Redo2, RotateCcw, AlertTriangle, X, Target, Info, RefreshCw, Briefcase
 } from 'lucide-react';
+import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { canView as checkCanView, canEdit as checkCanEdit, getPermissionLevel } from '../utils/permissions';
+import type { PermissionModule } from '../utils/permissions';
 import { WbsView } from './WbsView';
 import { StatsView } from './StatsView';
 import { ExpenseManager } from './ExpenseManager';
@@ -17,6 +20,8 @@ import { JournalView } from './JournalView';
 import { AssetManager } from './AssetManager';
 import { BrandingView } from './BrandingView';
 import { WorkItemModal } from './WorkItemModal';
+import { ProjectMembersBadge } from './ProjectMembersBadge';
+import { ProjectMembersModal } from './ProjectMembersModal';
 import { PrintReport } from './PrintReport';
 import { PrintExpenseReport } from './PrintExpenseReport';
 import { PrintPlanningReport } from './PrintPlanningReport';
@@ -29,11 +34,14 @@ import { projectExpensesApi } from '../services/projectExpensesApi';
 import { planningApi } from '../services/planningApi';
 import { projectAssetsApi } from '../services/projectAssetsApi';
 import { projectsApi } from '../services/projectsApi';
+import { rolesApi } from '../services/rolesApi';
+import { usersApi } from '../services/usersApi';
 
 interface ProjectWorkspaceProps {
   project: Project;
   globalSettings: GlobalSettings;
   suppliers: Supplier[];
+  isExternalProject?: boolean;
   onUpdateProject: (data: Partial<Project>) => void;
   onCloseMeasurement: () => void;
   canUndo: boolean;
@@ -47,14 +55,20 @@ interface ProjectWorkspaceProps {
 export type TabID = 'wbs' | 'stats' | 'expenses' | 'workforce' | 'labor-contracts' | 'planning' | 'journal' | 'documents' | 'branding';
 
 export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
-  project, globalSettings, suppliers, onUpdateProject, onCloseMeasurement,
+  project, globalSettings, suppliers, isExternalProject: isExternalProjectProp = false, onUpdateProject, onCloseMeasurement,
   canUndo, canRedo, onUndo, onRedo, activeTab, onTabChange
 }) => {
-  const { canView, getLevel } = usePermissions();
+  const { user } = useAuth();
+  const { canView: canViewGlobal, getLevel: getLevelGlobal } = usePermissions();
   const tab = activeTab;
   const [viewingMeasurementId, setViewingMeasurementId] = useState<'current' | number>('current');
   const [isClosingModalOpen, setIsClosingModalOpen] = useState(false);
   const [isReopenModalOpen, setIsReopenModalOpen] = useState(false);
+  const [showMembersModal, setShowMembersModal] = useState(false);
+  const [projectMembers, setProjectMembers] = useState<any[]>([]);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [allRoles, setAllRoles] = useState<any[]>([]);
+  const [generalAccessUserIds, setGeneralAccessUserIds] = useState<string[]>([]);
 
   const tabsNavRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef<{ x: number; scrollLeft: number; moved: boolean } | null>(null);
@@ -86,6 +100,121 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     setTimeout(() => { dragStartRef.current = null; }, 50);
   };
 
+  // Fetch project members, users, and general access list
+  useEffect(() => {
+    const fetchMembers = async () => {
+      try {
+        const response = await fetch(`/api/projects/${project.id}/members`, {
+          credentials: 'include',
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setProjectMembers(data);
+        }
+      } catch (error) {
+        console.error('Error fetching project members:', error);
+      }
+    };
+
+    const fetchUsersAndRoles = async () => {
+      try {
+        const [users, roles] = await Promise.all([
+          usersApi.list(),
+          rolesApi.list(),
+        ]);
+        setAllUsers(users);
+        setAllRoles(roles);
+
+        const rolePermissions = new Map(
+          roles.map((role) => [
+            role.id,
+            new Set((role.permissions ?? []).map((permission) => permission.code)),
+          ]),
+        );
+
+        const generalUsers = users.filter((user) =>
+          (user.roles ?? []).some((role) => {
+            const codes = rolePermissions.get(role.id);
+            return (
+              codes?.has('projects_general.view') ||
+              codes?.has('projects_general.edit')
+            );
+          }),
+        );
+
+        setGeneralAccessUserIds(generalUsers.map((user) => user.id));
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      }
+    };
+
+    fetchMembers();
+    fetchUsersAndRoles();
+  }, [project.id]);
+
+  const handleMembersChange = async () => {
+    try {
+      const response = await fetch(`/api/projects/${project.id}/members`, {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setProjectMembers(data);
+      }
+    } catch (error) {
+      console.error('Error fetching project members:', error);
+    }
+  };
+
+  const canEditMembers = getLevelGlobal('projects_general') === 'edit';
+
+  // External project flag is passed from the parent, which knows definitively
+  const isExternalProject = isExternalProjectProp;
+
+  // Get the current user's assigned role permissions for this project
+  const memberPermissions = useMemo(() => {
+    if (!user?.id) return [];
+    const member = projectMembers.find((entry) => entry.user?.id === user.id);
+    if (!member?.assignedRole?.permissions) return [];
+    return member.assignedRole.permissions.map(
+      (rp: any) => rp.permission?.code ?? rp.code,
+    ).filter(Boolean);
+  }, [projectMembers, user?.id]);
+
+  // Permission wrappers that handle external vs internal projects
+  const canView = useCallback(
+    (module: PermissionModule): boolean => {
+      if (isExternalProject) return checkCanView(memberPermissions, module);
+      return canViewGlobal(module);
+    },
+    [isExternalProject, memberPermissions, canViewGlobal],
+  );
+
+  const getLevel = useCallback(
+    (module: PermissionModule): 'none' | 'view' | 'edit' => {
+      if (isExternalProject) return getPermissionLevel(memberPermissions, module);
+      return getLevelGlobal(module);
+    },
+    [isExternalProject, memberPermissions, getLevelGlobal],
+  );
+
+  const currentMemberRole = useMemo(() => {
+    if (!user?.id) return null;
+    const member = projectMembers.find((entry) => entry.user?.id === user.id);
+    return member?.assignedRole?.name ?? null;
+  }, [projectMembers, user?.id]);
+
+  const canEditProject = useMemo(() => {
+    if (isExternalProject) {
+      // For external projects, check the assigned role permissions
+      return checkCanEdit(memberPermissions, 'projects_specific') ||
+             checkCanEdit(memberPermissions, 'projects_general');
+    }
+    return getLevelGlobal('projects_general') === 'edit' ||
+           checkCanEdit(memberPermissions, 'projects_specific') ||
+           checkCanEdit(memberPermissions, 'projects_general');
+  }, [isExternalProject, memberPermissions, getLevelGlobal]);
+
   const currentStats = useMemo(() =>
     treeService.calculateBasicStats(project.items, project.bdi, project),
     [project]
@@ -97,11 +226,18 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   );
 
   const displayData = useMemo(() => {
-    if (viewingMeasurementId === 'current') return { items: project.items, isReadOnly: false, label: `Medição Nº ${project.measurementNumber}`, date: project.referenceDate };
+    if (viewingMeasurementId === 'current') {
+      return {
+        items: project.items,
+        isReadOnly: !canEditProject,
+        label: `Medição Nº ${project.measurementNumber}`,
+        date: project.referenceDate,
+      };
+    }
     const snapshot = project.history?.find(h => h.measurementNumber === viewingMeasurementId);
     if (snapshot) return { items: snapshot.items, isReadOnly: true, label: `Medição Nº ${snapshot.measurementNumber}`, date: snapshot.date };
-    return { items: project.items, isReadOnly: false, label: 'Erro', date: '' };
-  }, [project, viewingMeasurementId]);
+    return { items: project.items, isReadOnly: !canEditProject, label: 'Erro', date: '' };
+  }, [project, viewingMeasurementId, canEditProject]);
 
   const flattenedPrintData = useMemo(() => {
     const tree = treeService.buildTree<WorkItem>(displayData.items);
@@ -501,6 +637,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
+          {/* Project Members Badge */}
+          <ProjectMembersBadge
+            members={projectMembers}
+            onClick={() => setShowMembersModal(true)}
+            canEdit={canEditMembers}
+          />
+
           {!isHistoryMode && (
             <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl mr-2 border border-slate-200 dark:border-slate-700 shadow-inner">
               <button
@@ -681,6 +824,19 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {showMembersModal && (
+        <ProjectMembersModal
+          projectId={project.id}
+          members={projectMembers}
+          allUsers={allUsers}
+          allRoles={allRoles}
+          generalAccessUserIds={generalAccessUserIds}
+          canEdit={canEditMembers}
+          onClose={() => setShowMembersModal(false)}
+          onMembersChange={handleMembersChange}
+        />
       )}
     </div>
   );

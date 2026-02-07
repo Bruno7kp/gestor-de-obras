@@ -9,6 +9,7 @@ import { UsersModule } from './users/users.module';
 import { MailModule } from './mail/mail.module';
 import { ProjectsModule } from './projects/projects.module';
 import { ProjectGroupsModule } from './project-groups/project-groups.module';
+import { ProjectMembersModule } from './project-members/project-members.module';
 import { WorkItemsModule } from './work-items/work-items.module';
 import { ProjectExpensesModule } from './project-expenses/project-expenses.module';
 import { PlanningModule } from './planning/planning.module';
@@ -35,6 +36,7 @@ import { DebugModule } from './debug/debug.module';
     MailModule,
     ProjectsModule,
     ProjectGroupsModule,
+    ProjectMembersModule,
     WorkItemsModule,
     ProjectExpensesModule,
     PlanningModule,

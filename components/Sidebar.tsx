@@ -1,8 +1,8 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, Cog, PlusCircle, Briefcase, Sun, Moon, Menu, HardHat, Folder, ChevronRight, ChevronLeft, ChevronDown, Landmark, Truck, Shield, User, LogOut, ChevronUp, Lock } from 'lucide-react';
-import { Project, ProjectGroup, CompanyCertificate } from '../types';
+import { Home, Cog, PlusCircle, Briefcase, Sun, Moon, Menu, HardHat, Folder, ChevronRight, ChevronLeft, ChevronDown, Landmark, Truck, Shield, User, LogOut, ChevronUp, Lock, Globe } from 'lucide-react';
+import { Project, ProjectGroup, CompanyCertificate, ExternalProject } from '../types';
 import { biddingService } from '../services/biddingService';
 import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
@@ -15,8 +15,11 @@ interface SidebarProps {
   projects: Project[];
   groups: ProjectGroup[];
   activeProjectId: string | null;
+  isActiveExternal: boolean;
+  externalProjects: ExternalProject[];
   onOpenProject: (id: string) => void;
   onCreateProject: (groupId?: string | null) => void;
+  onBackToDashboard: () => void;
   isDarkMode: boolean;
   toggleDarkMode: () => void;
   certificates: CompanyCertificate[];
@@ -24,12 +27,12 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({
   isOpen, setIsOpen, mobileOpen, setMobileOpen,
-  projects, groups, activeProjectId, onOpenProject, onCreateProject, isDarkMode, toggleDarkMode, certificates
+  projects, groups, activeProjectId, isActiveExternal, externalProjects, onOpenProject, onCreateProject, onBackToDashboard, isDarkMode, toggleDarkMode, certificates
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
-  const { canView, getLevel } = usePermissions();
+  const { canView, canEdit, getLevel } = usePermissions();
   // Inicializa estado do localStorage para persistir pastas abertas
   // Fix: Explicitly type Set in lazy initializer to avoid 'Set<unknown>' inference
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
@@ -64,6 +67,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }, []);
 
   const hasAlerts = biddingService.hasGlobalAlerts(certificates);
+  const canCreateProject = canEdit('projects_general');
   const isSuperAdmin = user?.roles?.includes('SUPER_ADMIN');
   const accountName = user?.name || user?.email || 'Usuario';
   const instanceDisplayName = user?.instanceName || '';
@@ -82,6 +86,79 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {badge && <div className="absolute right-3 top-3 w-2 h-2 bg-rose-500 rounded-full animate-pulse border-2 border-white dark:border-slate-900" />}
     </button>
   );
+
+  const ExternalProjectsSection: React.FC<{
+    isOpen: boolean;
+    externalProjects: ExternalProject[];
+    activeProjectId: string | null;
+    onOpenProject: (id: string) => void;
+  }> = ({ isOpen: sidebarOpen, externalProjects: extProjects, activeProjectId: activeId, onOpenProject: openProject }) => {
+    const [expanded, setExpanded] = useState(true);
+
+    // Group by instance
+    const byInstance = extProjects.reduce<Record<string, ExternalProject[]>>((acc, ep) => {
+      if (!acc[ep.instanceName]) acc[ep.instanceName] = [];
+      acc[ep.instanceName].push(ep);
+      return acc;
+    }, {});
+
+    return (
+      <>
+        <div className="py-6 px-3 flex items-center justify-between">
+          {sidebarOpen && (
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="flex items-center gap-1 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors"
+            >
+              {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+              Outras Obras
+            </button>
+          )}
+          {!sidebarOpen && (
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="mx-auto text-slate-400 hover:text-slate-600 transition-colors"
+              title="Outras Obras"
+            >
+              <Globe size={16} />
+            </button>
+          )}
+        </div>
+        {expanded && (
+          <div className="space-y-1">
+            {Object.entries(byInstance).map(([instanceName, projects]) => (
+              <div key={instanceName}>
+                {sidebarOpen && (
+                  <p className="px-3 py-1 text-[9px] font-bold text-slate-400 uppercase tracking-wider truncate">
+                    {instanceName}
+                  </p>
+                )}
+                {projects.map((ep) => (
+                  <button
+                    key={ep.projectId}
+                    onClick={() => openProject(ep.projectId)}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${
+                      activeId === ep.projectId && location.pathname.startsWith('/app/projects')
+                        ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 font-bold'
+                        : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'
+                    } ${!sidebarOpen && 'justify-center'}`}
+                  >
+                    <Globe size={16} className="shrink-0 text-emerald-500" />
+                    {sidebarOpen && (
+                      <div className="flex flex-col items-start min-w-0">
+                        <span className="text-xs truncate w-full text-left">{ep.projectName}</span>
+                        <span className="text-[9px] text-slate-400 truncate w-full text-left">{ep.assignedRole.name}</span>
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+      </>
+    );
+  };
 
   // Fix: Explicitly type GroupTreeItem as React.FC to handle React's intrinsic key prop and satisfy strict TS checks
   const GroupTreeItem: React.FC<{ group: ProjectGroup, depth: number }> = ({ group, depth }) => {
@@ -145,44 +222,80 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar">
-          <NavItem
-            active={location.pathname.startsWith('/app/dashboard') || location.pathname === '/app'}
-            onClick={() => { navigate('/app/dashboard'); setMobileOpen(false); }}
-            icon={<Home size={18}/>}
-            label="Dashboard"
-          />
-          {canView('biddings') && (
-            <NavItem
-              active={location.pathname.startsWith('/app/biddings')}
-              onClick={() => { navigate('/app/biddings'); setMobileOpen(false); }}
-              icon={<Landmark size={18}/>}
-              label={`Licitações ${getLevel('biddings') === 'view' ? '(leitura)' : ''}`}
-              badge={hasAlerts && canView('biddings')}
-            />
-          )}
-          {canView('suppliers') && (
-            <NavItem
-              active={location.pathname.startsWith('/app/suppliers')}
-              onClick={() => { navigate('/app/suppliers'); setMobileOpen(false); }}
-              icon={<Truck size={18}/>}
-              label={`Fornecedores ${getLevel('suppliers') === 'view' ? '(leitura)' : ''}`}
-            />
-          )}
-          
-          <div className="py-6 px-3 flex items-center justify-between">
-            {isOpen && <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Obras Ativas</h3>}
-            <button onClick={() => onCreateProject()} className={`text-indigo-500 hover:scale-110 transition-transform ${!isOpen && 'mx-auto'}`}><PlusCircle size={16}/></button>
-          </div>
+          {isActiveExternal ? (
+            /* Minimal menu when viewing an external project */
+            <>
+              <NavItem
+                active={false}
+                onClick={() => { onBackToDashboard(); setMobileOpen(false); }}
+                icon={<Home size={18}/>}
+                label={`Voltar para ${user?.instanceName || 'painel'}`}
+              />
+              {/* External Projects Section - always visible */}
+              {externalProjects.length > 0 && (
+                <ExternalProjectsSection
+                  isOpen={isOpen}
+                  externalProjects={externalProjects}
+                  activeProjectId={activeProjectId}
+                  onOpenProject={onOpenProject}
+                />
+              )}
+            </>
+          ) : (
+            /* Normal menu for own-instance navigation */
+            <>
+              <NavItem
+                active={location.pathname.startsWith('/app/dashboard') || location.pathname === '/app'}
+                onClick={() => { navigate('/app/dashboard'); setMobileOpen(false); }}
+                icon={<Home size={18}/>}
+                label="Dashboard"
+              />
+              {canView('biddings') && (
+                <NavItem
+                  active={location.pathname.startsWith('/app/biddings')}
+                  onClick={() => { navigate('/app/biddings'); setMobileOpen(false); }}
+                  icon={<Landmark size={18}/>}
+                  label="Licitações"
+                  badge={hasAlerts && canView('biddings')}
+                />
+              )}
+              {canView('suppliers') && (
+                <NavItem
+                  active={location.pathname.startsWith('/app/suppliers')}
+                  onClick={() => { navigate('/app/suppliers'); setMobileOpen(false); }}
+                  icon={<Truck size={18}/>}
+                  label="Fornecedores"
+                />
+              )}
+              
+              <div className="py-6 px-3 flex items-center justify-between">
+                {isOpen && <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Obras Ativas</h3>}
+                {canCreateProject && (
+                  <button onClick={() => onCreateProject()} className={`text-indigo-500 hover:scale-110 transition-transform ${!isOpen && 'mx-auto'}`}><PlusCircle size={16}/></button>
+                )}
+              </div>
 
-          <div className="space-y-1">
-            {groups.filter(g => !g.parentId).map(g => <GroupTreeItem key={g.id} group={g} depth={0} />)}
-            {projects.filter(p => !p.groupId).map(p => (
-              <button key={p.id} onClick={() => onOpenProject(p.id)} className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${activeProjectId === p.id && location.pathname.startsWith('/app/projects') ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 font-bold' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'} ${!isOpen && 'justify-center'}`}>
-                <Briefcase size={16} className="shrink-0" />
-                {isOpen && <span className="text-xs truncate text-left">{p.name}</span>}
-              </button>
-            ))}
-          </div>
+              <div className="space-y-1">
+                {groups.filter(g => !g.parentId).map(g => <GroupTreeItem key={g.id} group={g} depth={0} />)}
+                {projects.filter(p => !p.groupId).map(p => (
+                  <button key={p.id} onClick={() => onOpenProject(p.id)} className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${activeProjectId === p.id && location.pathname.startsWith('/app/projects') ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 font-bold' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'} ${!isOpen && 'justify-center'}`}>
+                    <Briefcase size={16} className="shrink-0" />
+                    {isOpen && <span className="text-xs truncate text-left">{p.name}</span>}
+                  </button>
+                ))}
+              </div>
+
+              {/* External Projects Section */}
+              {externalProjects.length > 0 && (
+                <ExternalProjectsSection
+                  isOpen={isOpen}
+                  externalProjects={externalProjects}
+                  activeProjectId={activeProjectId}
+                  onOpenProject={onOpenProject}
+                />
+              )}
+            </>
+          )}
         </nav>
 
         <div className="p-4 border-t border-slate-100 dark:border-slate-800">

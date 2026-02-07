@@ -23,8 +23,24 @@ async function main() {
     { code: 'biddings.edit', description: 'Edit biddings' },
     { code: 'suppliers.view', description: 'View suppliers' },
     { code: 'suppliers.edit', description: 'Edit suppliers' },
-    { code: 'projects.view', description: 'View projects' },
-    { code: 'projects.edit', description: 'Edit projects' },
+    { code: 'projects.view', description: 'View projects list' },
+    { code: 'projects.edit', description: 'Edit projects list' },
+    {
+      code: 'projects_general.view',
+      description: 'View all projects in instance',
+    },
+    {
+      code: 'projects_general.edit',
+      description: 'Edit all projects in instance',
+    },
+    {
+      code: 'projects_specific.view',
+      description: 'View assigned projects only',
+    },
+    {
+      code: 'projects_specific.edit',
+      description: 'Edit assigned projects only',
+    },
     { code: 'wbs.view', description: 'View WBS' },
     { code: 'wbs.edit', description: 'Edit WBS' },
     { code: 'technical_analysis.view', description: 'View technical analysis' },

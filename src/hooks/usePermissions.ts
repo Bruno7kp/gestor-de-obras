@@ -19,7 +19,7 @@ export interface UsePermissionsResult {
  * Usage:
  *   const { canEdit, canView, permissions } = usePermissions();
  *   
- *   if (canEdit('projects')) {
+ *   if (canEdit('projects_general')) {
  *     // Show edit button
  *   }
  *   

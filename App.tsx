@@ -20,7 +20,7 @@ import { Menu } from 'lucide-react';
 const App: React.FC = () => {
   const { 
     projects, biddings, groups, suppliers, activeProject, activeProjectId, setActiveProjectId, 
-    globalSettings, setGlobalSettings,
+    globalSettings, setGlobalSettings, externalProjects,
     updateActiveProject, updateProjects, updateGroups, updateSuppliers, updateBiddings, updateCertificates, bulkUpdate,
     undo, redo, canUndo, canRedo
   } = useProjectState();
@@ -33,7 +33,21 @@ const App: React.FC = () => {
     currencySymbol: 'R$',
     certificates: []
   };
+  const externalProjectIds = useMemo(
+    () => new Set(externalProjects.map(ep => ep.projectId)),
+    [externalProjects],
+  );
 
+  const isActiveExternal = useMemo(
+    () => !!activeProjectId && externalProjectIds.has(activeProjectId),
+    [activeProjectId, externalProjectIds],
+  );
+
+  // Projects without the externally-loaded ones (they only show in "Outras Obras")
+  const ownProjects = useMemo(
+    () => projects.filter(p => !externalProjectIds.has(p.id)),
+    [projects, externalProjectIds],
+  );
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('promeasure_theme') === 'dark');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -61,6 +75,11 @@ const App: React.FC = () => {
     setActiveProjectId(id);
     navigate(`/app/projects/${id}/wbs`);
     setMobileMenuOpen(false);
+  }, [setActiveProjectId, navigate]);
+
+  const handleBackToDashboard = useCallback(() => {
+    setActiveProjectId(null);
+    navigate('/app/dashboard');
   }, [setActiveProjectId, navigate]);
 
   const handleCloseMeasurement = useCallback(async () => {
@@ -179,6 +198,7 @@ const App: React.FC = () => {
         project={activeProject}
         globalSettings={safeGlobalSettings as any}
         suppliers={suppliers}
+        isExternalProject={externalProjectIds.has(projectId!)}
         onUpdateProject={updateActiveProject}
         onCloseMeasurement={handleCloseMeasurement}
         canUndo={canUndo} 
@@ -197,8 +217,11 @@ const App: React.FC = () => {
       <Sidebar 
         isOpen={sidebarOpen} setIsOpen={setSidebarOpen}
         mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen}
-        projects={projects} groups={groups} activeProjectId={activeProjectId}
+        projects={ownProjects} groups={groups} activeProjectId={activeProjectId}
+        isActiveExternal={isActiveExternal}
+        externalProjects={externalProjects}
         onOpenProject={handleOpenProject} onCreateProject={handleCreateProject}
+        onBackToDashboard={handleBackToDashboard}
         isDarkMode={isDarkMode} toggleDarkMode={() => setIsDarkMode(!isDarkMode)}
         certificates={safeGlobalSettings.certificates}
       />
@@ -216,7 +239,7 @@ const App: React.FC = () => {
             path="dashboard"
             element={
               <DashboardView
-                projects={projects}
+                projects={ownProjects}
                 groups={groups}
                 onOpenProject={handleOpenProject}
                 onCreateProject={handleCreateProject}

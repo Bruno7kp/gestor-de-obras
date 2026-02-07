@@ -1,7 +1,7 @@
 /**
  * Permission system constants and utilities
  * 
- * Modules: biddings, suppliers, projects, wbs, technical_analysis, financial_flow,
+ * Modules: biddings, suppliers, projects_general, projects_specific, wbs, technical_analysis, financial_flow,
  *          supplies, workforce, planning, journal, documents, project_settings, global_settings
  * 
  * Levels: view (read-only), edit (read+write), none (no access)
@@ -9,14 +9,15 @@
 
 export type PermissionLevel = 'none' | 'view' | 'edit';
 export type PermissionModule = 
-  | 'biddings' | 'suppliers' | 'projects' | 'wbs' | 'technical_analysis' 
-  | 'financial_flow' | 'supplies' | 'workforce' | 'planning' | 'journal' 
-  | 'documents' | 'project_settings' | 'global_settings';
+  | 'biddings' | 'suppliers' | 'projects_general' | 'projects_specific' 
+  | 'wbs' | 'technical_analysis' | 'financial_flow' | 'supplies' | 'workforce' 
+  | 'planning' | 'journal' | 'documents' | 'project_settings' | 'global_settings';
 
 export const PERMISSION_MODULES: Array<{ key: PermissionModule; label: string }> = [
   { key: 'biddings', label: 'Licitações' },
   { key: 'suppliers', label: 'Fornecedores' },
-  { key: 'projects', label: 'Obras' },
+  { key: 'projects_general', label: 'Obras gerais' },
+  { key: 'projects_specific', label: 'Obras especificas' },
   { key: 'wbs', label: 'Planilha EAP' },
   { key: 'technical_analysis', label: 'Análise Técnica' },
   { key: 'financial_flow', label: 'Fluxo Financeiro' },
@@ -31,7 +32,7 @@ export const PERMISSION_MODULES: Array<{ key: PermissionModule; label: string }>
 
 /**
  * Permission codes: {module}.{level}
- * Example: 'biddings.edit', 'projects.view', 'planning.edit'
+ * Example: 'biddings.edit', 'projects_general.view', 'planning.edit'
  */
 export const PERMISSIONS = {
   // Biddings
@@ -42,9 +43,13 @@ export const PERMISSIONS = {
   SUPPLIERS_VIEW: 'suppliers.view',
   SUPPLIERS_EDIT: 'suppliers.edit',
   
-  // Projects
-  PROJECTS_VIEW: 'projects.view',
-  PROJECTS_EDIT: 'projects.edit',
+  // Projects - General (all projects in instance)
+  PROJECTS_GENERAL_VIEW: 'projects_general.view',
+  PROJECTS_GENERAL_EDIT: 'projects_general.edit',
+  
+  // Projects - Specific (assigned projects only)
+  PROJECTS_SPECIFIC_VIEW: 'projects_specific.view',
+  PROJECTS_SPECIFIC_EDIT: 'projects_specific.edit',
   
   // WBS
   WBS_VIEW: 'wbs.view',

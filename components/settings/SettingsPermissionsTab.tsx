@@ -7,7 +7,8 @@ import { useToast } from '../../hooks/useToast';
 const PERMISSION_MODULES = [
   { key: 'biddings', label: 'Licitacoes' },
   { key: 'suppliers', label: 'Fornecedores' },
-  { key: 'projects', label: 'Obras' },
+  { key: 'projects_general', label: 'Obras gerais' },
+  { key: 'projects_specific', label: 'Obras especificas' },
   { key: 'wbs', label: 'Planilha EAP' },
   { key: 'technical_analysis', label: 'Analise Tecnica' },
   { key: 'financial_flow', label: 'Fluxo Financeiro' },
