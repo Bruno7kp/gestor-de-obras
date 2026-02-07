@@ -11,6 +11,7 @@ import { AuthGuard } from '@nestjs/passport';
 import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import type { AuthenticatedRequest } from './auth.types';
+import { PrismaService } from '../prisma/prisma.service';
 
 interface LoginBody {
   email: string;
@@ -20,7 +21,10 @@ interface LoginBody {
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   @Post('login')
   async login(
@@ -47,7 +51,17 @@ export class AuthController {
 
   @UseGuards(AuthGuard('jwt'))
   @Get('me')
-  me(@Req() req: AuthenticatedRequest) {
-    return req.user;
+  async me(@Req() req: AuthenticatedRequest) {
+    if (req.user.instanceName) return req.user;
+
+    const instance = await this.prisma.instance.findUnique({
+      where: { id: req.user.instanceId },
+      select: { name: true },
+    });
+
+    return {
+      ...req.user,
+      instanceName: instance?.name,
+    };
   }
 }
