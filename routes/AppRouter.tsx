@@ -2,6 +2,8 @@ import React from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import App from '../App';
 import { AuthProvider, useAuth } from '../auth/AuthContext';
+import { ToastProvider } from '../context/ToastContext';
+import { ToastContainer } from '../components/ToastContainer';
 import { LandingPage } from '../pages/LandingPage';
 import { LoginPage } from '../pages/LoginPage';
 import { SignupPage } from '../pages/SignupPage';
@@ -59,7 +61,10 @@ const AppRoutes: React.FC = () => (
 export const AppRouter: React.FC = () => (
   <BrowserRouter>
     <AuthProvider>
-      <AppRoutes />
+      <ToastProvider>
+        <AppRoutes />
+        <ToastContainer />
+      </ToastProvider>
     </AuthProvider>
   </BrowserRouter>
 );

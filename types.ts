@@ -265,6 +265,32 @@ export interface GlobalSettings {
   certificates: CompanyCertificate[];
 }
 
+export type PermissionLevel = 'none' | 'view' | 'edit';
+
+export interface Permission {
+  id: string;
+  code: string;
+  description?: string | null;
+}
+
+export interface Role {
+  id: string;
+  name: string;
+  description?: string | null;
+  instanceId?: string;
+  permissions?: Permission[];
+}
+
+export interface UserAccount {
+  id: string;
+  name: string;
+  email: string;
+  status?: string;
+  instanceId?: string;
+  profileImage?: string | null;
+  roles?: Role[];
+}
+
 // --- LICITAÇÕES ---
 export type BiddingStatus = 'PROSPECTING' | 'DRAFTING' | 'SUBMITTED' | 'WON' | 'LOST';
 

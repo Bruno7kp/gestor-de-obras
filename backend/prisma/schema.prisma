@@ -72,6 +72,7 @@ model User {
   name       String
   email      String     @unique
   passwordHash String
+  profileImage String?
   status     String
   createdAt  DateTime   @default(now())
   instanceId String

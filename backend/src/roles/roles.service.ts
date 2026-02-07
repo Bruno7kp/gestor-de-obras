@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { DEFAULT_ROLES, buildPermissionCodes } from './default-roles';
 
 interface CreateRoleInput {
   instanceId: string;
@@ -109,7 +110,11 @@ export class RolesService {
     });
   }
 
-  async removePermission(roleId: string, permissionId: string, instanceId: string) {
+  async removePermission(
+    roleId: string,
+    permissionId: string,
+    instanceId: string,
+  ) {
     const role = await this.prisma.role.findFirst({
       where: { id: roleId, instanceId },
     });
@@ -120,5 +125,122 @@ export class RolesService {
     });
 
     return { deleted: 1 };
+  }
+
+  async setPermissions(roleId: string, instanceId: string, codes: string[]) {
+    const role = await this.prisma.role.findFirst({
+      where: { id: roleId, instanceId },
+    });
+    if (!role) throw new NotFoundException('Role nao encontrada');
+
+    const uniqueCodes = Array.from(new Set(codes));
+    if (uniqueCodes.length === 0) {
+      await this.prisma.rolePermission.deleteMany({ where: { roleId } });
+      return this.prisma.role.findUnique({
+        where: { id: roleId },
+        include: { permissions: { include: { permission: true } } },
+      });
+    }
+
+    const permissions = await Promise.all(
+      uniqueCodes.map((code) =>
+        this.prisma.permission.upsert({
+          where: { code },
+          update: {},
+          create: { code },
+        }),
+      ),
+    );
+
+    await this.prisma.rolePermission.deleteMany({
+      where: {
+        roleId,
+        permissionId: {
+          notIn: permissions.map((permission) => permission.id),
+        },
+      },
+    });
+
+    await Promise.all(
+      permissions.map((permission) =>
+        this.prisma.rolePermission.upsert({
+          where: {
+            roleId_permissionId: {
+              roleId,
+              permissionId: permission.id,
+            },
+          },
+          update: {},
+          create: {
+            roleId,
+            permissionId: permission.id,
+          },
+        }),
+      ),
+    );
+
+    return this.prisma.role.findUnique({
+      where: { id: roleId },
+      include: { permissions: { include: { permission: true } } },
+    });
+  }
+
+  async seedDefaultRoles(instanceId: string) {
+    const existing = await this.prisma.role.findMany({
+      where: {
+        instanceId,
+        name: { in: DEFAULT_ROLES.map((role) => role.name) },
+      },
+    });
+
+    const existingNames = new Set(existing.map((role) => role.name));
+
+    for (const definition of DEFAULT_ROLES) {
+      if (existingNames.has(definition.name)) continue;
+
+      const created = await this.prisma.role.create({
+        data: {
+          name: definition.name,
+          description: definition.description ?? null,
+          instanceId,
+        },
+      });
+
+      const codes = buildPermissionCodes(definition.access);
+      if (codes.length > 0) {
+        await this.setPermissions(created.id, instanceId, codes);
+      }
+    }
+
+    return this.findAll(instanceId);
+  }
+
+  async resetToDefaults(instanceId: string) {
+    const systemRoles = ['ADMIN', 'SUPER_ADMIN'];
+    const rolesToRemove = await this.prisma.role.findMany({
+      where: {
+        instanceId,
+        name: { notIn: systemRoles },
+      },
+      select: { id: true },
+    });
+
+    const roleIds = rolesToRemove.map((role) => role.id);
+
+    if (roleIds.length > 0) {
+      await this.prisma.rolePermission.deleteMany({
+        where: { roleId: { in: roleIds } },
+      });
+
+      await this.prisma.userRole.deleteMany({
+        where: { roleId: { in: roleIds } },
+      });
+
+      await this.prisma.role.deleteMany({
+        where: { id: { in: roleIds } },
+      });
+    }
+
+    return this.seedDefaultRoles(instanceId);
   }
 }

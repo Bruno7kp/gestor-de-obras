@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { RolesService } from '../roles/roles.service';
 
 interface CreateInstanceInput {
   name: string;
@@ -8,15 +9,22 @@ interface CreateInstanceInput {
 
 @Injectable()
 export class InstancesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly rolesService: RolesService,
+  ) {}
 
-  create(input: CreateInstanceInput) {
-    return this.prisma.instance.create({
+  async create(input: CreateInstanceInput) {
+    const instance = await this.prisma.instance.create({
       data: {
         name: input.name,
         status: input.status || 'ACTIVE',
       },
     });
+
+    await this.rolesService.seedDefaultRoles(instance.id);
+
+    return instance;
   }
 
   findAll() {

@@ -26,6 +26,10 @@ interface AddPermissionBody {
   description?: string;
 }
 
+interface SetPermissionsBody {
+  codes: string[];
+}
+
 @Controller('roles')
 @UseGuards(AuthGuard('jwt'))
 @Roles('ADMIN', 'SUPER_ADMIN')
@@ -76,12 +80,31 @@ export class RolesController {
     });
   }
 
+  @Patch(':id/permissions')
+  setPermissions(
+    @Param('id') id: string,
+    @Body() body: SetPermissionsBody,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const codes = Array.isArray(body.codes) ? body.codes : [];
+    return this.rolesService.setPermissions(id, req.user.instanceId, codes);
+  }
+
   @Delete(':id/permissions/:permissionId')
   removePermission(
     @Param('id') id: string,
     @Param('permissionId') permissionId: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.rolesService.removePermission(id, permissionId, req.user.instanceId);
+    return this.rolesService.removePermission(
+      id,
+      permissionId,
+      req.user.instanceId,
+    );
+  }
+
+  @Post('reset-defaults')
+  resetDefaults(@Req() req: AuthenticatedRequest) {
+    return this.rolesService.resetToDefaults(req.user.instanceId);
   }
 }

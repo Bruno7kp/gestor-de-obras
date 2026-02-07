@@ -243,7 +243,7 @@ const App: React.FC = () => {
             element={<SupplierManager suppliers={suppliers} onUpdateSuppliers={updateSuppliers} />}
           />
           <Route
-            path="settings"
+            path="settings/:tab?"
             element={<SettingsView settings={safeGlobalSettings as any} onUpdate={setGlobalSettings} projectCount={projects.length} />}
           />
           <Route path="projects/:projectId/:tab?" element={<ProjectRoute />} />
