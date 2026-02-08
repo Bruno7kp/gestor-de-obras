@@ -88,14 +88,23 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
   }, [expandedPayments, paymentsExpandedKey]);
 
   const filteredContracts = useMemo(() => {
-    return contracts.filter(c => {
-      const associado = workforce.find(w => w.id === c.associadoId);
-      const matchesSearch = 
-        c.descricao.toLowerCase().includes(search.toLowerCase()) ||
-        associado?.nome.toLowerCase().includes(search.toLowerCase()) || '';
-      const matchesType = filterType === 'all' || c.tipo === filterType;
-      return matchesSearch && matchesType;
-    });
+    const latestPaymentTime = (contract: LaborContract) => {
+      if (!contract.pagamentos?.length) return 0;
+      return Math.max(
+        ...contract.pagamentos.map(p => parseLocalDate(p.data).getTime() || 0)
+      );
+    };
+
+    return contracts
+      .filter(c => {
+        const associado = workforce.find(w => w.id === c.associadoId);
+        const matchesSearch = 
+          c.descricao.toLowerCase().includes(search.toLowerCase()) ||
+          associado?.nome.toLowerCase().includes(search.toLowerCase()) || '';
+        const matchesType = filterType === 'all' || c.tipo === filterType;
+        return matchesSearch && matchesType;
+      })
+      .sort((a, b) => latestPaymentTime(b) - latestPaymentTime(a));
   }, [contracts, workforce, search, filterType]);
 
   const stats = useMemo(() => 
@@ -140,6 +149,20 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
       linkedWorkItemId: contract.linkedWorkItemId,
     };
   };
+
+  function parseLocalDate(dateStr: string) {
+    if (!dateStr) return new Date(NaN);
+    const [year, month, day] = dateStr.split('-').map(Number);
+    if (year && month && day) return new Date(year, month - 1, day);
+    return new Date(dateStr);
+  }
+
+  function formatLocalDate(dateStr?: string) {
+    if (!dateStr) return '';
+    const date = parseLocalDate(dateStr);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleDateString('pt-BR');
+  }
 
   const handleDownloadProof = (url: string, name: string) => {
     const link = document.createElement('a');
@@ -464,11 +487,11 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
                     <span className="font-bold">{associado?.nome || 'Associado não encontrado'}</span>
                     <span className="text-slate-300 mx-2">•</span>
                     <Calendar size={14} />
-                    <span>{new Date(contract.dataInicio).toLocaleDateString('pt-BR')}</span>
+                    <span>{formatLocalDate(contract.dataInicio)}</span>
                     {contract.dataFim && (
                       <>
                         <span className="text-slate-300 mx-2">→</span>
-                        <span>{new Date(contract.dataFim).toLocaleDateString('pt-BR')}</span>
+                        <span>{formatLocalDate(contract.dataFim)}</span>
                       </>
                     )}
                   </div>
@@ -577,7 +600,9 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
                 )}
                 {contract.pagamentos.length > 0 && isPaymentsOpen && (
                   <div className="space-y-2">
-                    {contract.pagamentos.map(pag => (
+                    {[...contract.pagamentos]
+                      .sort((a, b) => parseLocalDate(b.data).getTime() - parseLocalDate(a.data).getTime())
+                      .map(pag => (
                       <div 
                         key={pag.id} 
                         className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl"
@@ -597,7 +622,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
                               {pag.descricao || 'Pagamento'}
                             </p>
                             <p className="text-[9px] text-slate-400">
-                              {new Date(pag.data).toLocaleDateString('pt-BR')}
+                              {formatLocalDate(pag.data)}
                             </p>
                           </div>
                         </div>
