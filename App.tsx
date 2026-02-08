@@ -31,6 +31,19 @@ const PROJECT_TABS: TabID[] = [
   'branding',
 ];
 
+const LAST_PROJECT_TAB_KEY = 'promeasure_last_project_tab_v1';
+
+const resolveProjectTab = (value: string | null): TabID => {
+  if (value && PROJECT_TABS.includes(value as TabID)) return value as TabID;
+  return 'wbs';
+};
+
+const getTabFromPath = (pathname: string): TabID | null => {
+  const match = pathname.match(/^\/app\/projects\/[^/]+\/([^/]+)/);
+  if (!match) return null;
+  return PROJECT_TABS.includes(match[1] as TabID) ? (match[1] as TabID) : null;
+};
+
 type ProjectRouteProps = {
   activeProject: Project | null;
   activeProjectId: string | null;
@@ -74,13 +87,15 @@ const ProjectRoute: React.FC<ProjectRouteProps> = ({
   }
 
   if (!tab) {
-    return <Navigate to={`/app/projects/${projectId}/wbs`} replace />;
+    const savedTab = resolveProjectTab(localStorage.getItem(LAST_PROJECT_TAB_KEY));
+    return <Navigate to={`/app/projects/${projectId}/${savedTab}`} replace />;
   }
 
   const resolvedTab = PROJECT_TABS.includes(tab as TabID) ? (tab as TabID) : 'wbs';
 
   if (tab !== resolvedTab) {
-    return <Navigate to={`/app/projects/${projectId}/wbs`} replace />;
+    const savedTab = resolveProjectTab(localStorage.getItem(LAST_PROJECT_TAB_KEY));
+    return <Navigate to={`/app/projects/${projectId}/${savedTab}`} replace />;
   }
 
   if (!activeProject || activeProject.id !== projectId) {
@@ -147,13 +162,21 @@ const App: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const tabFromPath = getTabFromPath(location.pathname);
+    if (tabFromPath) {
+      localStorage.setItem(LAST_PROJECT_TAB_KEY, tabFromPath);
+    }
+  }, [location.pathname]);
+
+  useEffect(() => {
     localStorage.setItem('promeasure_theme', isDarkMode ? 'dark' : 'light');
     document.documentElement.classList.toggle('dark', isDarkMode);
   }, [isDarkMode]);
 
   const handleOpenProject = useCallback((id: string) => {
     setActiveProjectId(id);
-    navigate(`/app/projects/${id}/wbs`);
+    const savedTab = resolveProjectTab(localStorage.getItem(LAST_PROJECT_TAB_KEY));
+    navigate(`/app/projects/${id}/${savedTab}`);
     setMobileMenuOpen(false);
   }, [setActiveProjectId, navigate]);
 

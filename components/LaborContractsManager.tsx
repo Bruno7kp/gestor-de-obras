@@ -158,7 +158,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
           sub={`${((stats.valorPagoGeral/stats.valorTotalGeral)*100 || 0).toFixed(1)}% executado`}
         />
         <KpiCard 
-          label="Saldo" 
+          label="Devendo" 
           value={`R$ ${stats.saldo.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`} 
           icon={<TrendingDown />} 
           color="amber" 
