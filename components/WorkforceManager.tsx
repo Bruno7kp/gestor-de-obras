@@ -7,8 +7,8 @@ import { usePermissions } from '../hooks/usePermissions';
 import { ConfirmModal } from './ConfirmModal';
 import { useToast } from '../hooks/useToast';
 import { 
-  Users, Plus, Search, Trash2, Edit2, ShieldCheck, AlertCircle, HardHat, FileText,
-  CheckCircle2, X, UserCircle, Briefcase, User, Lock
+  Plus, Search, Trash2, Edit2, ShieldCheck, AlertCircle, HardHat, FileText,
+  X, UserCircle, Briefcase, User, Lock
 } from 'lucide-react';
 
 interface WorkforceManagerProps {
@@ -40,8 +40,6 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onU
 
   const stats = useMemo(() => ({
     total: workforce.length,
-    apto: workforce.filter(m => workforceService.getMemberGlobalStatus(m) === 'apto').length,
-    vencido: workforce.filter(m => workforceService.getMemberGlobalStatus(m) === 'vencido').length
   }), [workforce]);
 
   const paidByMember = useMemo(() => {
@@ -171,23 +169,22 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onU
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <KpiCard label="Quadro Total" value={stats.total} icon={<Users />} color="indigo" sub="Colaboradores" />
-        <KpiCard label="Status Apto" value={stats.apto} icon={<CheckCircle2 />} color="emerald" sub="Docs em dia" />
-        <KpiCard label="Irregularidades" value={stats.vencido} icon={<AlertCircle />} color="rose" sub="Bloqueio sugerido" />
-      </div>
-
       <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm">
         <div className="relative flex-1 w-full md:max-w-md">
            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
            <input placeholder="Buscar por nome, cargo ou CPF..." className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-sm outline-none focus:ring-4 focus:ring-indigo-500/10" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <button 
-          onClick={() => { setEditingMember(null); setIsModalOpen(true); }}
-          className="flex items-center gap-2 px-8 py-3.5 bg-indigo-600 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-xl hover:scale-105 transition-all"
-        >
-          <Plus size={18} /> Adicionar Colaborador
-        </button>
+        <div className="flex items-center gap-4">
+          <span className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-[10px] font-black uppercase tracking-widest text-slate-500">
+            {stats.total} Colaboradores
+          </span>
+          <button 
+            onClick={() => { setEditingMember(null); setIsModalOpen(true); }}
+            className="flex items-center gap-2 px-8 py-3.5 bg-indigo-600 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-xl hover:scale-105 transition-all"
+          >
+            <Plus size={18} /> Adicionar Colaborador
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -338,22 +335,3 @@ const MemberModal = ({ member, onClose, onSave, allWorkItems }: any) => {
   );
 };
 
-const KpiCard = ({ label, value, icon, color, sub }: any) => {
-  const colors: any = { 
-    indigo: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-100 dark:border-indigo-800', 
-    emerald: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800', 
-    rose: 'text-rose-600 bg-rose-50 dark:bg-rose-900/20 border-rose-100 dark:border-rose-800'
-  };
-  return (
-    <div className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
-       <div className="flex justify-between items-start mb-4">
-         <div className={`p-2 rounded-lg ${colors[color]}`}>{icon}</div>
-         <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">{label}</span>
-       </div>
-       <div>
-         <p className={`text-xl font-black tracking-tighter ${colors[color].split(' ')[0]}`}>{value}</p>
-         <p className="text-[9px] font-bold text-slate-400 uppercase mt-1">{sub}</p>
-       </div>
-    </div>
-  );
-};
