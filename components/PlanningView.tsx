@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { ExpenseAttachmentZone } from './ExpenseAttachmentZone';
+import { ConfirmModal } from './ConfirmModal';
 import { usePermissions } from '../hooks/usePermissions';
 import { useToast } from '../hooks/useToast';
 import { uiPreferences } from '../utils/uiPreferences';
@@ -559,7 +560,19 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                     </td>
                                     <td className="py-6">
                                       <div className="flex gap-2 justify-center">
-                                        <StatusCircle active={f.status === 'pending'} onClick={() => onUpdatePlanning(planningService.updateForecast(planning, f.id, { status: 'pending' }))} icon={<AlertCircle size={12}/>} color="amber" label="Pendente" />
+                                        <StatusCircle
+                                          active={f.status === 'pending'}
+                                          onClick={() => {
+                                            if (f.status !== 'pending') {
+                                              toast.warning('Comprado nao pode voltar para a etapa de a comprar.');
+                                              return;
+                                            }
+                                            onUpdatePlanning(planningService.updateForecast(planning, f.id, { status: 'pending' }));
+                                          }}
+                                          icon={<AlertCircle size={12}/>}
+                                          color="amber"
+                                          label="Pendente"
+                                        />
                                         <StatusCircle active={f.status === 'ordered'} onClick={() => setConfirmingForecast(f)} icon={<ShoppingCart size={12}/>} color="blue" label="Comprado" />
                                         <StatusCircle
                                           active={f.status === 'delivered'}
@@ -1132,8 +1145,9 @@ const MilestoneModal = ({ milestone, onClose, onSave }: any) => {
 const ConfirmForecastModal = ({ forecast, onClose, onConfirm, financialCategories, toast }: any) => {
   const [parentId, setParentId] = useState<string | null>(null);
   const [purchaseDate, setPurchaseDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [isPaid, setIsPaid] = useState(true);
+  const [isPaid, setIsPaid] = useState(!!forecast.isPaid);
   const [paymentProof, setPaymentProof] = useState<string | undefined>(forecast.paymentProof);
+  const [confirmPaidOpen, setConfirmPaidOpen] = useState(false);
 
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}>
@@ -1217,12 +1231,16 @@ const ConfirmForecastModal = ({ forecast, onClose, onConfirm, financialCategorie
            </div>
         </div>
 
-        <div className="flex items-center gap-4 w-full">
-           <button onClick={onClose} className="flex-1 py-4 text-slate-500 dark:text-slate-500 font-black uppercase text-xs tracking-widest hover:text-slate-800 dark:hover:text-white transition-colors">Voltar</button>
-           <button 
+          <div className="flex items-center gap-4 w-full">
+            <button onClick={onClose} className="flex-1 py-4 text-slate-500 dark:text-slate-500 font-black uppercase text-xs tracking-widest hover:text-slate-800 dark:hover:text-white transition-colors">Voltar</button>
+            <button 
               onClick={() => {
                 if (isPaid && !paymentProof) {
                   toast.warning('Anexe o comprovante de pagamento para confirmar como pago.');
+                  return;
+                }
+                if (forecast.status === 'pending') {
+                  setConfirmPaidOpen(true);
                   return;
                 }
                 onConfirm(isPaid, parentId, paymentProof, purchaseDate);
@@ -1235,6 +1253,20 @@ const ConfirmForecastModal = ({ forecast, onClose, onConfirm, financialCategorie
            </button>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={confirmPaidOpen}
+        title="Efetivar compra"
+        message="Ao marcar como comprado, você não poderá voltar para a etapa de pendente. Deseja continuar?"
+        confirmLabel="Efetivar"
+        cancelLabel="Cancelar"
+        variant="warning"
+        onConfirm={() => {
+          setConfirmPaidOpen(false);
+          onConfirm(isPaid, parentId, paymentProof, purchaseDate);
+        }}
+        onCancel={() => setConfirmPaidOpen(false)}
+      />
     </div>
   );
 };

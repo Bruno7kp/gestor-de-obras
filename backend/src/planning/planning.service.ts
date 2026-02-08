@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { removeLocalUpload } from '../uploads/file.utils';
 import { ensureProjectAccess } from '../common/project-access.util';
@@ -207,6 +207,16 @@ export class PlanningService {
       });
     }
     if (!forecast) throw new NotFoundException('Previsao nao encontrada');
+
+    const nextStatus = data.status ?? forecast.status;
+    const nextIsPaid = data.isPaid ?? forecast.isPaid;
+    const nextPaymentProof = data.paymentProof ?? forecast.paymentProof;
+    if (nextStatus === 'pending' && forecast.status !== 'pending') {
+      throw new BadRequestException('Nao e possivel voltar para pendente apos comprado.');
+    }
+    if (nextStatus === 'pending' && nextIsPaid && nextPaymentProof) {
+      throw new BadRequestException('Nao e possivel voltar para pendente apos pagamento.');
+    }
 
     return this.prisma.materialForecast.update({
       where: { id },
