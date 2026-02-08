@@ -52,16 +52,21 @@ export class AuthController {
   @UseGuards(AuthGuard('jwt'))
   @Get('me')
   async me(@Req() req: AuthenticatedRequest) {
-    if (req.user.instanceName) return req.user;
+    const [fullUser, instance] = await Promise.all([
+      this.authService.findUser(req.user.id, req.user.instanceId),
+      req.user.instanceName
+        ? Promise.resolve(null)
+        : this.prisma.instance.findUnique({
+            where: { id: req.user.instanceId },
+            select: { name: true },
+          }),
+    ]);
 
-    const instance = await this.prisma.instance.findUnique({
-      where: { id: req.user.instanceId },
-      select: { name: true },
-    });
+    if (!fullUser) return null;
 
     return {
-      ...req.user,
-      instanceName: instance?.name,
+      ...fullUser,
+      instanceName: req.user.instanceName ?? instance?.name,
     };
   }
 }

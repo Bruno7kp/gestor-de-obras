@@ -827,24 +827,24 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
       {isClosingModalOpen && (
         <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setIsClosingModalOpen(false)}>
-          <div className="bg-[#0f111a] w-full max-w-lg rounded-[3rem] p-12 shadow-2xl border border-slate-800/50 flex flex-col items-center text-center relative overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-[#0f111a] w-full max-w-lg rounded-[3rem] p-12 shadow-2xl border border-slate-200 dark:border-slate-800/50 flex flex-col items-center text-center relative overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-indigo-500/10 blur-[100px] pointer-events-none"></div>
             <div className="relative mb-10">
-              <div className="w-24 h-24 bg-slate-800/40 rounded-full flex items-center justify-center border border-slate-700/50">
+              <div className="w-24 h-24 bg-slate-100 dark:bg-slate-800/40 rounded-full flex items-center justify-center border border-slate-200 dark:border-slate-700/50">
                 <Lock size={36} className="text-indigo-500" />
               </div>
             </div>
-            <h2 className="text-3xl font-black text-white uppercase tracking-tighter mb-6">Finalizar Período?</h2>
+            <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-6">Finalizar Período?</h2>
             <div className="space-y-2 mb-12">
-              <p className="text-slate-400 text-lg font-medium leading-relaxed">
-                A medição <span className="text-white font-bold">#{project.measurementNumber}</span> será congelada no histórico.
+              <p className="text-slate-500 dark:text-slate-400 text-lg font-medium leading-relaxed">
+                A medição <span className="text-slate-900 dark:text-white font-bold">#{project.measurementNumber}</span> será congelada no histórico.
               </p>
-              <p className="text-slate-400 text-lg font-medium leading-relaxed">
-                O valor total faturado no período é <span className="text-white font-bold">{financial.formatVisual(currentStats.current, project.theme?.currencySymbol)}</span>.
+              <p className="text-slate-500 dark:text-slate-400 text-lg font-medium leading-relaxed">
+                O valor total faturado no período é <span className="text-slate-900 dark:text-white font-bold">{financial.formatVisual(currentStats.current, project.theme?.currencySymbol)}</span>.
               </p>
             </div>
             <div className="flex items-center gap-6 w-full">
-              <button onClick={() => setIsClosingModalOpen(false)} className="flex-1 py-4 text-slate-500 font-black uppercase text-xs tracking-widest hover:text-white transition-colors">Voltar</button>
+              <button onClick={() => setIsClosingModalOpen(false)} className="flex-1 py-4 text-slate-500 dark:text-slate-500 font-black uppercase text-xs tracking-widest hover:text-slate-800 dark:hover:text-white transition-colors">Voltar</button>
               <button onClick={() => { onCloseMeasurement(); setIsClosingModalOpen(false); }} className="flex-[2] py-5 bg-indigo-600 hover:bg-indigo-50 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-[0_10px_30px_-10px_rgba(79,70,229,0.5)] active:scale-95 transition-all">Confirmar e abrir próxima</button>
             </div>
           </div>
@@ -853,24 +853,24 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
       {isReopenModalOpen && (
         <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setIsReopenModalOpen(false)}>
-          <div className="bg-[#0f111a] w-full max-w-lg rounded-[3rem] p-12 shadow-2xl border border-slate-800/50 flex flex-col items-center text-center relative overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-[#0f111a] w-full max-w-lg rounded-[3rem] p-12 shadow-2xl border border-slate-200 dark:border-slate-800/50 flex flex-col items-center text-center relative overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-rose-500/10 blur-[100px] pointer-events-none"></div>
             <div className="relative mb-10">
-              <div className="w-24 h-24 bg-slate-800/40 rounded-full flex items-center justify-center border border-slate-700/50">
+              <div className="w-24 h-24 bg-slate-100 dark:bg-slate-800/40 rounded-full flex items-center justify-center border border-slate-200 dark:border-slate-700/50">
                 <RefreshCw size={36} className="text-rose-500" />
               </div>
             </div>
-            <h2 className="text-3xl font-black text-white uppercase tracking-tighter mb-6">Reabrir Medição?</h2>
+            <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-6">Reabrir Medição?</h2>
             <div className="space-y-4 mb-12">
-              <p className="text-slate-400 text-lg font-medium leading-relaxed">
-                Deseja realmente reativar a medição <span className="text-white font-bold">#{viewingMeasurementId}</span>?
+              <p className="text-slate-500 dark:text-slate-400 text-lg font-medium leading-relaxed">
+                Deseja realmente reativar a medição <span className="text-slate-900 dark:text-white font-bold">#{viewingMeasurementId}</span>?
               </p>
-              <p className="text-rose-400/80 text-sm font-bold uppercase tracking-widest">
+              <p className="text-rose-500/80 dark:text-rose-400/80 text-sm font-bold uppercase tracking-widest">
                 O período atual será descartado e o histórico voltará um passo.
               </p>
             </div>
             <div className="flex items-center gap-6 w-full">
-              <button onClick={() => setIsReopenModalOpen(false)} className="flex-1 py-4 text-slate-500 font-black uppercase text-xs tracking-widest hover:text-white transition-colors">Cancelar</button>
+              <button onClick={() => setIsReopenModalOpen(false)} className="flex-1 py-4 text-slate-500 dark:text-slate-500 font-black uppercase text-xs tracking-widest hover:text-slate-800 dark:hover:text-white transition-colors">Cancelar</button>
               <button onClick={handleConfirmReopen} className="flex-[2] py-5 bg-rose-600 hover:bg-rose-50 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-[0_10px_30px_-10px_rgba(225,29,72,0.5)] active:scale-95 transition-all">Confirmar Reabertura</button>
             </div>
           </div>

@@ -74,7 +74,36 @@ export const useProjectState = () => {
           const activeProjectId = projects.some(p => p.id === prev.activeProjectId)
             ? prev.activeProjectId
             : null;
-          return { ...prev, projects, externalProjects, groups, suppliers, biddings, globalSettings, activeProjectId };
+
+          const mergedProjects = projects.map((project) => {
+            const existing = prev.projects.find(p => p.id === project.id);
+            if (!existing) return project;
+
+            const hasDetails =
+              (existing.items?.length ?? 0) > 0 ||
+              (existing.expenses?.length ?? 0) > 0 ||
+              (existing.assets?.length ?? 0) > 0 ||
+              (existing.history?.length ?? 0) > 0 ||
+              (existing.workforce?.length ?? 0) > 0 ||
+              (existing.laborContracts?.length ?? 0) > 0 ||
+              (existing.journal?.entries?.length ?? 0) > 0 ||
+              (existing.planning?.tasks?.length ?? 0) > 0 ||
+              (existing.planning?.forecasts?.length ?? 0) > 0 ||
+              (existing.planning?.milestones?.length ?? 0) > 0;
+
+            return hasDetails ? { ...project, ...existing } : project;
+          });
+
+          return {
+            ...prev,
+            projects: mergedProjects,
+            externalProjects,
+            groups,
+            suppliers,
+            biddings,
+            globalSettings,
+            activeProjectId,
+          };
         });
       } catch (error) {
         console.error('Falha ao carregar projetos/grupos:', error);

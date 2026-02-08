@@ -7,6 +7,7 @@ import { biddingService } from './services/biddingService';
 import { projectsApi } from './services/projectsApi';
 import { workItemsApi } from './services/workItemsApi';
 import { measurementSnapshotsApi } from './services/measurementSnapshotsApi';
+import type { GlobalSettings, Project, Supplier } from './types';
 
 import { Sidebar } from './components/Sidebar';
 import { DashboardView } from './components/DashboardView';
@@ -16,6 +17,97 @@ import { BiddingView } from './components/BiddingView';
 import { SupplierManager } from './components/SupplierManager';
 
 import { Menu } from 'lucide-react';
+
+const PROJECT_TABS: TabID[] = [
+  'wbs',
+  'stats',
+  'expenses',
+  'supplies',
+  'workforce',
+  'labor-contracts',
+  'planning',
+  'journal',
+  'documents',
+  'branding',
+];
+
+type ProjectRouteProps = {
+  activeProject: Project | null;
+  activeProjectId: string | null;
+  setActiveProjectId: (id: string | null) => void;
+  suppliers: Supplier[];
+  safeGlobalSettings: GlobalSettings;
+  externalProjectIds: Set<string>;
+  updateActiveProject: (data: Partial<Project>) => void;
+  handleCloseMeasurement: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  undo: () => void;
+  redo: () => void;
+};
+
+const ProjectRoute: React.FC<ProjectRouteProps> = ({
+  activeProject,
+  activeProjectId,
+  setActiveProjectId,
+  suppliers,
+  safeGlobalSettings,
+  externalProjectIds,
+  updateActiveProject,
+  handleCloseMeasurement,
+  canUndo,
+  canRedo,
+  undo,
+  redo,
+}) => {
+  const { projectId, tab } = useParams();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (projectId && projectId !== activeProjectId) {
+      setActiveProjectId(projectId);
+    }
+  }, [projectId, activeProjectId, setActiveProjectId]);
+
+  if (!projectId) {
+    return <Navigate to="/app/dashboard" replace />;
+  }
+
+  if (!tab) {
+    return <Navigate to={`/app/projects/${projectId}/wbs`} replace />;
+  }
+
+  const resolvedTab = PROJECT_TABS.includes(tab as TabID) ? (tab as TabID) : 'wbs';
+
+  if (tab !== resolvedTab) {
+    return <Navigate to={`/app/projects/${projectId}/wbs`} replace />;
+  }
+
+  if (!activeProject || activeProject.id !== projectId) {
+    return (
+      <div className="flex-1 flex items-center justify-center text-sm text-slate-400">
+        Carregando obra...
+      </div>
+    );
+  }
+
+  return (
+    <ProjectWorkspace
+      project={activeProject}
+      globalSettings={safeGlobalSettings as any}
+      suppliers={suppliers}
+      isExternalProject={externalProjectIds.has(projectId)}
+      onUpdateProject={updateActiveProject}
+      onCloseMeasurement={handleCloseMeasurement}
+      canUndo={canUndo}
+      canRedo={canRedo}
+      onUndo={undo}
+      onRedo={redo}
+      activeTab={resolvedTab}
+      onTabChange={(nextTab) => navigate(`/app/projects/${projectId}/${nextTab}`)}
+    />
+  );
+};
 
 const App: React.FC = () => {
   const { 
@@ -53,19 +145,6 @@ const App: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-
-  const projectTabs: TabID[] = [
-    'wbs',
-    'stats',
-    'expenses',
-    'supplies',
-    'workforce',
-    'labor-contracts',
-    'planning',
-    'journal',
-    'documents',
-    'branding',
-  ];
 
   useEffect(() => {
     localStorage.setItem('promeasure_theme', isDarkMode ? 'dark' : 'light');
@@ -163,55 +242,6 @@ const App: React.FC = () => {
     return 'Portal de Obras';
   }, [location.pathname]);
 
-  const ProjectRoute: React.FC = () => {
-    const { projectId, tab } = useParams();
-
-    useEffect(() => {
-      if (projectId && projectId !== activeProjectId) {
-        setActiveProjectId(projectId);
-      }
-    }, [projectId, activeProjectId, setActiveProjectId]);
-
-    if (!projectId) {
-      return <Navigate to="/app/dashboard" replace />;
-    }
-
-    if (!tab) {
-      return <Navigate to={`/app/projects/${projectId}/wbs`} replace />;
-    }
-
-    const resolvedTab = projectTabs.includes(tab as TabID) ? (tab as TabID) : 'wbs';
-
-    if (tab !== resolvedTab) {
-      return <Navigate to={`/app/projects/${projectId}/wbs`} replace />;
-    }
-
-    if (!activeProject || activeProject.id !== projectId) {
-      return (
-        <div className="flex-1 flex items-center justify-center text-sm text-slate-400">
-          Carregando obra...
-        </div>
-      );
-    }
-
-    return (
-      <ProjectWorkspace 
-        project={activeProject}
-        globalSettings={safeGlobalSettings as any}
-        suppliers={suppliers}
-        isExternalProject={externalProjectIds.has(projectId!)}
-        onUpdateProject={updateActiveProject}
-        onCloseMeasurement={handleCloseMeasurement}
-        canUndo={canUndo} 
-        canRedo={canRedo} 
-        onUndo={undo} 
-        onRedo={redo}
-        activeTab={resolvedTab}
-        onTabChange={(nextTab) => navigate(`/app/projects/${projectId}/${nextTab}`)}
-      />
-    );
-  };
-
   return (
     <div className={`flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden text-slate-900 dark:text-slate-100 ${isDarkMode ? 'dark' : ''}`}>
       
@@ -270,7 +300,25 @@ const App: React.FC = () => {
             path="settings/:tab?"
             element={<SettingsView settings={safeGlobalSettings as any} onUpdate={setGlobalSettings} projectCount={projects.length} />}
           />
-          <Route path="projects/:projectId/:tab?" element={<ProjectRoute />} />
+          <Route
+            path="projects/:projectId/:tab?"
+            element={
+              <ProjectRoute
+                activeProject={activeProject}
+                activeProjectId={activeProjectId}
+                setActiveProjectId={setActiveProjectId}
+                suppliers={suppliers}
+                safeGlobalSettings={safeGlobalSettings as GlobalSettings}
+                externalProjectIds={externalProjectIds}
+                updateActiveProject={updateActiveProject}
+                handleCloseMeasurement={handleCloseMeasurement}
+                canUndo={canUndo}
+                canRedo={canRedo}
+                undo={undo}
+                redo={redo}
+              />
+            }
+          />
           <Route path="*" element={<Navigate to="/app/dashboard" replace />} />
         </Routes>
       </main>

@@ -122,6 +122,9 @@ export const planningService = {
       status: data.status || 'pending',
       isPaid: data.isPaid || false,
       isCleared: data.isCleared || false,
+      supplierId: data.supplierId || undefined,
+      categoryId: data.categoryId || undefined,
+      paymentProof: data.paymentProof || undefined,
       order: planning.forecasts.length
     }]
   }),

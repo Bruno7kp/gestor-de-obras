@@ -19,6 +19,9 @@ export const ExpenseAttachmentZone: React.FC<ExpenseAttachmentZoneProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const toast = useToast();
+  const statusLabel = requiredStatus
+    ? ({ PAID: 'Pago', DELIVERED: 'Entregue', PENDING: 'Pendente' } as const)[requiredStatus as 'PAID' | 'DELIVERED' | 'PENDING']
+    : undefined;
 
   const handleFile = async (file: File) => {
     if (!file) return;
@@ -44,7 +47,7 @@ export const ExpenseAttachmentZone: React.FC<ExpenseAttachmentZoneProps> = ({
       <div className="flex justify-between items-center px-1">
         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</label>
         {requiredStatus && (
-          <span className="text-[8px] font-black bg-indigo-50 text-indigo-500 px-1.5 py-0.5 rounded uppercase">Gatilho: {requiredStatus}</span>
+          <span className="text-[8px] font-black bg-indigo-50 text-indigo-500 px-1.5 py-0.5 rounded uppercase">Gatilho: {statusLabel ?? requiredStatus}</span>
         )}
       </div>
       
