@@ -315,38 +315,42 @@ export const WbsView: React.FC<WbsViewProps> = ({
     });
   };
 
-  const handleClearAdjustments = async () => {
+  const handleClearMeasurement = async () => {
     if (isReadOnly) return;
-    const snapshot = initialSnapshotRef.current;
-    if (!snapshot) return;
+    const updates = localItemsRef.current
+      .filter(it => it.type === 'item')
+      .filter(it => it.currentQuantity !== 0 || it.currentTotal !== 0 || it.currentPercentage !== 0)
+      .map(it => ({
+        id: it.id,
+        patch: {
+          currentQuantity: 0,
+          currentTotal: 0,
+          currentPercentage: 0,
+        },
+      }));
 
-    updateItemsState(snapshot.items);
-    setLocalContractOverride(snapshot.contractOverride);
-    setLocalCurrentOverride(snapshot.currentOverride);
+    if (updates.length === 0) return;
+
+    const nextItems = localItemsRef.current.map(it =>
+      it.type === 'item'
+        ? { ...it, currentQuantity: 0, currentTotal: 0, currentPercentage: 0 }
+        : it
+    );
+
+    updateItemsState(nextItems);
 
     try {
-      await projectsApi.update(project.id, {
-        contractTotalOverride: snapshot.contractOverride ?? null,
-        currentTotalOverride: snapshot.currentOverride ?? null,
-      });
+      await syncItemsBulk(updates);
     } catch (error) {
-      console.error('Erro ao limpar ajustes:', error);
+      console.error('Erro ao limpar medição:', error);
     }
   };
 
-  const hasAdjustments = useMemo(() => {
-    const snapshot = initialSnapshotRef.current;
-    if (!snapshot) return false;
-
-    if (snapshot.contractOverride !== localContractOverride) return true;
-    if (snapshot.currentOverride !== localCurrentOverride) return true;
-
-    if (snapshot.items.length !== localItems.length) return true;
-    for (let i = 0; i < snapshot.items.length; i += 1) {
-      if (snapshot.items[i].id !== localItems[i].id) return true;
-    }
-    return false;
-  }, [localContractOverride, localCurrentOverride, localItems]);
+  const hasMeasurement = useMemo(() => (
+    localItems.some(it => it.type === 'item' && (
+      it.currentQuantity !== 0 || it.currentTotal !== 0 || it.currentPercentage !== 0
+    ))
+  ), [localItems]);
 
   // HANDLERS COM VALIDAÇÃO DE REGRA DE NEGÓCIO (CLAMPS)
   const updateItemQuantity = async (id: string, qty: number) => {
@@ -419,14 +423,14 @@ export const WbsView: React.FC<WbsViewProps> = ({
             <RefreshCw size={14} /> Recalcular Tudo
           </button>
 
-          {hasAdjustments && (
+          {hasMeasurement && (
             <button
-              onClick={() => void handleClearAdjustments()}
+              onClick={() => void handleClearMeasurement()}
               disabled={isReadOnly}
               className="flex items-center gap-2 px-4 py-3 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-rose-600 hover:text-white transition-all disabled:opacity-30"
-              title="Voltar ao estado inicial da planilha"
+              title="Limpar coluna de periodo"
             >
-              <Eraser size={14} /> Limpar Ajustes
+              <Eraser size={14} /> Limpar Medição
             </button>
           )}
 
@@ -707,10 +711,10 @@ export const WbsView: React.FC<WbsViewProps> = ({
 
             <div className="p-8 space-y-4">
               <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-                Isso vai recalcular todos os precos unitarios com base no BDI atual e limpar os ajustes manuais do rodape.
+                Isso vai recalcular todos os preços unitários com base no BDI atual e limpar os ajustes manuais do rodapé.
               </p>
               <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-2xl text-[11px] text-amber-700 dark:text-amber-300">
-                Recomendado fazer antes de gerar relatorios ou finalizar a medicao.
+                Recomendado fazer antes de gerar relatórios ou finalizar a medição.
               </div>
             </div>
 

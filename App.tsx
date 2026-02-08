@@ -205,7 +205,7 @@ const App: React.FC = () => {
         referenceDate: updated.referenceDate,
       });
     } catch (error) {
-      console.error('Erro ao atualizar medicao do projeto:', error);
+      console.error('Erro ao atualizar medição do projeto:', error);
     }
 
     try {
