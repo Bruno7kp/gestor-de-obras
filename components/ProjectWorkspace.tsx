@@ -742,12 +742,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         </div>
       </nav>
 
-      {/* 3. CONTEÚDO DINÂMICO */}
-      <div
-        className="flex-1 overflow-y-auto p-4 lg:p-8 custom-scrollbar no-print project-scroll"
-        style={{ overflowAnchor: 'none' }}
-      >
-        <div className="max-w-[1600px] mx-auto">
+      <div className="flex-1 flex flex-col min-h-0 bg-slate-50 dark:bg-slate-950 project-fullscreen">
+        {/* 3. CONTEÚDO DINÂMICO */}
+        <div
+          className="flex-1 overflow-y-auto p-4 lg:p-8 custom-scrollbar no-print project-scroll"
+          style={{ overflowAnchor: 'none' }}
+        >
+          <div className="max-w-[1600px] mx-auto">
           {(tab === 'labor-contracts' || tab === 'workforce') && canView('workforce') && (
             <div className="flex items-center justify-end mb-6">
               <div className="flex bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -825,9 +826,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           )}
           {tab === 'journal' && <JournalView project={project} onUpdateJournal={(j) => onUpdateProject({ journal: j })} allWorkItems={displayData.items} />}
           {tab === 'documents' && <AssetManager assets={project.assets} onAdd={handleAssetAdd} onDelete={handleAssetDelete} isReadOnly={displayData.isReadOnly} />}
-          {tab === 'branding' && <BrandingView project={project} onUpdateProject={handleBrandingUpdate} isReadOnly={displayData.isReadOnly} />}
+            {tab === 'branding' && <BrandingView project={project} onUpdateProject={handleBrandingUpdate} isReadOnly={displayData.isReadOnly} />}
+          </div>
         </div>
-      </div>
 
       {/* (Áreas de Impressão e Modais existentes preservados...) */}
 
@@ -910,18 +911,19 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         </div>
       )}
 
-      {showMembersModal && (
-        <ProjectMembersModal
-          projectId={project.id}
-          members={projectMembers}
-          allUsers={allUsers}
-          allRoles={allRoles}
-          generalAccessUserIds={generalAccessUserIds}
-          canEdit={canEditMembers}
-          onClose={() => setShowMembersModal(false)}
-          onMembersChange={handleMembersChange}
-        />
-      )}
+        {showMembersModal && (
+          <ProjectMembersModal
+            projectId={project.id}
+            members={projectMembers}
+            allUsers={allUsers}
+            allRoles={allRoles}
+            generalAccessUserIds={generalAccessUserIds}
+            canEdit={canEditMembers}
+            onClose={() => setShowMembersModal(false)}
+            onMembersChange={handleMembersChange}
+          />
+        )}
+      </div>
     </div>
   );
 };

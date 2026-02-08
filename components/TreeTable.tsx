@@ -9,6 +9,7 @@ import {
   Edit3, 
   Package, 
   Layers, 
+  Maximize,
   Maximize2, 
   Minimize2,
   FolderPlus,
@@ -81,6 +82,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
   const [showAcoes, setShowAcoes] = useState(() => uiPreferences.getString(acoesKey) !== 'false');
   const [showFonte, setShowFonte] = useState(() => uiPreferences.getString(fonteKey) !== 'false');
   const [showCod, setShowCod] = useState(() => uiPreferences.getString(codKey) !== 'false');
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
 
@@ -97,6 +99,15 @@ export const TreeTable: React.FC<TreeTableProps> = ({
     if (!el || !onScrollContainer) return;
     onScrollContainer(el);
   }, [onScrollContainer]);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   const handleToggleDesc = (id: string) => {
     const next = new Set(expandedDescriptions);
@@ -159,6 +170,25 @@ export const TreeTable: React.FC<TreeTableProps> = ({
           <button onClick={onCollapseAll} className="flex items-center gap-2 px-3 py-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm">
             <Minimize2 size={12} /> <span className="hidden xs:inline">Recolher</span>
           </button>
+          <button
+            onClick={() => {
+              if (document.fullscreenElement) {
+                void document.exitFullscreen();
+                return;
+              }
+
+              const target = scrollRef.current?.closest('.project-fullscreen') as HTMLElement | null;
+              if (target) {
+                void target.requestFullscreen();
+              }
+            }}
+            className="flex items-center gap-2 px-3 py-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm"
+            title={isFullscreen ? 'Sair da Tela Cheia' : 'Tela Cheia'}
+            type="button"
+          >
+            {isFullscreen ? <Minimize2 size={12} /> : <Maximize size={12} />}
+            <span className="hidden xs:inline">{isFullscreen ? 'Sair' : 'Tela Cheia'}</span>
+          </button>
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700">
@@ -188,7 +218,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
 
       <div
         ref={scrollRef}
-        className="overflow-x-auto overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 shadow-xl custom-scrollbar max-h-[70vh]"
+        className={`overflow-x-auto overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 shadow-xl custom-scrollbar ${isFullscreen ? 'max-h-[78vh]' : 'max-h-[70vh]'}`}
         style={{ overflowAnchor: 'none' }}
       >
         <DragDropContext onDragEnd={handleDragEnd}>
