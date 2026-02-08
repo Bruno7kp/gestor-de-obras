@@ -1,27 +1,32 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Project, LaborContract, LaborPayment, WorkforceMember } from '../types';
+import { Project, LaborContract, LaborPayment, WorkforceMember, ProjectExpense } from '../types';
 import { laborContractService } from '../services/laborContractService';
 import { uploadService } from '../services/uploadService';
 import { laborContractsApi } from '../services/laborContractsApi';
 import { ConfirmModal } from './ConfirmModal';
+import { ExpenseAttachmentZone } from './ExpenseAttachmentZone';
 import { useToast } from '../hooks/useToast';
 import { uiPreferences } from '../utils/uiPreferences';
 import { financial } from '../utils/math';
 import { 
   Briefcase, Plus, Search, Trash2, Edit2, DollarSign, Calendar, 
   CheckCircle2, Clock, AlertCircle, User, FileText, Download, X,
-  TrendingUp, TrendingDown, Wallet, ChevronDown, ChevronUp
+  TrendingUp, TrendingDown, Wallet, ChevronDown, ChevronUp, CreditCard
 } from 'lucide-react';
 
 interface LaborContractsManagerProps {
   project: Project;
   onUpdateProject: (data: Partial<Project>) => void;
+  onAddExpense?: (expense: ProjectExpense) => Promise<void> | void;
+  onUpdateExpense?: (id: string, data: Partial<ProjectExpense>) => Promise<void> | void;
   isReadOnly?: boolean;
 }
 
 export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({ 
   project, 
   onUpdateProject,
+  onAddExpense,
+  onUpdateExpense,
   isReadOnly = false,
 }) => {
   const [search, setSearch] = useState('');
@@ -34,6 +39,11 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
   });
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [expandedPayments, setExpandedPayments] = useState<Record<string, boolean>>({});
+  const [editingPayment, setEditingPayment] = useState<{
+    contractId: string;
+    payment: LaborPayment;
+    isNew: boolean;
+  } | null>(null);
   const toast = useToast();
 
   const contracts = project.laborContracts || [];
@@ -68,6 +78,43 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
     [contracts]
   );
 
+  const laborFinancialCategories = useMemo(() => {
+    return project.expenses.filter(e => e.itemType === 'category' && e.type === 'labor');
+  }, [project.expenses]);
+
+  const findExpenseForPayment = (paymentId: string) =>
+    project.expenses.find(expense => expense.id === paymentId);
+
+  const buildLaborExpensePayload = (
+    contract: LaborContract,
+    payment: LaborPayment,
+    parentId: string | null,
+    isPaid: boolean,
+    paymentProof?: string,
+  ) => {
+    const associado = workforce.find(w => w.id === contract.associadoId);
+    const effectiveDate = payment.data || new Date().toISOString().split('T')[0];
+    const description = `Pagamento M.O.: ${contract.descricao} - ${payment.descricao || 'Pagamento'}`;
+
+    return {
+      parentId,
+      type: 'labor' as const,
+      itemType: 'item' as const,
+      date: effectiveDate,
+      paymentDate: isPaid ? effectiveDate : undefined,
+      description,
+      entityName: associado?.nome || '',
+      unit: 'serv',
+      quantity: 1,
+      unitPrice: payment.valor,
+      amount: payment.valor,
+      isPaid,
+      status: isPaid ? 'PAID' : 'PENDING',
+      paymentProof: isPaid ? paymentProof : undefined,
+      linkedWorkItemId: contract.linkedWorkItemId,
+    };
+  };
+
   const handleDownloadProof = (url: string, name: string) => {
     const link = document.createElement('a');
     link.href = url;
@@ -79,7 +126,10 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
     link.remove();
   };
 
-  const handleSave = async (contract: LaborContract) => {
+  const handleSave = async (
+    contract: LaborContract,
+    paidPayments?: Array<{ paymentId: string; parentId: string | null }>
+  ) => {
     if (isReadOnly) return;
     const updated = laborContractService.updateContract(contract);
     const exists = contracts.find(c => c.id === contract.id);
@@ -118,6 +168,41 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
           pagamentos: updated.pagamentos,
         });
         onUpdateProject({ laborContracts: [...contracts, created] });
+
+        if (paidPayments?.length && onAddExpense) {
+          paidPayments.forEach(({ paymentId, parentId }) => {
+            const payment = updated.pagamentos.find(p => p.id === paymentId);
+            if (!payment) return;
+            const expensePayload = buildLaborExpensePayload(
+              created,
+              payment,
+              parentId,
+              true,
+              payment.comprovante
+            );
+            const newExpense: ProjectExpense = {
+              id: payment.id,
+              parentId,
+              type: 'labor',
+              itemType: 'item',
+              wbs: '',
+              order: project.expenses.length,
+              date: expensePayload.date,
+              description: expensePayload.description,
+              entityName: expensePayload.entityName,
+              unit: expensePayload.unit,
+              quantity: expensePayload.quantity,
+              unitPrice: expensePayload.unitPrice,
+              amount: expensePayload.amount,
+              isPaid: true,
+              status: 'PAID',
+              paymentDate: expensePayload.paymentDate,
+              paymentProof: expensePayload.paymentProof,
+              linkedWorkItemId: expensePayload.linkedWorkItemId,
+            };
+            onAddExpense(newExpense);
+          });
+        }
       }
     } catch (error) {
       console.error('Erro ao salvar contrato:', error);
@@ -142,6 +227,100 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
       onUpdateProject({ laborContracts: previous });
       toast.error('Erro ao remover contrato.');
     }
+  };
+
+  const handleOpenPaymentModal = (contractId: string, payment?: LaborPayment) => {
+    if (isReadOnly) return;
+    const targetPayment = payment ?? laborContractService.createPayment();
+    setExpandedPayments(prev => ({ ...prev, [contractId]: true }));
+    setEditingPayment({
+      contractId,
+      payment: targetPayment,
+      isNew: !payment,
+    });
+  };
+
+  const handleSavePayment = async (
+    contractId: string,
+    payment: LaborPayment,
+    options: { isPaid: boolean; parentId: string | null; paymentProof?: string; isNew: boolean }
+  ) => {
+    if (isReadOnly) return;
+    const contract = contracts.find(c => c.id === contractId);
+    if (!contract) return;
+
+    const normalizedPayment: LaborPayment = {
+      ...payment,
+      comprovante: options.isPaid ? options.paymentProof : undefined,
+    };
+
+    const nextPayments = options.isNew
+      ? [...contract.pagamentos, normalizedPayment]
+      : contract.pagamentos.map(p => p.id === payment.id ? normalizedPayment : p);
+
+    const updatedContract = laborContractService.updateContract({
+      ...contract,
+      pagamentos: nextPayments,
+    });
+
+    const previousContracts = contracts;
+    const nextContracts = contracts.map(c => c.id === contractId ? updatedContract : c);
+    onUpdateProject({ laborContracts: nextContracts });
+
+    const expensePayloadBase = buildLaborExpensePayload(
+      contract,
+      normalizedPayment,
+      options.parentId,
+      options.isPaid,
+      options.paymentProof
+    );
+
+    const existingExpense = findExpenseForPayment(payment.id);
+
+    if (options.isPaid && onAddExpense && onUpdateExpense) {
+      if (existingExpense) {
+        onUpdateExpense(existingExpense.id, {
+          ...expensePayloadBase,
+        });
+      } else {
+        const newExpense: ProjectExpense = {
+          id: payment.id,
+          parentId: options.parentId,
+          type: 'labor',
+          itemType: 'item',
+          wbs: '',
+          order: project.expenses.length,
+          date: expensePayloadBase.date,
+          description: expensePayloadBase.description,
+          entityName: expensePayloadBase.entityName,
+          unit: expensePayloadBase.unit,
+          quantity: expensePayloadBase.quantity,
+          unitPrice: expensePayloadBase.unitPrice,
+          amount: expensePayloadBase.amount,
+          isPaid: expensePayloadBase.isPaid,
+          status: expensePayloadBase.status,
+          paymentDate: expensePayloadBase.paymentDate,
+          paymentProof: expensePayloadBase.paymentProof,
+          linkedWorkItemId: expensePayloadBase.linkedWorkItemId,
+        };
+        onAddExpense(newExpense);
+      }
+    }
+
+    try {
+      const saved = await laborContractsApi.update(contractId, {
+        pagamentos: updatedContract.pagamentos,
+      });
+      onUpdateProject({
+        laborContracts: nextContracts.map(c => c.id === contractId ? saved : c)
+      });
+    } catch (error) {
+      console.error('Erro ao salvar pagamento:', error);
+      onUpdateProject({ laborContracts: previousContracts });
+      toast.error('Erro ao salvar pagamento.');
+    }
+
+    setEditingPayment(null);
   };
 
   return (
@@ -332,66 +511,106 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
               </div>
 
               {/* Pagamentos */}
-              {contract.pagamentos.length > 0 && (
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-2">
-                      <FileText size={12} /> Histórico de Pagamentos ({contract.pagamentos.length})
-                    </h4>
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-2">
+                    <FileText size={12} /> Histórico de Pagamentos ({contract.pagamentos.length})
+                  </h4>
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setExpandedPayments(prev => ({
-                        ...prev,
-                        [contract.id]: !prev[contract.id],
-                      }))}
-                      className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-600"
+                      onClick={() => handleOpenPaymentModal(contract.id)}
+                      disabled={isReadOnly}
+                      className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
+                        isReadOnly
+                          ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                          : 'bg-indigo-600 text-white hover:scale-105'
+                      }`}
                     >
-                      {isPaymentsOpen ? 'Ocultar' : 'Mostrar'}
-                      {isPaymentsOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                      <Plus size={12} /> Adicionar
                     </button>
+                    {contract.pagamentos.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setExpandedPayments(prev => ({
+                          ...prev,
+                          [contract.id]: !prev[contract.id],
+                        }))}
+                        className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-600"
+                      >
+                        {isPaymentsOpen ? 'Ocultar' : 'Mostrar'}
+                        {isPaymentsOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                      </button>
+                    )}
                   </div>
-                  {isPaymentsOpen && (
-                    <div className="space-y-2">
-                      {contract.pagamentos.map(pag => (
-                        <div 
-                          key={pag.id} 
-                          className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl"
-                        >
-                          <div className="flex items-center gap-3">
-                            <CheckCircle2 size={14} className="text-emerald-500" />
-                            <div>
-                              <p className="text-xs font-bold text-slate-800 dark:text-white">
-                                {pag.descricao || 'Pagamento'}
-                              </p>
-                              <p className="text-[9px] text-slate-400">
-                                {new Date(pag.data).toLocaleDateString('pt-BR')}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {pag.comprovante && (
-                              <button
-                                type="button"
-                                onClick={() => handleDownloadProof(
-                                  pag.comprovante!,
-                                  `COMPR_${contract.descricao}_${pag.descricao || 'Pagamento'}`
-                                )}
-                                className="p-1.5 text-blue-500 hover:text-blue-700 rounded-lg"
-                                title="Baixar comprovante"
-                              >
-                                <Download size={14} />
-                              </button>
-                            )}
-                            <p className="text-sm font-black text-emerald-600">
-                              R$ {pag.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                </div>
+                {contract.pagamentos.length === 0 && (
+                  <div className="text-center py-6 text-slate-400 text-sm">
+                    Nenhum pagamento registrado
+                  </div>
+                )}
+                {contract.pagamentos.length > 0 && isPaymentsOpen && (
+                  <div className="space-y-2">
+                    {contract.pagamentos.map(pag => (
+                      <div 
+                        key={pag.id} 
+                        className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl"
+                      >
+                        <div className="flex items-center gap-3">
+                          {(() => {
+                            const linkedExpense = findExpenseForPayment(pag.id);
+                            const isPaid = !!linkedExpense && (linkedExpense.isPaid || linkedExpense.status === 'PAID');
+                            return isPaid ? (
+                              <CheckCircle2 size={14} className="text-emerald-500" />
+                            ) : (
+                              <Clock size={14} className="text-amber-500" />
+                            );
+                          })()}
+                          <div>
+                            <p className="text-xs font-bold text-slate-800 dark:text-white">
+                              {pag.descricao || 'Pagamento'}
+                            </p>
+                            <p className="text-[9px] text-slate-400">
+                              {new Date(pag.data).toLocaleDateString('pt-BR')}
                             </p>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+                        <div className="flex items-center gap-2">
+                          {pag.comprovante && (
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadProof(
+                                pag.comprovante!,
+                                `COMPR_${contract.descricao}_${pag.descricao || 'Pagamento'}`
+                              )}
+                              className="p-1.5 text-blue-500 hover:text-blue-700 rounded-lg"
+                              title="Baixar comprovante"
+                            >
+                              <Download size={14} />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenPaymentModal(contract.id, pag)}
+                            disabled={isReadOnly}
+                            className={`p-1.5 rounded-lg ${
+                              isReadOnly
+                                ? 'text-slate-300 cursor-not-allowed'
+                                : 'text-slate-400 hover:text-indigo-600'
+                            }`}
+                            title="Editar pagamento"
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                          <p className="text-sm font-black text-emerald-600">
+                            R$ {pag.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           );
         })}
@@ -412,8 +631,25 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
           workforce={workforce}
           workItems={project.items.filter(i => i.type === 'item')}
           isReadOnly={isReadOnly}
+          financialCategories={laborFinancialCategories}
           onClose={() => { setIsModalOpen(false); setEditingContract(null); }}
           onSave={handleSave}
+        />
+      )}
+
+      {editingPayment && (
+        <PaymentModal
+          contract={contracts.find(c => c.id === editingPayment.contractId)}
+          payment={editingPayment.payment}
+          isNew={editingPayment.isNew}
+          isReadOnly={isReadOnly}
+          existingExpense={findExpenseForPayment(editingPayment.payment.id)}
+          financialCategories={laborFinancialCategories}
+          onClose={() => setEditingPayment(null)}
+          onSave={(payment, options) => handleSavePayment(editingPayment.contractId, payment, {
+            ...options,
+            isNew: editingPayment.isNew,
+          })}
         />
       )}
 
@@ -431,7 +667,202 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
   );
 };
 
-const ContractModal = ({ contract, workforce, workItems, isReadOnly, onClose, onSave }: any) => {
+const PaymentModal = ({
+  contract,
+  payment,
+  isNew,
+  existingExpense,
+  financialCategories,
+  onClose,
+  onSave,
+  isReadOnly,
+}: any) => {
+  const [data, setData] = useState<LaborPayment>(payment);
+  const [strValor, setStrValor] = useState(
+    financial.formatVisual(payment.valor || 0, '').trim()
+  );
+  const [parentId, setParentId] = useState<string | null>(existingExpense?.parentId ?? null);
+  const isPaidLocked = !!existingExpense?.isPaid || existingExpense?.status === 'PAID';
+  const [isPaid, setIsPaid] = useState<boolean>(isPaidLocked);
+  const [paymentProof, setPaymentProof] = useState<string | undefined>(
+    existingExpense?.paymentProof || payment.comprovante
+  );
+  const [confirmPaidOpen, setConfirmPaidOpen] = useState(false);
+  const [pendingSave, setPendingSave] = useState(false);
+
+  if (!contract) return null;
+
+  const handleTogglePaid = () => {
+    if (isReadOnly || isPaidLocked) return;
+    setIsPaid(!isPaid);
+  };
+
+  const handleSave = () => {
+    if (isReadOnly) return;
+    if (isPaid && !isPaidLocked) {
+      setConfirmPaidOpen(true);
+      setPendingSave(true);
+      return;
+    }
+
+    onSave(
+      { ...data, comprovante: isPaid ? paymentProof : undefined },
+      { isPaid, parentId, paymentProof }
+    );
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[3rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-6">
+          {isNew ? 'Novo Pagamento' : 'Editar Pagamento'}
+        </h2>
+
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block">Data</label>
+              <input
+                type="date"
+                className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold outline-none"
+                value={data.data}
+                onChange={e => setData({ ...data, data: e.target.value })}
+                disabled={isReadOnly}
+              />
+            </div>
+
+            <div>
+              <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block">Valor (R$)</label>
+              <input
+                type="text"
+                inputMode="decimal"
+                className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold outline-none"
+                value={strValor}
+                onChange={e => {
+                  const masked = financial.maskCurrency(e.target.value);
+                  setStrValor(masked);
+                  setData({ ...data, valor: financial.parseLocaleNumber(masked) });
+                }}
+                disabled={isReadOnly}
+              />
+            </div>
+
+            <div>
+              <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block">Descrição</label>
+              <input
+                className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold outline-none"
+                value={data.descricao}
+                onChange={e => setData({ ...data, descricao: e.target.value })}
+                disabled={isReadOnly}
+                placeholder="Ex: 1ª Parcela"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-2 block tracking-widest">
+              Vincular ao Grupo Financeiro (Opcional)
+            </label>
+            <select
+              className="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-white text-xs font-bold outline-none appearance-none"
+              value={parentId || ''}
+              onChange={e => setParentId(e.target.value || null)}
+              disabled={isReadOnly}
+            >
+              <option value="">Nenhum</option>
+              {financialCategories.map((c: any) => (
+                <option key={c.id} value={c.id}>{c.description}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-800">
+            <div className="flex items-center gap-3">
+              <CreditCard size={18} className={isPaid ? 'text-emerald-500' : 'text-slate-500'} />
+              <span className="text-[10px] font-black text-slate-800 dark:text-white uppercase">Marcar como pago agora?</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleTogglePaid}
+              className={`w-12 h-6 rounded-full relative transition-all ${isPaid ? 'bg-emerald-500' : 'bg-slate-700'} ${isReadOnly || isPaidLocked ? 'opacity-60 cursor-not-allowed' : ''}`}
+            >
+              <div
+                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                  isPaid ? 'translate-x-6' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+
+          {isPaid && (
+            <div className="space-y-2">
+              <ExpenseAttachmentZone
+                label="Recibo de Pagamento (Pix/DOC)"
+                requiredStatus="PAID"
+                currentFile={paymentProof}
+                onUploadUrl={(url) => setPaymentProof(url)}
+                onRemove={() => setPaymentProof(undefined)}
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-4 pt-8 border-t border-slate-200 dark:border-slate-800 mt-8">
+          <button
+            onClick={onClose}
+            className="flex-1 py-4 text-slate-400 font-black uppercase text-[10px] tracking-widest hover:text-slate-600 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={isReadOnly}
+            className={`flex-[2] py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl transition-all ${
+              isReadOnly
+                ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                : 'bg-indigo-600 text-white active:scale-95'
+            }`}
+          >
+            Salvar Pagamento
+          </button>
+        </div>
+      </div>
+
+      <ConfirmModal
+        isOpen={confirmPaidOpen}
+        title="Confirmar pagamento"
+        message="Ao marcar como pago, nao sera possivel voltar para pendente. Deseja continuar?"
+        confirmLabel="Confirmar"
+        cancelLabel="Cancelar"
+        variant="warning"
+        onConfirm={() => {
+          setIsPaid(true);
+          setConfirmPaidOpen(false);
+          if (pendingSave) {
+            setPendingSave(false);
+            onSave(
+              { ...data, comprovante: paymentProof },
+              { isPaid: true, parentId, paymentProof }
+            );
+          }
+        }}
+        onCancel={() => {
+          setConfirmPaidOpen(false);
+          setPendingSave(false);
+          if (!isPaidLocked) setIsPaid(false);
+        }}
+      />
+    </div>
+  );
+};
+
+const ContractModal = ({ contract, workforce, workItems, isReadOnly, financialCategories, onClose, onSave }: any) => {
   const initialContract = contract || laborContractService.createContract('empreita');
   const [data, setData] = useState<LaborContract>(initialContract);
   const [strValorTotal, setStrValorTotal] = useState(
@@ -444,6 +875,12 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, onClose, on
         financial.formatVisual(p.valor || 0, '').trim()
       ])
     )
+  );
+  const [paymentPaid, setPaymentPaid] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries((initialContract.pagamentos || []).map(p => [p.id, false]))
+  );
+  const [paymentParentIds, setPaymentParentIds] = useState<Record<string, string | null>>(() =>
+    Object.fromEntries((initialContract.pagamentos || []).map(p => [p.id, null]))
   );
   const toast = useToast();
 
@@ -476,13 +913,19 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, onClose, on
       return;
     }
 
-    onSave(data);
+    const paidPayments = (data.pagamentos || [])
+      .filter(p => paymentPaid[p.id])
+      .map(p => ({ paymentId: p.id, parentId: paymentParentIds[p.id] ?? null }));
+
+    onSave(data, paidPayments);
   };
 
   const handleAddPayment = () => {
     if (isReadOnly) return;
     const newPayment = laborContractService.createPayment();
     setData({ ...data, pagamentos: [...data.pagamentos, newPayment] });
+    setPaymentPaid(prev => ({ ...prev, [newPayment.id]: false }));
+    setPaymentParentIds(prev => ({ ...prev, [newPayment.id]: null }));
   };
 
   const handleUpdatePayment = (id: string, updates: Partial<LaborPayment>) => {
@@ -498,6 +941,16 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, onClose, on
     setData({
       ...data,
       pagamentos: data.pagamentos.filter(p => p.id !== id)
+    });
+    setPaymentPaid(prev => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    setPaymentParentIds(prev => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
     });
   };
 
@@ -668,124 +1121,167 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, onClose, on
             />
           </div>
 
-          {/* Pagamentos */}
-          <div className="border-t-2 border-slate-100 dark:border-slate-800 pt-8">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                <FileText size={16}/> Registro de Pagamentos
-              </h3>
-              <button 
-                type="button"
-                onClick={handleAddPayment}
-                disabled={isReadOnly}
-                className={`flex items-center gap-2 px-6 py-2.5 text-[9px] font-black uppercase rounded-xl transition-all ${
-                  isReadOnly
-                    ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                    : 'bg-emerald-600 text-white hover:scale-105'
-                }`}
-              >
-                <Plus size={14} /> Adicionar Pagamento
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              {data.pagamentos.map((pag, idx) => (
-                <div 
-                  key={pag.id} 
-                  className="p-5 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl space-y-4"
+          {/* Pagamentos (apenas no cadastro) */}
+          {!contract && (
+            <div className="border-t-2 border-slate-100 dark:border-slate-800 pt-8">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                  <FileText size={16}/> Registro de Pagamentos
+                </h3>
+                <button 
+                  type="button"
+                  onClick={handleAddPayment}
+                  disabled={isReadOnly}
+                  className={`flex items-center gap-2 px-6 py-2.5 text-[9px] font-black uppercase rounded-xl transition-all ${
+                    isReadOnly
+                      ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                      : 'bg-emerald-600 text-white hover:scale-105'
+                  }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-black text-slate-400 uppercase">
-                      Pagamento #{idx + 1}
-                    </span>
-                    <button
-                      onClick={() => handleRemovePayment(pag.id)}
-                      disabled={isReadOnly}
-                      className={`transition-colors ${
-                        isReadOnly
-                          ? 'text-slate-300 cursor-not-allowed'
-                          : 'text-rose-400 hover:text-rose-600'
-                      }`}
-                    >
-                      <Trash2 size={16}/>
-                    </button>
-                  </div>
+                  <Plus size={14} /> Adicionar Pagamento
+                </button>
+              </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block">
-                        Data
-                      </label>
-                      <input
-                        type="date"
-                        className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold outline-none"
-                        value={pag.data}
-                        onChange={e => handleUpdatePayment(pag.id, { data: e.target.value })}
+              <div className="space-y-4">
+                {data.pagamentos.map((pag, idx) => (
+                  <div 
+                    key={pag.id} 
+                    className="p-5 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl space-y-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-black text-slate-400 uppercase">
+                        Pagamento #{idx + 1}
+                      </span>
+                      <button
+                        onClick={() => handleRemovePayment(pag.id)}
                         disabled={isReadOnly}
-                      />
+                        className={`transition-colors ${
+                          isReadOnly
+                            ? 'text-slate-300 cursor-not-allowed'
+                            : 'text-rose-400 hover:text-rose-600'
+                        }`}
+                      >
+                        <Trash2 size={16}/>
+                      </button>
                     </div>
 
-                    <div>
-                      <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block">
-                        Valor (R$)
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold outline-none"
-                        value={paymentValues[pag.id] ?? financial.formatVisual(pag.valor || 0, '').trim()}
-                        onChange={e => {
-                          const masked = financial.maskCurrency(e.target.value);
-                          setPaymentValues(prev => ({ ...prev, [pag.id]: masked }));
-                          handleUpdatePayment(pag.id, { valor: financial.parseLocaleNumber(masked) });
-                        }}
-                        disabled={isReadOnly}
-                      />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block">
+                          Data
+                        </label>
+                        <input
+                          type="date"
+                          className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold outline-none"
+                          value={pag.data}
+                          onChange={e => handleUpdatePayment(pag.id, { data: e.target.value })}
+                          disabled={isReadOnly}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block">
+                          Valor (R$)
+                        </label>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold outline-none"
+                          value={paymentValues[pag.id] ?? financial.formatVisual(pag.valor || 0, '').trim()}
+                          onChange={e => {
+                            const masked = financial.maskCurrency(e.target.value);
+                            setPaymentValues(prev => ({ ...prev, [pag.id]: masked }));
+                            handleUpdatePayment(pag.id, { valor: financial.parseLocaleNumber(masked) });
+                          }}
+                          disabled={isReadOnly}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block">
+                          Descrição
+                        </label>
+                        <input
+                          className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold outline-none"
+                          value={pag.descricao}
+                          onChange={e => handleUpdatePayment(pag.id, { descricao: e.target.value })}
+                          disabled={isReadOnly}
+                          placeholder="Ex: 1ª Parcela"
+                        />
+                      </div>
                     </div>
 
-                    <div>
-                      <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block">
-                        Descrição
-                      </label>
-                      <input
-                        className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold outline-none"
-                        value={pag.descricao}
-                        onChange={e => handleUpdatePayment(pag.id, { descricao: e.target.value })}
-                        disabled={isReadOnly}
-                        placeholder="Ex: 1ª Parcela"
-                      />
-                    </div>
-                  </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block">
+                          Marcar como pago?
+                        </label>
+                        <select
+                          className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold outline-none"
+                          value={paymentPaid[pag.id] ? 'pago' : 'pendente'}
+                          onChange={e => setPaymentPaid(prev => ({ ...prev, [pag.id]: e.target.value === 'pago' }))}
+                          disabled={isReadOnly}
+                        >
+                          <option value="pendente">Pendente</option>
+                          <option value="pago">Pago</option>
+                        </select>
+                      </div>
 
-                  <div>
-                    <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block">
-                      Comprovante
-                    </label>
-                    <div className="flex gap-3">
-                      <input
-                        type="file"
-                        accept="image/*,.pdf"
-                        onChange={(e) => handleFileUpload(pag.id, e)}
-                        disabled={isReadOnly}
-                        className={`flex-1 text-sm ${isReadOnly ? 'cursor-not-allowed opacity-60' : ''}`}
-                      />
-                      {pag.comprovante && (
-                        <span className="flex items-center gap-2 text-xs text-emerald-600 font-bold">
-                          <CheckCircle2 size={14} /> Anexado
-                        </span>
+                      {paymentPaid[pag.id] && (
+                        <div>
+                          <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block">
+                            Vincular ao Grupo Financeiro (Opcional)
+                          </label>
+                          <select
+                            className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold outline-none"
+                            value={paymentParentIds[pag.id] ?? ''}
+                            onChange={e => setPaymentParentIds(prev => ({
+                              ...prev,
+                              [pag.id]: e.target.value || null,
+                            }))}
+                            disabled={isReadOnly}
+                          >
+                            <option value="">Nenhum</option>
+                            {(financialCategories || []).map((c: any) => (
+                              <option key={c.id} value={c.id}>{c.description}</option>
+                            ))}
+                          </select>
+                        </div>
                       )}
                     </div>
-                  </div>
-                </div>
-              ))}
 
-              {data.pagamentos.length === 0 && (
-                <div className="text-center py-8 text-slate-400 text-sm">
-                  Nenhum pagamento registrado
-                </div>
-              )}
+                    {paymentPaid[pag.id] && (
+                      <div>
+                        <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block">
+                          Recibo de Pagamento (Pix/DOC)
+                        </label>
+                        <div className="flex gap-3">
+                          <input
+                            type="file"
+                            accept="image/*,.pdf"
+                            onChange={(e) => handleFileUpload(pag.id, e)}
+                            disabled={isReadOnly}
+                            className={`flex-1 text-sm ${isReadOnly ? 'cursor-not-allowed opacity-60' : ''}`}
+                          />
+                          {pag.comprovante && (
+                            <span className="flex items-center gap-2 text-xs text-emerald-600 font-bold">
+                              <CheckCircle2 size={14} /> Anexado
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {data.pagamentos.length === 0 && (
+                  <div className="text-center py-8 text-slate-400 text-sm">
+                    Nenhum pagamento registrado
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         <div className="flex gap-4 pt-8 border-t-2 dark:border-slate-800 mt-auto">

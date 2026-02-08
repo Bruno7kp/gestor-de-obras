@@ -805,6 +805,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
             <LaborContractsManager
               project={project}
               onUpdateProject={onUpdateProject}
+              onAddExpense={handleExpenseAdd}
+              onUpdateExpense={handleExpenseUpdate}
               isReadOnly={displayData.isReadOnly}
             />
           )}
