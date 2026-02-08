@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { BiddingProcess, CompanyCertificate, BiddingStatus } from '../types';
 import { biddingService } from '../services/biddingService';
 import { financial } from '../utils/math';
@@ -27,7 +27,10 @@ interface BiddingViewProps {
 export const BiddingView: React.FC<BiddingViewProps> = ({ 
   biddings, certificates, onUpdateBiddings, onUpdateCertificates, onCreateProjectFromBidding 
 }) => {
-  const [activeTab, setActiveTab] = useState<'pipeline' | 'certificates'>('pipeline');
+  const [activeTab, setActiveTab] = useState<'pipeline' | 'certificates'>(() => {
+    const saved = localStorage.getItem('biddings_tab');
+    return saved === 'pipeline' || saved === 'certificates' ? saved : 'pipeline';
+  });
   const [search, setSearch] = useState('');
   const [biddingModalOpen, setBiddingModalOpen] = useState(false);
   const [editingBidding, setEditingBidding] = useState<BiddingProcess | null>(null);
@@ -40,6 +43,10 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
   const toast = useToast();
 
   const stats = useMemo(() => biddingService.getStats(biddings), [biddings]);
+
+  useEffect(() => {
+    localStorage.setItem('biddings_tab', activeTab);
+  }, [activeTab]);
 
   const filteredBiddings = useMemo(() => {
     return biddings.filter(b => 

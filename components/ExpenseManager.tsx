@@ -36,8 +36,14 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
   const { canEdit, getLevel } = usePermissions();
   const toast = useToast();
   const canEditFinancial = canEdit('financial_flow') && !isReadOnly;
-  
-  const [activeTab, setActiveTab] = useState<ExpenseType | 'overview'>('overview');
+
+  const expenseTabs: Array<ExpenseType | 'overview'> = ['overview', 'revenue', 'material', 'labor'];
+  const [activeTab, setActiveTab] = useState<ExpenseType | 'overview'>(() => {
+    const saved = localStorage.getItem(`exp_fin_tab_${project.id}`);
+    return saved && expenseTabs.includes(saved as ExpenseType | 'overview')
+      ? (saved as ExpenseType | 'overview')
+      : 'overview';
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => {
     const saved = localStorage.getItem(`exp_fin_${project.id}`);
@@ -56,6 +62,19 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
   useEffect(() => {
     localStorage.setItem(`exp_fin_${project.id}`, JSON.stringify(Array.from(expandedIds)));
   }, [expandedIds, project.id]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(`exp_fin_tab_${project.id}`);
+    if (saved && expenseTabs.includes(saved as ExpenseType | 'overview')) {
+      setActiveTab(saved as ExpenseType | 'overview');
+    } else {
+      setActiveTab('overview');
+    }
+  }, [project.id]);
+
+  useEffect(() => {
+    localStorage.setItem(`exp_fin_tab_${project.id}`, activeTab);
+  }, [activeTab, project.id]);
 
   const stats = useMemo(() => expenseService.getExpenseStats(expenses), [expenses]);
 

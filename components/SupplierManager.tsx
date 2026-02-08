@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Supplier } from '../types';
 import { 
   Truck, Search, Plus, Star, Phone, Mail, 
@@ -23,7 +23,12 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, onU
   const canEditSuppliers = getLevel('suppliers') === 'edit';
   const toast = useToast();
   const [search, setSearch] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<'ALL' | Supplier['category']>('ALL');
+  const [categoryFilter, setCategoryFilter] = useState<'ALL' | Supplier['category']>(() => {
+    const saved = localStorage.getItem('suppliers_filter');
+    return saved === 'ALL' || saved === 'Material' || saved === 'Serviço' || saved === 'Locação'
+      ? (saved as 'ALL' | Supplier['category'])
+      : 'ALL';
+  });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -38,6 +43,10 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, onU
       })
       .sort((a, b) => a.order - b.order);
   }, [suppliers, search, categoryFilter]);
+
+  useEffect(() => {
+    localStorage.setItem('suppliers_filter', categoryFilter);
+  }, [categoryFilter]);
 
   const stats = useMemo(() => {
     return {

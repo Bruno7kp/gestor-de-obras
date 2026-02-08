@@ -38,9 +38,14 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   const isSuppliesView = viewMode === 'supplies';
   const canEditPlanning = isSuppliesView ? canEdit('supplies') : canEdit('planning');
 
-  const [activeSubTab, setActiveSubTab] = useState<'tasks' | 'forecast' | 'milestones'>(
-    isSuppliesView ? 'forecast' : 'tasks'
-  );
+  const planningSubTabs: Array<'tasks' | 'forecast' | 'milestones'> = ['tasks', 'forecast', 'milestones'];
+  const [activeSubTab, setActiveSubTab] = useState<'tasks' | 'forecast' | 'milestones'>(() => {
+    if (isSuppliesView) return 'forecast';
+    const saved = localStorage.getItem(`planning_subtab_${project.id}`);
+    return saved && planningSubTabs.includes(saved as 'tasks' | 'forecast' | 'milestones')
+      ? (saved as 'tasks' | 'forecast' | 'milestones')
+      : 'tasks';
+  });
   const [editingTask, setEditingTask] = useState<PlanningTask | null>(null);
   const [confirmingForecast, setConfirmingForecast] = useState<MaterialForecast | null>(null);
   const [isAddingForecast, setIsAddingForecast] = useState(false);
@@ -54,13 +59,42 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   const [isAddingMilestone, setIsAddingMilestone] = useState(false);
 
   const [forecastSearch, setForecastSearch] = useState('');
-  const [forecastStatusFilter, setForecastStatusFilter] = useState<'pending' | 'ordered' | 'delivered'>('pending');
+  const [forecastStatusFilter, setForecastStatusFilter] = useState<'pending' | 'ordered' | 'delivered'>(() => {
+    const saved = localStorage.getItem(`supplies_status_${project.id}`);
+    return saved === 'pending' || saved === 'ordered' || saved === 'delivered' ? saved : 'pending';
+  });
   
   const planning = project.planning;
 
   useEffect(() => {
-    setActiveSubTab(isSuppliesView ? 'forecast' : 'tasks');
-  }, [isSuppliesView]);
+    if (isSuppliesView) {
+      setActiveSubTab('forecast');
+      const saved = localStorage.getItem(`supplies_status_${project.id}`);
+      if (saved === 'pending' || saved === 'ordered' || saved === 'delivered') {
+        setForecastStatusFilter(saved);
+      } else {
+        setForecastStatusFilter('pending');
+      }
+      return;
+    }
+
+    const saved = localStorage.getItem(`planning_subtab_${project.id}`);
+    if (saved && planningSubTabs.includes(saved as 'tasks' | 'forecast' | 'milestones')) {
+      setActiveSubTab(saved as 'tasks' | 'forecast' | 'milestones');
+    } else {
+      setActiveSubTab('tasks');
+    }
+  }, [isSuppliesView, project.id]);
+
+  useEffect(() => {
+    if (isSuppliesView) return;
+    localStorage.setItem(`planning_subtab_${project.id}`, activeSubTab);
+  }, [activeSubTab, isSuppliesView, project.id]);
+
+  useEffect(() => {
+    if (!isSuppliesView) return;
+    localStorage.setItem(`supplies_status_${project.id}`, forecastStatusFilter);
+  }, [forecastStatusFilter, isSuppliesView, project.id]);
 
   const financialCategories = useMemo(() => {
     return project.expenses.filter(e => e.itemType === 'category' && e.type === 'material');

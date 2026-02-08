@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Project, LaborContract, LaborPayment, WorkforceMember } from '../types';
 import { laborContractService } from '../services/laborContractService';
 import { uploadService } from '../services/uploadService';
@@ -25,12 +25,28 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingContract, setEditingContract] = useState<LaborContract | null>(null);
-  const [filterType, setFilterType] = useState<'all' | 'empreita' | 'diaria'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'empreita' | 'diaria'>(() => {
+    const saved = localStorage.getItem(`labor_contracts_filter_${project.id}`);
+    return saved === 'all' || saved === 'empreita' || saved === 'diaria' ? saved : 'all';
+  });
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const toast = useToast();
 
   const contracts = project.laborContracts || [];
   const workforce = project.workforce || [];
+
+  useEffect(() => {
+    const saved = localStorage.getItem(`labor_contracts_filter_${project.id}`);
+    if (saved === 'all' || saved === 'empreita' || saved === 'diaria') {
+      setFilterType(saved);
+    } else {
+      setFilterType('all');
+    }
+  }, [project.id]);
+
+  useEffect(() => {
+    localStorage.setItem(`labor_contracts_filter_${project.id}`, filterType);
+  }, [filterType, project.id]);
 
   const filteredContracts = useMemo(() => {
     return contracts.filter(c => {

@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Project, JournalEntry, JournalCategory, WeatherType, ProjectJournal, WorkItem } from '../types';
 import { journalService } from '../services/journalService';
 import { journalApi } from '../services/journalApi';
@@ -24,7 +24,12 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
   const canEditJournal = canEdit('journal');
   const toast = useToast();
 
-  const [filter, setFilter] = useState<JournalCategory | 'ALL'>('ALL');
+  const [filter, setFilter] = useState<JournalCategory | 'ALL'>(() => {
+    const saved = localStorage.getItem(`journal_filter_${project.id}`);
+    return saved === 'ALL' || saved === 'PROGRESS' || saved === 'FINANCIAL' || saved === 'INCIDENT' || saved === 'WEATHER'
+      ? (saved as JournalCategory | 'ALL')
+      : 'ALL';
+  });
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
@@ -42,6 +47,19 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const journal = project.journal;
+
+  useEffect(() => {
+    const saved = localStorage.getItem(`journal_filter_${project.id}`);
+    if (saved === 'ALL' || saved === 'PROGRESS' || saved === 'FINANCIAL' || saved === 'INCIDENT' || saved === 'WEATHER') {
+      setFilter(saved as JournalCategory | 'ALL');
+    } else {
+      setFilter('ALL');
+    }
+  }, [project.id]);
+
+  useEffect(() => {
+    localStorage.setItem(`journal_filter_${project.id}`, filter);
+  }, [filter, project.id]);
 
   // Filtragem e Paginação
   const filteredEntries = useMemo(() => { 
