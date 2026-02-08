@@ -34,9 +34,10 @@ interface ExpenseManagerProps {
 export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
   project, expenses, onAdd, onAddMany, onUpdate, onDelete, workItems, measuredValue, onUpdateExpenses, isReadOnly
 }) => {
-  const { canEdit, getLevel } = usePermissions();
+  const { canEdit, getLevel, loading: permissionsLoading } = usePermissions();
   const toast = useToast();
   const canEditFinancial = canEdit('financial_flow') && !isReadOnly;
+  const showReadOnlyBanner = !permissionsLoading && !canEditFinancial && !isReadOnly;
   const isSupplyLinkedExpense = (expense: ProjectExpense) =>
     expense.type === 'material' &&
     expense.itemType === 'item' &&
@@ -204,7 +205,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
     <div className="space-y-8 max-w-[1600px] mx-auto pb-10">
       <input type="file" ref={fileInputRef} className="hidden" hidden accept=".xlsx, .xls" onChange={handleImportExpenses} />
 
-      {!canEditFinancial && !isReadOnly && (
+      {showReadOnlyBanner && (
         <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-3">
           <Lock size={18} className="text-amber-600 flex-shrink-0" />
           <span className="text-amber-800">Você tem apenas permissão de leitura. Para editar despesas, solicite acesso ao administrador.</span>
