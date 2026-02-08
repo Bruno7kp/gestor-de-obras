@@ -313,13 +313,21 @@ const MemberModal = ({ member, onClose, onSave, allWorkItems }: any) => {
 };
 
 const KpiCard = ({ label, value, icon, color, sub }: any) => {
-  const colors: any = { indigo: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/40', emerald: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40', rose: 'text-rose-600 bg-rose-50 dark:bg-rose-900/40' };
+  const colors: any = { 
+    indigo: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-100 dark:border-indigo-800', 
+    emerald: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800', 
+    rose: 'text-rose-600 bg-rose-50 dark:bg-rose-900/20 border-rose-100 dark:border-rose-800'
+  };
   return (
-    <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm">
-       <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-6 ${colors[color]}`}>{icon}</div>
-       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
-       <p className="text-3xl font-black dark:text-white tracking-tighter">{value}</p>
-       <p className="text-[9px] font-bold text-slate-400 uppercase mt-2">{sub}</p>
+    <div className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+       <div className="flex justify-between items-start mb-4">
+         <div className={`p-2 rounded-lg ${colors[color]}`}>{icon}</div>
+         <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">{label}</span>
+       </div>
+       <div>
+         <p className={`text-xl font-black tracking-tighter ${colors[color].split(' ')[0]}`}>{value}</p>
+         <p className="text-[9px] font-bold text-slate-400 uppercase mt-1">{sub}</p>
+       </div>
     </div>
   );
 };

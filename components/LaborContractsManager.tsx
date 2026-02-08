@@ -10,7 +10,7 @@ import { financial } from '../utils/math';
 import { 
   Briefcase, Plus, Search, Trash2, Edit2, DollarSign, Calendar, 
   CheckCircle2, Clock, AlertCircle, User, FileText, Download, X,
-  TrendingUp, TrendingDown, Wallet
+  TrendingUp, TrendingDown, Wallet, ChevronDown, ChevronUp
 } from 'lucide-react';
 
 interface LaborContractsManagerProps {
@@ -33,6 +33,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
     return saved === 'all' || saved === 'empreita' || saved === 'diaria' ? saved : 'all';
   });
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [expandedPayments, setExpandedPayments] = useState<Record<string, boolean>>({});
   const toast = useToast();
 
   const contracts = project.laborContracts || [];
@@ -66,6 +67,17 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
     laborContractService.getContractStats(contracts),
     [contracts]
   );
+
+  const handleDownloadProof = (url: string, name: string) => {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = name;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
 
   const handleSave = async (contract: LaborContract) => {
     if (isReadOnly) return;
@@ -212,6 +224,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
         {filteredContracts.map(contract => {
           const associado = workforce.find(w => w.id === contract.associadoId);
           const progress = (contract.valorPago / contract.valorTotal) * 100 || 0;
+          const isPaymentsOpen = !!expandedPayments[contract.id];
           
           return (
             <div 
@@ -321,32 +334,62 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
               {/* Pagamentos */}
               {contract.pagamentos.length > 0 && (
                 <div>
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase mb-3 flex items-center gap-2">
-                    <FileText size={12} /> Histórico de Pagamentos ({contract.pagamentos.length})
-                  </h4>
-                  <div className="space-y-2">
-                    {contract.pagamentos.slice(-3).map(pag => (
-                      <div 
-                        key={pag.id} 
-                        className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl"
-                      >
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 size={14} className="text-emerald-500" />
-                          <div>
-                            <p className="text-xs font-bold text-slate-800 dark:text-white">
-                              {pag.descricao || 'Pagamento'}
-                            </p>
-                            <p className="text-[9px] text-slate-400">
-                              {new Date(pag.data).toLocaleDateString('pt-BR')}
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-2">
+                      <FileText size={12} /> Histórico de Pagamentos ({contract.pagamentos.length})
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={() => setExpandedPayments(prev => ({
+                        ...prev,
+                        [contract.id]: !prev[contract.id],
+                      }))}
+                      className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-600"
+                    >
+                      {isPaymentsOpen ? 'Ocultar' : 'Mostrar'}
+                      {isPaymentsOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                    </button>
+                  </div>
+                  {isPaymentsOpen && (
+                    <div className="space-y-2">
+                      {contract.pagamentos.map(pag => (
+                        <div 
+                          key={pag.id} 
+                          className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl"
+                        >
+                          <div className="flex items-center gap-3">
+                            <CheckCircle2 size={14} className="text-emerald-500" />
+                            <div>
+                              <p className="text-xs font-bold text-slate-800 dark:text-white">
+                                {pag.descricao || 'Pagamento'}
+                              </p>
+                              <p className="text-[9px] text-slate-400">
+                                {new Date(pag.data).toLocaleDateString('pt-BR')}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {pag.comprovante && (
+                              <button
+                                type="button"
+                                onClick={() => handleDownloadProof(
+                                  pag.comprovante!,
+                                  `COMPR_${contract.descricao}_${pag.descricao || 'Pagamento'}`
+                                )}
+                                className="p-1.5 text-blue-500 hover:text-blue-700 rounded-lg"
+                                title="Baixar comprovante"
+                              >
+                                <Download size={14} />
+                              </button>
+                            )}
+                            <p className="text-sm font-black text-emerald-600">
+                              R$ {pag.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
                             </p>
                           </div>
                         </div>
-                        <p className="text-sm font-black text-emerald-600">
-                          R$ {pag.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -771,20 +814,22 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, onClose, on
 
 const KpiCard = ({ label, value, icon, color, sub }: any) => {
   const colors: any = { 
-    indigo: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/40', 
-    emerald: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40', 
-    blue: 'text-blue-600 bg-blue-50 dark:bg-blue-900/40',
-    amber: 'text-amber-600 bg-amber-50 dark:bg-amber-900/40'
+    indigo: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-100 dark:border-indigo-800', 
+    emerald: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800', 
+    blue: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800',
+    amber: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-800'
   };
   
   return (
-    <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm">
-      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-6 ${colors[color]}`}>
-        {icon}
+    <div className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+      <div className="flex justify-between items-start mb-4">
+        <div className={`p-2 rounded-lg ${colors[color]}`}>{icon}</div>
+        <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">{label}</span>
       </div>
-      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
-      <p className="text-2xl font-black dark:text-white tracking-tighter mb-1">{value}</p>
-      <p className="text-[9px] font-bold text-slate-400 uppercase">{sub}</p>
+      <div>
+        <p className={`text-xl font-black tracking-tighter ${colors[color].split(' ')[0]}`}>{value}</p>
+        <p className="text-[9px] font-bold text-slate-400 uppercase mt-1">{sub}</p>
+      </div>
     </div>
   );
 };
