@@ -215,9 +215,9 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onU
                     <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase truncate">{member.nome || 'Sem Nome'}</h3>
                     <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900 text-indigo-600 text-[8px] font-black uppercase rounded-lg border border-indigo-100 dark:border-indigo-800">{member.cargo}</span>
                   </div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase mt-1 truncate">{member.empresa_vinculada || 'Próprio'} • {member.cpf_cnpj}</p>
-                  <p className="text-[9px] text-indigo-500 font-bold mt-1">Responsável por {member.linkedWorkItemIds.length} itens da EAP</p>
-                  <p className="text-[9px] text-slate-500 font-bold mt-1">
+                  <p className="text-[13px] font-bold text-slate-400 uppercase mt-1 truncate">{member.empresa_vinculada || 'Autônomo'} • {member.cpf_cnpj}</p>
+                  <p className="text-[12px] text-indigo-500 font-bold mt-1">Responsável por {member.linkedWorkItemIds.length} itens da EAP</p>
+                  <p className="text-[12px] text-slate-500 font-bold mt-1">
                     Total pago: R$ {(paidByMember[member.id] || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </p>
                </div>
