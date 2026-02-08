@@ -24,7 +24,7 @@ interface WbsViewProps {
 export const WbsView: React.FC<WbsViewProps> = ({ 
   project, onUpdateProject, onOpenModal, isReadOnly 
 }) => {
-  const { canEdit, getLevel } = usePermissions();
+  const { canEdit, getLevel, loading: permissionsLoading } = usePermissions();
   const toast = useToast();
   const canEditWbs = canEdit('wbs') && !isReadOnly;
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -392,7 +392,7 @@ export const WbsView: React.FC<WbsViewProps> = ({
     <div ref={rootRef} className="space-y-6 animate-in fade-in duration-300">
       <input type="file" ref={fileInputRef} className="hidden" hidden accept=".xlsx, .xls" onChange={handleFileChange} />
 
-      {isReadOnly && (
+      {isReadOnly && !permissionsLoading && (
         <div className="flex items-center gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-4 rounded-xl">
           <Lock size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
           <span className="text-sm font-semibold text-amber-700 dark:text-amber-300">

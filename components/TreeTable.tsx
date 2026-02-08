@@ -9,6 +9,7 @@ import {
   Edit3, 
   Package, 
   Layers, 
+  Minimize,
   Maximize,
   Maximize2, 
   Minimize2,
@@ -186,7 +187,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
             title={isFullscreen ? 'Sair da Tela Cheia' : 'Tela Cheia'}
             type="button"
           >
-            {isFullscreen ? <Minimize2 size={12} /> : <Maximize size={12} />}
+            {isFullscreen ? <Minimize size={12} /> : <Maximize size={12} />}
             <span className="hidden xs:inline">{isFullscreen ? 'Sair' : 'Tela Cheia'}</span>
           </button>
         </div>
