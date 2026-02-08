@@ -222,7 +222,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
         style={{ overflowAnchor: 'none' }}
       >
         <DragDropContext onDragEnd={handleDragEnd}>
-          <table className="min-w-max w-full border-collapse text-[11px]">
+          <table className="wbs-table min-w-max w-full border-separate border-spacing-0 text-[11px]">
             <thead className="bg-slate-900 dark:bg-black text-white sticky top-0 z-30">
               <tr className="uppercase tracking-widest font-black text-[9px] opacity-80 text-center">
                 {showMover && <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-16 no-print">Mover</th>}
@@ -358,17 +358,9 @@ export const TreeTable: React.FC<TreeTableProps> = ({
 
                             {showContract && (
                               <td className="p-2 text-right border-r border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/40 whitespace-nowrap">
-                                {item.type === 'item' ? (
-                                  <div className="flex items-center justify-end gap-1">
-                                    <span className="text-[8px] text-slate-400 font-black">{currencySymbol}</span>
-                                    <ItemTotalInput 
-                                      value={item.contractTotal} 
-                                      onUpdate={(val: number) => onUpdateTotal(item.id, val)} 
-                                      disabled={isReadOnly || isFullyMeasuredPreviously}
-                                      currencySymbol={currencySymbol}
-                                    />
-                                  </div>
-                                ) : <span className="font-bold text-slate-900 dark:text-slate-100">{financial.formatVisual(item.contractTotal, currencySymbol)}</span>}
+                                <span className={item.type === 'item' ? 'text-slate-700 dark:text-slate-300 font-mono font-bold' : 'font-bold text-slate-900 dark:text-slate-100'}>
+                                  {financial.formatVisual(item.contractTotal, currencySymbol)}
+                                </span>
                               </td>
                             )}
 
