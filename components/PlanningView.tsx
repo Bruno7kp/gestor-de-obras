@@ -196,6 +196,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
         amount: expenseData.amount,
         isPaid: expenseData.isPaid,
         status: expenseData.status,
+        paymentDate: expenseData.paymentDate ?? existingExpense.paymentDate,
         paymentProof: expenseData.paymentProof ?? existingExpense.paymentProof,
       });
     } else {

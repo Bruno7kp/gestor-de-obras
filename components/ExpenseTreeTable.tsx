@@ -135,8 +135,10 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                         <td className="p-2 border-r border-slate-100 dark:border-slate-800 text-[10px] text-slate-500">
                           {item.itemType === 'item' ? (
                             <div className="space-y-0.5">
-                              <p>Competência: {financial.formatDate(item.date)}</p>
-                              {item.deliveryDate && <p className="text-emerald-600 font-bold">Ref: {financial.formatDate(item.deliveryDate)}</p>}
+                              <p>{item.isPaid ? 'Pago' : 'Competência'}: {financial.formatDate(item.isPaid ? (item.paymentDate || item.date) : item.date)}</p>
+                              {item.deliveryDate && (
+                                <p className="text-emerald-600 font-bold">Entregue: {financial.formatDate(item.deliveryDate)}</p>
+                              )}
                             </div>
                           ) : '—'}
                         </td>

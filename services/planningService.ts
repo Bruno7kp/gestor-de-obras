@@ -58,12 +58,14 @@ export const planningService = {
   prepareExpenseFromForecast: (forecast: MaterialForecast, parentId: string | null = null, purchaseDate?: string, isPaid: boolean = false, expenseId?: string, forecastStatus?: MaterialForecast['status']): Partial<ProjectExpense> => {
     const totalAmount = (forecast.quantityNeeded || 0) * (forecast.unitPrice || 0);
     const prefix = getExpensePrefix(forecastStatus ?? forecast.status, isPaid);
+    const effectiveDate = purchaseDate || new Date().toISOString().split('T')[0];
     return {
       id: expenseId || forecast.id || crypto.randomUUID(),
       parentId: parentId,
       type: 'material',
       itemType: 'item',
-      date: purchaseDate || new Date().toISOString().split('T')[0],
+      date: effectiveDate,
+      paymentDate: isPaid ? effectiveDate : undefined,
       description: `${prefix}: ${forecast.description}`,
       entityName: '',
       unit: forecast.unit,
