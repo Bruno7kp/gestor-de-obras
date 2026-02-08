@@ -622,7 +622,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                           active={f.status === 'pending'}
                                           onClick={() => {
                                             if (f.status !== 'pending') {
-                                              toast.warning('Comprado nao pode voltar para a etapa de a comprar.');
+                                              toast.warning('Comprado não pode voltar para a etapa de a comprar.');
                                               return;
                                             }
                                             onUpdatePlanning(planningService.updateForecast(planning, f.id, { status: 'pending' }));
@@ -698,24 +698,6 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                     )}
                                     <td className="py-6 text-right pr-6 rounded-r-3xl">
                                       <div className="flex items-center justify-end gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity">
-                                        {f.status === 'pending' && (
-                                          <button 
-                                            onClick={() => setConfirmingForecast(f)}
-                                            className="p-2 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 rounded-xl"
-                                            title="Efetivar Compra"
-                                          >
-                                            <ArrowUpRight size={18}/>
-                                          </button>
-                                        )}
-                                        {f.status === 'ordered' && (
-                                          <button 
-                                            onClick={() => setConfirmingForecast(f)}
-                                            className="p-2 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 rounded-xl"
-                                            title="Anexar Comprovante"
-                                          >
-                                            <ReceiptText size={18}/>
-                                          </button>
-                                        )}
                                         {f.paymentProof && (
                                           <button onClick={() => handleViewProof(f.paymentProof!)} className="p-2 text-emerald-500 hover:bg-emerald-50 rounded-xl" title="Baixar Comprovante"><Download size={18}/></button>
                                         )}
