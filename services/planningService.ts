@@ -58,6 +58,7 @@ export const planningService = {
       itemType: 'item',
       date: purchaseDate || new Date().toISOString().split('T')[0],
       description: `Pedido de Compra: ${forecast.description}`,
+      entityName: '',
       unit: forecast.unit,
       quantity: forecast.quantityNeeded,
       unitPrice: forecast.unitPrice,

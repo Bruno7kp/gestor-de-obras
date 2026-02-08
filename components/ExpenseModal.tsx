@@ -24,10 +24,16 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
   const isLabor = expenseType === 'labor';
   const [activeItemType, setActiveItemType] = useState<ItemType>(initialItemType);
 
-  const [formData, setFormData] = useState<Partial<ProjectExpense>>({
-    description: '', parentId: null, unit: 'un', quantity: 1, unitPrice: 0, amount: 0, entityName: '',
+  const buildDefaultFormData = () => ({
+    description: '',
+    parentId: null,
+    unit: isRevenue ? 'vb' : 'un',
+    quantity: 1,
+    unitPrice: 0,
+    amount: 0,
+    entityName: '',
     date: new Date().toISOString().split('T')[0],
-    status: 'PENDING',
+    status: 'PENDING' as ExpenseStatus,
     paymentProof: undefined,
     invoiceDoc: undefined,
     deliveryDate: undefined,
@@ -36,6 +42,8 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
     issValue: 0,
     issPercentage: 0
   });
+
+  const [formData, setFormData] = useState<Partial<ProjectExpense>>(buildDefaultFormData());
 
   const [strQty, setStrQty] = useState('1,00');
   const [strPrice, setStrPrice] = useState('0,00');
@@ -47,7 +55,19 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
 
   useEffect(() => {
     if (editingItem) {
-      setFormData({ ...editingItem });
+      const defaults = buildDefaultFormData();
+      setFormData({
+        ...defaults,
+        ...editingItem,
+        description: editingItem.description ?? defaults.description,
+        entityName: editingItem.entityName ?? defaults.entityName,
+        unit: editingItem.unit ?? defaults.unit,
+        date: editingItem.date ?? defaults.date,
+        quantity: editingItem.quantity ?? defaults.quantity,
+        unitPrice: editingItem.unitPrice ?? defaults.unitPrice,
+        amount: editingItem.amount ?? defaults.amount,
+        status: editingItem.status ?? defaults.status,
+      });
       setActiveItemType(editingItem.itemType);
       setStrQty(financial.formatVisual(editingItem.quantity || 0, '').trim());
       setStrPrice(financial.formatVisual(editingItem.unitPrice || 0, '').trim());
@@ -57,16 +77,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
       setStrIssPercent(financial.formatVisual(editingItem.issPercentage || 0, '').trim());
       setStrAmount(financial.formatVisual(editingItem.amount || 0, '').trim());
     } else {
-      setFormData({
-        description: '', parentId: null, unit: isRevenue ? 'vb' : 'un',
-        quantity: 1, unitPrice: 0, amount: 0, entityName: '',
-        date: new Date().toISOString().split('T')[0],
-        status: 'PENDING',
-        discountValue: 0,
-        discountPercentage: 0,
-        issValue: 0,
-        issPercentage: 0
-      });
+      setFormData(buildDefaultFormData());
       setActiveItemType(initialItemType);
       setStrQty('1,00'); setStrPrice('0,00'); setStrDiscountValue('0,00'); setStrDiscountPercent('0,00'); setStrIssValue('0,00'); setStrIssPercent('0,00'); setStrAmount('0,00');
     }

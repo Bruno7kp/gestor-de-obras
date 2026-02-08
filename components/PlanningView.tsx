@@ -123,6 +123,10 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
 
   const handleFinalizePurchase = (forecast: MaterialForecast, parentId: string | null, isPaid: boolean, proof?: string, purchaseDate?: string) => {
     const expenseData = planningService.prepareExpenseFromForecast(forecast, parentId, purchaseDate, isPaid);
+    const supplierName = suppliers.find(s => s.id === forecast.supplierId)?.name;
+    if (supplierName) {
+      expenseData.entityName = supplierName;
+    }
     if (isPaid && proof) {
       expenseData.paymentProof = proof;
     }
@@ -519,7 +523,22 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                       <div className="flex gap-2 justify-center">
                                         <StatusCircle active={f.status === 'pending'} onClick={() => onUpdatePlanning(planningService.updateForecast(planning, f.id, { status: 'pending' }))} icon={<AlertCircle size={12}/>} color="amber" label="Pendente" />
                                         <StatusCircle active={f.status === 'ordered'} onClick={() => setConfirmingForecast(f)} icon={<ShoppingCart size={12}/>} color="blue" label="Comprado" />
-                                        <StatusCircle active={f.status === 'delivered'} onClick={() => onUpdatePlanning(planningService.updateForecast(planning, f.id, { status: 'delivered', deliveryDate: new Date().toISOString().split('T')[0] }))} icon={<Truck size={12}/>} color="emerald" label="No Local" />
+                                        <StatusCircle
+                                          active={f.status === 'delivered'}
+                                          onClick={() => {
+                                            if (f.status === 'pending') {
+                                              toast.warning('Para marcar como No Local, primeiro registre como Comprado.');
+                                              return;
+                                            }
+                                            onUpdatePlanning(planningService.updateForecast(planning, f.id, {
+                                              status: 'delivered',
+                                              deliveryDate: new Date().toISOString().split('T')[0]
+                                            }));
+                                          }}
+                                          icon={<Truck size={12}/>}
+                                          color="emerald"
+                                          label="No Local"
+                                        />
                                       </div>
                                     </td>
                                     {forecastStatusFilter === 'ordered' && (

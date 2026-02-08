@@ -37,6 +37,7 @@ import { projectsApi } from '../services/projectsApi';
 import { rolesApi } from '../services/rolesApi';
 import { usersApi } from '../services/usersApi';
 import { suppliersApi } from '../services/suppliersApi';
+import { useToast } from '../hooks/useToast';
 
 interface ProjectWorkspaceProps {
   project: Project;
@@ -61,6 +62,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 }) => {
   const { user } = useAuth();
   const { canView: canViewGlobal, getLevel: getLevelGlobal } = usePermissions();
+  const toast = useToast();
   const tab = activeTab;
   const [viewingMeasurementId, setViewingMeasurementId] = useState<'current' | number>('current');
   const [isClosingModalOpen, setIsClosingModalOpen] = useState(false);
@@ -418,9 +420,10 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
       onUpdateProject({ expenses: [...project.expenses, created] });
     } catch (error) {
       console.error('Erro ao criar despesa:', error);
+      toast.error(error instanceof Error ? error.message : 'Erro ao criar despesa.');
       onUpdateProject({ expenses: [...project.expenses, expense] });
     }
-  }, [project.expenses, project.id, onUpdateProject]);
+  }, [project.expenses, project.id, onUpdateProject, toast]);
 
   const handleExpenseAddMany = useCallback(async (expenses: ProjectExpense[]) => {
     onUpdateProject({ expenses: [...project.expenses, ...expenses] });

@@ -31,7 +31,27 @@ export const projectExpensesApi = {
     });
 
     if (!response.ok) {
-      throw new Error('Falha ao criar despesa');
+      let message = 'Falha ao criar despesa';
+      try {
+        const text = await response.text();
+        if (text) {
+          try {
+            const data = JSON.parse(text);
+            if (data?.message) {
+              message = Array.isArray(data.message) ? data.message.join(', ') : String(data.message);
+            } else if (data?.error) {
+              message = String(data.error);
+            } else {
+              message = text;
+            }
+          } catch {
+            message = text;
+          }
+        }
+      } catch {
+        // keep default message
+      }
+      throw new Error(message);
     }
 
     return response.json();

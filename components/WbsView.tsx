@@ -69,7 +69,7 @@ export const WbsView: React.FC<WbsViewProps> = ({
       contractOverride: project.contractTotalOverride,
       currentOverride: project.currentTotalOverride,
     };
-  }, [project.id]);
+  }, [project.id, project.items, project.contractTotalOverride, project.currentTotalOverride]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
