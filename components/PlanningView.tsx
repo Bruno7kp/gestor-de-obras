@@ -12,7 +12,7 @@ import {
   GripVertical, MoreVertical, Edit2, X, Save, Calculator, Wallet, Link,
   ChevronUp, ChevronDown, List, CalendarDays, Filter, Users, Download, UploadCloud,
   Layers, FlagTriangleRight, Printer, CreditCard, ChevronLeft, ChevronRight,
-  HardHat, Building2, User, FolderTree, FileCheck, ReceiptText, FileText, FileSpreadsheet,
+  Building2, User, FolderTree, FileCheck, ReceiptText, FileText, FileSpreadsheet,
   ArrowRight, Lock
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
@@ -318,44 +318,29 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
       )}
       
       {!isSuppliesView && (
-        <div className="no-print flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-8 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-xl">
-          <div className="flex items-center gap-5">
-            <div className="p-4 bg-indigo-600 rounded-[1.5rem] text-white shadow-xl shadow-indigo-500/20">
-              <HardHat size={28} />
-            </div>
-            <div>
-              <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">
-                Planejamento Operacional
-              </h2>
-              <div className="flex flex-wrap items-center gap-2 mt-1">
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">
-                  Gestão Ágil de Canteiro
-                </p>
-                <div className="h-3 w-px bg-slate-200 dark:bg-slate-700 mx-1" />
-                <button
-                  onClick={() => window.print()}
-                  className="text-[10px] font-black uppercase text-indigo-600 flex items-center gap-1.5 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 px-2 py-1 rounded-lg transition-all"
-                >
-                  <Printer size={14}/> Imprimir
-                </button>
-                <div className="h-3 w-px bg-slate-200 dark:bg-slate-700 mx-1" />
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="p-1.5 text-slate-400 hover:text-emerald-600 transition-colors"
-                    title="Importar Excel"
-                  >
-                    <UploadCloud size={16}/>
-                  </button>
-                  <button
-                    onClick={() => excelService.exportPlanningToExcel(project)}
-                    className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors"
-                    title="Exportar Excel"
-                  >
-                    <Download size={16}/>
-                  </button>
-                </div>
-              </div>
+        <div className="no-print flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => window.print()}
+              className="flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-indigo-600 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-900/40 transition-all"
+            >
+              <Printer size={14}/> Imprimir
+            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="p-2 text-slate-400 hover:text-emerald-600 transition-colors"
+                title="Importar Excel"
+              >
+                <UploadCloud size={16}/>
+              </button>
+              <button
+                onClick={() => excelService.exportPlanningToExcel(project)}
+                className="p-2 text-slate-400 hover:text-blue-600 transition-colors"
+                title="Exportar Excel"
+              >
+                <Download size={16}/>
+              </button>
             </div>
           </div>
 
