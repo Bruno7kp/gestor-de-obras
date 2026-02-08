@@ -445,64 +445,12 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
 
              <div className="bg-white dark:bg-slate-900 p-4 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm">
                 <div className="no-print flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                  <div className="flex flex-wrap items-center bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl gap-1">
-                    <ProcurementStep 
-                      active={forecastStatusFilter === 'pending'} 
-                      onClick={() => setForecastStatusFilter('pending')}
-                      label="A Comprar"
-                      count={forecastStats.countPending}
-                      icon={<ShoppingCart size={14}/>}
-                      color="amber"
-                    />
-                    <ArrowRight size={14} className="text-slate-300 mx-1 hidden sm:block"/>
-                    <ProcurementStep 
-                      active={forecastStatusFilter === 'ordered'} 
-                      onClick={() => setForecastStatusFilter('ordered')}
-                      label="Pedidos de Compra"
-                      count={forecastStats.countOrdered}
-                      icon={<Clock size={14}/>}
-                      color="blue"
-                    />
-                    <ArrowRight size={14} className="text-slate-300 mx-1 hidden sm:block"/>
-                    <ProcurementStep 
-                      active={forecastStatusFilter === 'delivered'} 
-                      onClick={() => setForecastStatusFilter('delivered')}
-                      label="Recebidos (Local)"
-                      count={forecastStats.countDelivered}
-                      icon={<Truck size={14}/>}
-                      color="emerald"
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1" />
-                    <button
-                      onClick={() => window.print()}
-                      className="flex items-center gap-2 px-5 py-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-[9px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700 shadow-sm hover:bg-slate-50 transition-all"
-                    >
-                      <Printer size={16} /> PDF
-                    </button>
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="p-2.5 text-slate-400 hover:text-emerald-600"
-                      title="Importar Excel"
-                    >
-                      <UploadCloud size={18} />
-                    </button>
-                    <button
-                      onClick={() => excelService.exportPlanningToExcel(project)}
-                      className="p-2.5 text-slate-400 hover:text-blue-600"
-                      title="Exportar Excel"
-                    >
-                      <Download size={18} />
-                    </button>
-                  </div>
-                </div>
-             </div>
-
-             <div className="bg-white dark:bg-slate-900 p-8 rounded-[3.5rem] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto custom-scrollbar">
-                  <div className="flex flex-wrap items-center justify-end gap-2 mb-6">
+                  <div className="flex flex-wrap items-center justify-end ml-auto gap-2">
+                    {forecastStatusFilter === 'pending' && (
+                      <button onClick={() => setIsAddingForecast(true)} className="inline-flex items-center gap-2 whitespace-nowrap px-5 py-3 bg-indigo-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg hover:scale-105 transition-transform">
+                        <Plus size={16} /> Novo Insumo
+                      </button>
+                    )}
                     <div className="relative group">
                       <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
                       <input 
@@ -512,11 +460,65 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                         onChange={e => setForecastSearch(e.target.value)}
                       />
                     </div>
-                    {forecastStatusFilter === 'pending' && (
-                      <button onClick={() => setIsAddingForecast(true)} className="inline-flex items-center gap-2 whitespace-nowrap px-5 py-3 bg-indigo-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg hover:scale-105 transition-transform">
-                        <Plus size={16} /> Novo Insumo
+                  </div>
+                </div>
+             </div>
+
+             <div className="bg-white dark:bg-slate-900 p-8 rounded-[3.5rem] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto custom-scrollbar">
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-6">
+                    <div className="flex flex-wrap items-center bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl gap-1">
+                      <ProcurementStep 
+                        active={forecastStatusFilter === 'pending'} 
+                        onClick={() => setForecastStatusFilter('pending')}
+                        label="A Comprar"
+                        count={forecastStats.countPending}
+                        icon={<ShoppingCart size={14}/>}
+                        color="amber"
+                      />
+                      <ArrowRight size={14} className="text-slate-300 mx-1 hidden sm:block"/>
+                      <ProcurementStep 
+                        active={forecastStatusFilter === 'ordered'} 
+                        onClick={() => setForecastStatusFilter('ordered')}
+                        label="Pedidos de Compra"
+                        count={forecastStats.countOrdered}
+                        icon={<Clock size={14}/>}
+                        color="blue"
+                      />
+                      <ArrowRight size={14} className="text-slate-300 mx-1 hidden sm:block"/>
+                      <ProcurementStep 
+                        active={forecastStatusFilter === 'delivered'} 
+                        onClick={() => setForecastStatusFilter('delivered')}
+                        label="Recebidos (Local)"
+                        count={forecastStats.countDelivered}
+                        icon={<Truck size={14}/>}
+                        color="emerald"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1" />
+                      <button
+                        onClick={() => window.print()}
+                        className="flex items-center gap-2 px-5 py-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-[9px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700 shadow-sm hover:bg-slate-50 transition-all"
+                      >
+                        <Printer size={16} /> PDF
                       </button>
-                    )}
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="p-2.5 text-slate-400 hover:text-emerald-600"
+                        title="Importar Excel"
+                      >
+                        <UploadCloud size={18} />
+                      </button>
+                      <button
+                        onClick={() => excelService.exportPlanningToExcel(project)}
+                        className="p-2.5 text-slate-400 hover:text-blue-600"
+                        title="Exportar Excel"
+                      >
+                        <Download size={18} />
+                      </button>
+                    </div>
                   </div>
 
                   <table className="w-full text-left border-separate border-spacing-y-3">
