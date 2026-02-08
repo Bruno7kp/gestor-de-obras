@@ -38,7 +38,15 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
     return saved === 'all' || saved === 'empreita' || saved === 'diaria' ? saved : 'all';
   });
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [expandedPayments, setExpandedPayments] = useState<Record<string, boolean>>({});
+  const paymentsExpandedKey = `labor_contracts_payments_${project.id}`;
+  const [expandedPayments, setExpandedPayments] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem(paymentsExpandedKey);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
   const [editingPayment, setEditingPayment] = useState<{
     contractId: string;
     payment: LaborPayment;
@@ -61,6 +69,23 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
   useEffect(() => {
     uiPreferences.setString(laborFilterKey, filterType);
   }, [filterType, laborFilterKey]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(paymentsExpandedKey);
+      setExpandedPayments(saved ? JSON.parse(saved) : {});
+    } catch {
+      setExpandedPayments({});
+    }
+  }, [paymentsExpandedKey]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(paymentsExpandedKey, JSON.stringify(expandedPayments));
+    } catch {
+      // Ignore storage errors (quota/private mode)
+    }
+  }, [expandedPayments, paymentsExpandedKey]);
 
   const filteredContracts = useMemo(() => {
     return contracts.filter(c => {
@@ -94,7 +119,8 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
   ) => {
     const associado = workforce.find(w => w.id === contract.associadoId);
     const effectiveDate = payment.data || new Date().toISOString().split('T')[0];
-    const description = `Pagamento M.O.: ${contract.descricao} - ${payment.descricao || 'Pagamento'}`;
+    const prefix = contract.tipo === 'empreita' ? 'Empreita M.O.' : 'Diaria M.O.';
+    const description = `${prefix}: ${contract.descricao} - ${payment.descricao || 'Pagamento'}`;
 
     return {
       parentId,
