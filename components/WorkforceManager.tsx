@@ -7,7 +7,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { ConfirmModal } from './ConfirmModal';
 import { useToast } from '../hooks/useToast';
 import { 
-  Plus, Search, Trash2, Edit2, ShieldCheck, AlertCircle, HardHat, FileText,
+  Plus, Search, Trash2, Edit2, HardHat,
   X, UserCircle, Briefcase, User, Lock
 } from 'lucide-react';
 
@@ -188,9 +188,7 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onU
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filteredMembers.map(member => {
-          const status = workforceService.getMemberGlobalStatus(member);
-          return (
+        {filteredMembers.map(member => (
             <div key={member.id} className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-lg transition-all group flex items-center gap-6">
                <div className="relative">
                  {member.foto ? (
@@ -200,11 +198,6 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onU
                      <UserCircle size={32} />
                    </div>
                  )}
-                 <div className={`absolute -bottom-1 -right-1 p-1 rounded-lg text-white shadow-lg ${
-                   status === 'apto' ? 'bg-emerald-500' : status === 'vencido' ? 'bg-rose-500' : 'bg-amber-500'
-                 }`}>
-                   {status === 'apto' ? <ShieldCheck size={12}/> : <AlertCircle size={12}/>}
-                 </div>
                </div>
 
                <div className="flex-1 min-w-0">
@@ -224,8 +217,7 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onU
                   <button onClick={() => setConfirmDeleteId(member.id)} className="p-3 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-rose-500 rounded-xl transition-all"><Trash2 size={16}/></button>
                </div>
             </div>
-          );
-        })}
+          ))}
       </div>
 
       {isModalOpen && (
@@ -307,23 +299,6 @@ const MemberModal = ({ member, onClose, onSave, allWorkItems }: any) => {
                </div>
             </div>
 
-            <div className="space-y-4">
-               <div className="flex items-center justify-between">
-                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <FileText size={14}/> Controle Documental
-                  </h3>
-                  <button type="button" onClick={() => setData({...data, documentos: [...data.documentos, { id: crypto.randomUUID(), nome: 'Nova Certidão', dataVencimento: '', status: 'pendente' }]})} className="text-[9px] font-black uppercase text-indigo-600">+ Adicionar Documento</button>
-               </div>
-               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {data.documentos.map(doc => (
-                    <div key={doc.id} className="p-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center gap-4">
-                       <input className="bg-transparent text-[10px] font-black uppercase w-full outline-none" value={doc.nome} onChange={e => setData({...data, documentos: data.documentos.map(d => d.id === doc.id ? {...d, nome: e.target.value} : d)})} />
-                       <input type="date" className="bg-transparent text-[10px] font-black outline-none w-32" value={doc.dataVencimento} onChange={e => setData({...data, documentos: data.documentos.map(d => d.id === doc.id ? {...d, dataVencimento: e.target.value} : d)})} />
-                       <button onClick={() => setData({...data, documentos: data.documentos.filter(d => d.id !== doc.id)})} className="text-rose-400 hover:text-rose-600"><Trash2 size={16}/></button>
-                    </div>
-                  ))}
-               </div>
-            </div>
          </div>
 
          <div className="flex gap-4 pt-8 border-t dark:border-slate-800 mt-auto">
