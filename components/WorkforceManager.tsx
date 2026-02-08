@@ -251,7 +251,7 @@ const MemberModal = ({ member, onClose, onSave, allWorkItems }: any) => {
                      <div>
                        <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">Cargo / Função</label>
                        <select className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none" value={data.cargo} onChange={e => setData({...data, cargo: e.target.value as any})}>
-                         {['Engenheiro', 'Mestre', 'Encarregado', 'Eletricista', 'Encanador', 'Pedreiro', 'Servente'].map(r => <option key={r} value={r}>{r}</option>)}
+                         {['Engenheiro', 'Mestre', 'Encarregado', 'Eletricista', 'Encanador', 'Pedreiro', 'Servente', 'Carpinteiro'].map(r => <option key={r} value={r}>{r}</option>)}
                        </select>
                      </div>
                   </div>

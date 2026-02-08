@@ -170,7 +170,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
           sub={`${((stats.valorPagoGeral/stats.valorTotalGeral)*100 || 0).toFixed(1)}% executado`}
         />
         <KpiCard 
-          label="Devendo" 
+          label="A Pagar" 
           value={`R$ ${stats.saldo.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`} 
           icon={<TrendingDown />} 
           color="amber" 
@@ -310,7 +310,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
                   </p>
                 </div>
                 <div className="bg-amber-50 dark:bg-amber-900/20 p-4 rounded-2xl">
-                  <p className="text-[9px] font-black text-amber-600 uppercase mb-1">Saldo</p>
+                  <p className="text-[9px] font-black text-amber-600 uppercase mb-1">A Pagar</p>
                   <p className="text-xl font-black text-amber-600">
                     R$ {(contract.valorTotal - contract.valorPago).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
                   </p>
