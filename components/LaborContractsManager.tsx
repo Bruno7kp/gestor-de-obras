@@ -109,6 +109,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
     } catch (error) {
       console.error('Erro ao salvar contrato:', error);
       onUpdateProject({ laborContracts: previous });
+      toast.error('Erro ao salvar contrato.');
     }
 
     setIsModalOpen(false);
@@ -390,6 +391,24 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, onClose, on
   const [data, setData] = useState<LaborContract>(
     contract || laborContractService.createContract('empreita')
   );
+  const toast = useToast();
+
+  const handleSubmit = () => {
+    if (!data.associadoId) {
+      toast.error('Selecione o associado responsavel.');
+      return;
+    }
+    if (!data.descricao.trim()) {
+      toast.error('Informe a descricao do trabalho.');
+      return;
+    }
+    if (!data.dataInicio) {
+      toast.error('Informe a data de inicio.');
+      return;
+    }
+
+    onSave(data);
+  };
 
   const handleAddPayment = () => {
     if (isReadOnly) return;
@@ -700,7 +719,7 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, onClose, on
             Cancelar
           </button>
           <button 
-            onClick={() => onSave(data)}
+            onClick={handleSubmit}
             disabled={isReadOnly}
             className={`flex-[2] py-5 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl transition-all ${
               isReadOnly

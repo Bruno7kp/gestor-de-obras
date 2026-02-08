@@ -13,7 +13,7 @@ export const laborContractService = {
       status: 'pendente',
       dataInicio: new Date().toISOString().split('T')[0],
       pagamentos: [],
-      ordem: Date.now()
+      ordem: Math.floor(Date.now() / 1000)
     };
   },
 

@@ -737,7 +737,6 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           {canView('planning') && <TabBtn active={tab === 'planning'} id="planning" label="Canteiro Ágil" icon={<HardHat size={16} />} />}
           {canView('journal') && <TabBtn active={tab === 'journal'} id="journal" label="Diário de Obra" icon={<BookOpen size={16} />} />}
           {canView('documents') && <TabBtn active={tab === 'documents'} id="documents" label="Repositório" icon={<FileText size={16} />} />}
-          {canView('workforce') && <TabBtn active={tab === 'workforce'} id="workforce" label="Equipe Permanente" icon={<Users size={16} />} />}
           {canView('project_settings') && <TabBtn active={tab === 'branding'} id="branding" label="Ajustes" icon={<Sliders size={16} />} />}
         </div>
       </nav>
@@ -748,6 +747,32 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         style={{ overflowAnchor: 'none' }}
       >
         <div className="max-w-[1600px] mx-auto">
+          {(tab === 'labor-contracts' || tab === 'workforce') && canView('workforce') && (
+            <div className="flex items-center justify-end mb-6">
+              <div className="flex bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                <button
+                  onClick={() => onTabChange('labor-contracts')}
+                  className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                    tab === 'labor-contracts'
+                      ? 'bg-indigo-600 text-white shadow-lg'
+                      : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  Contratos M.O.
+                </button>
+                <button
+                  onClick={() => onTabChange('workforce')}
+                  className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                    tab === 'workforce'
+                      ? 'bg-indigo-600 text-white shadow-lg'
+                      : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  Equipe Permanente
+                </button>
+              </div>
+            </div>
+          )}
           {tab === 'wbs' && <WbsView project={{ ...project, items: displayData.items }} onUpdateProject={onUpdateProject} onOpenModal={handleOpenModal} isReadOnly={displayData.isReadOnly} />}
           {tab === 'stats' && <StatsView project={{ ...project, items: displayData.items }} />}
           {tab === 'expenses' && (

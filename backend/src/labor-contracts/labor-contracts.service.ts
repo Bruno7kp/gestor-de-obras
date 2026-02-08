@@ -36,6 +36,16 @@ interface UpdateLaborContractInput extends Partial<CreateLaborContractInput> {
 export class LaborContractsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private normalizeOrder(value?: number) {
+    if (!Number.isFinite(value)) return 0;
+    const normalized = Math.floor(value as number);
+    if (normalized > 2147483647) {
+      return Math.floor(normalized / 1000);
+    }
+    if (normalized < -2147483648) return 0;
+    return normalized;
+  }
+
   private async ensureProject(projectId: string, instanceId: string, userId?: string) {
     return ensureProjectAccess(this.prisma, projectId, instanceId, userId);
   }
@@ -80,6 +90,7 @@ export class LaborContractsService {
 
     const pagamentos = input.pagamentos ?? [];
     const totals = this.getPaymentTotals(pagamentos, input.valorTotal);
+    const normalizedOrder = this.normalizeOrder(input.ordem);
 
     return this.prisma.$transaction(async prisma => {
       const contract = await prisma.laborContract.create({
@@ -95,7 +106,7 @@ export class LaborContractsService {
           dataFim: input.dataFim || null,
           linkedWorkItemId: input.linkedWorkItemId || null,
           observacoes: input.observacoes || null,
-          ordem: input.ordem ?? 0,
+          ordem: normalizedOrder,
         },
       });
 
@@ -142,6 +153,7 @@ export class LaborContractsService {
     const pagamentos = input.pagamentos;
     const valorTotal = input.valorTotal ?? existing.valorTotal;
     const totals = pagamentos ? this.getPaymentTotals(pagamentos, valorTotal) : null;
+    const normalizedOrder = this.normalizeOrder(input.ordem ?? existing.ordem);
 
     return this.prisma.$transaction(async prisma => {
       const updated = await prisma.laborContract.update({
@@ -157,7 +169,7 @@ export class LaborContractsService {
           dataFim: input.dataFim ?? existing.dataFim,
           linkedWorkItemId: input.linkedWorkItemId ?? existing.linkedWorkItemId,
           observacoes: input.observacoes ?? existing.observacoes,
-          ordem: input.ordem ?? existing.ordem,
+          ordem: normalizedOrder,
         },
       });
 
