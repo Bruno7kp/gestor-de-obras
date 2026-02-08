@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { BiddingProcess, BiddingStatus } from '../types';
+import { financial } from '../utils/math';
 import { X, Save, Landmark, FileText, Calendar, DollarSign, Percent, AlignLeft } from 'lucide-react';
 
 interface BiddingModalProps {
@@ -24,6 +25,12 @@ const defaultForm: Partial<BiddingProcess> = {
 
 export const BiddingModal: React.FC<BiddingModalProps> = ({ isOpen, onClose, onSave, bidding }) => {
   const [formData, setFormData] = useState<Partial<BiddingProcess>>(defaultForm);
+  const [strEstimatedValue, setStrEstimatedValue] = useState(
+    financial.formatVisual(defaultForm.estimatedValue || 0, '').trim()
+  );
+  const [strProposalValue, setStrProposalValue] = useState(
+    financial.formatVisual(defaultForm.ourProposalValue || 0, '').trim()
+  );
 
   useEffect(() => {
     if (bidding) {
@@ -38,8 +45,12 @@ export const BiddingModal: React.FC<BiddingModalProps> = ({ isOpen, onClose, onS
         status: bidding.status,
         bdi: bidding.bdi,
       });
+      setStrEstimatedValue(financial.formatVisual(bidding.estimatedValue || 0, '').trim());
+      setStrProposalValue(financial.formatVisual(bidding.ourProposalValue || 0, '').trim());
     } else {
       setFormData(defaultForm);
+      setStrEstimatedValue(financial.formatVisual(defaultForm.estimatedValue || 0, '').trim());
+      setStrProposalValue(financial.formatVisual(defaultForm.ourProposalValue || 0, '').trim());
     }
   }, [bidding, isOpen]);
 
@@ -123,14 +134,22 @@ export const BiddingModal: React.FC<BiddingModalProps> = ({ isOpen, onClose, onS
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">Valor Estimado</label>
                 <div className="relative">
                   <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18}/>
-                  <input type="number" step="0.01" min="0" className="w-full pl-12 pr-6 py-4 rounded-2xl border-2 border-slate-50 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all" value={formData.estimatedValue || ''} onChange={e => setFormData({...formData, estimatedValue: parseFloat(e.target.value) || 0})} placeholder="0,00" />
+                  <input type="text" inputMode="decimal" className="w-full pl-12 pr-6 py-4 rounded-2xl border-2 border-slate-50 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all" value={strEstimatedValue} onChange={e => {
+                    const masked = financial.maskCurrency(e.target.value);
+                    setStrEstimatedValue(masked);
+                    setFormData({ ...formData, estimatedValue: financial.parseLocaleNumber(masked) });
+                  }} placeholder="0,00" />
                 </div>
               </div>
               <div>
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">Valor da Proposta</label>
                 <div className="relative">
                   <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18}/>
-                  <input type="number" step="0.01" min="0" className="w-full pl-12 pr-6 py-4 rounded-2xl border-2 border-slate-50 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all" value={formData.ourProposalValue || ''} onChange={e => setFormData({...formData, ourProposalValue: parseFloat(e.target.value) || 0})} placeholder="0,00" />
+                  <input type="text" inputMode="decimal" className="w-full pl-12 pr-6 py-4 rounded-2xl border-2 border-slate-50 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all" value={strProposalValue} onChange={e => {
+                    const masked = financial.maskCurrency(e.target.value);
+                    setStrProposalValue(masked);
+                    setFormData({ ...formData, ourProposalValue: financial.parseLocaleNumber(masked) });
+                  }} placeholder="0,00" />
                 </div>
               </div>
               <div>

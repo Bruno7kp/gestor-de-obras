@@ -819,6 +819,9 @@ const ForecastModal = ({ onClose, onSave, allWorkItems, suppliers, editingItem }
     categoryId: editingItem?.categoryId || '',
     paymentProof: editingItem?.paymentProof || ''
   });
+  const [strUnitPrice, setStrUnitPrice] = useState(
+    financial.formatVisual(editingItem?.unitPrice || 0, '').trim()
+  );
 
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}>
@@ -903,10 +906,15 @@ const ForecastModal = ({ onClose, onSave, allWorkItems, suppliers, editingItem }
                 <div className="relative">
                   <span className="absolute left-5 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase">R$</span>
                   <input 
-                    type="number" 
+                    type="text" 
+                    inputMode="decimal"
                     className="w-full pl-12 pr-6 py-5 rounded-3xl bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-white text-sm font-black text-right outline-none focus:border-indigo-600" 
-                    value={data.unitPrice} 
-                    onChange={e => setData({...data, unitPrice: parseFloat(e.target.value) || 0})} 
+                    value={strUnitPrice} 
+                    onChange={e => {
+                      const masked = financial.maskCurrency(e.target.value);
+                      setStrUnitPrice(masked);
+                      setData({ ...data, unitPrice: financial.parseLocaleNumber(masked) });
+                    }} 
                   />
                 </div>
               </div>

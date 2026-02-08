@@ -6,6 +6,7 @@ import { laborContractsApi } from '../services/laborContractsApi';
 import { ConfirmModal } from './ConfirmModal';
 import { useToast } from '../hooks/useToast';
 import { uiPreferences } from '../utils/uiPreferences';
+import { financial } from '../utils/math';
 import { 
   Briefcase, Plus, Search, Trash2, Edit2, DollarSign, Calendar, 
   CheckCircle2, Clock, AlertCircle, User, FileText, Download, X,
@@ -388,10 +389,35 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
 };
 
 const ContractModal = ({ contract, workforce, workItems, isReadOnly, onClose, onSave }: any) => {
-  const [data, setData] = useState<LaborContract>(
-    contract || laborContractService.createContract('empreita')
+  const initialContract = contract || laborContractService.createContract('empreita');
+  const [data, setData] = useState<LaborContract>(initialContract);
+  const [strValorTotal, setStrValorTotal] = useState(
+    financial.formatVisual(initialContract.valorTotal || 0, '').trim()
+  );
+  const [paymentValues, setPaymentValues] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      (initialContract.pagamentos || []).map(p => [
+        p.id,
+        financial.formatVisual(p.valor || 0, '').trim()
+      ])
+    )
   );
   const toast = useToast();
+
+  useEffect(() => {
+    setPaymentValues(prev => {
+      const next = { ...prev };
+      data.pagamentos.forEach(p => {
+        if (next[p.id] === undefined) {
+          next[p.id] = financial.formatVisual(p.valor || 0, '').trim();
+        }
+      });
+      Object.keys(next).forEach(id => {
+        if (!data.pagamentos.find(p => p.id === id)) delete next[id];
+      });
+      return next;
+    });
+  }, [data.pagamentos]);
 
   const handleSubmit = () => {
     if (!data.associadoId) {
@@ -525,11 +551,15 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, onClose, on
                 Valor Total (R$)
               </label>
               <input
-                type="number"
-                step="0.01"
+                type="text"
+                inputMode="decimal"
                 className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500"
-                value={data.valorTotal}
-                onChange={e => setData({ ...data, valorTotal: parseFloat(e.target.value) || 0 })}
+                value={strValorTotal}
+                onChange={e => {
+                  const masked = financial.maskCurrency(e.target.value);
+                  setStrValorTotal(masked);
+                  setData({ ...data, valorTotal: financial.parseLocaleNumber(masked) });
+                }}
                 disabled={isReadOnly}
               />
             </div>
@@ -657,11 +687,15 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, onClose, on
                         Valor (R$)
                       </label>
                       <input
-                        type="number"
-                        step="0.01"
+                        type="text"
+                        inputMode="decimal"
                         className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold outline-none"
-                        value={pag.valor}
-                        onChange={e => handleUpdatePayment(pag.id, { valor: parseFloat(e.target.value) || 0 })}
+                        value={paymentValues[pag.id] ?? financial.formatVisual(pag.valor || 0, '').trim()}
+                        onChange={e => {
+                          const masked = financial.maskCurrency(e.target.value);
+                          setPaymentValues(prev => ({ ...prev, [pag.id]: masked }));
+                          handleUpdatePayment(pag.id, { valor: financial.parseLocaleNumber(masked) });
+                        }}
                         disabled={isReadOnly}
                       />
                     </div>
