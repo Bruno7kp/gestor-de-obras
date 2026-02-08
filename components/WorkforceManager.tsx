@@ -27,6 +27,8 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onU
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const workforce = project.workforce || [];
+  const laborContracts = project.laborContracts || [];
+  const expenses = project.expenses || [];
 
   const filteredMembers = useMemo(() => {
     return workforce.filter(m => 
@@ -41,6 +43,27 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onU
     apto: workforce.filter(m => workforceService.getMemberGlobalStatus(m) === 'apto').length,
     vencido: workforce.filter(m => workforceService.getMemberGlobalStatus(m) === 'vencido').length
   }), [workforce]);
+
+  const paidByMember = useMemo(() => {
+    const paidExpenseIds = new Set(
+      expenses
+        .filter(e => e.type === 'labor' && (e.isPaid || e.status === 'PAID'))
+        .map(e => e.id)
+    );
+
+    return laborContracts.reduce<Record<string, number>>((acc, contract) => {
+      const paidTotal = (contract.pagamentos || []).reduce((sum, payment) => {
+        if (!paidExpenseIds.has(payment.id)) return sum;
+        return sum + (payment.valor || 0);
+      }, 0);
+
+      if (paidTotal > 0) {
+        acc[contract.associadoId] = (acc[contract.associadoId] || 0) + paidTotal;
+      }
+
+      return acc;
+    }, {});
+  }, [laborContracts, expenses]);
 
   const refreshWorkforce = async () => {
     const list = await workforceApi.list(project.id);
@@ -194,6 +217,9 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onU
                   </div>
                   <p className="text-[10px] font-bold text-slate-400 uppercase mt-1 truncate">{member.empresa_vinculada || 'Próprio'} • {member.cpf_cnpj}</p>
                   <p className="text-[9px] text-indigo-500 font-bold mt-1">Responsável por {member.linkedWorkItemIds.length} itens da EAP</p>
+                  <p className="text-[9px] text-slate-500 font-bold mt-1">
+                    Total pago: R$ {(paidByMember[member.id] || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </p>
                </div>
 
                <div className="flex gap-2">
