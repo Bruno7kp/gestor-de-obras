@@ -437,7 +437,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
         )}
 
         {activeSubTab === 'forecast' && (
-          <div className="space-y-2 animate-in fade-in">
+          <div className="space-y-4 animate-in fade-in">
              <div className="no-print flex justify-end">
                 <div className="flex items-center gap-2">
                   <button
