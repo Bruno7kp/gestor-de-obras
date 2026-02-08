@@ -129,7 +129,9 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     const countDelivered = list.filter(f => f.status === 'delivered').length;
     const countEffective = list.filter(f => f.status !== 'pending').length;
 
-    const pending = list.filter(f => f.status === 'pending').reduce((acc, f) => acc + ((f.quantityNeeded || 0) * (f.unitPrice || 0)), 0);
+    const pending = list
+      .filter(f => f.status === 'pending' || (f.status === 'ordered' && !f.isPaid))
+      .reduce((acc, f) => acc + ((f.quantityNeeded || 0) * (f.unitPrice || 0)), 0);
     const ordered = list.filter(f => f.status === 'ordered').reduce((acc, f) => acc + ((f.quantityNeeded || 0) * (f.unitPrice || 0)), 0);
     const delivered = list.filter(f => f.status === 'delivered').reduce((acc, f) => acc + ((f.quantityNeeded || 0) * (f.unitPrice || 0)), 0);
     const effective = list.filter(f => f.status !== 'pending').reduce((acc, f) => acc + ((f.quantityNeeded || 0) * (f.unitPrice || 0)), 0);
@@ -466,7 +468,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
              </div>
              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                <ForecastKpi label="Previsão de Suprimentos" value={forecastStats.total} icon={<Boxes size={20}/>} color="indigo" sub="Previsão global de gastos" />
-               <ForecastKpi label="Pendente de Compra" value={forecastStats.pending} icon={<Clock size={20}/>} color="amber" sub="Ainda não efetivado" />
+                <ForecastKpi label="Pendente de Pagamento" value={forecastStats.pending} icon={<Clock size={20}/>} color="amber" sub="Ainda não efetivado" />
                <ForecastKpi label="Efetivado/Local" value={forecastStats.effective} icon={<CheckCircle2 size={20}/>} color="emerald" sub="Lançado no financeiro" />
              </div>
 
