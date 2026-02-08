@@ -63,7 +63,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   }, [isSuppliesView]);
 
   const financialCategories = useMemo(() => {
-    return project.expenses.filter(e => e.itemType === 'category' && e.type === 'labor');
+    return project.expenses.filter(e => e.itemType === 'category' && e.type === 'material');
   }, [project.expenses]);
 
   const sortedForecasts = useMemo(() => {
@@ -1101,7 +1101,7 @@ const ConfirmForecastModal = ({ forecast, onClose, onConfirm, financialCategorie
 
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}>
-      <div className="bg-white dark:bg-[#0f111a] w-full max-w-md rounded-[3rem] p-10 border border-slate-200 dark:border-slate-800/50 shadow-2xl flex flex-col items-center relative overflow-hidden text-center" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-[#0f111a] w-full max-w-2xl rounded-[3rem] p-8 border border-slate-200 dark:border-slate-800/50 shadow-2xl flex flex-col items-center relative overflow-hidden text-center max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-indigo-500/10 blur-[100px] pointer-events-none"></div>
         
         <div className="relative mb-8">
