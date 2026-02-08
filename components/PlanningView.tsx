@@ -318,13 +318,13 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
       )}
       
       {!isSuppliesView && (
-        <div className="no-print flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="no-print flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={() => window.print()}
-              className="flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-indigo-600 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-900/40 transition-all"
+              className="flex items-center gap-2 px-5 py-3 text-slate-700 dark:text-slate-300 text-[9px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700 rounded-xl hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all"
             >
-              <Printer size={14}/> Imprimir
+              <Printer size={16} /> PDF
             </button>
             <div className="flex items-center gap-1">
               <button
@@ -344,7 +344,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
             </div>
           </div>
 
-          <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl gap-1 overflow-x-auto no-scrollbar">
+          <div className="flex bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-x-auto no-scrollbar">
             <SubTabBtn active={activeSubTab === 'tasks'} onClick={() => setActiveSubTab('tasks')} label="Quadro Kanban" icon={<ListChecks size={14}/>} />
             <SubTabBtn active={activeSubTab === 'milestones'} onClick={() => setActiveSubTab('milestones')} label="Cronograma" icon={<Target size={14}/>} />
           </div>
@@ -1095,7 +1095,9 @@ const SubTabBtn = ({ active, onClick, label, icon }: any) => (
   <button 
     onClick={onClick} 
     className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-      active ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+      active
+        ? 'bg-indigo-600 text-white shadow-lg'
+        : 'text-slate-400 hover:text-slate-600'
     }`}
   >
     {icon} <span>{label}</span>
