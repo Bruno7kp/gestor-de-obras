@@ -775,6 +775,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
           onClose={() => setConfirmingForecast(null)} 
           onConfirm={(isPaid: boolean, parentId: string | null, proof?: string, purchaseDate?: string) => handleFinalizePurchase(confirmingForecast, parentId, isPaid, proof, purchaseDate)}
           financialCategories={financialCategories}
+          toast={toast}
         />
       )}
     </div>
@@ -1120,7 +1121,7 @@ const MilestoneModal = ({ milestone, onClose, onSave }: any) => {
 };
 
 // --- CONFIRM PURCHASE MODAL ---
-const ConfirmForecastModal = ({ forecast, onClose, onConfirm, financialCategories }: any) => {
+const ConfirmForecastModal = ({ forecast, onClose, onConfirm, financialCategories, toast }: any) => {
   const [parentId, setParentId] = useState<string | null>(null);
   const [purchaseDate, setPurchaseDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [isPaid, setIsPaid] = useState(true);
@@ -1169,7 +1170,11 @@ const ConfirmForecastModal = ({ forecast, onClose, onConfirm, financialCategorie
                     onClick={() => setIsPaid(!isPaid)}
                     className={`w-12 h-6 rounded-full relative transition-all ${isPaid ? 'bg-emerald-500' : 'bg-slate-700'}`}
                   >
-                    <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${isPaid ? 'left-6.5' : 'left-0.5'}`} />
+                    <div
+                      className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                        isPaid ? 'translate-x-6' : 'translate-x-0'
+                      }`}
+                    />
                   </button>
                 </div>
 
@@ -1207,7 +1212,13 @@ const ConfirmForecastModal = ({ forecast, onClose, onConfirm, financialCategorie
         <div className="flex items-center gap-4 w-full">
            <button onClick={onClose} className="flex-1 py-4 text-slate-500 dark:text-slate-500 font-black uppercase text-xs tracking-widest hover:text-slate-800 dark:hover:text-white transition-colors">Voltar</button>
            <button 
-              onClick={() => onConfirm(isPaid, parentId, paymentProof, purchaseDate)} 
+              onClick={() => {
+                if (isPaid && !paymentProof) {
+                  toast.warning('Anexe o comprovante de pagamento para confirmar como pago.');
+                  return;
+                }
+                onConfirm(isPaid, parentId, paymentProof, purchaseDate);
+              }} 
               className={`flex-[2] py-4 rounded-[1.5rem] font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all ${
                 isPaid ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/20 text-white' : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-500/20 text-white'
               }`}
