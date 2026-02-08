@@ -1,6 +1,12 @@
 
 import { ProjectPlanning, PlanningTask, MaterialForecast, Milestone, WorkItem, ProjectExpense, TaskStatus } from '../types';
 
+const getExpensePrefix = (status?: MaterialForecast['status'], isPaid?: boolean) => {
+  if (status === 'delivered') return 'Pedido Entregue';
+  if (isPaid) return 'Pedido Pago';
+  return 'Pedido Pendente';
+};
+
 export const planningService = {
 
   generateTasksFromWbs: (planning: ProjectPlanning, workItems: WorkItem[]): ProjectPlanning => {
@@ -49,15 +55,16 @@ export const planningService = {
     return 'normal';
   },
 
-  prepareExpenseFromForecast: (forecast: MaterialForecast, parentId: string | null = null, purchaseDate?: string, isPaid: boolean = false): Partial<ProjectExpense> => {
+  prepareExpenseFromForecast: (forecast: MaterialForecast, parentId: string | null = null, purchaseDate?: string, isPaid: boolean = false, expenseId?: string, forecastStatus?: MaterialForecast['status']): Partial<ProjectExpense> => {
     const totalAmount = (forecast.quantityNeeded || 0) * (forecast.unitPrice || 0);
+    const prefix = getExpensePrefix(forecastStatus ?? forecast.status, isPaid);
     return {
-      id: crypto.randomUUID(),
+      id: expenseId || forecast.id || crypto.randomUUID(),
       parentId: parentId,
       type: 'material',
       itemType: 'item',
       date: purchaseDate || new Date().toISOString().split('T')[0],
-      description: `Pedido de Compra: ${forecast.description}`,
+      description: `${prefix}: ${forecast.description}`,
       entityName: '',
       unit: forecast.unit,
       quantity: forecast.quantityNeeded,

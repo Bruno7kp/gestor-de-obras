@@ -27,13 +27,14 @@ interface PlanningViewProps {
   suppliers: Supplier[];
   onUpdatePlanning: (planning: ProjectPlanning) => void;
   onAddExpense: (expense: ProjectExpense) => void;
+  onUpdateExpense: (id: string, data: Partial<ProjectExpense>) => void;
   categories: WorkItem[];
   allWorkItems: WorkItem[];
   viewMode?: 'planning' | 'supplies';
 }
 
 export const PlanningView: React.FC<PlanningViewProps> = ({ 
-  project, suppliers, onUpdatePlanning, onAddExpense, categories, allWorkItems, viewMode = 'planning'
+  project, suppliers, onUpdatePlanning, onAddExpense, onUpdateExpense, categories, allWorkItems, viewMode = 'planning'
 }) => {
   const { canEdit, getLevel } = usePermissions();
   const toast = useToast();
@@ -53,6 +54,8 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   });
   const [editingTask, setEditingTask] = useState<PlanningTask | null>(null);
   const [confirmingForecast, setConfirmingForecast] = useState<MaterialForecast | null>(null);
+  const [forcePaidConfirm, setForcePaidConfirm] = useState(false);
+  const [confirmingDeliveryForecast, setConfirmingDeliveryForecast] = useState<MaterialForecast | null>(null);
   const [isAddingForecast, setIsAddingForecast] = useState(false);
   const [editingForecast, setEditingForecast] = useState<MaterialForecast | null>(null);
   const [isDeletingForecast, setIsDeletingForecast] = useState<MaterialForecast | null>(null);
@@ -160,8 +163,18 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     onUpdatePlanning(updated);
   };
 
+  const isExpenseForForecast = (expense: ProjectExpense, forecast: MaterialForecast) => {
+    const suffix = `: ${forecast.description}`;
+    return expense.id === forecast.id || (
+      expense.type === 'material' &&
+      expense.itemType === 'item' &&
+      expense.description.endsWith(suffix)
+    );
+  };
+
   const handleFinalizePurchase = (forecast: MaterialForecast, parentId: string | null, isPaid: boolean, proof?: string, purchaseDate?: string) => {
-    const expenseData = planningService.prepareExpenseFromForecast(forecast, parentId, purchaseDate, isPaid);
+    const existingExpense = project.expenses.find(expense => isExpenseForForecast(expense, forecast));
+    const expenseData = planningService.prepareExpenseFromForecast(forecast, parentId, purchaseDate, isPaid, forecast.id, 'ordered');
     const supplierName = suppliers.find(s => s.id === forecast.supplierId)?.name;
     if (supplierName) {
       expenseData.entityName = supplierName;
@@ -170,7 +183,23 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
       expenseData.paymentProof = proof;
     }
     
-    onAddExpense(expenseData as ProjectExpense);
+    if (existingExpense) {
+      onUpdateExpense(existingExpense.id, {
+        parentId: parentId ?? existingExpense.parentId,
+        date: expenseData.date,
+        description: expenseData.description,
+        entityName: expenseData.entityName,
+        unit: expenseData.unit,
+        quantity: expenseData.quantity,
+        unitPrice: expenseData.unitPrice,
+        amount: expenseData.amount,
+        isPaid: expenseData.isPaid,
+        status: expenseData.status,
+        paymentProof: expenseData.paymentProof ?? existingExpense.paymentProof,
+      });
+    } else {
+      onAddExpense(expenseData as ProjectExpense);
+    }
     
     const updatedPlanning = planningService.updateForecast(planning, forecast.id, { 
       status: 'ordered', 
@@ -181,6 +210,35 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     onUpdatePlanning(updatedPlanning);
     setConfirmingForecast(null);
     setForecastStatusFilter('ordered');
+  };
+
+  const findExpenseForForecast = (forecast: MaterialForecast) => {
+    return project.expenses.find(expense => isExpenseForForecast(expense, forecast));
+  };
+
+  const handleFinalizeDelivery = (forecast: MaterialForecast) => {
+    const deliveryDate = new Date().toISOString().split('T')[0];
+    const linkedExpense = findExpenseForForecast(forecast);
+    if (linkedExpense) {
+      const expenseData = planningService.prepareExpenseFromForecast(
+        forecast,
+        linkedExpense.parentId ?? null,
+        deliveryDate,
+        linkedExpense.isPaid,
+        linkedExpense.id,
+        'delivered'
+      );
+      onUpdateExpense(linkedExpense.id, {
+        status: 'DELIVERED',
+        deliveryDate,
+        description: expenseData.description,
+      });
+    }
+    onUpdatePlanning(planningService.updateForecast(planning, forecast.id, {
+      status: 'delivered',
+      deliveryDate,
+    }));
+    setConfirmingDeliveryForecast(null);
   };
 
   const handleViewProof = (proof: string) => {
@@ -573,7 +631,19 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                           color="amber"
                                           label="Pendente"
                                         />
-                                        <StatusCircle active={f.status === 'ordered'} onClick={() => setConfirmingForecast(f)} icon={<ShoppingCart size={12}/>} color="blue" label="Comprado" />
+                                        <StatusCircle
+                                          active={f.status === 'ordered'}
+                                          onClick={() => {
+                                            if (f.status === 'delivered') {
+                                              toast.warning('No Local nao pode voltar para comprado.');
+                                              return;
+                                            }
+                                            setConfirmingForecast(f);
+                                          }}
+                                          icon={<ShoppingCart size={12}/>}
+                                          color="blue"
+                                          label="Comprado"
+                                        />
                                         <StatusCircle
                                           active={f.status === 'delivered'}
                                           onClick={() => {
@@ -581,10 +651,12 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                               toast.warning('Para marcar como No Local, primeiro registre como Comprado.');
                                               return;
                                             }
-                                            onUpdatePlanning(planningService.updateForecast(planning, f.id, {
-                                              status: 'delivered',
-                                              deliveryDate: new Date().toISOString().split('T')[0]
-                                            }));
+                                            if (!f.isPaid) {
+                                              toast.warning('Para marcar como No Local, primeiro confirme o pagamento.');
+                                              return;
+                                            }
+                                            if (f.status === 'delivered') return;
+                                            setConfirmingDeliveryForecast(f);
                                           }}
                                           icon={<Truck size={12}/>}
                                           color="emerald"
@@ -597,10 +669,16 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                         <button 
                                           onClick={() => {
                                             if (f.status === 'pending') {
+                                              setForcePaidConfirm(false);
                                               setConfirmingForecast(f);
-                                            } else {
-                                              onUpdatePlanning(planningService.updateForecast(planning, f.id, { isPaid: !f.isPaid }));
+                                              return;
                                             }
+                                            if (!f.isPaid) {
+                                              setForcePaidConfirm(true);
+                                              setConfirmingForecast(f);
+                                              return;
+                                            }
+                                            onUpdatePlanning(planningService.updateForecast(planning, f.id, { isPaid: false }));
                                           }}
                                           className={`p-2.5 rounded-full transition-all ${f.isPaid ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 shadow-sm' : 'text-slate-200 hover:text-rose-400 bg-slate-50 dark:bg-slate-800'}`}
                                         >
@@ -785,12 +863,24 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
       {confirmingForecast && (
         <ConfirmForecastModal 
           forecast={confirmingForecast} 
-          onClose={() => setConfirmingForecast(null)} 
-          onConfirm={(isPaid: boolean, parentId: string | null, proof?: string, purchaseDate?: string) => handleFinalizePurchase(confirmingForecast, parentId, isPaid, proof, purchaseDate)}
+          onClose={() => { setConfirmingForecast(null); setForcePaidConfirm(false); }} 
+          onConfirm={(isPaid: boolean, parentId: string | null, proof?: string, purchaseDate?: string) => { handleFinalizePurchase(confirmingForecast, parentId, isPaid, proof, purchaseDate); setForcePaidConfirm(false); }}
           financialCategories={financialCategories}
           toast={toast}
+          forcePaid={forcePaidConfirm}
         />
       )}
+
+      <ConfirmModal
+        isOpen={!!confirmingDeliveryForecast}
+        title="Confirmar entrega"
+        message="Ao marcar como No Local, o status nao podera voltar para Comprado. Deseja continuar?"
+        confirmLabel="Confirmar"
+        cancelLabel="Cancelar"
+        variant="warning"
+        onConfirm={() => confirmingDeliveryForecast && handleFinalizeDelivery(confirmingDeliveryForecast)}
+        onCancel={() => setConfirmingDeliveryForecast(null)}
+      />
     </div>
   );
 };
@@ -1142,12 +1232,18 @@ const MilestoneModal = ({ milestone, onClose, onSave }: any) => {
 };
 
 // --- CONFIRM PURCHASE MODAL ---
-const ConfirmForecastModal = ({ forecast, onClose, onConfirm, financialCategories, toast }: any) => {
+const ConfirmForecastModal = ({ forecast, onClose, onConfirm, financialCategories, toast, forcePaid }: any) => {
   const [parentId, setParentId] = useState<string | null>(null);
   const [purchaseDate, setPurchaseDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [isPaid, setIsPaid] = useState(!!forecast.isPaid);
   const [paymentProof, setPaymentProof] = useState<string | undefined>(forecast.paymentProof);
   const [confirmPaidOpen, setConfirmPaidOpen] = useState(false);
+
+  useEffect(() => {
+    if (forcePaid) {
+      setIsPaid(true);
+    }
+  }, [forcePaid]);
 
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}>
@@ -1189,8 +1285,8 @@ const ConfirmForecastModal = ({ forecast, onClose, onConfirm, financialCategorie
                   </div>
                   <button 
                     type="button" 
-                    onClick={() => setIsPaid(!isPaid)}
-                    className={`w-12 h-6 rounded-full relative transition-all ${isPaid ? 'bg-emerald-500' : 'bg-slate-700'}`}
+                    onClick={() => !forcePaid && setIsPaid(!isPaid)}
+                    className={`w-12 h-6 rounded-full relative transition-all ${isPaid ? 'bg-emerald-500' : 'bg-slate-700'} ${forcePaid ? 'opacity-60 cursor-not-allowed' : ''}`}
                   >
                     <div
                       className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${

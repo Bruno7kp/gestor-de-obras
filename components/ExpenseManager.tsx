@@ -37,6 +37,10 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
   const { canEdit, getLevel } = usePermissions();
   const toast = useToast();
   const canEditFinancial = canEdit('financial_flow') && !isReadOnly;
+  const isSupplyLinkedExpense = (expense: ProjectExpense) =>
+    expense.type === 'material' &&
+    expense.itemType === 'item' &&
+    /^Pedido (Pendente|Pago|Entregue): /.test(expense.description);
 
   const expenseTabs: Array<ExpenseType | 'overview'> = ['overview', 'revenue', 'material', 'labor'];
   const expenseTabKey = `exp_fin_tab_${project.id}`;
@@ -289,7 +293,12 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
             onUpdateUnitPrice={(id, price) => onUpdate(id, { unitPrice: price })}
             onTogglePaid={id => {
               const exp = expenses.find(e => e.id === id);
-              if (exp) onUpdate(id, { isPaid: !exp.isPaid, status: !exp.isPaid ? 'PAID' : 'PENDING' });
+              if (!exp) return;
+              if (isSupplyLinkedExpense(exp)) {
+                toast.warning('Status controlado por suprimentos.');
+                return;
+              }
+              onUpdate(id, { isPaid: !exp.isPaid, status: !exp.isPaid ? 'PAID' : 'PENDING' });
             }}
             onReorder={(src, tgt, pos) => onUpdateExpenses(treeService.reorderItems(expenses, src, tgt, pos))}
             onMoveManual={(id, dir) => onUpdateExpenses(treeService.moveInSiblings(expenses, id, dir))}

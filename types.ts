@@ -166,6 +166,8 @@ export interface ProjectExpense {
   deliveryDate?: string;
   discountValue?: number;
   discountPercentage?: number;
+  issValue?: number;
+  issPercentage?: number;
   linkedWorkItemId?: string;
   children?: ProjectExpense[];
 }
@@ -198,6 +200,7 @@ export interface MaterialForecast {
   isCleared: boolean;
   order: number;
   supplierId?: string;
+  categoryId?: string;
   paymentProof?: string; // URL do comprovante de pagamento
 }
 

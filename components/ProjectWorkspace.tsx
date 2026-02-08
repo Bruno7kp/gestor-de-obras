@@ -795,6 +795,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
               suppliers={effectiveSuppliers}
               onUpdatePlanning={handleUpdatePlanning}
               onAddExpense={handleExpenseAdd}
+              onUpdateExpense={handleExpenseUpdate}
               categories={displayData.items.filter(i => i.type === 'category')}
               allWorkItems={displayData.items}
               viewMode="supplies"
@@ -814,6 +815,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
               suppliers={effectiveSuppliers}
               onUpdatePlanning={handleUpdatePlanning}
               onAddExpense={handleExpenseAdd}
+              onUpdateExpense={handleExpenseUpdate}
               categories={displayData.items.filter(i => i.type === 'category')}
               allWorkItems={displayData.items}
             />

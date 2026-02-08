@@ -168,6 +168,11 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
 
   if (!isOpen) return null;
   const isCategory = activeItemType === 'category';
+  const isSupplyLinked =
+    formData.type === 'material' &&
+    formData.itemType === 'item' &&
+    typeof formData.description === 'string' &&
+    /^Pedido (Pendente|Pago|Entregue): /.test(formData.description);
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
@@ -224,11 +229,17 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                         className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-black uppercase outline-none focus:border-indigo-500 transition-all"
                         value={formData.status}
                         onChange={e => setFormData(prev => ({ ...prev, status: e.target.value as ExpenseStatus }))}
+                        disabled={isSupplyLinked}
                       >
                         <option value="PENDING">Pendente</option>
                         {!isRevenue && <option value="PAID">Pago / Liquidado</option>}
                         {!isLabor && <option value="DELIVERED">{isRevenue ? 'Faturado/Recebido' : 'Entregue no Local'}</option>}
                       </select>
+                      {isSupplyLinked && (
+                        <p className="mt-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                          Status controlado por suprimentos.
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
