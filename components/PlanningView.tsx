@@ -762,10 +762,10 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
       {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO */}
       {isDeletingForecast && (
         <div className="fixed inset-0 z-[2100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setIsDeletingForecast(null)}>
-          <div className="bg-white dark:bg-[#0f111a] w-full max-w-md rounded-[3rem] p-12 shadow-2xl border border-slate-200 dark:border-slate-800/50 flex flex-col items-center text-center relative overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-[#0f111a] w-full max-w-md rounded-[3rem] p-12 shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col items-center text-center relative overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-rose-500/10 blur-[100px] pointer-events-none"></div>
             <div className="relative mb-10">
-              <div className="w-24 h-24 bg-slate-100 dark:bg-slate-800/40 rounded-full flex items-center justify-center border border-slate-200 dark:border-slate-700/50">
+              <div className="w-24 h-24 bg-slate-100 dark:bg-slate-800/40 rounded-full flex items-center justify-center border border-slate-200 dark:border-slate-700">
                  <Trash2 size={36} className="text-rose-500" />
               </div>
             </div>
@@ -894,11 +894,11 @@ const ClearanceModal = ({ forecast, currentInvoiceDoc, onClose, onConfirm }: any
 
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}>
-      <div className="bg-white dark:bg-[#0f111a] w-full max-w-xl rounded-[3rem] p-8 border border-slate-200 dark:border-slate-800/50 shadow-2xl flex flex-col items-center relative overflow-hidden text-center" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-[#0f111a] w-full max-w-xl rounded-[3rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col items-center relative overflow-hidden text-center" onClick={e => e.stopPropagation()}>
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-emerald-500/10 blur-[100px] pointer-events-none"></div>
 
         <div className="relative mb-6">
-           <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800/40 rounded-full flex items-center justify-center border border-slate-200 dark:border-slate-700/50">
+           <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800/40 rounded-full flex items-center justify-center border border-slate-200 dark:border-slate-700">
               <FileCheck size={28} className="text-emerald-500" />
            </div>
         </div>
@@ -975,12 +975,12 @@ const ForecastModal = ({ onClose, onSave, allWorkItems, suppliers, editingItem }
 
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}>
-      <div className="bg-white dark:bg-[#0f111a] w-full max-w-2xl rounded-[3rem] border border-slate-200 dark:border-slate-800/50 shadow-2xl flex flex-col overflow-hidden max-h-[95vh] relative" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-[#0f111a] w-full max-w-2xl rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden max-h-[95vh] relative" onClick={e => e.stopPropagation()}>
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-indigo-500/5 blur-[120px] pointer-events-none"></div>
         
         <div className="p-10 pb-6 shrink-0 flex items-center justify-between z-10">
           <div className="flex items-center gap-5">
-             <div className="p-4 bg-slate-100 dark:bg-slate-800/60 rounded-3xl border border-slate-200 dark:border-slate-700/50 text-indigo-500 shadow-xl">
+             <div className="p-4 bg-slate-100 dark:bg-slate-800/60 rounded-3xl border border-slate-200 dark:border-slate-700 text-indigo-500 shadow-xl">
                 <Boxes size={28}/>
              </div>
              <div>
@@ -1072,7 +1072,7 @@ const ForecastModal = ({ onClose, onSave, allWorkItems, suppliers, editingItem }
 
         </div>
 
-        <div className="p-10 pt-4 border-t border-slate-200 dark:border-slate-800/50 flex items-center gap-6 shrink-0 z-10 bg-slate-50 dark:bg-[#0f111a]/80 backdrop-blur-sm">
+        <div className="p-10 pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center gap-6 shrink-0 z-10 bg-slate-50 dark:bg-[#0f111a]/80 backdrop-blur-sm">
            <button 
             onClick={onClose} 
             className="flex-1 py-5 text-slate-500 dark:text-slate-500 font-black uppercase text-xs tracking-widest hover:text-slate-800 dark:hover:text-white transition-colors"
@@ -1296,11 +1296,11 @@ const ConfirmForecastModal = ({ forecast, onClose, onConfirm, financialCategorie
 
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}>
-      <div className="bg-white dark:bg-[#0f111a] w-full max-w-2xl rounded-[3rem] p-8 border border-slate-200 dark:border-slate-800/50 shadow-2xl flex flex-col items-center relative overflow-hidden text-center max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-[#0f111a] w-full max-w-2xl rounded-[3rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col items-center relative overflow-hidden text-center max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-indigo-500/10 blur-[100px] pointer-events-none"></div>
         
         <div className="relative mb-8">
-           <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800/40 rounded-full flex items-center justify-center border border-slate-200 dark:border-slate-700/50">
+           <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800/40 rounded-full flex items-center justify-center border border-slate-200 dark:border-slate-700">
               <Wallet size={32} className="text-indigo-500" />
            </div>
         </div>

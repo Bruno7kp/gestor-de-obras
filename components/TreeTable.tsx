@@ -416,13 +416,13 @@ export const TreeTable: React.FC<TreeTableProps> = ({
             </Droppable>
 
             <tfoot className="bg-slate-950 dark:bg-black text-white font-black text-xs sticky bottom-0 z-40 shadow-2xl">
-              <tr className="border-t border-white/20">
-                <td colSpan={calculateConsolidatedColSpan() + 1} className="p-5 text-right uppercase tracking-[0.2em] text-[10px] border-r border-white/10">Consolidado Total da Planilha:</td>
+              <tr className="border-t border-slate-800 dark:border-slate-900">
+                <td colSpan={calculateConsolidatedColSpan() + 1} className="p-5 text-right uppercase tracking-[0.2em] text-[10px] border-r border-slate-800 dark:border-slate-900">Consolidado Total da Planilha:</td>
                 
-                {showUnitary && <td colSpan={2} className="p-4 border-r border-white/10 opacity-30 italic text-[8px] text-center">Médias Unitárias</td>}
+                {showUnitary && <td colSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 opacity-30 italic text-[8px] text-center">Médias Unitárias</td>}
                 
                 {showContract && (
-                  <td className="p-4 border-r border-white/10 text-right text-base tracking-tighter whitespace-nowrap">
+                  <td className="p-4 border-r border-slate-800 dark:border-slate-900 text-right text-base tracking-tighter whitespace-nowrap">
                     <div className="flex items-center justify-end gap-1">
                       <span className="text-[10px] text-slate-400 font-black">{currencySymbol}</span>
                       <GrandTotalInput 
@@ -435,15 +435,15 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                 )}
 
                 {showPrevious && (
-                  <td colSpan={2} className="p-4 border-r border-white/10 text-right opacity-50 whitespace-nowrap">
+                  <td colSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 text-right opacity-50 whitespace-nowrap">
                     {financial.formatVisual(financial.sum(rootItems.map(i => i.previousTotal)), currencySymbol)}
                   </td>
                 )}
 
                 {showCurrent && (
                   <>
-                    <td colSpan={2} className="p-4 border-r border-white/10"></td>
-                    <td className="p-4 border-r border-white/10 text-right text-blue-400 text-base tracking-tighter whitespace-nowrap">
+                    <td colSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900"></td>
+                    <td className="p-4 border-r border-slate-800 dark:border-slate-900 text-right text-blue-400 text-base tracking-tighter whitespace-nowrap">
                        <div className="flex items-center justify-end gap-1">
                         <span className="text-[10px] text-blue-500 font-black">{currencySymbol}</span>
                         <GrandTotalInput 
@@ -459,18 +459,18 @@ export const TreeTable: React.FC<TreeTableProps> = ({
 
                 {showAccumulated && (
                   <>
-                    <td className="p-4 border-r border-white/10"></td>
-                    <td className="p-4 border-r border-white/10 text-right text-emerald-400 text-base tracking-tighter whitespace-nowrap">
+                    <td className="p-4 border-r border-slate-800 dark:border-slate-900"></td>
+                    <td className="p-4 border-r border-slate-800 dark:border-slate-900 text-right text-emerald-400 text-base tracking-tighter whitespace-nowrap">
                       {financial.formatVisual(financial.sum(rootItems.map(i => i.accumulatedTotal)), currencySymbol)}
                     </td>
-                    <td className="p-4 border-r border-white/10"></td>
+                    <td className="p-4 border-r border-slate-800 dark:border-slate-900"></td>
                   </>
                 )}
 
                 {showBalance && (
                   <>
-                    <td className="p-4 border-r border-white/10"></td>
-                    <td className="p-4 border-r border-white/10 text-right text-rose-400 text-base tracking-tighter whitespace-nowrap">
+                    <td className="p-4 border-r border-slate-800 dark:border-slate-900"></td>
+                    <td className="p-4 border-r border-slate-800 dark:border-slate-900 text-right text-rose-400 text-base tracking-tighter whitespace-nowrap">
                       {financial.formatVisual(financial.sum(rootItems.map(i => i.balanceTotal)), currencySymbol)}
                     </td>
                   </>

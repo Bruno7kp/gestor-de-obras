@@ -46,22 +46,22 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
   const totalConsolidado = financial.sum(data.filter(i => i.depth === 0).map(i => i.amount));
 
   return (
-    <div className={`overflow-x-auto border rounded-3xl bg-white dark:bg-slate-900 shadow-xl transition-colors ${isRevenueTable ? 'border-emerald-100 dark:border-emerald-900/40' : 'border-slate-200 dark:border-slate-800'}`}>
+    <div className={`overflow-x-auto border rounded-3xl bg-white dark:bg-slate-900 shadow-xl transition-colors ${isRevenueTable ? 'border-emerald-100 dark:border-emerald-900' : 'border-slate-200 dark:border-slate-800'}`}>
       <DragDropContext onDragEnd={handleDragEnd}>
         <table className="min-w-full border-collapse text-[11px]">
           <thead className={`${isRevenueTable ? 'bg-emerald-950 dark:bg-emerald-900/20' : 'bg-slate-900 dark:bg-black'} text-white sticky top-0 z-20`}>
             <tr className="uppercase tracking-widest font-black text-[9px] opacity-80">
-              <th className="p-4 border-r border-white/5 w-12 text-center"></th>
-              <th className="p-4 border-r border-white/5 w-16 text-center">Item</th>
-              <th className="p-4 border-r border-white/5 w-20 text-center">Status</th>
-              <th className="p-4 border-r border-white/5 w-36 text-center">Ações</th>
-              <th className="p-4 border-r border-white/5 text-left min-w-[300px]">Descrição / Fornecedor</th>
-              <th className="p-4 border-r border-white/5 w-44 text-left">Datas</th>
-              <th className="p-4 border-r border-white/5 w-16 text-center">Und</th>
-              <th className="p-4 border-r border-white/5 w-20 text-center">Qtd</th>
-              <th className="p-4 border-r border-white/5 w-32 text-right">Unitário</th>
-              <th className="p-4 border-r border-white/5 w-28 text-right">Desconto</th>
-              <th className="p-4 border-r border-white/5 w-28 text-right">ISS</th>
+              <th className="p-4 border-r border-slate-800 w-12 text-center"></th>
+              <th className="p-4 border-r border-slate-800 w-16 text-center">Item</th>
+              <th className="p-4 border-r border-slate-800 w-20 text-center">Status</th>
+              <th className="p-4 border-r border-slate-800 w-36 text-center">Ações</th>
+              <th className="p-4 border-r border-slate-800 text-left min-w-[300px]">Descrição / Fornecedor</th>
+              <th className="p-4 border-r border-slate-800 w-44 text-left">Datas</th>
+              <th className="p-4 border-r border-slate-800 w-16 text-center">Und</th>
+              <th className="p-4 border-r border-slate-800 w-20 text-center">Qtd</th>
+              <th className="p-4 border-r border-slate-800 w-32 text-right">Unitário</th>
+              <th className="p-4 border-r border-slate-800 w-28 text-right">Desconto</th>
+              <th className="p-4 border-r border-slate-800 w-28 text-right">ISS</th>
               <th className="p-4 w-32 text-right">Total</th>
             </tr>
           </thead>
@@ -175,8 +175,8 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
             )}
           </Droppable>
           <tfoot className="bg-slate-900 dark:bg-black text-white font-black text-xs sticky bottom-0 z-20 shadow-2xl">
-            <tr className="border-t border-white/20">
-              <td colSpan={11} className="p-4 text-right uppercase tracking-[0.2em] text-[9px] border-r border-white/10 opacity-70">
+            <tr className="border-t border-slate-700">
+              <td colSpan={11} className="p-4 text-right uppercase tracking-[0.2em] text-[9px] border-r border-slate-800 opacity-70">
                 Total Consolidado da Tabela:
               </td>
               <td className="p-4 text-right text-sm tracking-tighter whitespace-nowrap">

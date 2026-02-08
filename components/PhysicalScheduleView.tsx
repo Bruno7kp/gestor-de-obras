@@ -132,10 +132,10 @@ export const PhysicalScheduleView: React.FC<PhysicalScheduleViewProps> = ({ proj
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-slate-900 text-white text-[9px] font-black uppercase tracking-widest">
-                <th className="sticky left-0 z-30 bg-slate-900 p-4 text-left border-r border-white/5 min-w-[300px]">Estrutura do Projeto (EAP)</th>
-                <th className="p-4 text-right border-r border-white/5 min-w-[120px]">Valor Total</th>
+                <th className="sticky left-0 z-30 bg-slate-900 p-4 text-left border-r border-slate-800 min-w-[300px]">Estrutura do Projeto (EAP)</th>
+                <th className="p-4 text-right border-r border-slate-800 min-w-[120px]">Valor Total</th>
                 {periods.map(p => (
-                  <th key={p} className="p-4 text-center min-w-[100px] border-r border-white/5 bg-slate-800">
+                  <th key={p} className="p-4 text-center min-w-[100px] border-r border-slate-800 bg-slate-800">
                     {formatPeriodLabel(p)}
                   </th>
                 ))}
@@ -203,7 +203,7 @@ export const PhysicalScheduleView: React.FC<PhysicalScheduleViewProps> = ({ proj
                <tr>
                   <td colSpan={2} className="sticky left-0 z-20 bg-slate-50 dark:bg-slate-800 p-4 text-right uppercase tracking-widest text-slate-400">Acumulado Previsto (Curva S)</td>
                   {periods.map(p => (
-                    <td key={p} className="p-4 text-center bg-indigo-600 text-white border-r border-white/10">
+                    <td key={p} className="p-4 text-center bg-indigo-600 text-white border-r border-indigo-500">
                        {financial.formatVisual(accumulatedTotals[p], 'R$')}
                     </td>
                   ))}

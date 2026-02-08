@@ -285,11 +285,11 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                         <div className="col-span-2 grid grid-cols-2 gap-6">
                           <div>
                             <label className="text-[9px] font-black text-rose-500 uppercase mb-2 block text-center">Desconto (%)</label>
-                            <input inputMode="decimal" className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-900/30 text-xs font-black text-right text-rose-600 outline-none" value={strDiscountPercent} onChange={e => handleNumericChange(e.target.value, setStrDiscountPercent, 'discountPct')} />
+                            <input inputMode="decimal" className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-900 text-xs font-black text-right text-rose-600 outline-none" value={strDiscountPercent} onChange={e => handleNumericChange(e.target.value, setStrDiscountPercent, 'discountPct')} />
                           </div>
                           <div>
                             <label className="text-[9px] font-black text-rose-500 uppercase mb-2 block text-center">Desconto (R$)</label>
-                            <input inputMode="decimal" className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-900/30 text-xs font-black text-right text-rose-600 outline-none" value={strDiscountValue} onChange={e => handleNumericChange(e.target.value, setStrDiscountValue, 'discountVal')} />
+                            <input inputMode="decimal" className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-900 text-xs font-black text-right text-rose-600 outline-none" value={strDiscountValue} onChange={e => handleNumericChange(e.target.value, setStrDiscountValue, 'discountVal')} />
                           </div>
                         </div>
 
@@ -297,11 +297,11 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                           <div className="col-span-2 grid grid-cols-2 gap-6 pt-4 border-t border-slate-100 dark:border-slate-800">
                             <div>
                               <label className="text-[9px] font-black text-rose-600 uppercase mb-2 block text-center">ISS (%)</label>
-                              <input inputMode="decimal" className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-900/30 text-xs font-black text-right text-rose-600 outline-none" value={strIssPercent} onChange={e => handleNumericChange(e.target.value, setStrIssPercent, 'issPct')} />
+                              <input inputMode="decimal" className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-900 text-xs font-black text-right text-rose-600 outline-none" value={strIssPercent} onChange={e => handleNumericChange(e.target.value, setStrIssPercent, 'issPct')} />
                             </div>
                             <div>
                               <label className="text-[9px] font-black text-rose-600 uppercase mb-2 block text-center">ISS (R$)</label>
-                              <input inputMode="decimal" className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-900/30 text-xs font-black text-right text-rose-600 outline-none" value={strIssValue} onChange={e => handleNumericChange(e.target.value, setStrIssValue, 'issVal')} />
+                              <input inputMode="decimal" className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-900 text-xs font-black text-right text-rose-600 outline-none" value={strIssValue} onChange={e => handleNumericChange(e.target.value, setStrIssValue, 'issVal')} />
                             </div>
                           </div>
                         )}

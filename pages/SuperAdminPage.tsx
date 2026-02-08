@@ -657,7 +657,7 @@ export const SuperAdminPage: React.FC = () => {
               <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
                 Tem certeza que deseja deletar a instância <span className="font-semibold">'{instanceToDelete.name}'</span>?
               </p>
-              <div className="rounded-2xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 p-3 mb-4">
+              <div className="rounded-2xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3 mb-4">
                 <p className="text-xs text-red-700 dark:text-red-300">
                   ⚠️ Esta ação é irreversível. Todos os dados associados a esta instância serão permanentemente deletados.
                 </p>

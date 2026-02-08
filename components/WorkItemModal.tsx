@@ -201,7 +201,7 @@ export const WorkItemModal: React.FC<WorkItemModalProps> = ({
                         <label className="text-[9px] font-black text-emerald-600 dark:text-emerald-500 uppercase mb-2 block tracking-widest">P. Unit C/ BDI</label>
                         <div className="relative">
                           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-emerald-500/50">R$</span>
-                          <input type="text" inputMode="decimal" className="w-full pl-10 pr-4 py-3.5 rounded-xl border-2 border-emerald-100 dark:border-emerald-900/20 bg-emerald-50/30 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 text-xs font-black text-right outline-none focus:border-emerald-500 transition-all shadow-inner" value={strPriceWithBdi} onChange={e => handleNumericChange(setStrPriceWithBdi, e.target.value, 'priceWithBdi')} />
+                          <input type="text" inputMode="decimal" className="w-full pl-10 pr-4 py-3.5 rounded-xl border-2 border-emerald-100 dark:border-emerald-900 bg-emerald-50/30 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 text-xs font-black text-right outline-none focus:border-emerald-500 transition-all shadow-inner" value={strPriceWithBdi} onChange={e => handleNumericChange(setStrPriceWithBdi, e.target.value, 'priceWithBdi')} />
                         </div>
                       </div>
                     </div>

@@ -65,7 +65,7 @@ export const CostLinkingView: React.FC<CostLinkingViewProps> = ({ project, onUpd
           </div>
         </div>
         <div className="flex gap-4">
-           <div className="bg-white/10 p-4 rounded-2xl backdrop-blur-md border border-white/20">
+           <div className="bg-white/10 p-4 rounded-2xl backdrop-blur-md border border-white">
              <p className="text-[10px] font-black uppercase opacity-60">Despesas sem Vínculo</p>
              <p className="text-2xl font-black">{unlinkedExpenses.length}</p>
            </div>
@@ -94,7 +94,7 @@ export const CostLinkingView: React.FC<CostLinkingViewProps> = ({ project, onUpd
 
            <div className="space-y-4">
               {analysis.map(item => (
-                <div key={item.id} className={`bg-white dark:bg-slate-900 p-6 rounded-[2rem] border transition-all hover:shadow-xl ${item.status === 'alert' ? 'border-rose-200 dark:border-rose-900/40' : 'border-slate-100 dark:border-slate-800'}`}>
+                <div key={item.id} className={`bg-white dark:bg-slate-900 p-6 rounded-[2rem] border transition-all hover:shadow-xl ${item.status === 'alert' ? 'border-rose-200 dark:border-rose-900' : 'border-slate-100 dark:border-slate-800'}`}>
                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                       <div className="flex items-start gap-4">
                          <div className={`p-3 rounded-2xl shrink-0 ${item.status === 'alert' ? 'bg-rose-50 text-rose-500' : 'bg-indigo-50 text-indigo-500'}`}><Layers size={20}/></div>
@@ -185,7 +185,7 @@ export const CostLinkingView: React.FC<CostLinkingViewProps> = ({ project, onUpd
               </div>
            </div>
 
-           <div className="p-6 bg-indigo-50 dark:bg-indigo-900/10 rounded-[2rem] border border-indigo-100 dark:border-indigo-900/40">
+           <div className="p-6 bg-indigo-50 dark:bg-indigo-900/10 rounded-[2rem] border border-indigo-100 dark:border-indigo-900">
               <p className="text-[10px] text-indigo-600 font-bold leading-relaxed">
                 <strong>Dica:</strong> Vincule notas fiscais e recibos de mão de obra aos itens da planilha para ter o lucro real exato de cada etapa da obra.
               </p>

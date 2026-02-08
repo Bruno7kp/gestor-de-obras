@@ -33,7 +33,7 @@ export const LandingPage: React.FC = () => {
 
         <section className="relative z-10 mx-auto grid max-w-6xl gap-10 px-6 pb-16 pt-10 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="space-y-8">
-            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-4 py-2 text-[11px] font-black uppercase tracking-[0.3em] text-indigo-600 dark:border-indigo-900/40 dark:bg-indigo-950/40 dark:text-indigo-300">
+            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-4 py-2 text-[11px] font-black uppercase tracking-[0.3em] text-indigo-600 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-300">
               Novo fluxo SaaS
             </div>
             <h1 className="text-4xl font-display font-semibold leading-tight md:text-5xl">
@@ -85,7 +85,7 @@ export const LandingPage: React.FC = () => {
                   </div>
                 ))}
               </div>
-              <div className="rounded-3xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-700 dark:border-indigo-900/40 dark:bg-indigo-950/30 dark:text-indigo-200">
+              <div className="rounded-3xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950/30 dark:text-indigo-200">
                 Entrega imediata: configure sua instância, importe seus dados e siga para a operação.
               </div>
             </div>

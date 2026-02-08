@@ -323,14 +323,15 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         console.error('Erro ao salvar item:', error);
       }
     } else {
+      const resolvedType = (data.type || modalType) as WorkItem['type'];
       const newItem: WorkItem = {
         id: crypto.randomUUID(),
         parentId: targetParentId,
         name: data.name || '',
-        type: modalType,
+        type: resolvedType,
         wbs: '',
         order: project.items.length,
-        unit: data.unit || 'un',
+        unit: resolvedType === 'category' ? '' : (data.unit || 'un'),
         cod: data.cod,
         fonte: data.fonte,
         contractQuantity: data.contractQuantity || 0,
@@ -859,10 +860,10 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
       {isClosingModalOpen && (
         <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setIsClosingModalOpen(false)}>
-          <div className="bg-white dark:bg-[#0f111a] w-full max-w-lg rounded-[3rem] p-12 shadow-2xl border border-slate-200 dark:border-slate-800/50 flex flex-col items-center text-center relative overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-[#0f111a] w-full max-w-lg rounded-[3rem] p-12 shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col items-center text-center relative overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-indigo-500/10 blur-[100px] pointer-events-none"></div>
             <div className="relative mb-10">
-              <div className="w-24 h-24 bg-slate-100 dark:bg-slate-800/40 rounded-full flex items-center justify-center border border-slate-200 dark:border-slate-700/50">
+              <div className="w-24 h-24 bg-slate-100 dark:bg-slate-800/40 rounded-full flex items-center justify-center border border-slate-200 dark:border-slate-700">
                 <Lock size={36} className="text-indigo-500" />
               </div>
             </div>
@@ -885,10 +886,10 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
       {isReopenModalOpen && (
         <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setIsReopenModalOpen(false)}>
-          <div className="bg-white dark:bg-[#0f111a] w-full max-w-lg rounded-[3rem] p-12 shadow-2xl border border-slate-200 dark:border-slate-800/50 flex flex-col items-center text-center relative overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-[#0f111a] w-full max-w-lg rounded-[3rem] p-12 shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col items-center text-center relative overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-rose-500/10 blur-[100px] pointer-events-none"></div>
             <div className="relative mb-10">
-              <div className="w-24 h-24 bg-slate-100 dark:bg-slate-800/40 rounded-full flex items-center justify-center border border-slate-200 dark:border-slate-700/50">
+              <div className="w-24 h-24 bg-slate-100 dark:bg-slate-800/40 rounded-full flex items-center justify-center border border-slate-200 dark:border-slate-700">
                 <RefreshCw size={36} className="text-rose-500" />
               </div>
             </div>
