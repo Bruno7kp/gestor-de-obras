@@ -21,8 +21,9 @@ interface JournalViewProps {
 }
 
 export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJournal, allWorkItems }) => {
-  const { canEdit, getLevel } = usePermissions();
+  const { canEdit, getLevel, loading: permissionsLoading } = usePermissions();
   const canEditJournal = canEdit('journal');
+  const showReadOnlyBanner = !permissionsLoading && !canEditJournal;
   const toast = useToast();
 
   const journalFilterKey = `journal_filter_${project.id}`;
@@ -163,7 +164,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
   return (
     <div className="space-y-8 max-w-4xl mx-auto pb-20 animate-in fade-in slide-in-from-bottom-4 duration-700">
       
-      {!canEditJournal && (
+      {showReadOnlyBanner && (
         <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-3">
           <Lock size={18} className="text-amber-600 flex-shrink-0" />
           <span className="text-amber-800">Você tem apenas permissão de leitura. Para editar diário, solicite acesso ao administrador.</span>
