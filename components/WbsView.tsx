@@ -456,7 +456,7 @@ export const WbsView: React.FC<WbsViewProps> = ({
             title="Gerar PDF da Planilha"
           >
             <Printer size={16}/>
-            <span className="text-[9px] font-black uppercase tracking-widest pr-1 hidden sm:inline">Imprimir Relatório</span>
+            <span className="text-[9px] font-black uppercase tracking-widest pr-1 hidden sm:inline">PDF</span>
           </button>
         </div>
 

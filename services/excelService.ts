@@ -61,11 +61,11 @@ export const excelService = {
     const wb = XLSX.utils.book_new();
     const data = [
       WBS_HEADERS,
-      ["1", "category", "INFRA", "1. INFRAESTRUTURA", "", "", "", "Próprio", "", ""],
-      ["1.1", "category", "MOV-TERRA", "1.1 Movimentação de Terra", "", "", "", "Próprio", "", ""],
+      ["1", "category", "INFRA", "1. INFRAESTRUTURA", "", "", "", "", "", ""],
+      ["1.1", "category", "MOV-TERRA", "1.1 Movimentação de Terra", "", "", "", "", "", ""],
       ["1.1.1", "item", "SIN-93358", "Escavação manual de valas", "m3", "150", "45.50", "SINAPI", "20", "15.5"],
       ["1.1.2", "item", "SIN-93359", "Carga e descarga de terra", "m3", "150", "12.30", "SINAPI", "0", "50"],
-      ["2", "category", "ALVENARIA", "2. ALVENARIA E VEDAÇÃO", "", "", "", "Próprio", "", ""],
+      ["2", "category", "ALVENARIA", "2. ALVENARIA E VEDAÇÃO", "", "", "", "", "", ""],
       ["2.1", "item", "PR-01", "Alvenaria de bloco cerâmico 14cm", "m2", "300", "85.90", "Próprio", "100", "50"],
     ];
     const ws = XLSX.utils.aoa_to_sheet(data);
@@ -216,7 +216,7 @@ export const excelService = {
             const type = (String(row[1] || "").toLowerCase() === 'category' ? 'category' : 'item') as ItemType;
             const qty = parseVal(row[5]);
             const priceNoBdi = parseVal(row[6]);
-            const fonte = row[7] ? String(row[7]).trim() : "Próprio";
+            const fonte = type === 'item' ? (row[7] ? String(row[7]).trim() : "Próprio") : "";
             const prevQty = type === 'item' ? parseVal(row[8]) : 0;
             const currentQty = type === 'item' ? parseVal(row[9]) : 0;
             const item: WorkItem = {

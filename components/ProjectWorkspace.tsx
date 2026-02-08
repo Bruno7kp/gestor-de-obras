@@ -326,7 +326,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
       const resolvedType = (data.type || modalType) as WorkItem['type'];
       const newItem: WorkItem = {
         id: crypto.randomUUID(),
-        parentId: targetParentId,
+        parentId: data.parentId ?? targetParentId,
         name: data.name || '',
         type: resolvedType,
         wbs: '',
@@ -856,7 +856,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         )}
       </div>
 
-      <WorkItemModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSaveWorkItem} editingItem={editingItem} type={modalType} categories={treeService.flattenTree(treeService.buildTree(displayData.items.filter(i => i.type === 'category')), new Set(displayData.items.map(i => i.id)))} projectBdi={project.bdi} />
+      <WorkItemModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSaveWorkItem} editingItem={editingItem} type={modalType} initialParentId={targetParentId} categories={treeService.flattenTree(treeService.buildTree(displayData.items.filter(i => i.type === 'category')), new Set(displayData.items.map(i => i.id)))} projectBdi={project.bdi} />
 
       {isClosingModalOpen && (
         <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setIsClosingModalOpen(false)}>

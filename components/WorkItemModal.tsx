@@ -27,12 +27,13 @@ interface WorkItemModalProps {
   onSave: (data: Partial<WorkItem>) => void;
   editingItem: WorkItem | null;
   type: ItemType;
+  initialParentId: string | null;
   categories: (WorkItem & { depth: number })[];
   projectBdi: number;
 }
 
 export const WorkItemModal: React.FC<WorkItemModalProps> = ({
-  isOpen, onClose, onSave, editingItem, type: initialType, categories, projectBdi
+  isOpen, onClose, onSave, editingItem, type: initialType, initialParentId, categories, projectBdi
 }) => {
   const [activeType, setActiveType] = useState<ItemType>(initialType);
   const [formData, setFormData] = useState<Partial<WorkItem>>({
@@ -55,12 +56,12 @@ export const WorkItemModal: React.FC<WorkItemModalProps> = ({
       setStrTotalWithBdi(financial.formatVisual(editingItem.contractTotal || 0, '').trim());
     } else {
       // Ajustado para começar com fonte vazia
-      setFormData({ name: '', parentId: null, unit: initialType === 'item' ? 'un' : '', contractQuantity: 0, unitPrice: 0, unitPriceNoBdi: 0, cod: '', fonte: '' });
+      setFormData({ name: '', parentId: initialParentId ?? null, unit: initialType === 'item' ? 'un' : '', contractQuantity: 0, unitPrice: 0, unitPriceNoBdi: 0, cod: '', fonte: '' });
       setActiveType(initialType);
       setStrQty('0,00'); setStrPriceNoBdi('0,00'); setStrPriceWithBdi('0,00'); setStrTotalWithBdi('0,00');
     }
     setErrors({});
-  }, [editingItem, initialType, isOpen]);
+  }, [editingItem, initialType, initialParentId, isOpen]);
 
   const handleNumericChange = (setter: (v: string) => void, val: string, field: 'qty' | 'priceNoBdi' | 'priceWithBdi' | 'totalWithBdi') => {
     const masked = financial.maskCurrency(val);
@@ -98,6 +99,8 @@ export const WorkItemModal: React.FC<WorkItemModalProps> = ({
     const finalData = {
       ...formData,
       type: activeType,
+      cod: activeType === 'category' ? '' : (formData.cod || ''),
+      fonte: activeType === 'category' ? '' : (formData.fonte || ''),
       contractQuantity: financial.parseLocaleNumber(strQty),
       unitPriceNoBdi: financial.parseLocaleNumber(strPriceNoBdi),
       unitPrice: financial.parseLocaleNumber(strPriceWithBdi)
@@ -159,16 +162,18 @@ export const WorkItemModal: React.FC<WorkItemModalProps> = ({
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase mb-2 block tracking-widest">Cód. Interno</label>
-                    <input className="w-full px-4 py-3.5 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white text-xs font-bold outline-none focus:border-indigo-500 transition-all" value={formData.cod} onChange={e => setFormData({...formData, cod: e.target.value})} placeholder="SINAPI..." />
+                {!isCategory && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase mb-2 block tracking-widest">Cód. Interno</label>
+                      <input className="w-full px-4 py-3.5 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white text-xs font-bold outline-none focus:border-indigo-500 transition-all" value={formData.cod || ''} onChange={e => setFormData({...formData, cod: e.target.value})} placeholder="SINAPI..." />
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase mb-2 block tracking-widest">Fonte</label>
+                      <input className="w-full px-4 py-3.5 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white text-xs font-bold outline-none focus:border-indigo-500 transition-all" value={formData.fonte || ''} onChange={e => setFormData({...formData, fonte: e.target.value})} placeholder="Ex: Autônomo" />
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase mb-2 block tracking-widest">Fonte</label>
-                    <input className="w-full px-4 py-3.5 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white text-xs font-bold outline-none focus:border-indigo-500 transition-all" value={formData.fonte} onChange={e => setFormData({...formData, fonte: e.target.value})} placeholder="Ex: Autônomo" />
-                  </div>
-                </div>
+                )}
               </div>
 
               <div>
