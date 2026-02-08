@@ -559,7 +559,12 @@ const ItemTotalInput = ({ value, onUpdate, disabled, currencySymbol, textColorCl
       className={`w-full bg-transparent text-right font-bold ${textColorClass} outline-none focus:ring-1 focus:ring-indigo-500 rounded px-1 ${disabled ? 'opacity-50' : ''}`} 
       value={localVal}
       onChange={(e) => setLocalVal(financial.maskCurrency(e.target.value))}
-      onBlur={(e) => onUpdate(financial.parseLocaleNumber(e.target.value))}
+      onBlur={(e) => {
+        const parsed = financial.parseLocaleNumber(e.target.value);
+        if (!Number.isFinite(parsed)) return;
+        if (Math.abs(parsed - value) < 0.01) return;
+        onUpdate(parsed);
+      }}
     />
   );
 };
