@@ -911,36 +911,6 @@ const ForecastModal = ({ onClose, onSave, allWorkItems, suppliers, editingItem }
               </div>
            </div>
 
-           <div className="flex flex-col sm:flex-row items-center justify-between p-8 bg-slate-50 dark:bg-slate-900/50 rounded-3xl border border-slate-200 dark:border-slate-800 gap-6">
-              <div className="flex items-center gap-4">
-                 <div className={`p-4 rounded-2xl ${data.isPaid ? 'bg-emerald-500/20 text-emerald-500' : 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-500'} transition-colors shadow-lg`}>
-                    <CreditCard size={24}/>
-                 </div>
-                 <div>
-                    <p className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest leading-none">Estado Financeiro</p>
-                    <p className="text-sm font-bold text-slate-800 dark:text-white mt-2">{data.isPaid ? 'Pago e Liquidado' : 'Aguardando Pagamento'}</p>
-                 </div>
-              </div>
-              <button 
-                type="button" 
-                onClick={() => setData({...data, isPaid: !data.isPaid})}
-                className={`w-16 h-8 rounded-full relative transition-all shadow-inner ${data.isPaid ? 'bg-emerald-500' : 'bg-slate-700'}`}
-              >
-                <div className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-md transition-all ${data.isPaid ? 'left-9' : 'left-1'}`} />
-              </button>
-           </div>
-           
-           {data.paymentProof && (
-             <div className="p-6 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900 rounded-3xl flex items-center justify-between">
-                <div className="flex items-center gap-3 text-emerald-600 dark:text-emerald-500">
-                   <FileCheck size={20}/>
-                   <span className="text-[10px] font-black uppercase tracking-widest">Comprovante Vinculado</span>
-                </div>
-                <button type="button" onClick={() => setData({...data, paymentProof: ''})} className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all">
-                  <X size={16}/>
-                </button>
-             </div>
-           )}
         </div>
 
         <div className="p-10 pt-4 border-t border-slate-200 dark:border-slate-800/50 flex items-center gap-6 shrink-0 z-10 bg-slate-50 dark:bg-[#0f111a]/80 backdrop-blur-sm">
