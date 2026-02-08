@@ -437,32 +437,35 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
         )}
 
         {activeSubTab === 'forecast' && (
-          <div className="space-y-8 animate-in fade-in">
+          <div className="space-y-2 animate-in fade-in">
+             <div className="no-print flex justify-end">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => window.print()}
+                    className="flex items-center gap-2 px-5 py-3 text-slate-700 dark:text-slate-300 text-[9px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700 rounded-xl hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all"
+                  >
+                    <Printer size={16} /> PDF
+                  </button>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="p-2.5 text-slate-400 hover:text-emerald-600"
+                    title="Importar Excel"
+                  >
+                    <UploadCloud size={18} />
+                  </button>
+                  <button
+                    onClick={() => excelService.exportPlanningToExcel(project)}
+                    className="p-2.5 text-slate-400 hover:text-blue-600"
+                    title="Exportar Excel"
+                  >
+                    <Download size={18} />
+                  </button>
+                </div>
+             </div>
              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <ForecastKpi label="Previsão de Suprimentos" value={forecastStats.total} icon={<Boxes size={20}/>} color="indigo" sub="Previsão global de gastos" />
                 <ForecastKpi label="Pendente de Compra" value={forecastStats.pending} icon={<Clock size={20}/>} color="amber" sub="Ainda não efetivado" />
                 <ForecastKpi label="Efetivado/Local" value={forecastStats.ordered + forecastStats.delivered} icon={<CheckCircle2 size={20}/>} color="emerald" sub="Lançado no financeiro" />
-             </div>
-
-             <div className="bg-white dark:bg-slate-900 p-4 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm">
-                <div className="no-print flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                  <div className="flex flex-wrap items-center justify-end ml-auto gap-2">
-                    {forecastStatusFilter === 'pending' && (
-                      <button onClick={() => setIsAddingForecast(true)} className="inline-flex items-center gap-2 whitespace-nowrap px-5 py-3 bg-indigo-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg hover:scale-105 transition-transform">
-                        <Plus size={16} /> Novo Insumo
-                      </button>
-                    )}
-                    <div className="relative group">
-                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
-                      <input 
-                        placeholder="Pesquisar..."
-                        className="bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 pl-11 pr-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest outline-none focus:border-indigo-500 transition-all w-40"
-                        value={forecastSearch}
-                        onChange={e => setForecastSearch(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                </div>
              </div>
 
              <div className="bg-white dark:bg-slate-900 p-8 rounded-[3.5rem] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
@@ -497,28 +500,21 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                       />
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1" />
-                      <button
-                        onClick={() => window.print()}
-                        className="flex items-center gap-2 px-5 py-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-[9px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700 shadow-sm hover:bg-slate-50 transition-all"
-                      >
-                        <Printer size={16} /> PDF
-                      </button>
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="p-2.5 text-slate-400 hover:text-emerald-600"
-                        title="Importar Excel"
-                      >
-                        <UploadCloud size={18} />
-                      </button>
-                      <button
-                        onClick={() => excelService.exportPlanningToExcel(project)}
-                        className="p-2.5 text-slate-400 hover:text-blue-600"
-                        title="Exportar Excel"
-                      >
-                        <Download size={18} />
-                      </button>
+                    <div className="flex flex-wrap items-center justify-end ml-auto gap-2">
+                      {forecastStatusFilter === 'pending' && (
+                        <button onClick={() => setIsAddingForecast(true)} className="inline-flex items-center gap-2 whitespace-nowrap px-5 py-3 bg-indigo-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg hover:scale-105 transition-transform">
+                          <Plus size={16} /> Novo Insumo
+                        </button>
+                      )}
+                      <div className="relative group">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
+                        <input 
+                          placeholder="Pesquisar..."
+                          className="bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 pl-11 pr-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest outline-none focus:border-indigo-500 transition-all w-40"
+                          value={forecastSearch}
+                          onChange={e => setForecastSearch(e.target.value)}
+                        />
+                      </div>
                     </div>
                   </div>
 
