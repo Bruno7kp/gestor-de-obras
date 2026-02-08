@@ -386,7 +386,7 @@ export const WbsView: React.FC<WbsViewProps> = ({
 
   return (
     <div ref={rootRef} className="space-y-6 animate-in fade-in duration-300">
-      <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx, .xls" onChange={handleFileChange} />
+      <input type="file" ref={fileInputRef} className="hidden" hidden accept=".xlsx, .xls" onChange={handleFileChange} />
 
       {isReadOnly && (
         <div className="flex items-center gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-4 rounded-xl">

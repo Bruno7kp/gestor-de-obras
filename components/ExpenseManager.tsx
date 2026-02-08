@@ -202,7 +202,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
 
   return (
     <div className="space-y-8 max-w-[1600px] mx-auto pb-10">
-      <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx, .xls" onChange={handleImportExpenses} />
+      <input type="file" ref={fileInputRef} className="hidden" hidden accept=".xlsx, .xls" onChange={handleImportExpenses} />
 
       {!canEditFinancial && !isReadOnly && (
         <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-3">

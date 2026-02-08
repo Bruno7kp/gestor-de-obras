@@ -304,6 +304,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
         type="file" 
         ref={fileInputRef} 
         className="hidden" 
+        hidden
         accept=".xlsx, .xls" 
         onChange={handleImportPlanning}
       />
