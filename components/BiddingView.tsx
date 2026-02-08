@@ -7,6 +7,7 @@ import { biddingsApi } from '../services/biddingsApi';
 import { globalSettingsApi } from '../services/globalSettingsApi';
 import { usePermissions } from '../hooks/usePermissions';
 import { useToast } from '../hooks/useToast';
+import { uiPreferences } from '../utils/uiPreferences';
 import { BiddingModal } from './BiddingModal';
 import { CertificateModal } from './CertificateModal';
 import { ConfirmModal } from './ConfirmModal';
@@ -27,8 +28,9 @@ interface BiddingViewProps {
 export const BiddingView: React.FC<BiddingViewProps> = ({ 
   biddings, certificates, onUpdateBiddings, onUpdateCertificates, onCreateProjectFromBidding 
 }) => {
+  const biddingTabKey = 'biddings_tab';
   const [activeTab, setActiveTab] = useState<'pipeline' | 'certificates'>(() => {
-    const saved = localStorage.getItem('biddings_tab');
+    const saved = uiPreferences.getString(biddingTabKey);
     return saved === 'pipeline' || saved === 'certificates' ? saved : 'pipeline';
   });
   const [search, setSearch] = useState('');
@@ -45,8 +47,8 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
   const stats = useMemo(() => biddingService.getStats(biddings), [biddings]);
 
   useEffect(() => {
-    localStorage.setItem('biddings_tab', activeTab);
-  }, [activeTab]);
+    uiPreferences.setString(biddingTabKey, activeTab);
+  }, [activeTab, biddingTabKey]);
 
   const filteredBiddings = useMemo(() => {
     return biddings.filter(b => 

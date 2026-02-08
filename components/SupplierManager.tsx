@@ -12,6 +12,7 @@ import { ConfirmModal } from './ConfirmModal';
 import { suppliersApi } from '../services/suppliersApi';
 import { usePermissions } from '../hooks/usePermissions';
 import { useToast } from '../hooks/useToast';
+import { uiPreferences } from '../utils/uiPreferences';
 
 interface SupplierManagerProps {
   suppliers: Supplier[];
@@ -23,8 +24,9 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, onU
   const canEditSuppliers = getLevel('suppliers') === 'edit';
   const toast = useToast();
   const [search, setSearch] = useState('');
+  const supplierFilterKey = 'suppliers_filter';
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | Supplier['category']>(() => {
-    const saved = localStorage.getItem('suppliers_filter');
+    const saved = uiPreferences.getString(supplierFilterKey);
     return saved === 'ALL' || saved === 'Material' || saved === 'Serviço' || saved === 'Locação'
       ? (saved as 'ALL' | Supplier['category'])
       : 'ALL';
@@ -45,8 +47,8 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, onU
   }, [suppliers, search, categoryFilter]);
 
   useEffect(() => {
-    localStorage.setItem('suppliers_filter', categoryFilter);
-  }, [categoryFilter]);
+    uiPreferences.setString(supplierFilterKey, categoryFilter);
+  }, [categoryFilter, supplierFilterKey]);
 
   const stats = useMemo(() => {
     return {

@@ -19,6 +19,7 @@ import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea
 import { ExpenseAttachmentZone } from './ExpenseAttachmentZone';
 import { usePermissions } from '../hooks/usePermissions';
 import { useToast } from '../hooks/useToast';
+import { uiPreferences } from '../utils/uiPreferences';
 
 interface PlanningViewProps {
   project: Project;
@@ -39,9 +40,12 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   const canEditPlanning = isSuppliesView ? canEdit('supplies') : canEdit('planning');
 
   const planningSubTabs: Array<'tasks' | 'forecast' | 'milestones'> = ['tasks', 'forecast', 'milestones'];
+  const planningTabKey = `planning_subtab_${project.id}`;
+  const suppliesStatusKey = `supplies_status_${project.id}`;
+
   const [activeSubTab, setActiveSubTab] = useState<'tasks' | 'forecast' | 'milestones'>(() => {
     if (isSuppliesView) return 'forecast';
-    const saved = localStorage.getItem(`planning_subtab_${project.id}`);
+    const saved = uiPreferences.getString(planningTabKey);
     return saved && planningSubTabs.includes(saved as 'tasks' | 'forecast' | 'milestones')
       ? (saved as 'tasks' | 'forecast' | 'milestones')
       : 'tasks';
@@ -60,7 +64,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
 
   const [forecastSearch, setForecastSearch] = useState('');
   const [forecastStatusFilter, setForecastStatusFilter] = useState<'pending' | 'ordered' | 'delivered'>(() => {
-    const saved = localStorage.getItem(`supplies_status_${project.id}`);
+    const saved = uiPreferences.getString(suppliesStatusKey);
     return saved === 'pending' || saved === 'ordered' || saved === 'delivered' ? saved : 'pending';
   });
   
@@ -69,7 +73,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   useEffect(() => {
     if (isSuppliesView) {
       setActiveSubTab('forecast');
-      const saved = localStorage.getItem(`supplies_status_${project.id}`);
+      const saved = uiPreferences.getString(suppliesStatusKey);
       if (saved === 'pending' || saved === 'ordered' || saved === 'delivered') {
         setForecastStatusFilter(saved);
       } else {
@@ -78,23 +82,23 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
       return;
     }
 
-    const saved = localStorage.getItem(`planning_subtab_${project.id}`);
+    const saved = uiPreferences.getString(planningTabKey);
     if (saved && planningSubTabs.includes(saved as 'tasks' | 'forecast' | 'milestones')) {
       setActiveSubTab(saved as 'tasks' | 'forecast' | 'milestones');
     } else {
       setActiveSubTab('tasks');
     }
-  }, [isSuppliesView, project.id]);
+  }, [isSuppliesView, planningTabKey, suppliesStatusKey]);
 
   useEffect(() => {
     if (isSuppliesView) return;
-    localStorage.setItem(`planning_subtab_${project.id}`, activeSubTab);
-  }, [activeSubTab, isSuppliesView, project.id]);
+    uiPreferences.setString(planningTabKey, activeSubTab);
+  }, [activeSubTab, isSuppliesView, planningTabKey]);
 
   useEffect(() => {
     if (!isSuppliesView) return;
-    localStorage.setItem(`supplies_status_${project.id}`, forecastStatusFilter);
-  }, [forecastStatusFilter, isSuppliesView, project.id]);
+    uiPreferences.setString(suppliesStatusKey, forecastStatusFilter);
+  }, [forecastStatusFilter, isSuppliesView, suppliesStatusKey]);
 
   const financialCategories = useMemo(() => {
     return project.expenses.filter(e => e.itemType === 'category' && e.type === 'material');

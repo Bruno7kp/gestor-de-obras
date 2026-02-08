@@ -10,6 +10,7 @@ import { ExpenseTreeTable } from './ExpenseTreeTable';
 import { ExpenseModal } from './ExpenseModal';
 import { usePermissions } from '../hooks/usePermissions';
 import { useToast } from '../hooks/useToast';
+import { uiPreferences } from '../utils/uiPreferences';
 import {
   Plus, Search, CheckCircle2, Wallet, ArrowRightLeft,
   X, BarChart3, PieChart, Clock, ArrowUpRight,
@@ -38,8 +39,9 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
   const canEditFinancial = canEdit('financial_flow') && !isReadOnly;
 
   const expenseTabs: Array<ExpenseType | 'overview'> = ['overview', 'revenue', 'material', 'labor'];
+  const expenseTabKey = `exp_fin_tab_${project.id}`;
   const [activeTab, setActiveTab] = useState<ExpenseType | 'overview'>(() => {
-    const saved = localStorage.getItem(`exp_fin_tab_${project.id}`);
+    const saved = uiPreferences.getString(expenseTabKey);
     return saved && expenseTabs.includes(saved as ExpenseType | 'overview')
       ? (saved as ExpenseType | 'overview')
       : 'overview';
@@ -64,17 +66,17 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
   }, [expandedIds, project.id]);
 
   useEffect(() => {
-    const saved = localStorage.getItem(`exp_fin_tab_${project.id}`);
+    const saved = uiPreferences.getString(expenseTabKey);
     if (saved && expenseTabs.includes(saved as ExpenseType | 'overview')) {
       setActiveTab(saved as ExpenseType | 'overview');
     } else {
       setActiveTab('overview');
     }
-  }, [project.id]);
+  }, [project.id, expenseTabKey]);
 
   useEffect(() => {
-    localStorage.setItem(`exp_fin_tab_${project.id}`, activeTab);
-  }, [activeTab, project.id]);
+    uiPreferences.setString(expenseTabKey, activeTab);
+  }, [activeTab, expenseTabKey]);
 
   const stats = useMemo(() => expenseService.getExpenseStats(expenses), [expenses]);
 

@@ -7,6 +7,7 @@ import { uploadService } from '../services/uploadService';
 import { usePermissions } from '../hooks/usePermissions';
 import { ConfirmModal } from './ConfirmModal';
 import { useToast } from '../hooks/useToast';
+import { uiPreferences } from '../utils/uiPreferences';
 import { 
   BookOpen, Plus, Camera, Sun, CloudRain, Cloud, Zap, 
   Trash2, Search, Filter, History, Loader2,
@@ -24,8 +25,9 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
   const canEditJournal = canEdit('journal');
   const toast = useToast();
 
+  const journalFilterKey = `journal_filter_${project.id}`;
   const [filter, setFilter] = useState<JournalCategory | 'ALL'>(() => {
-    const saved = localStorage.getItem(`journal_filter_${project.id}`);
+    const saved = uiPreferences.getString(journalFilterKey);
     return saved === 'ALL' || saved === 'PROGRESS' || saved === 'FINANCIAL' || saved === 'INCIDENT' || saved === 'WEATHER'
       ? (saved as JournalCategory | 'ALL')
       : 'ALL';
@@ -49,17 +51,17 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
   const journal = project.journal;
 
   useEffect(() => {
-    const saved = localStorage.getItem(`journal_filter_${project.id}`);
+    const saved = uiPreferences.getString(journalFilterKey);
     if (saved === 'ALL' || saved === 'PROGRESS' || saved === 'FINANCIAL' || saved === 'INCIDENT' || saved === 'WEATHER') {
       setFilter(saved as JournalCategory | 'ALL');
     } else {
       setFilter('ALL');
     }
-  }, [project.id]);
+  }, [journalFilterKey, project.id]);
 
   useEffect(() => {
-    localStorage.setItem(`journal_filter_${project.id}`, filter);
-  }, [filter, project.id]);
+    uiPreferences.setString(journalFilterKey, filter);
+  }, [filter, journalFilterKey]);
 
   // Filtragem e Paginação
   const filteredEntries = useMemo(() => { 

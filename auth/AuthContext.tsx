@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { authService, type AuthUser, type LoginInput } from '../services/authService';
+import { uiPreferences } from '../utils/uiPreferences';
 
 type AuthContextValue = {
   user: AuthUser | null;
@@ -35,6 +36,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (loading) return;
+    if (!user) return;
+    const nextScope = `${user.instanceId}:${user.id}`;
+    const prevScope = uiPreferences.getScope();
+    if (prevScope && prevScope !== nextScope) {
+      uiPreferences.clearScope(prevScope);
+    }
+    uiPreferences.setScope(nextScope);
+  }, [user, loading]);
 
   const login = async (input: LoginInput) => {
     const response = await authService.login(input);

@@ -5,6 +5,7 @@ import { uploadService } from '../services/uploadService';
 import { laborContractsApi } from '../services/laborContractsApi';
 import { ConfirmModal } from './ConfirmModal';
 import { useToast } from '../hooks/useToast';
+import { uiPreferences } from '../utils/uiPreferences';
 import { 
   Briefcase, Plus, Search, Trash2, Edit2, DollarSign, Calendar, 
   CheckCircle2, Clock, AlertCircle, User, FileText, Download, X,
@@ -25,8 +26,9 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingContract, setEditingContract] = useState<LaborContract | null>(null);
+  const laborFilterKey = `labor_contracts_filter_${project.id}`;
   const [filterType, setFilterType] = useState<'all' | 'empreita' | 'diaria'>(() => {
-    const saved = localStorage.getItem(`labor_contracts_filter_${project.id}`);
+    const saved = uiPreferences.getString(laborFilterKey);
     return saved === 'all' || saved === 'empreita' || saved === 'diaria' ? saved : 'all';
   });
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -36,17 +38,17 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
   const workforce = project.workforce || [];
 
   useEffect(() => {
-    const saved = localStorage.getItem(`labor_contracts_filter_${project.id}`);
+    const saved = uiPreferences.getString(laborFilterKey);
     if (saved === 'all' || saved === 'empreita' || saved === 'diaria') {
       setFilterType(saved);
     } else {
       setFilterType('all');
     }
-  }, [project.id]);
+  }, [laborFilterKey, project.id]);
 
   useEffect(() => {
-    localStorage.setItem(`labor_contracts_filter_${project.id}`, filterType);
-  }, [filterType, project.id]);
+    uiPreferences.setString(laborFilterKey, filterType);
+  }, [filterType, laborFilterKey]);
 
   const filteredContracts = useMemo(() => {
     return contracts.filter(c => {

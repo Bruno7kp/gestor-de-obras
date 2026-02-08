@@ -19,6 +19,7 @@ import {
   Lock
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import { uiPreferences } from '../utils/uiPreferences';
 
 interface TreeTableProps {
   data: (WorkItem & { depth: number })[];
@@ -68,23 +69,28 @@ export const TreeTable: React.FC<TreeTableProps> = ({
   onScrollContainer
 }) => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const viewKey = 'promeasure_table_view';
+  const moverKey = 'promeasure_col_mover';
+  const acoesKey = 'promeasure_col_acoes';
+  const fonteKey = 'promeasure_col_fonte';
+  const codKey = 'promeasure_col_cod';
   const [view, setView] = useState<ColumnView>(() => {
-    return (localStorage.getItem('promeasure_table_view') as ColumnView) || 'full';
+    return (uiPreferences.getString(viewKey) as ColumnView) || 'full';
   });
-  const [showMover, setShowMover] = useState(() => localStorage.getItem('promeasure_col_mover') !== 'false');
-  const [showAcoes, setShowAcoes] = useState(() => localStorage.getItem('promeasure_col_acoes') !== 'false');
-  const [showFonte, setShowFonte] = useState(() => localStorage.getItem('promeasure_col_fonte') !== 'false');
-  const [showCod, setShowCod] = useState(() => localStorage.getItem('promeasure_col_cod') !== 'false');
+  const [showMover, setShowMover] = useState(() => uiPreferences.getString(moverKey) !== 'false');
+  const [showAcoes, setShowAcoes] = useState(() => uiPreferences.getString(acoesKey) !== 'false');
+  const [showFonte, setShowFonte] = useState(() => uiPreferences.getString(fonteKey) !== 'false');
+  const [showCod, setShowCod] = useState(() => uiPreferences.getString(codKey) !== 'false');
 
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    localStorage.setItem('promeasure_table_view', view);
-    localStorage.setItem('promeasure_col_mover', String(showMover));
-    localStorage.setItem('promeasure_col_acoes', String(showAcoes));
-    localStorage.setItem('promeasure_col_fonte', String(showFonte));
-    localStorage.setItem('promeasure_col_cod', String(showCod));
-  }, [view, showMover, showAcoes, showFonte, showCod]);
+    uiPreferences.setString(viewKey, view);
+    uiPreferences.setString(moverKey, String(showMover));
+    uiPreferences.setString(acoesKey, String(showAcoes));
+    uiPreferences.setString(fonteKey, String(showFonte));
+    uiPreferences.setString(codKey, String(showCod));
+  }, [view, showMover, showAcoes, showFonte, showCod, viewKey, moverKey, acoesKey, fonteKey, codKey]);
 
   useEffect(() => {
     const el = scrollRef.current;
