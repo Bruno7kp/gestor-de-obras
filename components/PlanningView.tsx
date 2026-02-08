@@ -56,6 +56,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   const [confirmingForecast, setConfirmingForecast] = useState<MaterialForecast | null>(null);
   const [forcePaidConfirm, setForcePaidConfirm] = useState(false);
   const [confirmingDeliveryForecast, setConfirmingDeliveryForecast] = useState<MaterialForecast | null>(null);
+  const [confirmingClearanceForecast, setConfirmingClearanceForecast] = useState<MaterialForecast | null>(null);
   const [isAddingForecast, setIsAddingForecast] = useState(false);
   const [editingForecast, setEditingForecast] = useState<MaterialForecast | null>(null);
   const [isDeletingForecast, setIsDeletingForecast] = useState<MaterialForecast | null>(null);
@@ -239,6 +240,21 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
       deliveryDate,
     }));
     setConfirmingDeliveryForecast(null);
+  };
+
+  const handleFinalizeClearance = (forecast: MaterialForecast, invoiceDoc?: string) => {
+    const linkedExpense = findExpenseForForecast(forecast);
+    if (!linkedExpense) {
+      toast.warning('Nao foi encontrado o item financeiro vinculado.');
+      return;
+    }
+    if (!invoiceDoc) {
+      toast.warning('Anexe a nota fiscal para dar baixa.');
+      return;
+    }
+    onUpdateExpense(linkedExpense.id, { invoiceDoc });
+    onUpdatePlanning(planningService.updateForecast(planning, forecast.id, { isCleared: true }));
+    setConfirmingClearanceForecast(null);
   };
 
   const handleViewProof = (proof: string) => {
@@ -689,7 +705,15 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                     {forecastStatusFilter === 'delivered' && (
                                       <td className="py-6">
                                         <button
-                                          onClick={() => onUpdatePlanning(planningService.updateForecast(planning, f.id, { isCleared: !f.isCleared }))}
+                                          onClick={() => {
+                                            if (f.isCleared) return;
+                                            const linkedExpense = findExpenseForForecast(f);
+                                            if (!linkedExpense) {
+                                              toast.warning('Nao foi encontrado o item financeiro vinculado.');
+                                              return;
+                                            }
+                                            setConfirmingClearanceForecast(f);
+                                          }}
                                           className={`p-2.5 rounded-full transition-all ${f.isCleared ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 shadow-sm' : 'text-slate-200 hover:text-emerald-400 bg-slate-50 dark:bg-slate-800'}`}
                                         >
                                           {f.isCleared ? <CheckCircle2 size={20}/> : <Circle size={20}/>}
@@ -863,6 +887,58 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
         onConfirm={() => confirmingDeliveryForecast && handleFinalizeDelivery(confirmingDeliveryForecast)}
         onCancel={() => setConfirmingDeliveryForecast(null)}
       />
+
+      {confirmingClearanceForecast && (
+        <ClearanceModal
+          forecast={confirmingClearanceForecast}
+          currentInvoiceDoc={findExpenseForForecast(confirmingClearanceForecast)?.invoiceDoc}
+          onClose={() => setConfirmingClearanceForecast(null)}
+          onConfirm={(invoiceDoc?: string) => handleFinalizeClearance(confirmingClearanceForecast, invoiceDoc)}
+        />
+      )}
+    </div>
+  );
+};
+
+const ClearanceModal = ({ forecast, currentInvoiceDoc, onClose, onConfirm }: any) => {
+  const [invoiceDoc, setInvoiceDoc] = useState<string | undefined>(currentInvoiceDoc);
+
+  return (
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}>
+      <div className="bg-white dark:bg-[#0f111a] w-full max-w-xl rounded-[3rem] p-8 border border-slate-200 dark:border-slate-800/50 shadow-2xl flex flex-col items-center relative overflow-hidden text-center" onClick={e => e.stopPropagation()}>
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-emerald-500/10 blur-[100px] pointer-events-none"></div>
+
+        <div className="relative mb-6">
+           <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800/40 rounded-full flex items-center justify-center border border-slate-200 dark:border-slate-700/50">
+              <FileCheck size={28} className="text-emerald-500" />
+           </div>
+        </div>
+
+        <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-2">Dar baixa</h2>
+        <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed mb-6">
+          Anexe a nota fiscal do item <span className="text-slate-900 dark:text-white font-bold">{forecast.description}</span>.
+        </p>
+
+        <div className="w-full mb-6">
+          <ExpenseAttachmentZone
+            label="Nota Fiscal de Compra"
+            requiredStatus="DELIVERED"
+            currentFile={invoiceDoc}
+            onUploadUrl={(url) => setInvoiceDoc(url)}
+            onRemove={() => setInvoiceDoc(undefined)}
+          />
+        </div>
+
+        <div className="flex items-center gap-4 w-full">
+          <button onClick={onClose} className="flex-1 py-3 text-slate-500 dark:text-slate-500 font-black uppercase text-xs tracking-widest hover:text-slate-800 dark:hover:text-white transition-colors">Voltar</button>
+          <button
+            onClick={() => onConfirm(invoiceDoc)}
+            className="flex-[2] py-3 rounded-[1.5rem] font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/20 text-white"
+          >
+            Confirmar Baixa
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
