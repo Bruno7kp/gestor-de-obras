@@ -39,14 +39,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
   });
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const paymentsExpandedKey = `labor_contracts_payments_${project.id}`;
-  const [expandedPayments, setExpandedPayments] = useState<Record<string, boolean>>(() => {
-    try {
-      const saved = localStorage.getItem(paymentsExpandedKey);
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
+  const [expandedPayments, setExpandedPayments] = useState<Record<string, boolean>>({});
   const [editingPayment, setEditingPayment] = useState<{
     contractId: string;
     payment: LaborPayment;
@@ -71,13 +64,19 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
   }, [filterType, laborFilterKey]);
 
   useEffect(() => {
+    const defaults = contracts.reduce<Record<string, boolean>>((acc, contract) => {
+      acc[contract.id] = true;
+      return acc;
+    }, {});
+
     try {
       const saved = localStorage.getItem(paymentsExpandedKey);
-      setExpandedPayments(saved ? JSON.parse(saved) : {});
+      const parsed = saved ? JSON.parse(saved) : {};
+      setExpandedPayments({ ...defaults, ...parsed });
     } catch {
-      setExpandedPayments({});
+      setExpandedPayments(defaults);
     }
-  }, [paymentsExpandedKey]);
+  }, [paymentsExpandedKey, contracts]);
 
   useEffect(() => {
     try {
