@@ -1,8 +1,9 @@
 
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Project, PDFTheme } from '../types';
 import { ThemeEditor } from './ThemeEditor';
 import { uploadService } from '../services/uploadService';
+import { financial } from '../utils/math';
 import { usePermissions } from '../hooks/usePermissions';
 import { useToast } from '../hooks/useToast';
 import { 
@@ -26,6 +27,11 @@ export const BrandingView: React.FC<BrandingViewProps> = ({
   const canEditBranding = canEdit('project_settings') && !isReadOnly;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [strBdi, setStrBdi] = useState(financial.formatVisual(project.bdi || 0, '').trim());
+
+  useEffect(() => {
+    setStrBdi(financial.formatVisual(project.bdi || 0, '').trim());
+  }, [project.bdi]);
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -163,11 +169,15 @@ export const BrandingView: React.FC<BrandingViewProps> = ({
             <div className="relative">
               <input 
                 disabled={isReadOnly}
-                type="number" 
-                step="0.01" 
+                type="text"
+                inputMode="decimal"
                 className="w-full px-6 py-4 rounded-2xl border-2 border-slate-50 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-3xl font-black focus:border-emerald-500 outline-none pr-16 dark:text-slate-100 transition-all" 
-                value={project.bdi} 
-                onChange={(e) => onUpdateProject({ bdi: parseFloat(e.target.value) || 0 })} 
+                value={strBdi}
+                onChange={(e) => {
+                  const masked = financial.maskCurrency(e.target.value);
+                  setStrBdi(masked);
+                  onUpdateProject({ bdi: financial.parseLocaleNumber(masked) || 0 });
+                }} 
               />
               <span className="absolute right-6 top-1/2 -translate-y-1/2 text-xl font-black text-slate-300">%</span>
             </div>
