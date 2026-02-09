@@ -77,6 +77,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
   const tabsNavRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef<{ x: number; scrollLeft: number; moved: boolean } | null>(null);
+  const dragBlockUntilRef = useRef(0);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState<'category' | 'item'>('item');
@@ -102,7 +103,10 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   };
 
   const handleMouseUpOrLeave = () => {
-    setTimeout(() => { dragStartRef.current = null; }, 50);
+    if (dragStartRef.current?.moved) {
+      dragBlockUntilRef.current = Date.now() + 200;
+    }
+    dragStartRef.current = null;
   };
 
   // Fetch project members, users, and general access list
@@ -294,7 +298,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     viewingMeasurementId === project.history[0].measurementNumber;
 
   const handleTabClick = (newTab: TabID) => {
-    if (dragStartRef.current?.moved) return;
+    if (Date.now() < dragBlockUntilRef.current) return;
     onTabChange(newTab);
   };
 
@@ -643,7 +647,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   };
 
   const TabBtn: React.FC<{ active: boolean; id: TabID; label: string; icon: React.ReactNode }> = ({ active, id, label, icon }) => (
-    <button onMouseUp={() => handleTabClick(id)} className={`flex items-center gap-2.5 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0 select-none cursor-pointer ${active ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'bg-white dark:bg-slate-900 text-slate-500 hover:text-indigo-600 border border-slate-200 dark:border-slate-800'}`}>
+    <button onClick={() => handleTabClick(id)} className={`flex items-center gap-2.5 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0 select-none cursor-pointer ${active ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'bg-white dark:bg-slate-900 text-slate-500 hover:text-indigo-600 border border-slate-200 dark:border-slate-800'}`}>
       <span className={active ? 'text-white' : 'text-slate-400'}>{icon}</span>
       <span>{label}</span>
     </button>
