@@ -261,6 +261,43 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
            checkCanEdit(memberPermissions, 'projects_general');
   }, [membersLoading, permissionsLoading, useMemberPermissions, memberPermissions, getLevelGlobal]);
 
+  const isProjectLoading = permissionsLoading || membersLoading;
+  const tabPermissions: Record<TabID, PermissionModule> = {
+    wbs: 'wbs',
+    stats: 'technical_analysis',
+    expenses: 'financial_flow',
+    supplies: 'supplies',
+    workforce: 'workforce',
+    'labor-contracts': 'workforce',
+    planning: 'planning',
+    journal: 'journal',
+    documents: 'documents',
+    branding: 'project_settings',
+  };
+
+  const availableTabs = useMemo(() => ([
+    'wbs',
+    'stats',
+    'expenses',
+    'supplies',
+    'workforce',
+    'labor-contracts',
+    'planning',
+    'journal',
+    'documents',
+    'branding',
+  ] as TabID[]).filter((tabId) => canView(tabPermissions[tabId])), [canView]);
+
+  const hasTabAccess = availableTabs.includes(tab);
+
+  useEffect(() => {
+    if (isProjectLoading) return;
+    if (availableTabs.length === 0) return;
+    if (!hasTabAccess) {
+      onTabChange(availableTabs[0]);
+    }
+  }, [availableTabs, hasTabAccess, isProjectLoading, onTabChange]);
+
   const handleStartEditName = () => {
     setNameDraft(project.name);
     setIsEditingName(true);
@@ -805,203 +842,224 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         </div>
       </header>
 
-      {/* 2. SUB-NAVEGAÇÃO */}
-      <nav className="no-print bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 shrink-0 sticky top-0 z-20 overflow-hidden">
-        <div ref={tabsNavRef} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUpOrLeave} onMouseLeave={handleMouseUpOrLeave} className={`px-6 py-3 flex items-center gap-2 overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing select-none`}>
-          {canView('wbs') && <TabBtn active={tab === 'wbs'} id="wbs" label="Planilha EAP" icon={<Layers size={16} />} />}
-          {canView('technical_analysis') && <TabBtn active={tab === 'stats'} id="stats" label="Análise Técnica" icon={<BarChart3 size={16} />} />}
-          {canView('financial_flow') && <TabBtn active={tab === 'expenses'} id="expenses" label="Fluxo Financeiro" icon={<Coins size={16} />} />}
-          {canView('supplies') && <TabBtn active={tab === 'supplies'} id="supplies" label="Suprimentos" icon={<Boxes size={16} />} />}
-          {canView('workforce') && <TabBtn active={tab === 'labor-contracts' || tab === 'workforce'} id="labor-contracts" label="Contratos M.O." icon={<Briefcase size={16} />} />}
-          {canView('planning') && <TabBtn active={tab === 'planning'} id="planning" label="Planejamento" icon={<HardHat size={16} />} />}
-          {canView('journal') && <TabBtn active={tab === 'journal'} id="journal" label="Diário de Obra" icon={<BookOpen size={16} />} />}
-          {canView('documents') && <TabBtn active={tab === 'documents'} id="documents" label="Repositório" icon={<FileText size={16} />} />}
-          {canView('project_settings') && <TabBtn active={tab === 'branding'} id="branding" label="Ajustes" icon={<Sliders size={16} />} />}
+      {isProjectLoading ? (
+        <div className="flex-1 flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+          <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400 text-sm font-semibold">
+            <div className="h-2.5 w-2.5 rounded-full bg-indigo-500 animate-pulse" />
+            Carregando obra...
+          </div>
         </div>
-      </nav>
+      ) : availableTabs.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+          <div className="text-center text-slate-500 dark:text-slate-400">
+            <p className="text-sm font-semibold">Acesso negado</p>
+            <p className="text-xs mt-2">Você não tem permissão para acessar esta obra.</p>
+          </div>
+        </div>
+      ) : !hasTabAccess ? (
+        <div className="flex-1 flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+          <div className="text-sm text-slate-500 dark:text-slate-400">Redirecionando...</div>
+        </div>
+      ) : (
+        <>
+          {/* 2. SUB-NAVEGAÇÃO */}
+          <nav className="no-print bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 shrink-0 sticky top-0 z-20 overflow-hidden">
+            <div ref={tabsNavRef} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUpOrLeave} onMouseLeave={handleMouseUpOrLeave} className={`px-6 py-3 flex items-center gap-2 overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing select-none`}>
+              {canView('wbs') && <TabBtn active={tab === 'wbs'} id="wbs" label="Planilha EAP" icon={<Layers size={16} />} />}
+              {canView('technical_analysis') && <TabBtn active={tab === 'stats'} id="stats" label="Análise Técnica" icon={<BarChart3 size={16} />} />}
+              {canView('financial_flow') && <TabBtn active={tab === 'expenses'} id="expenses" label="Fluxo Financeiro" icon={<Coins size={16} />} />}
+              {canView('supplies') && <TabBtn active={tab === 'supplies'} id="supplies" label="Suprimentos" icon={<Boxes size={16} />} />}
+              {canView('workforce') && <TabBtn active={tab === 'labor-contracts' || tab === 'workforce'} id="labor-contracts" label="Contratos M.O." icon={<Briefcase size={16} />} />}
+              {canView('planning') && <TabBtn active={tab === 'planning'} id="planning" label="Planejamento" icon={<HardHat size={16} />} />}
+              {canView('journal') && <TabBtn active={tab === 'journal'} id="journal" label="Diário de Obra" icon={<BookOpen size={16} />} />}
+              {canView('documents') && <TabBtn active={tab === 'documents'} id="documents" label="Repositório" icon={<FileText size={16} />} />}
+              {canView('project_settings') && <TabBtn active={tab === 'branding'} id="branding" label="Ajustes" icon={<Sliders size={16} />} />}
+            </div>
+          </nav>
 
-      <div className="flex-1 flex flex-col min-h-0 bg-slate-50 dark:bg-slate-950 project-fullscreen">
-        {/* 3. CONTEÚDO DINÂMICO */}
-        <div
-          className="flex-1 overflow-y-auto p-4 lg:p-8 custom-scrollbar no-print project-scroll"
-          style={{ overflowAnchor: 'none' }}
-        >
-          <div className="max-w-[1600px] mx-auto">
-          {(tab === 'labor-contracts' || tab === 'workforce') && canView('workforce') && (
-            <div className="flex items-center justify-end mb-6">
-              <div className="flex bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                <button
-                  onClick={() => onTabChange('labor-contracts')}
-                  className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                    tab === 'labor-contracts'
-                      ? 'bg-indigo-600 text-white shadow-lg'
-                      : 'text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  Contratos M.O.
-                </button>
-                <button
-                  onClick={() => onTabChange('workforce')}
-                  className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                    tab === 'workforce'
-                      ? 'bg-indigo-600 text-white shadow-lg'
-                      : 'text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  Equipe Permanente
-                </button>
+          <div className="flex-1 flex flex-col min-h-0 bg-slate-50 dark:bg-slate-950 project-fullscreen">
+            {/* 3. CONTEÚDO DINÂMICO */}
+            <div
+              className="flex-1 overflow-y-auto p-4 lg:p-8 custom-scrollbar no-print project-scroll"
+              style={{ overflowAnchor: 'none' }}
+            >
+              <div className="max-w-[1600px] mx-auto">
+                {(tab === 'labor-contracts' || tab === 'workforce') && canView('workforce') && (
+                  <div className="flex items-center justify-end mb-6">
+                    <div className="flex bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                      <button
+                        onClick={() => onTabChange('labor-contracts')}
+                        className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                          tab === 'labor-contracts'
+                            ? 'bg-indigo-600 text-white shadow-lg'
+                            : 'text-slate-400 hover:text-slate-600'
+                        }`}
+                      >
+                        Contratos M.O.
+                      </button>
+                      <button
+                        onClick={() => onTabChange('workforce')}
+                        className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                          tab === 'workforce'
+                            ? 'bg-indigo-600 text-white shadow-lg'
+                            : 'text-slate-400 hover:text-slate-600'
+                        }`}
+                      >
+                        Equipe Permanente
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {tab === 'wbs' && <WbsView project={{ ...project, items: displayData.items }} onUpdateProject={onUpdateProject} onOpenModal={handleOpenModal} isReadOnly={displayData.isReadOnly} />}
+                {tab === 'stats' && <StatsView project={{ ...project, items: displayData.items }} />}
+                {tab === 'expenses' && (
+                  <ExpenseManager
+                    project={project}
+                    expenses={project.expenses}
+                    onAdd={handleExpenseAdd}
+                    onAddMany={handleExpenseAddMany}
+                    onUpdate={handleExpenseUpdate}
+                    onDelete={handleExpenseDelete}
+                    workItems={displayData.items}
+                    measuredValue={treeService.calculateBasicStats(displayData.items, project.bdi).current}
+                    onUpdateExpenses={handleExpensesReplace}
+                    isReadOnly={displayData.isReadOnly}
+                  />
+                )}
+                {tab === 'supplies' && (
+                  <PlanningView
+                    project={project}
+                    suppliers={effectiveSuppliers}
+                    onUpdatePlanning={handleUpdatePlanning}
+                    onAddExpense={handleExpenseAdd}
+                    onUpdateExpense={handleExpenseUpdate}
+                    categories={displayData.items.filter(i => i.type === 'category')}
+                    allWorkItems={displayData.items}
+                    viewMode="supplies"
+                  />
+                )}
+                {tab === 'labor-contracts' && (
+                  <LaborContractsManager
+                    project={project}
+                    onUpdateProject={onUpdateProject}
+                    onAddExpense={handleExpenseAdd}
+                    onUpdateExpense={handleExpenseUpdate}
+                    isReadOnly={displayData.isReadOnly}
+                  />
+                )}
+                {tab === 'workforce' && <WorkforceManager project={project} onUpdateProject={onUpdateProject} />}
+                {tab === 'planning' && (
+                  <PlanningView
+                    project={project}
+                    suppliers={effectiveSuppliers}
+                    onUpdatePlanning={handleUpdatePlanning}
+                    onAddExpense={handleExpenseAdd}
+                    onUpdateExpense={handleExpenseUpdate}
+                    categories={displayData.items.filter(i => i.type === 'category')}
+                    allWorkItems={displayData.items}
+                  />
+                )}
+                {tab === 'journal' && <JournalView project={project} onUpdateJournal={(j) => onUpdateProject({ journal: j })} allWorkItems={displayData.items} />}
+                {tab === 'documents' && <AssetManager assets={project.assets} onAdd={handleAssetAdd} onDelete={handleAssetDelete} isReadOnly={displayData.isReadOnly} />}
+                {tab === 'branding' && <BrandingView project={project} onUpdateProject={handleBrandingUpdate} isReadOnly={displayData.isReadOnly} />}
+              </div>
+            </div>
+          </div>
+          {/* (Áreas de Impressão e Modais existentes preservados...) */}
+
+          <div className="print-report-area">
+            {tab === 'wbs' && (
+              <PrintReport
+                project={project}
+                companyName={project.companyName}
+                companyCnpj={project.companyCnpj}
+                data={flattenedPrintData}
+                expenses={project.expenses}
+                stats={currentStats}
+              />
+            )}
+            {tab === 'expenses' && (
+              <PrintExpenseReport
+                project={project}
+                expenses={project.expenses}
+                stats={expenseStats}
+              />
+            )}
+            {(tab === 'planning' || tab === 'supplies') && (
+              <PrintPlanningReport
+                project={project}
+              />
+            )}
+          </div>
+
+          <WorkItemModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSaveWorkItem} editingItem={editingItem} type={modalType} initialParentId={targetParentId} categories={treeService.flattenTree(treeService.buildTree(displayData.items.filter(i => i.type === 'category')), new Set(displayData.items.map(i => i.id)))} projectBdi={project.bdi} />
+
+          {isClosingModalOpen && (
+            <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setIsClosingModalOpen(false)}>
+              <div className="bg-white dark:bg-[#0f111a] w-full max-w-lg rounded-[3rem] p-12 shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col items-center text-center relative overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-indigo-500/10 blur-[100px] pointer-events-none"></div>
+                <div className="relative mb-10">
+                  <div className="w-24 h-24 bg-slate-100 dark:bg-slate-800/40 rounded-full flex items-center justify-center border border-slate-200 dark:border-slate-700">
+                    <Lock size={36} className="text-indigo-500" />
+                  </div>
+                </div>
+                <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-6">Finalizar Período?</h2>
+                <div className="space-y-2 mb-12">
+                  <p className="text-slate-500 dark:text-slate-400 text-lg font-medium leading-relaxed">
+                    A medição <span className="text-slate-900 dark:text-white font-bold">#{project.measurementNumber}</span> será congelada no histórico.
+                  </p>
+                  <p className="text-slate-500 dark:text-slate-400 text-lg font-medium leading-relaxed">
+                    O valor total faturado no período é <span className="text-slate-900 dark:text-white font-bold">{financial.formatVisual(currentStats.current, project.theme?.currencySymbol)}</span>.
+                  </p>
+                </div>
+                <div className="flex items-center gap-6 w-full">
+                  <button onClick={() => setIsClosingModalOpen(false)} className="flex-1 py-4 text-slate-500 dark:text-slate-500 font-black uppercase text-xs tracking-widest hover:text-slate-800 dark:hover:text-white transition-colors">Voltar</button>
+                  <button onClick={() => { onCloseMeasurement(); setIsClosingModalOpen(false); }} className="flex-[2] py-5 bg-indigo-600 hover:bg-indigo-50 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-[0_10px_30px_-10px_rgba(79,70,229,0.5)] active:scale-95 transition-all">Confirmar e abrir próxima</button>
+                </div>
               </div>
             </div>
           )}
-          {tab === 'wbs' && <WbsView project={{ ...project, items: displayData.items }} onUpdateProject={onUpdateProject} onOpenModal={handleOpenModal} isReadOnly={displayData.isReadOnly} />}
-          {tab === 'stats' && <StatsView project={{ ...project, items: displayData.items }} />}
-          {tab === 'expenses' && (
-            <ExpenseManager
-              project={project}
-              expenses={project.expenses}
-              onAdd={handleExpenseAdd}
-              onAddMany={handleExpenseAddMany}
-              onUpdate={handleExpenseUpdate}
-              onDelete={handleExpenseDelete}
-              workItems={displayData.items}
-              measuredValue={treeService.calculateBasicStats(displayData.items, project.bdi).current}
-              onUpdateExpenses={handleExpensesReplace}
-              isReadOnly={displayData.isReadOnly}
-            />
-          )}
-          {tab === 'supplies' && (
-            <PlanningView
-              project={project}
-              suppliers={effectiveSuppliers}
-              onUpdatePlanning={handleUpdatePlanning}
-              onAddExpense={handleExpenseAdd}
-              onUpdateExpense={handleExpenseUpdate}
-              categories={displayData.items.filter(i => i.type === 'category')}
-              allWorkItems={displayData.items}
-              viewMode="supplies"
-            />
-          )}
-          {tab === 'labor-contracts' && (
-            <LaborContractsManager
-              project={project}
-              onUpdateProject={onUpdateProject}
-              onAddExpense={handleExpenseAdd}
-              onUpdateExpense={handleExpenseUpdate}
-              isReadOnly={displayData.isReadOnly}
-            />
-          )}
-          {tab === 'workforce' && <WorkforceManager project={project} onUpdateProject={onUpdateProject} />}
-          {tab === 'planning' && (
-            <PlanningView
-              project={project}
-              suppliers={effectiveSuppliers}
-              onUpdatePlanning={handleUpdatePlanning}
-              onAddExpense={handleExpenseAdd}
-              onUpdateExpense={handleExpenseUpdate}
-              categories={displayData.items.filter(i => i.type === 'category')}
-              allWorkItems={displayData.items}
-            />
-          )}
-          {tab === 'journal' && <JournalView project={project} onUpdateJournal={(j) => onUpdateProject({ journal: j })} allWorkItems={displayData.items} />}
-          {tab === 'documents' && <AssetManager assets={project.assets} onAdd={handleAssetAdd} onDelete={handleAssetDelete} isReadOnly={displayData.isReadOnly} />}
-            {tab === 'branding' && <BrandingView project={project} onUpdateProject={handleBrandingUpdate} isReadOnly={displayData.isReadOnly} />}
-          </div>
-        </div>
 
-      {/* (Áreas de Impressão e Modais existentes preservados...) */}
-
-      <div className="print-report-area">
-        {tab === 'wbs' && (
-          <PrintReport
-            project={project}
-            companyName={project.companyName}
-            companyCnpj={project.companyCnpj}
-            data={flattenedPrintData}
-            expenses={project.expenses}
-            stats={currentStats}
-          />
-        )}
-        {tab === 'expenses' && (
-          <PrintExpenseReport
-            project={project}
-            expenses={project.expenses}
-            stats={expenseStats}
-          />
-        )}
-        {(tab === 'planning' || tab === 'supplies') && (
-          <PrintPlanningReport
-            project={project}
-          />
-        )}
-      </div>
-
-      <WorkItemModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSaveWorkItem} editingItem={editingItem} type={modalType} initialParentId={targetParentId} categories={treeService.flattenTree(treeService.buildTree(displayData.items.filter(i => i.type === 'category')), new Set(displayData.items.map(i => i.id)))} projectBdi={project.bdi} />
-
-      {isClosingModalOpen && (
-        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setIsClosingModalOpen(false)}>
-          <div className="bg-white dark:bg-[#0f111a] w-full max-w-lg rounded-[3rem] p-12 shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col items-center text-center relative overflow-hidden" onClick={e => e.stopPropagation()}>
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-indigo-500/10 blur-[100px] pointer-events-none"></div>
-            <div className="relative mb-10">
-              <div className="w-24 h-24 bg-slate-100 dark:bg-slate-800/40 rounded-full flex items-center justify-center border border-slate-200 dark:border-slate-700">
-                <Lock size={36} className="text-indigo-500" />
+          {isReopenModalOpen && (
+            <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setIsReopenModalOpen(false)}>
+              <div className="bg-white dark:bg-[#0f111a] w-full max-w-lg rounded-[3rem] p-12 shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col items-center text-center relative overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-rose-500/10 blur-[100px] pointer-events-none"></div>
+                <div className="relative mb-10">
+                  <div className="w-24 h-24 bg-slate-100 dark:bg-slate-800/40 rounded-full flex items-center justify-center border border-slate-200 dark:border-slate-700">
+                    <RefreshCw size={36} className="text-rose-500" />
+                  </div>
+                </div>
+                <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-6">Reabrir Medição?</h2>
+                <div className="space-y-4 mb-12">
+                  <p className="text-slate-500 dark:text-slate-400 text-lg font-medium leading-relaxed">
+                    Deseja realmente reativar a medição <span className="text-slate-900 dark:text-white font-bold">#{viewingMeasurementId}</span>?
+                  </p>
+                  <p className="text-rose-500/80 dark:text-rose-400/80 text-sm font-bold uppercase tracking-widest">
+                    O período atual será descartado e o histórico voltará um passo.
+                  </p>
+                </div>
+                <div className="flex items-center gap-6 w-full">
+                  <button onClick={() => setIsReopenModalOpen(false)} className="flex-1 py-4 text-slate-500 dark:text-slate-500 font-black uppercase text-xs tracking-widest hover:text-slate-800 dark:hover:text-white transition-colors">Cancelar</button>
+                  <button onClick={handleConfirmReopen} className="flex-[2] py-5 bg-rose-600 hover:bg-rose-50 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-[0_10px_30px_-10px_rgba(225,29,72,0.5)] active:scale-95 transition-all">Confirmar Reabertura</button>
+                </div>
               </div>
             </div>
-            <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-6">Finalizar Período?</h2>
-            <div className="space-y-2 mb-12">
-              <p className="text-slate-500 dark:text-slate-400 text-lg font-medium leading-relaxed">
-                A medição <span className="text-slate-900 dark:text-white font-bold">#{project.measurementNumber}</span> será congelada no histórico.
-              </p>
-              <p className="text-slate-500 dark:text-slate-400 text-lg font-medium leading-relaxed">
-                O valor total faturado no período é <span className="text-slate-900 dark:text-white font-bold">{financial.formatVisual(currentStats.current, project.theme?.currencySymbol)}</span>.
-              </p>
-            </div>
-            <div className="flex items-center gap-6 w-full">
-              <button onClick={() => setIsClosingModalOpen(false)} className="flex-1 py-4 text-slate-500 dark:text-slate-500 font-black uppercase text-xs tracking-widest hover:text-slate-800 dark:hover:text-white transition-colors">Voltar</button>
-              <button onClick={() => { onCloseMeasurement(); setIsClosingModalOpen(false); }} className="flex-[2] py-5 bg-indigo-600 hover:bg-indigo-50 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-[0_10px_30px_-10px_rgba(79,70,229,0.5)] active:scale-95 transition-all">Confirmar e abrir próxima</button>
-            </div>
-          </div>
-        </div>
+          )}
+
+          {showMembersModal && (
+            <ProjectMembersModal
+              projectId={project.id}
+              members={projectMembers}
+              allUsers={allUsers}
+              allRoles={allRoles}
+              generalAccessUserIds={generalAccessUserIds}
+              canEdit={canEditMembers}
+              onClose={() => setShowMembersModal(false)}
+              onMembersChange={handleMembersChange}
+            />
+          )}
+        </>
       )}
-
-      {isReopenModalOpen && (
-        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setIsReopenModalOpen(false)}>
-          <div className="bg-white dark:bg-[#0f111a] w-full max-w-lg rounded-[3rem] p-12 shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col items-center text-center relative overflow-hidden" onClick={e => e.stopPropagation()}>
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-rose-500/10 blur-[100px] pointer-events-none"></div>
-            <div className="relative mb-10">
-              <div className="w-24 h-24 bg-slate-100 dark:bg-slate-800/40 rounded-full flex items-center justify-center border border-slate-200 dark:border-slate-700">
-                <RefreshCw size={36} className="text-rose-500" />
-              </div>
-            </div>
-            <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-6">Reabrir Medição?</h2>
-            <div className="space-y-4 mb-12">
-              <p className="text-slate-500 dark:text-slate-400 text-lg font-medium leading-relaxed">
-                Deseja realmente reativar a medição <span className="text-slate-900 dark:text-white font-bold">#{viewingMeasurementId}</span>?
-              </p>
-              <p className="text-rose-500/80 dark:text-rose-400/80 text-sm font-bold uppercase tracking-widest">
-                O período atual será descartado e o histórico voltará um passo.
-              </p>
-            </div>
-            <div className="flex items-center gap-6 w-full">
-              <button onClick={() => setIsReopenModalOpen(false)} className="flex-1 py-4 text-slate-500 dark:text-slate-500 font-black uppercase text-xs tracking-widest hover:text-slate-800 dark:hover:text-white transition-colors">Cancelar</button>
-              <button onClick={handleConfirmReopen} className="flex-[2] py-5 bg-rose-600 hover:bg-rose-50 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-[0_10px_30px_-10px_rgba(225,29,72,0.5)] active:scale-95 transition-all">Confirmar Reabertura</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-        {showMembersModal && (
-          <ProjectMembersModal
-            projectId={project.id}
-            members={projectMembers}
-            allUsers={allUsers}
-            allRoles={allRoles}
-            generalAccessUserIds={generalAccessUserIds}
-            canEdit={canEditMembers}
-            onClose={() => setShowMembersModal(false)}
-            onMembersChange={handleMembersChange}
-          />
-        )}
-      </div>
     </div>
   );
 };
