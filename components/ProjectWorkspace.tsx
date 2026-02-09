@@ -61,7 +61,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   canUndo, canRedo, onUndo, onRedo, activeTab, onTabChange
 }) => {
   const { user } = useAuth();
-  const { canView: canViewGlobal, getLevel: getLevelGlobal } = usePermissions();
+  const { canView: canViewGlobal, getLevel: getLevelGlobal, loading: permissionsLoading } = usePermissions();
   const toast = useToast();
   const tab = activeTab;
   const [viewingMeasurementId, setViewingMeasurementId] = useState<'current' | number>('current');
@@ -243,8 +243,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   }, [projectMembers, user?.id]);
 
   const canEditProject = useMemo(() => {
-    // While members are still loading, don't mark as read-only to avoid flashing banner
-    if (membersLoading) return true;
+    // While permissions are still loading, don't mark as read-only to avoid flashing banner
+    if (membersLoading || permissionsLoading) return true;
     if (useMemberPermissions) {
       // Use the assigned role permissions for project-specific access
       return checkCanEdit(memberPermissions, 'projects_specific') ||
@@ -253,7 +253,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     return getLevelGlobal('projects_general') === 'edit' ||
            checkCanEdit(memberPermissions, 'projects_specific') ||
            checkCanEdit(memberPermissions, 'projects_general');
-  }, [membersLoading, useMemberPermissions, memberPermissions, getLevelGlobal]);
+  }, [membersLoading, permissionsLoading, useMemberPermissions, memberPermissions, getLevelGlobal]);
 
   const currentStats = useMemo(() =>
     treeService.calculateBasicStats(project.items, project.bdi, project),
