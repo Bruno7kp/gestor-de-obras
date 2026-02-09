@@ -123,7 +123,18 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         });
         if (response.ok) {
           const data = await response.json();
-          setProjectMembers(data);
+          if (Array.isArray(data)) {
+            setProjectMembers(data);
+          } else {
+            setProjectMembers(data.members ?? []);
+            if (Array.isArray(data.generalAccessUsers)) {
+              setAllUsers(data.generalAccessUsers);
+              setGeneralAccessUserIds(data.generalAccessUsers.map((user: any) => user.id));
+            }
+            if (Array.isArray(data.roles)) {
+              setAllRoles(data.roles);
+            }
+          }
         }
       } catch (error) {
         console.error('Error fetching project members:', error);
@@ -134,6 +145,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
     const fetchUsersAndRoles = async () => {
       try {
+        if (isExternalProjectProp) return;
+
         const [users, roles] = await Promise.all([
           usersApi.list(),
           rolesApi.list(),
@@ -166,7 +179,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
     fetchMembers();
     fetchUsersAndRoles();
-  }, [project.id]);
+  }, [project.id, isExternalProjectProp]);
 
   // For external projects, fetch the suppliers from the project's owning instance
   useEffect(() => {
@@ -192,7 +205,18 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
       });
       if (response.ok) {
         const data = await response.json();
-        setProjectMembers(data);
+        if (Array.isArray(data)) {
+          setProjectMembers(data);
+        } else {
+          setProjectMembers(data.members ?? []);
+          if (Array.isArray(data.generalAccessUsers)) {
+            setAllUsers(data.generalAccessUsers);
+            setGeneralAccessUserIds(data.generalAccessUsers.map((user: any) => user.id));
+          }
+          if (Array.isArray(data.roles)) {
+            setAllRoles(data.roles);
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching project members:', error);

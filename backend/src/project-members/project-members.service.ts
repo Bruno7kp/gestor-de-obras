@@ -76,17 +76,61 @@ export class ProjectMembersService {
       orderBy: { createdAt: 'asc' },
     });
 
-    return members.map((m) => ({
-      id: m.id,
-      roleId: m.roleId,
-      createdAt: m.createdAt,
-      user: m.user,
-      assignedRole: {
-        id: m.assignedRole.id,
-        name: m.assignedRole.name,
-        permissions: m.assignedRole.permissions.map((rp) => rp.permission.code),
+    const roles = await this.prisma.role.findMany({
+      where: { instanceId: project.instanceId },
+      select: {
+        id: true,
+        name: true,
+        description: true,
       },
-    }));
+      orderBy: { name: 'asc' },
+    });
+
+    const generalAccessUsers = await this.prisma.user.findMany({
+      where: {
+        instanceId: project.instanceId,
+        roles: {
+          some: {
+            role: {
+              permissions: {
+                some: {
+                  permission: {
+                    code: {
+                      in: ['projects_general.view', 'projects_general.edit'],
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        profileImage: true,
+        status: true,
+        instanceId: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    return {
+      members: members.map((m) => ({
+        id: m.id,
+        roleId: m.roleId,
+        createdAt: m.createdAt,
+        user: m.user,
+        assignedRole: {
+          id: m.assignedRole.id,
+          name: m.assignedRole.name,
+          permissions: m.assignedRole.permissions.map((rp) => rp.permission.code),
+        },
+      })),
+      generalAccessUsers,
+      roles,
+    };
   }
 
   async addMemberByEmail(input: AddMemberByEmailInput) {
