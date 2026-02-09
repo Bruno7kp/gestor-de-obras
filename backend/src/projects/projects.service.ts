@@ -419,9 +419,13 @@ export class ProjectsService {
         bdi: input.bdi ?? existing.bdi,
         groupId: input.groupId ?? existing.groupId,
         contractTotalOverride:
-          input.contractTotalOverride ?? existing.contractTotalOverride,
+          input.contractTotalOverride !== undefined
+            ? input.contractTotalOverride
+            : existing.contractTotalOverride,
         currentTotalOverride:
-          input.currentTotalOverride ?? existing.currentTotalOverride,
+          input.currentTotalOverride !== undefined
+            ? input.currentTotalOverride
+            : existing.currentTotalOverride,
         strict: input.config?.strict ?? existing.strict,
         printCards: input.config?.printCards ?? existing.printCards,
         printSubtotals: input.config?.printSubtotals ?? existing.printSubtotals,

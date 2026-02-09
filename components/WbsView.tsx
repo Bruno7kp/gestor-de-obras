@@ -33,6 +33,7 @@ export const WbsView: React.FC<WbsViewProps> = ({
   const tableScrollRef = useRef<HTMLDivElement | null>(null);
   const pendingScrollRestoreRef = useRef<{ pageTop: number; tableTop: number; tableLeft: number } | null>(null);
   const lastEditedIdRef = useRef<string | null>(null);
+  const suppressNextOverrideRef = useRef(false);
   const [searchQuery, setSearchQuery] = useState('');
   
   // Estados para controle de importação e UI
@@ -291,7 +292,14 @@ export const WbsView: React.FC<WbsViewProps> = ({
 
   const handleForceRecalculate = async () => {
     const recalculatedItems = treeService.forceRecalculate(localItems, project.bdi);
-    updateItemsState(recalculatedItems);
+    preserveScroll(() => {
+      updateLocalItems(recalculatedItems);
+    });
+    const recalculatedTree = treeService
+      .buildTree<WorkItem>(recalculatedItems)
+      .map((root, idx) => treeService.processRecursive(root, '', idx, project.bdi));
+    const totalContract = financial.sum(recalculatedTree.map(item => item.contractTotal || 0));
+    const totalCurrent = financial.sum(recalculatedTree.map(item => item.currentTotal || 0));
     await syncItemsBulk(
       recalculatedItems
         .filter(item => item.type !== 'category')
@@ -308,11 +316,28 @@ export const WbsView: React.FC<WbsViewProps> = ({
           },
         })),
     );
+    setLocalContractOverride(totalContract);
+    setLocalCurrentOverride(totalCurrent);
     onUpdateProject({
       items: recalculatedItems,
-      contractTotalOverride: undefined,
-      currentTotalOverride: undefined
+      contractTotalOverride: totalContract,
+      currentTotalOverride: totalCurrent,
     });
+    try {
+      const updatedProject = await projectsApi.update(project.id, {
+        contractTotalOverride: totalContract,
+        currentTotalOverride: totalCurrent,
+      });
+      setLocalContractOverride(updatedProject.contractTotalOverride ?? totalContract);
+      setLocalCurrentOverride(updatedProject.currentTotalOverride ?? totalCurrent);
+      onUpdateProject({
+        contractTotalOverride: updatedProject.contractTotalOverride ?? totalContract,
+        currentTotalOverride: updatedProject.currentTotalOverride ?? totalCurrent,
+      });
+    } catch (error) {
+      console.error('Erro ao limpar consolidado total:', error);
+      toast.error('Falha ao atualizar o consolidado total.');
+    }
   };
 
   const handleClearMeasurement = async () => {
@@ -416,6 +441,7 @@ export const WbsView: React.FC<WbsViewProps> = ({
 
           <button 
             onClick={() => setIsRecalcModalOpen(true)}
+            onMouseDown={() => { suppressNextOverrideRef.current = true; }}
             disabled={isReadOnly}
             className="flex items-center gap-2 px-4 py-3 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-amber-600 hover:text-white transition-all disabled:opacity-30"
             title="Recalcular todos os itens com base no BDI global"
@@ -534,12 +560,20 @@ export const WbsView: React.FC<WbsViewProps> = ({
 
           onUpdateGrandTotal={async (overrides) => {
             if (isReadOnly) return;
+            if (suppressNextOverrideRef.current) {
+              suppressNextOverrideRef.current = false;
+              return;
+            }
             if (overrides.contract !== undefined) setLocalContractOverride(overrides.contract);
             if (overrides.current !== undefined) setLocalCurrentOverride(overrides.current);
             try {
               await projectsApi.update(project.id, {
                 contractTotalOverride: overrides.contract !== undefined ? overrides.contract : project.contractTotalOverride,
                 currentTotalOverride: overrides.current !== undefined ? overrides.current : project.currentTotalOverride,
+              });
+              onUpdateProject({
+                ...(overrides.contract !== undefined ? { contractTotalOverride: overrides.contract } : {}),
+                ...(overrides.current !== undefined ? { currentTotalOverride: overrides.current } : {}),
               });
             } catch (error) {
               console.error('Erro ao salvar ajustes:', error);

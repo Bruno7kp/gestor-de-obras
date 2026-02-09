@@ -564,7 +564,11 @@ const ItemTotalInput = ({ value, onUpdate, disabled, currencySymbol, textColorCl
 
 const GrandTotalInput = ({ initialValue, onUpdate, disabled, textColorClass = "text-white" }: any) => {
   const [localVal, setLocalVal] = useState(financial.formatVisual(initialValue, '').trim());
-  useEffect(() => { setLocalVal(financial.formatVisual(initialValue, '').trim()); }, [initialValue]);
+  const lastCommittedRef = useRef(initialValue || 0);
+  useEffect(() => {
+    setLocalVal(financial.formatVisual(initialValue, '').trim());
+    lastCommittedRef.current = initialValue || 0;
+  }, [initialValue]);
 
   return (
     <input 
@@ -572,8 +576,17 @@ const GrandTotalInput = ({ initialValue, onUpdate, disabled, textColorClass = "t
       type="text"
       className={`bg-transparent text-right font-black ${textColorClass} outline-none focus:ring-1 focus:ring-indigo-500 rounded px-1 w-40`}
       value={localVal}
+      onFocus={() => {
+        lastCommittedRef.current = financial.parseLocaleNumber(localVal) || 0;
+      }}
       onChange={(e) => setLocalVal(financial.maskCurrency(e.target.value))}
-      onBlur={(e) => onUpdate(financial.parseLocaleNumber(e.target.value))}
+      onBlur={(e) => {
+        const parsed = financial.parseLocaleNumber(e.target.value);
+        if (!Number.isFinite(parsed)) return;
+        if (Math.abs(parsed - lastCommittedRef.current) < 0.01) return;
+        lastCommittedRef.current = parsed;
+        onUpdate(parsed);
+      }}
     />
   );
 };
