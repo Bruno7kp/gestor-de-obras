@@ -40,6 +40,14 @@ interface UpdateWorkItemInput extends Partial<CreateWorkItemInput> {
 export class WorkItemsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private chunkItems<T>(items: T[], size: number) {
+    const chunks: T[][] = [];
+    for (let i = 0; i < items.length; i += size) {
+      chunks.push(items.slice(i, i + size));
+    }
+    return chunks;
+  }
+
   private async ensureProject(
     projectId: string,
     instanceId: string,
@@ -124,13 +132,19 @@ export class WorkItemsService {
       balanceTotal: i.balanceTotal ?? 0,
     }));
 
-    await this.prisma.$transaction([
-      this.prisma.workItemResponsibility.deleteMany({
+    const chunks = this.chunkItems(createData, 200);
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.workItemResponsibility.deleteMany({
         where: { workItem: { projectId } },
-      }),
-      this.prisma.workItem.deleteMany({ where: { projectId } }),
-      this.prisma.workItem.createMany({ data: createData }),
-    ]);
+      });
+      await tx.workItem.deleteMany({ where: { projectId } });
+
+      for (const chunk of chunks) {
+        if (chunk.length === 0) continue;
+        await tx.workItem.createMany({ data: chunk });
+      }
+    });
 
     return { created: items.length };
   }
@@ -171,17 +185,25 @@ export class WorkItemsService {
       balanceTotal: i.balanceTotal ?? 0,
     }));
 
+    const chunks = this.chunkItems(createData, 200);
+
     if (replaceFlag) {
-      await this.prisma.$transaction([
-        this.prisma.workItemResponsibility.deleteMany({
+      await this.prisma.$transaction(async (tx) => {
+        await tx.workItemResponsibility.deleteMany({
           where: { workItem: { projectId } },
-        }),
-        this.prisma.workItem.deleteMany({ where: { projectId } }),
-        this.prisma.workItem.createMany({ data: createData }),
-      ]);
+        });
+        await tx.workItem.deleteMany({ where: { projectId } });
+        for (const chunk of chunks) {
+          if (chunk.length === 0) continue;
+          await tx.workItem.createMany({ data: chunk });
+        }
+      });
     } else {
       // Only insert provided batch
-      await this.prisma.workItem.createMany({ data: createData });
+      for (const chunk of chunks) {
+        if (chunk.length === 0) continue;
+        await this.prisma.workItem.createMany({ data: chunk });
+      }
     }
 
     return { created: items.length };

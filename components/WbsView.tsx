@@ -261,7 +261,7 @@ export const WbsView: React.FC<WbsViewProps> = ({
 
       const sorted = [...importSummary.items].sort((a, b) => (depthMap.get(a.id) || 0) - (depthMap.get(b.id) || 0));
 
-      const CHUNK_SIZE = 500;
+      const CHUNK_SIZE = 100;
       const chunks: typeof sorted[] = [];
       for (let i = 0; i < sorted.length; i += CHUNK_SIZE) {
         chunks.push(sorted.slice(i, i + CHUNK_SIZE));
