@@ -262,6 +262,10 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   }, [membersLoading, permissionsLoading, useMemberPermissions, memberPermissions, getLevelGlobal]);
 
   const isProjectLoading = permissionsLoading || membersLoading;
+  const canEditMeasurements = useMemo(() => {
+    if (isProjectLoading) return false;
+    return checkCanEdit(memberPermissions, 'projects_specific');
+  }, [isProjectLoading, memberPermissions]);
   const tabPermissions: Record<TabID, PermissionModule> = {
     wbs: 'wbs',
     stats: 'technical_analysis',
@@ -746,7 +750,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
               ) : (
                 <h1 className="text-xl font-black uppercase tracking-tight text-slate-800 dark:text-white leading-none truncate">{project.name}</h1>
               )}
-              {!isHistoryMode && canEditProject && (
+              {!isHistoryMode && canEditMeasurements && (
                 isEditingName ? (
                   <div className="flex items-center gap-1">
                     <button
@@ -824,12 +828,14 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           )}
 
           {!isHistoryMode ? (
-            <button onClick={() => setIsClosingModalOpen(true)} className="flex items-center gap-2 px-6 py-3.5 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-500/20">
-              <CheckCircle2 size={16} /> Encerrar Período
-            </button>
+            canEditMeasurements ? (
+              <button onClick={() => setIsClosingModalOpen(true)} className="flex items-center gap-2 px-6 py-3.5 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-500/20">
+                <CheckCircle2 size={16} /> Encerrar Período
+              </button>
+            ) : null
           ) : (
             <div className="flex items-center gap-2">
-              {isLatestHistory && (
+              {isLatestHistory && canEditMeasurements && (
                 <button onClick={() => setIsReopenModalOpen(true)} className="flex items-center gap-2 px-5 py-3 bg-white border-2 border-rose-500 text-rose-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-50 transition-all shadow-sm">
                   <RotateCcw size={16} /> Reabrir Medição
                 </button>
