@@ -219,7 +219,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
 
       <div
         ref={scrollRef}
-        className={`overflow-x-auto overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 shadow-xl custom-scrollbar ${isFullscreen ? 'max-h-[78vh]' : 'max-h-[70vh]'}`}
+        className={`overflow-x-auto overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 shadow-xl custom-scrollbar ${isFullscreen ? 'max-h-[78vh]' : 'max-h-[74vh]'}`}
         style={{ overflowAnchor: 'none' }}
       >
         <DragDropContext onDragEnd={handleDragEnd}>
