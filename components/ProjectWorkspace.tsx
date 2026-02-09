@@ -4,7 +4,7 @@ import { Project, GlobalSettings, WorkItem, Supplier, ProjectAsset, ProjectExpen
 import {
   Layers, BarChart3, Coins, Users, HardHat, BookOpen, FileText, Sliders, Boxes,
   CheckCircle2, History, Calendar, Lock, ChevronDown,
-  ArrowRight, Clock, Undo2, Redo2, RotateCcw, AlertTriangle, X, Target, Info, RefreshCw, Briefcase
+  ArrowRight, Clock, Undo2, Redo2, RotateCcw, AlertTriangle, X, Target, Info, RefreshCw, Briefcase, Edit2, Check
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
@@ -74,6 +74,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const [allRoles, setAllRoles] = useState<any[]>([]);
   const [generalAccessUserIds, setGeneralAccessUserIds] = useState<string[]>([]);
   const [externalSuppliers, setExternalSuppliers] = useState<Supplier[]>([]);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState(project.name);
 
   const tabsNavRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef<{ x: number; scrollLeft: number; moved: boolean } | null>(null);
@@ -258,6 +260,35 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
            checkCanEdit(memberPermissions, 'projects_specific') ||
            checkCanEdit(memberPermissions, 'projects_general');
   }, [membersLoading, permissionsLoading, useMemberPermissions, memberPermissions, getLevelGlobal]);
+
+  const handleStartEditName = () => {
+    setNameDraft(project.name);
+    setIsEditingName(true);
+  };
+
+  const handleCancelEditName = () => {
+    setNameDraft(project.name);
+    setIsEditingName(false);
+  };
+
+  const handleSaveName = async () => {
+    const nextName = nameDraft.trim();
+    if (!nextName || nextName === project.name) {
+      handleCancelEditName();
+      return;
+    }
+
+    try {
+      onUpdateProject({ name: nextName });
+      await projectsApi.update(project.id, { name: nextName });
+      setIsEditingName(false);
+    } catch (error) {
+      console.error('Erro ao atualizar nome da obra:', error);
+      toast.error('Nao foi possivel atualizar o nome. Tente novamente.');
+      setNameDraft(project.name);
+      setIsEditingName(false);
+    }
+  };
 
   const currentStats = useMemo(() =>
     treeService.calculateBasicStats(project.items, project.bdi, project),
@@ -663,7 +694,50 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
             {isHistoryMode ? <History size={24} /> : <HardHat size={24} />}
           </div>
           <div className="min-w-0">
-            <h1 className="text-xl font-black uppercase tracking-tight text-slate-800 dark:text-white leading-none truncate">{project.name}</h1>
+            <div className="flex items-center gap-2 min-w-0">
+              {isEditingName ? (
+                <input
+                  value={nameDraft}
+                  onChange={(e) => setNameDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSaveName();
+                    if (e.key === 'Escape') handleCancelEditName();
+                  }}
+                  className="w-full max-w-[360px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-sm font-black uppercase tracking-tight text-slate-800 dark:text-white"
+                  autoFocus
+                />
+              ) : (
+                <h1 className="text-xl font-black uppercase tracking-tight text-slate-800 dark:text-white leading-none truncate">{project.name}</h1>
+              )}
+              {!isHistoryMode && canEditProject && (
+                isEditingName ? (
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={handleSaveName}
+                      title="Salvar"
+                      className="p-2 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all"
+                    >
+                      <Check size={14} />
+                    </button>
+                    <button
+                      onClick={handleCancelEditName}
+                      title="Cancelar"
+                      className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleStartEditName}
+                    title="Editar nome"
+                    className="p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
+                  >
+                    <Edit2 size={14} />
+                  </button>
+                )
+              )}
+            </div>
             <div className="flex flex-wrap items-center gap-3 mt-2">
               <div className="relative z-50">
                 <select
