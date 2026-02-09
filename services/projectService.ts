@@ -6,6 +6,7 @@ export const projectService = {
   createProject: (name: string, companyName: string, groupId: string | null = null): Project => ({
     id: crypto.randomUUID(),
     groupId,
+    order: 0,
     name: name.trim() || 'Novo Empreendimento',
     companyName: companyName.trim() || 'Empresa Padrão',
     companyCnpj: '',

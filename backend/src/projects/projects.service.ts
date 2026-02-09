@@ -33,6 +33,7 @@ interface UpdateProjectInput {
   groupId?: string | null;
   contractTotalOverride?: number | null;
   currentTotalOverride?: number | null;
+  order?: number;
   theme?: {
     fontFamily?: string;
     primary?: string;
@@ -75,7 +76,7 @@ export class ProjectsService {
           instanceId,
           ...(groupId ? { groupId } : {}),
         },
-        orderBy: { name: 'asc' },
+        orderBy: [{ order: 'asc' }, { name: 'asc' }],
       });
     }
 
@@ -106,7 +107,7 @@ export class ProjectsService {
           },
         },
       },
-      orderBy: { name: 'asc' },
+      orderBy: [{ order: 'asc' }, { name: 'asc' }],
     });
   }
 
@@ -299,7 +300,18 @@ export class ProjectsService {
     return project;
   }
 
-  create(input: CreateProjectInput) {
+  async create(input: CreateProjectInput) {
+    const lastProject = await this.prisma.project.findFirst({
+      where: {
+        instanceId: input.instanceId,
+        groupId: input.groupId ?? null,
+      },
+      orderBy: { order: 'desc' },
+      select: { order: true },
+    });
+
+    const nextOrder = (lastProject?.order ?? -1) + 1;
+
     return this.prisma.project.create({
       data: {
         name: input.name,
@@ -317,6 +329,7 @@ export class ProjectsService {
         showSignatures: true,
         instanceId: input.instanceId,
         groupId: input.groupId ?? null,
+        order: nextOrder,
       },
     });
   }
@@ -418,6 +431,7 @@ export class ProjectsService {
         logo: input.logo ?? existing.logo,
         bdi: input.bdi ?? existing.bdi,
         groupId: input.groupId ?? existing.groupId,
+        order: input.order ?? existing.order,
         contractTotalOverride:
           input.contractTotalOverride !== undefined
             ? input.contractTotalOverride

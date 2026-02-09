@@ -94,6 +94,7 @@ export const normalizeProject = (project: any): Project => {
   return {
     id: project.id,
     groupId: project.groupId ?? null,
+    order: project.order ?? 0,
     name: project.name ?? 'Nova Obra',
     companyName: project.companyName ?? '',
     companyCnpj: project.companyCnpj ?? '',

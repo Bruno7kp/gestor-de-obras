@@ -32,15 +32,47 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
   const [searchQuery, setSearchQuery] = useState('');
   const toast = useToast();
 
-  const currentGroups = useMemo(() => 
-    props.groups.filter(g => g.parentId === currentGroupId), 
+  const sortByOrder = (a: { order?: number; name?: string }, b: { order?: number; name?: string }) => {
+    const orderDiff = (a.order ?? 0) - (b.order ?? 0);
+    if (orderDiff !== 0) return orderDiff;
+    return (a.name ?? '').localeCompare(b.name ?? '');
+  };
+
+  const getNextGroupOrder = (parentId: string | null) => {
+    const siblings = props.groups.filter(g => g.parentId === parentId);
+    if (siblings.length === 0) return 0;
+    return Math.max(...siblings.map(g => g.order ?? 0)) + 1;
+  };
+
+  const getNextProjectOrder = (groupId: string | null) => {
+    const siblings = props.projects.filter(p => p.groupId === groupId);
+    if (siblings.length === 0) return 0;
+    return Math.max(...siblings.map(p => p.order ?? 0)) + 1;
+  };
+
+  const currentGroups = useMemo(() =>
+    props.groups
+      .filter(g => g.parentId === currentGroupId)
+      .slice()
+      .sort(sortByOrder),
     [props.groups, currentGroupId]
   );
   
-  const currentProjects = useMemo(() => 
-    props.projects.filter(p => p.groupId === currentGroupId), 
+  const currentProjects = useMemo(() =>
+    props.projects
+      .filter(p => p.groupId === currentGroupId)
+      .slice()
+      .sort(sortByOrder),
     [props.projects, currentGroupId]
   );
+
+  const dashboardItems = useMemo(() => (
+    [
+      ...(currentGroupId ? [{ type: 'placeholder' as const, id: 'target-back' }] : []),
+      ...currentGroups.map((g) => ({ type: 'group' as const, id: g.id })),
+      ...currentProjects.map((p) => ({ type: 'project' as const, id: p.id })),
+    ]
+  ), [currentGroupId, currentGroups, currentProjects]);
 
   const breadcrumbs = useMemo(() => {
     const list: ProjectGroup[] = [];
@@ -86,9 +118,11 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
 
       try {
         if (type === 'project') {
-          await projectsApi.update(cleanSourceId, { groupId: targetGroupId });
+          const order = getNextProjectOrder(targetGroupId);
+          await projectsApi.update(cleanSourceId, { groupId: targetGroupId, order });
         } else {
-          await projectGroupsApi.update(cleanSourceId, { parentId: targetGroupId });
+          const order = getNextGroupOrder(targetGroupId);
+          await projectGroupsApi.update(cleanSourceId, { parentId: targetGroupId, order });
         }
         await refreshLists();
       } catch (error) {
@@ -104,9 +138,11 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
 
       try {
         if (type === 'project') {
-          await projectsApi.update(cleanSourceId, { groupId: targetGroupId });
+          const order = getNextProjectOrder(targetGroupId);
+          await projectsApi.update(cleanSourceId, { groupId: targetGroupId, order });
         } else {
-          await projectGroupsApi.update(cleanSourceId, { parentId: targetGroupId });
+          const order = getNextGroupOrder(targetGroupId);
+          await projectGroupsApi.update(cleanSourceId, { parentId: targetGroupId, order });
         }
         await refreshLists();
       } catch (error) {
@@ -114,15 +150,91 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
       }
       return;
     }
+
+    if (
+      !searchQuery &&
+      result.destination &&
+      result.destination.droppableId === 'dashboard-grid' &&
+      result.destination.index !== result.source.index
+    ) {
+      const destinationIndex =
+        currentGroupId && result.destination.index === 0
+          ? 1
+          : result.destination.index;
+      const reordered = [...dashboardItems];
+      const [moved] = reordered.splice(result.source.index, 1);
+      reordered.splice(destinationIndex, 0, moved);
+
+      const groupOrderMap = new Map<string, number>();
+      const projectOrderMap = new Map<string, number>();
+
+      let orderIndex = 0;
+      reordered.forEach((item) => {
+        if (item.type === 'placeholder') return;
+        if (item.type === 'group') {
+          groupOrderMap.set(item.id, orderIndex);
+        } else {
+          projectOrderMap.set(item.id, orderIndex);
+        }
+        orderIndex += 1;
+      });
+
+      const updatedGroups = props.groups.map((group) => {
+        const nextOrder = groupOrderMap.get(group.id);
+        if (nextOrder === undefined) return group;
+        return group.order === nextOrder ? group : { ...group, order: nextOrder };
+      });
+
+      const updatedProjects = props.projects.map((project) => {
+        const nextOrder = projectOrderMap.get(project.id);
+        if (nextOrder === undefined) return project;
+        return project.order === nextOrder ? project : { ...project, order: nextOrder };
+      });
+
+      props.onBulkUpdate({ projects: updatedProjects, groups: updatedGroups });
+
+      const groupUpdates = Array.from(groupOrderMap.entries())
+        .map(([id, order]) => {
+          const existing = props.groups.find((group) => group.id === id);
+          if (!existing || existing.order === order) return null;
+          return { id, order };
+        })
+        .filter((item): item is { id: string; order: number } => Boolean(item));
+
+      const projectUpdates = Array.from(projectOrderMap.entries())
+        .map(([id, order]) => {
+          const existing = props.projects.find((project) => project.id === id);
+          if (!existing || existing.order === order) return null;
+          return { id, order };
+        })
+        .filter((item): item is { id: string; order: number } => Boolean(item));
+
+      try {
+        await Promise.all([
+          ...groupUpdates.map((group) =>
+            projectGroupsApi.update(group.id, { order: group.order }),
+          ),
+          ...projectUpdates.map((project) =>
+            projectsApi.update(project.id, { order: project.order }),
+          ),
+        ]);
+      } catch (error) {
+        console.error('Erro ao salvar ordem:', error);
+        toast.error('Nao foi possivel salvar a ordem. Tente novamente.');
+        await refreshLists();
+      }
+    }
   };
 
   const handleConfirmMove = async (targetGroupId: string | null) => {
     if (!movingItem) return;
     try {
       if (movingItem.type === 'project') {
-        await projectsApi.update(movingItem.id, { groupId: targetGroupId });
+        const order = getNextProjectOrder(targetGroupId);
+        await projectsApi.update(movingItem.id, { groupId: targetGroupId, order });
       } else {
-        await projectGroupsApi.update(movingItem.id, { parentId: targetGroupId });
+        const order = getNextGroupOrder(targetGroupId);
+        await projectGroupsApi.update(movingItem.id, { parentId: targetGroupId, order });
       }
       await refreshLists();
     } catch (error) {
@@ -137,7 +249,7 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
       const newGroup = await projectGroupsApi.create({
         name: 'Nova Pasta',
         parentId: currentGroupId,
-        order: currentGroups.length,
+        order: getNextGroupOrder(currentGroupId),
       });
       props.onUpdateGroups([...props.groups, newGroup]);
     } catch (error) {
@@ -187,11 +299,17 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
   };
 
   const filteredGroups = searchQuery 
-    ? props.groups.filter(g => g.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    ? props.groups
+        .filter(g => g.name.toLowerCase().includes(searchQuery.toLowerCase()))
+        .slice()
+        .sort(sortByOrder)
     : [];
     
   const filteredProjects = searchQuery
-    ? props.projects.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    ? props.projects
+        .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
+        .slice()
+        .sort(sortByOrder)
     : [];
 
   return (

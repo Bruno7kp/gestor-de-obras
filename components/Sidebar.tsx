@@ -72,6 +72,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const accountName = user?.name || user?.email || 'Usuario';
   const instanceDisplayName = user?.instanceName || '';
 
+  const sortByOrder = (a: { order?: number; name?: string }, b: { order?: number; name?: string }) => {
+    const orderDiff = (a.order ?? 0) - (b.order ?? 0);
+    if (orderDiff !== 0) return orderDiff;
+    return (a.name ?? '').localeCompare(b.name ?? '');
+  };
+
   const handleLogout = async () => {
     await logout();
     setAccountOpen(false);
@@ -163,8 +169,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // Fix: Explicitly type GroupTreeItem as React.FC to handle React's intrinsic key prop and satisfy strict TS checks
   const GroupTreeItem: React.FC<{ group: ProjectGroup, depth: number }> = ({ group, depth }) => {
     const isExpanded = expandedGroups.has(group.id);
-    const subGroups = groups.filter(g => g.parentId === group.id);
-    const groupProjects = projects.filter(p => p.groupId === group.id);
+    const subGroups = groups
+      .filter(g => g.parentId === group.id)
+      .slice()
+      .sort(sortByOrder);
+    const groupProjects = projects
+      .filter(p => p.groupId === group.id)
+      .slice()
+      .sort(sortByOrder);
 
     return (
       <div className="space-y-1">
@@ -276,8 +288,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
 
               <div className="space-y-1">
-                {groups.filter(g => !g.parentId).map(g => <GroupTreeItem key={g.id} group={g} depth={0} />)}
-                {projects.filter(p => !p.groupId).map(p => (
+                {groups
+                  .filter(g => !g.parentId)
+                  .slice()
+                  .sort(sortByOrder)
+                  .map(g => <GroupTreeItem key={g.id} group={g} depth={0} />)}
+                {projects
+                  .filter(p => !p.groupId)
+                  .slice()
+                  .sort(sortByOrder)
+                  .map(p => (
                   <button key={p.id} onClick={() => onOpenProject(p.id)} className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${activeProjectId === p.id && location.pathname.startsWith('/app/projects') ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 font-bold' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'} ${!isOpen && 'justify-center'}`}>
                     <Briefcase size={16} className="shrink-0" />
                     {isOpen && <span className="text-xs truncate text-left">{p.name}</span>}

@@ -38,6 +38,7 @@ interface UpdateProjectBody {
   groupId?: string | null;
   contractTotalOverride?: number | null;
   currentTotalOverride?: number | null;
+  order?: number;
   theme?: {
     fontFamily?: string;
     primary?: string;

@@ -346,6 +346,7 @@ export interface Project {
   id: string;
   instanceId?: string;
   groupId: string | null;
+  order: number;
   name: string;
   companyName: string;
   companyCnpj: string;
