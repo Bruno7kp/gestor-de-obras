@@ -10,7 +10,7 @@ import {
   Percent, MapPin, Upload, 
   Image as ImageIcon, Trash2, FileText, 
   CheckCircle2, Building2, Palette, Settings2,
-  ToggleRight, ToggleLeft, Cpu, Globe, CreditCard, Lock
+  ToggleRight, ToggleLeft, Cpu, Globe, CreditCard
 } from 'lucide-react';
 
 interface BrandingViewProps {
@@ -22,10 +22,9 @@ interface BrandingViewProps {
 export const BrandingView: React.FC<BrandingViewProps> = ({ 
   project, onUpdateProject, isReadOnly 
 }) => {
-  const { canEdit, getLevel, loading: permissionsLoading } = usePermissions();
+  const { canEdit, getLevel } = usePermissions();
   const toast = useToast();
   const canEditBranding = canEdit('project_settings') && !isReadOnly;
-  const showReadOnlyBanner = !permissionsLoading && !canEditBranding && !isReadOnly;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [strBdi, setStrBdi] = useState(financial.formatVisual(project.bdi || 0, '').trim());
@@ -63,13 +62,6 @@ export const BrandingView: React.FC<BrandingViewProps> = ({
 
   return (
     <div className="max-w-6xl mx-auto space-y-16 animate-in fade-in duration-700 pb-24 px-4">
-      {showReadOnlyBanner && (
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-3">
-          <Lock size={18} className="text-amber-600 flex-shrink-0" />
-          <span className="text-amber-800">Você tem apenas permissão de leitura. Para editar configurações, solicite acesso ao administrador.</span>
-        </div>
-      )}
-
       {/* HEADER DA PÁGINA */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-200 dark:border-slate-800 pb-10">
         <div className="flex items-center gap-5">

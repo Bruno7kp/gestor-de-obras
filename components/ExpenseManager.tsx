@@ -15,7 +15,7 @@ import {
   Plus, Search, CheckCircle2, Wallet, ArrowRightLeft,
   X, BarChart3, PieChart, Clock, ArrowUpRight,
   Maximize2, Minimize2, Truck, Users, Download, UploadCloud,
-  FileSpreadsheet, Landmark, Coins, AlertCircle, Printer, FolderPlus, Lock
+  FileSpreadsheet, Landmark, Coins, AlertCircle, Printer, FolderPlus
 } from 'lucide-react';
 
 interface ExpenseManagerProps {
@@ -34,10 +34,9 @@ interface ExpenseManagerProps {
 export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
   project, expenses, onAdd, onAddMany, onUpdate, onDelete, workItems, measuredValue, onUpdateExpenses, isReadOnly
 }) => {
-  const { canEdit, getLevel, loading: permissionsLoading } = usePermissions();
+  const { canEdit, getLevel } = usePermissions();
   const toast = useToast();
   const canEditFinancial = canEdit('financial_flow') && !isReadOnly;
-  const showReadOnlyBanner = !permissionsLoading && !canEditFinancial && !isReadOnly;
   const isSupplyLinkedExpense = (expense: ProjectExpense) =>
     expense.type === 'material' &&
     expense.itemType === 'item' &&
@@ -204,13 +203,6 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
   return (
     <div className="space-y-8 max-w-[1600px] mx-auto pb-10">
       <input type="file" ref={fileInputRef} className="hidden" hidden accept=".xlsx, .xls" onChange={handleImportExpenses} />
-
-      {showReadOnlyBanner && (
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-3">
-          <Lock size={18} className="text-amber-600 flex-shrink-0" />
-          <span className="text-amber-800">Você tem apenas permissão de leitura. Para editar despesas, solicite acesso ao administrador.</span>
-        </div>
-      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <CashKpi label="Recebido (Cash In)" value={stats.revenue} icon={<Landmark size={20} />} color="emerald" sub="Total liquidado na conta" />

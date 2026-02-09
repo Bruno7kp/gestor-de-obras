@@ -8,7 +8,7 @@ import { ConfirmModal } from './ConfirmModal';
 import { useToast } from '../hooks/useToast';
 import { 
   Plus, Search, Trash2, Edit2, HardHat,
-  X, UserCircle, Briefcase, User, Lock
+  X, UserCircle, Briefcase, User
 } from 'lucide-react';
 
 interface WorkforceManagerProps {
@@ -17,9 +17,8 @@ interface WorkforceManagerProps {
 }
 
 export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onUpdateProject }) => {
-  const { canEdit, getLevel, loading: permissionsLoading } = usePermissions();
+  const { canEdit, getLevel } = usePermissions();
   const canEditWorkforce = canEdit('workforce');
-  const showReadOnlyBanner = !permissionsLoading && !canEditWorkforce;
   const toast = useToast();
 
   const [search, setSearch] = useState('');
@@ -163,13 +162,6 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onU
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
-      {showReadOnlyBanner && (
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-3">
-          <Lock size={18} className="text-amber-600 flex-shrink-0" />
-          <span className="text-amber-800">Você tem apenas permissão de leitura. Para editar colaboradores, solicite acesso ao administrador.</span>
-        </div>
-      )}
-
       <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm">
         <div className="relative flex-1 w-full md:max-w-md">
            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />

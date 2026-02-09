@@ -13,7 +13,7 @@ import {
   ChevronUp, ChevronDown, List, CalendarDays, Filter, Users, Download, UploadCloud,
   Layers, FlagTriangleRight, Printer, CreditCard, ChevronLeft, ChevronRight,
   Building2, User, FolderTree, FileCheck, ReceiptText, FileText, FileSpreadsheet,
-  ArrowRight, Lock
+  ArrowRight
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { ExpenseAttachmentZone } from './ExpenseAttachmentZone';
@@ -36,11 +36,10 @@ interface PlanningViewProps {
 export const PlanningView: React.FC<PlanningViewProps> = ({ 
   project, suppliers, onUpdatePlanning, onAddExpense, onUpdateExpense, categories, allWorkItems, viewMode = 'planning'
 }) => {
-  const { canEdit, getLevel, loading: permissionsLoading } = usePermissions();
+  const { canEdit, getLevel } = usePermissions();
   const toast = useToast();
   const isSuppliesView = viewMode === 'supplies';
   const canEditPlanning = isSuppliesView ? canEdit('supplies') : canEdit('planning');
-  const showReadOnlyBanner = !permissionsLoading && !canEditPlanning;
 
   const planningSubTabs: Array<'tasks' | 'forecast' | 'milestones'> = ['tasks', 'forecast', 'milestones'];
   const planningTabKey = `planning_subtab_${project.id}`;
@@ -309,15 +308,6 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
         accept=".xlsx, .xls" 
         onChange={handleImportPlanning}
       />
-      
-      {showReadOnlyBanner && (
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-3">
-          <Lock size={18} className="text-amber-600 flex-shrink-0" />
-          <span className="text-amber-800">
-            Você tem apenas permissão de leitura. Para editar {isSuppliesView ? 'suprimentos' : 'planejamento'}, solicite acesso ao administrador.
-          </span>
-        </div>
-      )}
       
       {!isSuppliesView && (
         <div className="no-print flex flex-col md:flex-row md:items-center justify-between gap-4">
