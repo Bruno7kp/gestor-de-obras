@@ -9,6 +9,7 @@ import { treeService } from '../services/treeService';
 import { projectService } from '../services/projectService';
 import { projectsApi } from '../services/projectsApi';
 import { projectGroupsApi } from '../services/projectGroupsApi';
+import { useToast } from '../hooks/useToast';
 import { DragDropContext, Droppable, Draggable, DropResult, DraggableProvided } from '@hello-pangea/dnd';
 
 interface DashboardViewProps {
@@ -29,6 +30,7 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
   const [isDeleting, setIsDeleting] = useState<{ type: 'group' | 'project', id: string } | null>(null);
   const [newName, setNewName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const toast = useToast();
 
   const currentGroups = useMemo(() => 
     props.groups.filter(g => g.parentId === currentGroupId), 
@@ -174,6 +176,11 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
       }
     } catch (error) {
       console.error('Erro ao excluir item:', error);
+      if (isDeleting.type === 'project') {
+        toast.error('Nao foi possivel remover a obra. Tente novamente.');
+      } else {
+        toast.error('Nao foi possivel remover a pasta. Tente novamente.');
+      }
     } finally {
       setIsDeleting(null);
     }

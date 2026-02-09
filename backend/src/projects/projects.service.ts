@@ -470,10 +470,18 @@ export class ProjectsService {
         }),
         this.prisma.workforceMember.findMany({
           where: { projectId: id },
-          select: { foto: true, documentos: { select: { arquivoUrl: true } } },
+          select: {
+            id: true,
+            foto: true,
+            documentos: { select: { arquivoUrl: true } },
+          },
         }),
         this.prisma.laborPayment.findMany({
-          where: { laborContract: { projectId: id } },
+          where: {
+            laborContract: {
+              OR: [{ projectId: id }, { associado: { projectId: id } }],
+            },
+          },
           select: { comprovante: true },
         }),
       ]);
@@ -496,6 +504,29 @@ export class ProjectsService {
       ),
     );
     await removeLocalUploads(payments.map((payment) => payment.comprovante));
+
+    const workforceIds = workforce.map((member) => member.id);
+
+    await this.prisma.laborPayment.deleteMany({
+      where: {
+        laborContract: {
+          OR: [
+            { projectId: id },
+            { associado: { projectId: id } },
+            { associadoId: { in: workforceIds } },
+          ],
+        },
+      },
+    });
+    await this.prisma.laborContract.deleteMany({
+      where: {
+        OR: [
+          { projectId: id },
+          { associado: { projectId: id } },
+          { associadoId: { in: workforceIds } },
+        ],
+      },
+    });
 
     await this.prisma.workItemResponsibility.deleteMany({
       where: { workItem: { projectId: id } },
@@ -540,6 +571,7 @@ export class ProjectsService {
       await this.prisma.projectJournal.delete({ where: { id: journal.id } });
     }
 
+    await this.prisma.projectMember.deleteMany({ where: { projectId: id } });
     await this.prisma.pDFTheme.deleteMany({ where: { projectId: id } });
 
     return this.prisma.project.delete({ where: { id } });
