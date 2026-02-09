@@ -150,7 +150,7 @@ const App: React.FC = () => {
     [activeProjectId, externalProjectIds],
   );
 
-  // Projects without the externally-loaded ones (they only show in "Outras Obras")
+  // Projects without the externally-loaded ones (they only show in "Compartilhado")
   const ownProjects = useMemo(
     () => projects.filter(p => !externalProjectIds.has(p.id)),
     [projects, externalProjectIds],

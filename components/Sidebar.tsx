@@ -111,14 +111,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className="flex items-center gap-1 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors"
             >
               {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-              Outras Obras
+              Compartilhado
             </button>
           )}
           {!sidebarOpen && (
             <button
               onClick={() => setExpanded(!expanded)}
               className="mx-auto text-slate-400 hover:text-slate-600 transition-colors"
-              title="Outras Obras"
+              title="Compartilhado"
             >
               <Globe size={16} />
             </button>
