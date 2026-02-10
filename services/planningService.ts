@@ -120,24 +120,32 @@ export const planningService = {
     tasks: (planning.tasks || []).filter(t => t.id !== taskId)
   }),
 
-  addForecast: (planning: ProjectPlanning, data: Partial<MaterialForecast>): ProjectPlanning => ({
-    ...planning,
-    forecasts: [...(planning.forecasts || []), {
-      id: crypto.randomUUID(),
-      description: data.description || 'Insumo Previsto',
-      quantityNeeded: data.quantityNeeded || 0,
-      unitPrice: data.unitPrice || 0,
-      unit: data.unit || 'un',
-      estimatedDate: data.estimatedDate || new Date().toISOString(),
-      status: data.status || 'pending',
-      isPaid: data.isPaid || false,
-      isCleared: data.isCleared || false,
-      supplierId: data.supplierId || undefined,
-      categoryId: data.categoryId || undefined,
-      paymentProof: data.paymentProof || undefined,
-      order: planning.forecasts.length
-    }]
-  }),
+  addForecast: (planning: ProjectPlanning, data: Partial<MaterialForecast>): ProjectPlanning => {
+    const status = data.status || 'pending';
+    const updatedForecasts = (planning.forecasts || []).map((forecast) => {
+      if (forecast.status !== status) return forecast;
+      return { ...forecast, order: (forecast.order ?? 0) + 1 };
+    });
+
+    return {
+      ...planning,
+      forecasts: [...updatedForecasts, {
+        id: crypto.randomUUID(),
+        description: data.description || 'Insumo Previsto',
+        quantityNeeded: data.quantityNeeded || 0,
+        unitPrice: data.unitPrice || 0,
+        unit: data.unit || 'un',
+        estimatedDate: data.estimatedDate || new Date().toISOString(),
+        status,
+        isPaid: data.isPaid || false,
+        isCleared: data.isCleared || false,
+        supplierId: data.supplierId || undefined,
+        categoryId: data.categoryId || undefined,
+        paymentProof: data.paymentProof || undefined,
+        order: 0
+      }]
+    };
+  },
 
   updateForecast: (planning: ProjectPlanning, id: string, updates: Partial<MaterialForecast>): ProjectPlanning => ({
     ...planning,

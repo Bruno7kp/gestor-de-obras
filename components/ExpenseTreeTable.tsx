@@ -28,10 +28,22 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
   data, expandedIds, onToggle, onEdit, onDelete, onAddChild, onUpdateTotal, onUpdateUnitPrice, onTogglePaid, onReorder, onMoveManual, isReadOnly, currencySymbol = 'R$'
 }) => {
   const isRevenueTable = data.some(d => d.type === 'revenue');
+  const apiBase = (import.meta as any).env?.VITE_API_URL ?? '';
+
+  const resolveUploadUrl = (url: string) => {
+    if (!url) return url;
+    if (/^https?:\/\//i.test(url)) return url;
+    if (url.startsWith('/uploads/')) {
+      const baseOrigin = new URL(apiBase || '/', window.location.origin).origin;
+      return `${baseOrigin}${url}`;
+    }
+    return url;
+  };
 
   const handleDownloadDoc = (url: string, name: string) => {
+    const resolvedUrl = resolveUploadUrl(url);
     const link = document.createElement('a');
-    link.href = url;
+    link.href = resolvedUrl;
     link.download = name;
     link.click();
   };
@@ -94,9 +106,15 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                           {item.itemType === 'item' && (
                             <div className="flex justify-center">
                               {item.status === 'DELIVERED' ? (
-                                <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center" title="Faturado">
-                                  <CheckCircle2 size={14} />
-                                </div>
+                                isRevenueTable ? (
+                                  <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center" title="Faturado">
+                                    <CheckCircle2 size={14} />
+                                  </div>
+                                ) : (
+                                  <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 flex items-center justify-center" title="No Local">
+                                    <Truck size={14} />
+                                  </div>
+                                )
                               ) : item.status === 'PAID' ? (
                                 <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center" title="Pago">
                                   <CheckCircle2 size={14} />

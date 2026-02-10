@@ -12,7 +12,7 @@ import {
   GripVertical, MoreVertical, Edit2, X, Save, Calculator, Wallet, Link,
   ChevronUp, ChevronDown, List, CalendarDays, Filter, Users, Download, UploadCloud,
   Layers, FlagTriangleRight, Printer, CreditCard, ChevronLeft, ChevronRight,
-  Building2, User, FolderTree, FileCheck, ReceiptText, FileText, FileSpreadsheet,
+  Building2, User, FolderTree, FileCheck, ReceiptText, Receipt, FileText, FileSpreadsheet,
   ArrowRight
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
@@ -120,8 +120,10 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
 
   const forecastStats = useMemo(() => {
     const list = planning.forecasts || [];
-    const total = list
-      .filter(f => !f.isCleared)
+    const totalList = isSuppliesView
+      ? list.filter(f => f.status === 'pending')
+      : list.filter(f => !f.isCleared);
+    const total = totalList
       .reduce((acc, f) => acc + ((f.quantityNeeded || 0) * (f.unitPrice || 0)), 0);
     
     const countPending = list.filter(f => f.status === 'pending').length;
@@ -137,7 +139,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     const effective = list.filter(f => f.status !== 'pending').reduce((acc, f) => acc + ((f.quantityNeeded || 0) * (f.unitPrice || 0)), 0);
     
     return { total, pending, ordered, delivered, effective, countPending, countOrdered, countDelivered, countEffective };
-  }, [planning.forecasts]);
+  }, [planning.forecasts, isSuppliesView]);
 
   const handleAutoGenerate = () => {
     const updated = planningService.generateTasksFromWbs(planning, allWorkItems);
@@ -396,11 +398,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
       <DragDropContext onDragEnd={onDragEnd}>
         {activeSubTab === 'tasks' && (
           <div className="space-y-6">
-            <div className="flex justify-between items-center px-4">
-               <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-full bg-indigo-500 animate-pulse" />
-                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Fluxo de Trabalho</h3>
-               </div>
+            <div className="flex justify-end items-center px-4">
                <button onClick={handleAutoGenerate} className="flex items-center gap-2 px-6 py-3 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-sm">
                   <Wand2 size={16} /> Inteligência EAP
                </button>
@@ -573,6 +571,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                         <tbody ref={provided.innerRef} {...provided.droppableProps} className="text-center">
                           {sortedForecasts.map((f, index) => {
                             const supplier = suppliers.find(s => s.id === f.supplierId);
+                            const linkedExpense = findExpenseForForecast(f);
                             
                             // Lógica refinada de rótulo e valor de data baseada no status e pagamento
                             let dateLabel = 'Previsto';
@@ -606,7 +605,11 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                   <tr 
                                     ref={p.innerRef} 
                                     {...p.draggableProps} 
-                                    className={`group/row bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl transition-all shadow-sm ${s.isDragging ? 'shadow-2xl z-50 ring-2 ring-indigo-500 scale-[1.02]' : 'hover:shadow-md'}`}
+                                    className={`group/row border border-slate-100 dark:border-slate-800 rounded-3xl transition-all shadow-sm ${
+                                      forecastStatusFilter === 'ordered' && !f.isPaid
+                                        ? 'bg-amber-50/60 dark:bg-amber-900/10'
+                                        : 'bg-white dark:bg-slate-900'
+                                    } ${s.isDragging ? 'shadow-2xl z-50 ring-2 ring-indigo-500 scale-[1.02]' : 'hover:shadow-md'}`}
                                   >
                                     <td className="py-6 pl-4 rounded-l-3xl">
                                       <div {...p.dragHandleProps} className="p-2 text-slate-200 hover:text-indigo-400 cursor-grab active:cursor-grabbing">
@@ -616,10 +619,31 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                     <td className="py-6 px-4 text-left min-w-[250px]">
                                       <div className="flex flex-col gap-1">
                                         <div className="flex items-center gap-2">
+                                          {forecastStatusFilter === 'ordered' && !f.isPaid && (
+                                            <span
+                                              className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-100 text-amber-600"
+                                              title="Pagamento pendente"
+                                            >
+                                              <Clock size={12} />
+                                            </span>
+                                          )}
                                           <span className="text-sm font-black dark:text-white leading-tight uppercase">{f.description}</span>
+                                          {linkedExpense?.invoiceDoc && (
+                                            <button
+                                              onClick={() => handleViewProof(linkedExpense.invoiceDoc!)}
+                                              className="p-1.5 text-emerald-400 hover:text-emerald-600 rounded-lg"
+                                              title="Baixar Nota Fiscal"
+                                            >
+                                              <Receipt size={14} />
+                                            </button>
+                                          )}
                                           {f.paymentProof && (
-                                            <button onClick={() => handleViewProof(f.paymentProof!)} className="p-1 bg-emerald-50 text-emerald-600 rounded-md hover:bg-emerald-100 transition-colors" title="Ver Comprovante">
-                                              <ReceiptText size={10} />
+                                            <button
+                                              onClick={() => handleViewProof(f.paymentProof!)}
+                                              className="p-1.5 text-blue-400 hover:text-blue-600 rounded-lg"
+                                              title="Baixar Comprovante"
+                                            >
+                                              <Download size={14} />
                                             </button>
                                           )}
                                         </div>

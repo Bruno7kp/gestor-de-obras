@@ -26,9 +26,20 @@ export const ExpenseAttachmentZone: React.FC<ExpenseAttachmentZoneProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const toast = useToast();
+  const apiBase = (import.meta as any).env?.VITE_API_URL ?? '';
   const statusLabel = requiredStatusLabel ?? (requiredStatus
     ? ({ PAID: 'Pago', DELIVERED: 'Entregue', PENDING: 'Pendente' } as const)[requiredStatus as 'PAID' | 'DELIVERED' | 'PENDING']
     : undefined);
+
+  const resolveUploadUrl = (url: string) => {
+    if (!url) return url;
+    if (/^https?:\/\//i.test(url)) return url;
+    if (url.startsWith('/uploads/')) {
+      const baseOrigin = new URL(apiBase || '/', window.location.origin).origin;
+      return `${baseOrigin}${url}`;
+    }
+    return url;
+  };
 
   const handleFile = async (file: File) => {
     if (!file) return;
@@ -67,8 +78,9 @@ export const ExpenseAttachmentZone: React.FC<ExpenseAttachmentZoneProps> = ({
                 <button 
                   type="button"
                   onClick={() => {
+                    const resolvedUrl = resolveUploadUrl(currentFile);
                     const win = window.open();
-                    win?.document.write(`<iframe src="${currentFile}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                    win?.document.write(`<iframe src="${resolvedUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
                   }}
                   className="text-[9px] font-bold text-emerald-600 underline"
                 >Visualizar</button>
