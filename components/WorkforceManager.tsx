@@ -1,14 +1,15 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Project, WorkforceMember, WorkforceRole, WorkItem } from '../types';
 import { workforceService } from '../services/workforceService';
 import { workforceApi } from '../services/workforceApi';
+import { treeService } from '../services/treeService';
 import { usePermissions } from '../hooks/usePermissions';
 import { ConfirmModal } from './ConfirmModal';
 import { useToast } from '../hooks/useToast';
 import { 
   Plus, Search, Trash2, Edit2, HardHat,
-  X, UserCircle, Briefcase, User
+  X, UserCircle, Briefcase, User, ChevronDown, ChevronRight
 } from 'lucide-react';
 
 interface WorkforceManagerProps {
@@ -218,7 +219,7 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onU
           member={editingMember} 
           onClose={() => setIsModalOpen(false)} 
           onSave={handleSave} 
-          allWorkItems={project.items.filter(i => i.type === 'item')}
+          allWorkItems={project.items}
         />
       )}
 
@@ -238,6 +239,97 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onU
 
 const MemberModal = ({ member, onClose, onSave, allWorkItems }: any) => {
   const [data, setData] = useState<WorkforceMember>(member || workforceService.createMember('Servente'));
+  const workTree = useMemo(() => treeService.buildTree(allWorkItems), [allWorkItems]);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    setExpandedIds(new Set());
+  }, [member, allWorkItems]);
+
+  const getItemIds = (node: WorkItem): string[] => {
+    const children = node.children ?? [];
+    const childIds = children.flatMap(getItemIds);
+    if (node.type === 'item') return [node.id, ...childIds];
+    return childIds;
+  };
+
+  const toggleItemIds = (ids: string[], checked: boolean) => {
+    if (ids.length === 0) return;
+    const current = new Set(data.linkedWorkItemIds);
+    ids.forEach((id) => {
+      if (checked) current.add(id);
+      else current.delete(id);
+    });
+    setData({ ...data, linkedWorkItemIds: Array.from(current) });
+  };
+
+  const toggleExpanded = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const collectCategoryIds = (nodes: WorkItem[]): string[] => {
+    return nodes.flatMap((node) => {
+      const childIds = collectCategoryIds(node.children ?? []);
+      return node.type === 'category' ? [node.id, ...childIds] : childIds;
+    });
+  };
+
+  const categoryIds = useMemo(() => collectCategoryIds(workTree as WorkItem[]), [workTree]);
+
+  const renderTreeNode = (node: WorkItem, depth: number) => {
+    const itemIds = getItemIds(node);
+    const checked = itemIds.length > 0 && itemIds.every((id) => data.linkedWorkItemIds.includes(id));
+    const indeterminate =
+      itemIds.length > 0 &&
+      itemIds.some((id) => data.linkedWorkItemIds.includes(id)) &&
+      !checked;
+    const isCategory = node.type === 'category';
+    const isExpanded = isCategory && expandedIds.has(node.id);
+
+    return (
+      <div key={node.id} className="space-y-2">
+        <label
+          className={`flex items-center gap-3 cursor-pointer group ${itemIds.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+          style={{ marginLeft: `${depth * 1.25}rem` }}
+        >
+          {isCategory ? (
+            <button
+              type="button"
+              className="p-1 rounded-md text-slate-400 bg-slate-100 dark:bg-slate-800 group-hover:text-indigo-600"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                toggleExpanded(node.id);
+              }}
+            >
+              {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            </button>
+          ) : (
+            <div className="w-5" />
+          )}
+          <input
+            type="checkbox"
+            className="w-4 h-4 rounded text-indigo-600 focus:ring-0"
+            checked={checked}
+            disabled={itemIds.length === 0}
+            ref={(el) => {
+              if (el) el.indeterminate = indeterminate;
+            }}
+            onChange={(e) => toggleItemIds(itemIds, e.target.checked)}
+          />
+          <span className={`text-[10px] font-bold ${node.type === 'category' ? 'text-slate-700 dark:text-slate-300 uppercase' : 'text-slate-600 dark:text-slate-400'} group-hover:text-indigo-600`}>
+            {node.wbs} - {node.name}
+          </span>
+        </label>
+        {isExpanded && node.children?.map((child) => renderTreeNode(child, depth + 1))}
+      </div>
+    );
+  };
 
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
@@ -271,23 +363,24 @@ const MemberModal = ({ member, onClose, onSave, allWorkItems }: any) => {
 
                <div className="space-y-4">
                   <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">Vínculo de Responsabilidade Técnica (EAP)</label>
-                  <div className="max-h-[220px] overflow-y-auto border-2 border-slate-100 dark:border-slate-800 rounded-3xl p-4 bg-slate-50 dark:bg-slate-950 space-y-2">
-                     {allWorkItems.map((item: WorkItem) => (
-                       <label key={item.id} className="flex items-center gap-3 cursor-pointer group">
-                          <input 
-                            type="checkbox" 
-                            className="w-4 h-4 rounded text-indigo-600 focus:ring-0"
-                            checked={data.linkedWorkItemIds.includes(item.id)}
-                            onChange={(e) => {
-                              const ids = e.target.checked 
-                                ? [...data.linkedWorkItemIds, item.id]
-                                : data.linkedWorkItemIds.filter(id => id !== item.id);
-                              setData({...data, linkedWorkItemIds: ids});
-                            }}
-                          />
-                          <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 group-hover:text-indigo-600">{item.wbs} - {item.name}</span>
-                       </label>
-                     ))}
+                  <div className="flex items-center gap-2 mb-3">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedIds(new Set(categoryIds))}
+                      className="px-3 py-1.5 text-[9px] font-black uppercase text-slate-500 border rounded-lg hover:bg-slate-50"
+                    >
+                      Expandir tudo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setExpandedIds(new Set())}
+                      className="px-3 py-1.5 text-[9px] font-black uppercase text-slate-500 border rounded-lg hover:bg-slate-50"
+                    >
+                      Recolher
+                    </button>
+                  </div>
+                  <div className="max-h-[240px] overflow-y-auto border-2 border-slate-100 dark:border-slate-800 rounded-3xl p-4 bg-slate-50 dark:bg-slate-950 space-y-2">
+                     {workTree.map((node: WorkItem) => renderTreeNode(node, 0))}
                   </div>
                </div>
             </div>
