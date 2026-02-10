@@ -38,9 +38,11 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
 
   const handleDragEnd = (result: DropResult) => {
     if (isReadOnly || !result.destination) return;
+    if (result.destination.index === result.source.index) return;
     const sourceId = result.draggableId;
     const targetId = data[result.destination.index].id;
-    onReorder(sourceId, targetId, 'after');
+    const position = result.destination.index < result.source.index ? 'before' : 'after';
+    onReorder(sourceId, targetId, position);
   };
 
   const totalConsolidado = financial.sum(data.filter(i => i.depth === 0).map(i => i.amount));

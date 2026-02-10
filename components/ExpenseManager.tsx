@@ -108,6 +108,103 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
     treeService.flattenTree(currentExpenses, expandedIds)
     , [currentExpenses, expandedIds]);
 
+  const reorderExpensesInActiveTab = (
+    sourceId: string,
+    targetId: string,
+    position: 'before' | 'after' | 'inside',
+  ) => {
+    if (activeTab === 'overview') return;
+    const scoped = expenses.filter(expense => expense.type === activeTab);
+    const source = scoped.find(expense => expense.id === sourceId);
+    const target = scoped.find(expense => expense.id === targetId);
+    if (!source || !target || sourceId === targetId) return;
+
+    const oldParentId = source.parentId ?? null;
+    const newParentId = position === 'inside' ? target.id : target.parentId ?? null;
+
+    const targetSiblings = scoped
+      .filter(expense => expense.parentId === newParentId && expense.id !== sourceId)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+    const targetIndex = targetSiblings.findIndex(expense => expense.id === targetId);
+    if (targetIndex === -1) return;
+
+    const insertIndex = position === 'before' ? targetIndex : targetIndex + 1;
+    const nextSiblings = [...targetSiblings];
+    nextSiblings.splice(insertIndex, 0, { ...source, parentId: newParentId });
+
+    const updates = new Map<string, Partial<ProjectExpense>>();
+    nextSiblings.forEach((expense, index) => {
+      updates.set(expense.id, { parentId: newParentId, order: index });
+    });
+
+    if (oldParentId !== newParentId) {
+      const oldSiblings = scoped
+        .filter(expense => expense.parentId === oldParentId && expense.id !== sourceId)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      oldSiblings.forEach((expense, index) => {
+        updates.set(expense.id, { order: index });
+      });
+    }
+
+    const merged = expenses.map(item => {
+      if (item.type !== activeTab) return item;
+      const patch = updates.get(item.id);
+      return patch ? { ...item, ...patch } : item;
+    });
+
+    onUpdateExpenses(merged);
+  };
+
+  const moveExpenseInActiveTab = (id: string, direction: 'up' | 'down') => {
+    if (activeTab === 'overview') return;
+    const scoped = expenses.filter(expense => expense.type === activeTab);
+    const item = scoped.find(expense => expense.id === id);
+    if (!item) return;
+
+    const siblings = scoped
+      .filter(expense => expense.parentId === (item.parentId ?? null))
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+    const currentIndex = siblings.findIndex(expense => expense.id === id);
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= siblings.length) return;
+
+    const reordered = [...siblings];
+    const [moved] = reordered.splice(currentIndex, 1);
+    reordered.splice(targetIndex, 0, moved);
+
+    const updates = new Map<string, Partial<ProjectExpense>>();
+    reordered.forEach((expense, index) => {
+      updates.set(expense.id, { order: index });
+    });
+
+    const merged = expenses.map(item => {
+      if (item.type !== activeTab) return item;
+      const patch = updates.get(item.id);
+      return patch ? { ...item, ...patch } : item;
+    });
+
+    onUpdateExpenses(merged);
+  };
+
+  const moveExpenseToTop = (
+    items: ProjectExpense[],
+    expenseId: string,
+    nextParentId: string | null,
+    nextType: ExpenseType,
+  ) => {
+    return items.map(item => {
+      if (item.id === expenseId) {
+        return { ...item, parentId: nextParentId, type: nextType, order: 0 };
+      }
+      if (item.type === nextType && item.parentId === nextParentId) {
+        return { ...item, order: (item.order ?? 0) + 1 };
+      }
+      return item;
+    });
+  };
+
   const handleImportExpenses = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -173,7 +270,18 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
 
   const handleSaveExpense = (data: Partial<ProjectExpense>) => {
     if (editingExpense) {
-      onUpdate(editingExpense.id, data);
+      const nextType = (data.type ?? editingExpense.type) as ExpenseType;
+      const nextParentId = data.parentId ?? editingExpense.parentId ?? null;
+      const updatedExpenses = expenses.map(expense =>
+        expense.id === editingExpense.id
+          ? { ...expense, ...data, type: nextType, parentId: nextParentId }
+          : expense
+      );
+      if (nextType !== editingExpense.type || nextParentId !== editingExpense.parentId) {
+        onUpdateExpenses(moveExpenseToTop(updatedExpenses, editingExpense.id, nextParentId, nextType));
+      } else {
+        onUpdate(editingExpense.id, data);
+      }
     } else {
       const newExpense: ProjectExpense = {
         id: crypto.randomUUID(),
@@ -293,8 +401,8 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
               }
               onUpdate(id, { isPaid: !exp.isPaid, status: !exp.isPaid ? 'PAID' : 'PENDING' });
             }}
-            onReorder={(src, tgt, pos) => onUpdateExpenses(treeService.reorderItems(expenses, src, tgt, pos))}
-            onMoveManual={(id, dir) => onUpdateExpenses(treeService.moveInSiblings(expenses, id, dir))}
+            onReorder={reorderExpensesInActiveTab}
+            onMoveManual={moveExpenseInActiveTab}
             isReadOnly={isReadOnly}
             currencySymbol={project.theme?.currencySymbol || 'R$'}
           />

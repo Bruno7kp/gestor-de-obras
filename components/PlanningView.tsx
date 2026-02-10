@@ -144,6 +144,46 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     onUpdatePlanning(updated);
   };
 
+  const reorderForecastsInStatus = (
+    current: ProjectPlanning,
+    status: MaterialForecast['status'],
+    orderedIds: string[],
+  ) => {
+    const orderMap = new Map(orderedIds.map((id, idx) => [id, idx]));
+    return {
+      ...current,
+      forecasts: current.forecasts.map((forecast) => {
+        if (forecast.status !== status) return forecast;
+        const nextOrder = orderMap.get(forecast.id);
+        if (nextOrder === undefined) return forecast;
+        return forecast.order === nextOrder ? forecast : { ...forecast, order: nextOrder };
+      }),
+    };
+  };
+
+  const moveForecastToStatusTop = (
+    current: ProjectPlanning,
+    forecastId: string,
+    status: MaterialForecast['status'],
+    updates: Partial<MaterialForecast> = {},
+  ) => {
+    const target = current.forecasts.find((forecast) => forecast.id === forecastId);
+    if (!target) return current;
+
+    const updatedForecasts = current.forecasts.map((forecast) =>
+      forecast.id === forecastId
+        ? { ...forecast, ...updates, status }
+        : forecast,
+    );
+
+    const statusList = updatedForecasts
+      .filter((forecast) => forecast.status === status && forecast.id !== forecastId)
+      .sort((a, b) => a.order - b.order);
+
+    const orderedIds = [forecastId, ...statusList.map((forecast) => forecast.id)];
+    return reorderForecastsInStatus({ ...current, forecasts: updatedForecasts }, status, orderedIds);
+  };
+
   const onDragEnd = (result: DropResult) => {
     if (!result.destination) return;
     const { draggableId, destination, source } = result;
@@ -152,8 +192,20 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
       const updated = planningService.updateTask(planning, draggableId, { status: newStatus });
       onUpdatePlanning(updated);
     } else if (activeSubTab === 'forecast') {
-      const updated = planningService.moveForecast(planning, source.index, destination.index);
-      onUpdatePlanning(updated);
+      if (forecastSearch.trim()) {
+        toast.warning('Limpe a busca para reordenar os suprimentos.');
+        return;
+      }
+      if (destination.index === source.index) return;
+
+      const statusList = planning.forecasts
+        .filter((forecast) => forecast.status === forecastStatusFilter)
+        .sort((a, b) => a.order - b.order);
+      const reordered = [...statusList];
+      const [moved] = reordered.splice(source.index, 1);
+      reordered.splice(destination.index, 0, moved);
+
+      onUpdatePlanning(reorderForecastsInStatus(planning, forecastStatusFilter, reordered.map((f) => f.id)));
     }
   };
 
@@ -207,11 +259,10 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
       onAddExpense(expenseData as ProjectExpense);
     }
     
-    const updatedPlanning = planningService.updateForecast(planning, forecast.id, { 
-      status: 'ordered', 
-      isPaid: isPaid, 
+    const updatedPlanning = moveForecastToStatusTop(planning, forecast.id, 'ordered', {
+      isPaid: isPaid,
       paymentProof: proof,
-      purchaseDate: purchaseDate || new Date().toISOString().split('T')[0]
+      purchaseDate: purchaseDate || new Date().toISOString().split('T')[0],
     });
     onUpdatePlanning(updatedPlanning);
     setConfirmingForecast(null);
@@ -240,8 +291,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
         description: expenseData.description,
       });
     }
-    onUpdatePlanning(planningService.updateForecast(planning, forecast.id, {
-      status: 'delivered',
+    onUpdatePlanning(moveForecastToStatusTop(planning, forecast.id, 'delivered', {
       deliveryDate,
     }));
     setConfirmingDeliveryForecast(null);

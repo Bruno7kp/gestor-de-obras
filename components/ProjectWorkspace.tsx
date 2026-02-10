@@ -824,7 +824,11 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                   onChange={(e) => setViewingMeasurementId(e.target.value === 'current' ? 'current' : Number(e.target.value))}
                 >
                   <option value="current">Período Aberto (Nº {project.measurementNumber})</option>
-                  {project.history?.map(h => <option key={h.measurementNumber} value={h.measurementNumber}>Histórico: Medição Nº {h.measurementNumber}</option>)}
+                  {project.history?.map((h, idx) => (
+                    <option key={`${h.measurementNumber}-${idx}`} value={h.measurementNumber}>
+                      Histórico: Medição Nº {h.measurementNumber}
+                    </option>
+                  ))}
                 </select>
                 <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-50"><Clock size={12} /></div>
                 <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-50 text-current"><ChevronDown size={14} /></div>
