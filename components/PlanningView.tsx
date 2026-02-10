@@ -130,7 +130,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     const countEffective = list.filter(f => f.status !== 'pending').length;
 
     const pending = list
-      .filter(f => f.status === 'pending' || (f.status === 'ordered' && !f.isPaid))
+      .filter(f => f.status === 'ordered' && !f.isPaid)
       .reduce((acc, f) => acc + ((f.quantityNeeded || 0) * (f.unitPrice || 0)), 0);
     const ordered = list.filter(f => f.status === 'ordered').reduce((acc, f) => acc + ((f.quantityNeeded || 0) * (f.unitPrice || 0)), 0);
     const delivered = list.filter(f => f.status === 'delivered').reduce((acc, f) => acc + ((f.quantityNeeded || 0) * (f.unitPrice || 0)), 0);
