@@ -61,7 +61,7 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
               <th className="p-4 border-r border-slate-800 w-20 text-center">Qtd</th>
               <th className="p-4 border-r border-slate-800 w-32 text-right">Unitário</th>
               <th className="p-4 border-r border-slate-800 w-28 text-right">Desconto</th>
-              <th className="p-4 border-r border-slate-800 w-28 text-right">ISS</th>
+              <th className="p-4 border-r border-slate-800 w-28 text-right">Imposto</th>
               <th className="p-4 w-32 text-right">Total</th>
             </tr>
           </thead>
@@ -92,8 +92,8 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                           {item.itemType === 'item' && (
                             <div className="flex justify-center">
                               {item.status === 'DELIVERED' ? (
-                                <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 flex items-center justify-center" title="Entregue">
-                                  <Truck size={14} />
+                                <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center" title="Faturado">
+                                  <CheckCircle2 size={14} />
                                 </div>
                               ) : item.status === 'PAID' ? (
                                 <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center" title="Pago">

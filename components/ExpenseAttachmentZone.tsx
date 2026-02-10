@@ -11,17 +11,24 @@ interface ExpenseAttachmentZoneProps {
   onRemove: () => void;
   accept?: string;
   requiredStatus?: string;
+  requiredStatusLabel?: string;
 }
 
 export const ExpenseAttachmentZone: React.FC<ExpenseAttachmentZoneProps> = ({ 
-  label, onUploadUrl, currentFile, onRemove, accept = "application/pdf, image/*", requiredStatus 
+  label,
+  onUploadUrl,
+  currentFile,
+  onRemove,
+  accept = "application/pdf, image/*",
+  requiredStatus,
+  requiredStatusLabel,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const toast = useToast();
-  const statusLabel = requiredStatus
+  const statusLabel = requiredStatusLabel ?? (requiredStatus
     ? ({ PAID: 'Pago', DELIVERED: 'Entregue', PENDING: 'Pendente' } as const)[requiredStatus as 'PAID' | 'DELIVERED' | 'PENDING']
-    : undefined;
+    : undefined);
 
   const handleFile = async (file: File) => {
     if (!file) return;
