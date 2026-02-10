@@ -223,8 +223,6 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     }
   };
 
-  const canEditMembers = getLevelGlobal('projects_general') === 'edit';
-
   // External project flag is passed from the parent, which knows definitively
   const isExternalProject = isExternalProjectProp;
 
@@ -248,6 +246,15 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     if (!user?.id) return false;
     return !isCurrentUserGeneralAccess && memberPermissions.length > 0;
   }, [isExternalProject, isCurrentUserGeneralAccess, memberPermissions, user?.id]);
+
+  const canEditMembers = useMemo(() => {
+    if (permissionsLoading || membersLoading) return false;
+    if (useMemberPermissions) {
+      return checkCanEdit(memberPermissions, 'projects_general');
+    }
+    return getLevelGlobal('projects_general') === 'edit' ||
+      checkCanEdit(memberPermissions, 'projects_general');
+  }, [permissionsLoading, membersLoading, useMemberPermissions, memberPermissions, getLevelGlobal]);
 
   // Permission wrappers that handle external vs internal projects
   const canView = useCallback(
@@ -288,8 +295,14 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const isProjectLoading = permissionsLoading || membersLoading;
   const canEditMeasurements = useMemo(() => {
     if (isProjectLoading) return false;
-    return checkCanEdit(memberPermissions, 'projects_specific');
-  }, [isProjectLoading, memberPermissions]);
+    if (useMemberPermissions) {
+      return checkCanEdit(memberPermissions, 'projects_specific') ||
+        checkCanEdit(memberPermissions, 'projects_general');
+    }
+    return getLevelGlobal('projects_general') === 'edit' ||
+      checkCanEdit(memberPermissions, 'projects_specific') ||
+      checkCanEdit(memberPermissions, 'projects_general');
+  }, [isProjectLoading, useMemberPermissions, memberPermissions, getLevelGlobal]);
   const tabPermissions: Record<TabID, PermissionModule> = {
     wbs: 'wbs',
     stats: 'technical_analysis',

@@ -124,6 +124,10 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
   );
 
   const handleAddMember = async () => {
+    if (!canEdit) {
+      toast.error('Sem permissao para editar membros.');
+      return;
+    }
     if (!emailInput.trim()) return;
     // External users require a role
     if (!isEmailInternal && !selectedRoleId) return;
@@ -159,6 +163,10 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
   };
 
   const handleRemoveMember = async (userId: string) => {
+    if (!canEdit) {
+      toast.error('Sem permissao para editar membros.');
+      return;
+    }
     setConfirmRemoveUserId(null);
 
     setLoading(true);
@@ -186,6 +194,10 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
   };
 
   const handleUpdateRole = async (userId: string, newRoleId: string) => {
+    if (!canEdit) {
+      toast.error('Sem permissao para editar membros.');
+      return;
+    }
     setLoading(true);
     setError(null);
 
