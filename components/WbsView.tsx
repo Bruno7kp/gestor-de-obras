@@ -187,6 +187,45 @@ export const WbsView: React.FC<WbsViewProps> = ({
     });
   };
 
+  const moveWorkItemInParent = async (id: string, direction: 'up' | 'down') => {
+    if (isReadOnly) return;
+    const items = localItemsRef.current;
+    const target = items.find(item => item.id === id);
+    if (!target) return;
+
+    const siblings = items
+      .filter(item => (item.parentId ?? null) === (target.parentId ?? null))
+      .sort((a, b) => a.order - b.order);
+
+    const currentIndex = siblings.findIndex(item => item.id === id);
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= siblings.length) return;
+
+    const reordered = [...siblings];
+    const [moved] = reordered.splice(currentIndex, 1);
+    reordered.splice(targetIndex, 0, moved);
+
+    const updates = new Map<string, Partial<WorkItem>>();
+    reordered.forEach((item, index) => {
+      if (item.order !== index) {
+        updates.set(item.id, { order: index });
+      }
+    });
+
+    if (updates.size === 0) return;
+
+    const nextItems = items.map(item => {
+      const patch = updates.get(item.id);
+      return patch ? { ...item, ...patch } : item;
+    });
+
+    updateItemsState(nextItems);
+    await syncItemsBulk(Array.from(updates.entries()).map(([updateId, patch]) => ({
+      id: updateId,
+      patch,
+    })));
+  };
+
   const syncItemUpdate = async (id: string, patch: Partial<WorkItem>) => {
     const snapshot = getScrollSnapshot();
     try {
@@ -574,6 +613,7 @@ export const WbsView: React.FC<WbsViewProps> = ({
           
           onAddChild={(pid, type) => !isReadOnly && onOpenModal(type, null, pid)}
           onEdit={item => !isReadOnly && onOpenModal(item.type, item, item.parentId)}
+          onMoveManual={moveWorkItemInParent}
           onReorder={async (src, tgt, pos) => {
             if (isReadOnly) return;
             const nextItems = treeService.reorderItems<WorkItem>(localItemsRef.current, src, tgt, pos);

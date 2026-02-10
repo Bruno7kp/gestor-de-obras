@@ -5,6 +5,7 @@ import { financial } from '../utils/math';
 import { 
   ChevronRight, 
   ChevronDown, 
+  ChevronUp,
   Trash2, 
   Edit3, 
   Package, 
@@ -38,6 +39,7 @@ interface TreeTableProps {
   onUpdateCurrentTotal: (id: string, total: number) => void;
   onUpdateGrandTotal: (overrides: { contract?: number; current?: number }) => void;
   onReorder: (sourceId: string, targetId: string, position: 'before' | 'after' | 'inside') => void;
+  onMoveManual: (id: string, direction: 'up' | 'down') => void;
   searchQuery: string;
   isReadOnly?: boolean;
   currencySymbol?: string;
@@ -63,6 +65,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
   onUpdateCurrentTotal,
   onUpdateGrandTotal,
   onReorder,
+  onMoveManual,
   searchQuery,
   isReadOnly = false,
   currencySymbol = 'R$',
@@ -226,7 +229,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
           <table className="wbs-table min-w-max w-full border-separate border-spacing-0 text-[11px]">
             <thead className="bg-slate-900 dark:bg-black text-white sticky top-0 z-30">
               <tr className="uppercase tracking-widest font-black text-[9px] opacity-80 text-center">
-                {showMover && <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-16 no-print">Mover</th>}
+                {showMover && <th rowSpan={2} className="p-3 border-r border-slate-800 dark:border-slate-900 w-10 no-print">Mover</th>}
                 {showAcoes && <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-24">Ações</th>}
                 <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-16">ITEM</th>
                 {showFonte && <th rowSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 w-20">FONTE</th>}
@@ -300,9 +303,37 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                         return (
                           <tr ref={provided.innerRef} data-row-id={item.id} {...provided.draggableProps} className={`group transition-all duration-150 ${item.type === 'category' ? 'bg-slate-50/80 dark:bg-slate-800/40 font-bold' : 'hover:bg-blue-50/40 dark:hover:bg-blue-900/10'} ${snapshot.isDragging ? 'dragging-row shadow-2xl z-50' : ''} ${isFullyMeasuredPreviously ? 'opacity-70 bg-slate-50/30' : ''}`}>
                             {showMover && (
-                              <td className="p-2 border-r border-slate-100 dark:border-slate-800 no-print text-center">
-                                <div {...provided.dragHandleProps} className="inline-flex p-1.5 text-slate-300 hover:text-indigo-500 transition-colors cursor-grab active:cursor-grabbing">
-                                  <GripVertical size={16} />
+                              <td className="p-1 border-r border-slate-100 dark:border-slate-800 no-print text-center">
+                                <div className="flex items-center justify-center gap-0.5">
+                                  <div className="flex flex-col">
+                                    <button
+                                      type="button"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        onMoveManual(item.id, 'up');
+                                      }}
+                                      disabled={isReadOnly}
+                                      className={`p-0.5 rounded text-slate-300 hover:text-indigo-500 ${isReadOnly ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                      title="Mover para cima"
+                                    >
+                                      <ChevronUp size={12} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        onMoveManual(item.id, 'down');
+                                      }}
+                                      disabled={isReadOnly}
+                                      className={`p-0.5 rounded text-slate-300 hover:text-indigo-500 ${isReadOnly ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                      title="Mover para baixo"
+                                    >
+                                      <ChevronDown size={12} />
+                                    </button>
+                                  </div>
+                                  <div {...provided.dragHandleProps} className="inline-flex p-0.5 text-slate-300 hover:text-indigo-500 transition-colors cursor-grab active:cursor-grabbing">
+                                    <GripVertical size={14} />
+                                  </div>
                                 </div>
                               </td>
                             )}

@@ -211,6 +211,29 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     }
   };
 
+  const moveForecastInStatus = (id: string, direction: 'up' | 'down') => {
+    if (forecastSearch.trim()) {
+      toast.warning('Limpe a busca para reordenar os suprimentos.');
+      return;
+    }
+
+    const statusList = planning.forecasts
+      .filter((forecast) => forecast.status === forecastStatusFilter)
+      .sort((a, b) => a.order - b.order);
+
+    const currentIndex = statusList.findIndex((forecast) => forecast.id === id);
+    if (currentIndex === -1) return;
+
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= statusList.length) return;
+
+    const reordered = [...statusList];
+    const [moved] = reordered.splice(currentIndex, 1);
+    reordered.splice(targetIndex, 0, moved);
+
+    onUpdatePlanning(reorderForecastsInStatus(planning, forecastStatusFilter, reordered.map((f) => f.id)));
+  };
+
   const handleAddTask = (data: Partial<PlanningTask>) => {
     const updated = planningService.addTask(planning, data);
     onUpdatePlanning(updated);
@@ -550,7 +573,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                   <table className="w-full text-left border-separate border-spacing-y-3">
                     <thead>
                       <tr className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 text-center">
-                        <th className="pb-2 w-12"></th>
+                        <th className="pb-2 w-10"></th>
                         <th className="pb-2 pl-4 text-left">Material / Fornecedor</th>
                         <th className="pb-2">Und</th>
                         <th className="pb-2">Qtd</th>
@@ -611,9 +634,35 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                         : 'bg-white dark:bg-slate-900'
                                     } ${s.isDragging ? 'shadow-2xl z-50 ring-2 ring-indigo-500 scale-[1.02]' : 'hover:shadow-md'}`}
                                   >
-                                    <td className="py-6 pl-4 rounded-l-3xl">
-                                      <div {...p.dragHandleProps} className="p-2 text-slate-200 hover:text-indigo-400 cursor-grab active:cursor-grabbing">
-                                        <GripVertical size={16}/>
+                                    <td className="py-4 pl-2 rounded-l-3xl">
+                                      <div className="flex items-center justify-center gap-0.5">
+                                        <div className="flex flex-col">
+                                          <button
+                                            type="button"
+                                            onClick={(event) => {
+                                              event.stopPropagation();
+                                              moveForecastInStatus(f.id, 'up');
+                                            }}
+                                            className="p-0.5 rounded text-slate-300 hover:text-indigo-500"
+                                            title="Mover para cima"
+                                          >
+                                            <ChevronUp size={12} />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={(event) => {
+                                              event.stopPropagation();
+                                              moveForecastInStatus(f.id, 'down');
+                                            }}
+                                            className="p-0.5 rounded text-slate-300 hover:text-indigo-500"
+                                            title="Mover para baixo"
+                                          >
+                                            <ChevronDown size={12} />
+                                          </button>
+                                        </div>
+                                        <div {...p.dragHandleProps} className="p-1 text-slate-200 hover:text-indigo-400 cursor-grab active:cursor-grabbing">
+                                          <GripVertical size={14}/>
+                                        </div>
                                       </div>
                                     </td>
                                     <td className="py-6 px-4 text-left min-w-[250px]">
