@@ -9,6 +9,7 @@ import { treeService } from '../services/treeService';
 import { projectService } from '../services/projectService';
 import { projectsApi } from '../services/projectsApi';
 import { projectGroupsApi } from '../services/projectGroupsApi';
+import { usePermissions } from '../hooks/usePermissions';
 import { useToast } from '../hooks/useToast';
 import { DragDropContext, Droppable, Draggable, DropResult, DraggableProvided } from '@hello-pangea/dnd';
 
@@ -23,6 +24,7 @@ interface DashboardViewProps {
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = (props) => {
+  const { getLevel } = usePermissions();
   const [currentGroupId, setCurrentGroupId] = useState<string | null>(null);
   const [editingGroup, setEditingGroup] = useState<ProjectGroup | null>(null);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
@@ -31,6 +33,7 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
   const [newName, setNewName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const toast = useToast();
+  const canRenameProjects = getLevel('projects_general') === 'edit';
 
   const sortByOrder = (a: { order?: number; name?: string }, b: { order?: number; name?: string }) => {
     const orderDiff = (a.order ?? 0) - (b.order ?? 0);
@@ -417,6 +420,7 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
                             onRename={() => { setEditingGroup(g); setNewName(g.name); }} 
                             onDelete={() => setIsDeleting({ type: 'group', id: g.id })} 
                             onMove={() => setMovingItem({ type: 'group', id: g.id })} 
+                            canRename={canRenameProjects}
                           />
                         )}
                       </Draggable>
@@ -431,6 +435,7 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
                             onRename={() => { setEditingProject(p); setNewName(p.name); }} 
                             onDelete={() => setIsDeleting({ type: 'project', id: p.id })} 
                             onMove={() => setMovingItem({ type: 'project', id: p.id })} 
+                            canRename={canRenameProjects}
                           />
                         )}
                       </Draggable>
@@ -450,6 +455,7 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
                               onRename={() => { setEditingGroup(g); setNewName(g.name); }} 
                               onDelete={() => setIsDeleting({ type: 'group', id: g.id })} 
                               onMove={() => setMovingItem({ type: 'group', id: g.id })} 
+                              canRename={canRenameProjects}
                             />
                           )}
                         </Draggable>
@@ -467,6 +473,7 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
                               onRename={() => { setEditingProject(p); setNewName(p.name); }} 
                               onDelete={() => setIsDeleting({ type: 'project', id: p.id })} 
                               onMove={() => setMovingItem({ type: 'project', id: p.id })} 
+                              canRename={canRenameProjects}
                             />
                           )}
                         </Draggable>
@@ -512,13 +519,14 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
 };
 
 // SUB-COMPONENTES
-const FolderCard = ({ group, onOpen, onRename, onDelete, onMove, provided }: { 
+const FolderCard = ({ group, onOpen, onRename, onDelete, onMove, provided, canRename }: { 
   group: ProjectGroup, 
   onOpen: () => void, 
   onRename: () => void, 
   onDelete: () => void, 
   onMove: () => void, 
-  provided: DraggableProvided 
+  provided: DraggableProvided,
+  canRename: boolean
 }) => (
   <div 
     ref={provided.innerRef}
@@ -531,7 +539,9 @@ const FolderCard = ({ group, onOpen, onRename, onDelete, onMove, provided }: {
       <div className="p-4 bg-amber-50 dark:bg-amber-900/20 text-amber-500 rounded-2xl group-hover:scale-110 transition-transform"><Folder size={24}/></div>
       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
         <button title="Mover" onClick={e => { e.stopPropagation(); onMove(); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><FolderInput size={16}/></button>
-        <button title="Renomear" onClick={e => { e.stopPropagation(); onRename(); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><Edit2 size={16}/></button>
+        {canRename && (
+          <button title="Renomear" onClick={e => { e.stopPropagation(); onRename(); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><Edit2 size={16}/></button>
+        )}
         <button title="Excluir" onClick={e => { e.stopPropagation(); onDelete(); }} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"><Trash2 size={16}/></button>
       </div>
     </div>
@@ -540,13 +550,14 @@ const FolderCard = ({ group, onOpen, onRename, onDelete, onMove, provided }: {
   </div>
 );
 
-const ProjectCard = ({ project, onOpen, onRename, onDelete, onMove, provided }: {
+const ProjectCard = ({ project, onOpen, onRename, onDelete, onMove, provided, canRename }: {
   project: Project,
   onOpen: () => void,
   onRename: () => void,
   onDelete: () => void,
   onMove: () => void,
-  provided: DraggableProvided
+  provided: DraggableProvided,
+  canRename: boolean
 }) => {
   const stats = treeService.calculateBasicStats(project.items, project.bdi || 0);
   return (
@@ -561,7 +572,9 @@ const ProjectCard = ({ project, onOpen, onRename, onDelete, onMove, provided }: 
         <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-500 rounded-2xl group-hover:scale-110 transition-transform"><Briefcase size={24}/></div>
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
           <button title="Mover" onClick={e => { e.stopPropagation(); onMove(); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><FolderInput size={16}/></button>
-          <button title="Renomear" onClick={e => { e.stopPropagation(); onRename(); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><Edit2 size={16}/></button>
+          {canRename && (
+            <button title="Renomear" onClick={e => { e.stopPropagation(); onRename(); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><Edit2 size={16}/></button>
+          )}
           <button title="Excluir" onClick={e => { e.stopPropagation(); onDelete(); }} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"><Trash2 size={16}/></button>
         </div>
       </div>
