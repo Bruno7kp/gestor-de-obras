@@ -3,7 +3,7 @@ import React from 'react';
 import { ProjectExpense } from '../types';
 import { financial } from '../utils/math';
 import {
-  ChevronRight, ChevronDown, Trash2, Edit3, Layers,
+  ChevronRight, ChevronDown, ChevronUp, Trash2, Edit3, Layers,
   Truck, CheckCircle2, GripVertical, Clock, Landmark, Receipt, Download
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
@@ -65,7 +65,7 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
         <table className="min-w-full border-collapse text-[11px]">
           <thead className={`${isRevenueTable ? 'bg-emerald-950 dark:bg-emerald-900/20' : 'bg-slate-900 dark:bg-black'} text-white sticky top-0 z-20`}>
             <tr className="uppercase tracking-widest font-black text-[9px] opacity-80">
-              <th className="p-4 border-r border-slate-800 w-12 text-center"></th>
+              <th className="p-3 border-r border-slate-800 w-10 text-center"></th>
               <th className="p-4 border-r border-slate-800 w-16 text-center">Item</th>
               <th className="p-4 border-r border-slate-800 w-20 text-center">Status</th>
               <th className="p-4 border-r border-slate-800 w-36 text-center">Ações</th>
@@ -94,9 +94,37 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                         {...p.draggableProps}
                         className={`group transition-colors ${snapshot.isDragging ? 'bg-indigo-50 dark:bg-indigo-900/40 shadow-2xl z-50' : item.itemType === 'category' ? 'bg-slate-50/80 dark:bg-slate-800/40 font-bold' : 'hover:bg-slate-50 dark:hover:bg-slate-800/20'}`}
                       >
-                        <td className="p-2 border-r border-slate-100 dark:border-slate-800 text-center">
-                          <div {...p.dragHandleProps} className="p-1 text-slate-300 group-hover:text-indigo-500 transition-colors cursor-grab active:cursor-grabbing">
-                            <GripVertical size={14} />
+                        <td className="p-1 border-r border-slate-100 dark:border-slate-800 text-center">
+                          <div className="flex items-center justify-center gap-0.5">
+                            <div className="flex flex-col">
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  onMoveManual(item.id, 'up');
+                                }}
+                                disabled={isReadOnly}
+                                className={`p-0.5 rounded text-slate-300 hover:text-indigo-500 ${isReadOnly ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                title="Mover para cima"
+                              >
+                                <ChevronUp size={12} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  onMoveManual(item.id, 'down');
+                                }}
+                                disabled={isReadOnly}
+                                className={`p-0.5 rounded text-slate-300 hover:text-indigo-500 ${isReadOnly ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                title="Mover para baixo"
+                              >
+                                <ChevronDown size={12} />
+                              </button>
+                            </div>
+                            <div {...p.dragHandleProps} className="p-0.5 text-slate-300 group-hover:text-indigo-500 transition-colors cursor-grab active:cursor-grabbing">
+                              <GripVertical size={14} />
+                            </div>
                           </div>
                         </td>
                         <td className="p-2 border-r border-slate-100 dark:border-slate-800 text-center font-mono text-[10px] text-slate-400">
