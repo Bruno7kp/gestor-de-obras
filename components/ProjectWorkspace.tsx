@@ -439,6 +439,15 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
   const isHistoryMode = viewingMeasurementId !== 'current';
 
+  const laborContractsTabKey = `labor_contracts_last_tab_${project.id}`;
+  const resolveLaborContractsTab = (value: string | null): TabID =>
+    value === 'workforce' ? 'workforce' : 'labor-contracts';
+
+  useEffect(() => {
+    if (activeTab !== 'labor-contracts' && activeTab !== 'workforce') return;
+    uiPreferences.setString(laborContractsTabKey, activeTab);
+  }, [activeTab, laborContractsTabKey]);
+
   const isLatestHistory = viewingMeasurementId !== 'current' &&
     project.history &&
     project.history.length > 0 &&
@@ -447,6 +456,11 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const handleTabClick = (newTab: TabID) => {
     if (Date.now() < dragBlockUntilRef.current) return;
     saveTabsScroll();
+    if (newTab === 'labor-contracts') {
+      const savedTab = resolveLaborContractsTab(uiPreferences.getString(laborContractsTabKey));
+      onTabChange(savedTab);
+      return;
+    }
     onTabChange(newTab);
   };
 

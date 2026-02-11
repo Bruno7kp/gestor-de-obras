@@ -126,6 +126,28 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
     return project.expenses.filter(e => e.itemType === 'category' && e.type === 'labor');
   }, [project.expenses]);
 
+  const resolveLinkedWorkItemLabel = (contract: LaborContract) => {
+    const linkedIds = contract.linkedWorkItemIds ?? (contract.linkedWorkItemId ? [contract.linkedWorkItemId] : []);
+    if (linkedIds.length === 0) return null;
+    const itemById = new Map(project.items.map(item => [item.id, item] as const));
+    const resolveCategory = (item: WorkItem | undefined) => {
+      let current = item;
+      while (current) {
+        if (current.type === 'category') return current;
+        if (!current.parentId) return current;
+        current = itemById.get(current.parentId);
+      }
+      return undefined;
+    };
+    const linkedItems = linkedIds.map((id) => itemById.get(id)).filter((item): item is WorkItem => !!item);
+    if (linkedItems.length === 0) return null;
+    const preferred = linkedItems.map(resolveCategory).find((item): item is WorkItem => !!item) ?? linkedItems[0];
+    return preferred.name || null;
+  };
+
+  const truncateBadgeLabel = (value: string, maxChars = 22) =>
+    value.length > maxChars ? `${value.slice(0, maxChars - 1)}…` : value;
+
   const findExpenseForPayment = (paymentId: string) =>
     project.expenses.find(expense => expense.id === paymentId);
 
@@ -498,6 +520,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
           const associado = workforce.find(w => w.id === contract.associadoId);
           const progress = (contract.valorPago / contract.valorTotal) * 100 || 0;
           const isPaymentsOpen = !!expandedPayments[contract.id];
+          const linkedItemLabel = resolveLinkedWorkItemLabel(contract);
           
           return (
             <div 
@@ -523,6 +546,14 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
                     }`}>
                       {contract.status}
                     </span>
+                    {linkedItemLabel && (
+                      <span
+                        className="px-3 py-1 rounded-xl text-[9px] font-black uppercase bg-slate-100 dark:bg-slate-800 text-slate-500 max-w-[180px] truncate"
+                        title={linkedItemLabel}
+                      >
+                        {truncateBadgeLabel(linkedItemLabel)}
+                      </span>
+                    )}
                   </div>
                   <h3 className="text-lg font-black text-slate-800 dark:text-white mb-1">
                     {contract.descricao}
@@ -681,7 +712,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
                                         {getInitials(pag.createdBy.name)}
                                       </span>
                                     )}
-                                    <span>Solicitado por {pag.createdBy.name}</span>
+                                    <span>Cadastrado por {pag.createdBy.name}</span>
                                   </span>
                                 )}
                               </div>
