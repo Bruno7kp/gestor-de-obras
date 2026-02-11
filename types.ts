@@ -142,7 +142,7 @@ export interface ProjectAsset {
 }
 
 // --- FINANCEIRO ---
-export type ExpenseType = 'labor' | 'material' | 'revenue';
+export type ExpenseType = 'labor' | 'material' | 'revenue' | 'other';
 export type ExpenseStatus = 'PENDING' | 'PAID' | 'DELIVERED';
 
 export interface ProjectExpense {

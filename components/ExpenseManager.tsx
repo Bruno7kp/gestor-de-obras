@@ -43,7 +43,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
     expense.itemType === 'item' &&
     /^Pedido (Pendente|Pago|Entregue): /.test(expense.description);
 
-  const expenseTabs: Array<ExpenseType | 'overview'> = ['overview', 'revenue', 'material', 'labor'];
+  const expenseTabs: Array<ExpenseType | 'overview'> = ['overview', 'revenue', 'material', 'labor', 'other'];
   const expenseTabKey = `exp_fin_tab_${project.id}`;
   const [activeTab, setActiveTab] = useState<ExpenseType | 'overview'>(() => {
     const saved = uiPreferences.getString(expenseTabKey);
@@ -235,6 +235,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
     if (importSummary.stats.byType.labor > 0) typesInFile.add('labor');
     if (importSummary.stats.byType.material > 0) typesInFile.add('material');
     if (importSummary.stats.byType.revenue > 0) typesInFile.add('revenue');
+    if (importSummary.stats.byType.other > 0) typesInFile.add('other');
 
     // optimistic update
     let updatedExpenses = expenses.filter(e => !typesInFile.has(e.type));
@@ -522,6 +523,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
           <TabTrigger active={activeTab === 'revenue'} onClick={() => setActiveTab('revenue')} label="Entradas" icon={<ArrowUpRight size={14} />} />
           <TabTrigger active={activeTab === 'material'} onClick={() => setActiveTab('material')} label="Materiais" icon={<Truck size={14} />} />
           <TabTrigger active={activeTab === 'labor'} onClick={() => setActiveTab('labor')} label="Mão de Obra" icon={<Users size={14} />} />
+          <TabTrigger active={activeTab === 'other'} onClick={() => setActiveTab('other')} label="Outros" icon={<FileSpreadsheet size={14} />} />
         </div>
 
         <div className="flex items-center gap-2">
@@ -679,7 +681,7 @@ const ExpenseImportReviewModal = ({ summary, onClose, onConfirm, isImporting, pr
         <button onClick={onClose} className="p-2 text-slate-400 hover:bg-slate-50 rounded-xl transition-all"><X size={20} /></button>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl text-center border border-slate-100 dark:border-slate-700">
           <p className="text-2xl font-black text-blue-600">{summary.stats.byType.labor}</p>
           <p className="text-[8px] font-black uppercase text-slate-400">Mão de Obra</p>
@@ -692,12 +694,16 @@ const ExpenseImportReviewModal = ({ summary, onClose, onConfirm, isImporting, pr
           <p className="text-2xl font-black text-emerald-600">{summary.stats.byType.revenue}</p>
           <p className="text-[8px] font-black uppercase text-slate-400">Receitas</p>
         </div>
+        <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl text-center border border-slate-100 dark:border-slate-700">
+          <p className="text-2xl font-black text-slate-600">{summary.stats.byType.other}</p>
+          <p className="text-[8px] font-black uppercase text-slate-400">Outros</p>
+        </div>
       </div>
 
       <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-2xl flex gap-3">
         <AlertCircle size={20} className="text-amber-500 shrink-0" />
         <p className="text-[10px] font-medium text-amber-700 dark:text-amber-400 leading-tight">
-          Ao confirmar, os registros de Mão de Obra, Materiais e Receitas do sistema serão **SUBSTITUÍDOS** pelos dados desta planilha para evitar duplicações.
+          Ao confirmar, os registros de Mão de Obra, Materiais, Receitas e Outros do sistema serão **SUBSTITUÍDOS** pelos dados desta planilha para evitar duplicações.
         </p>
       </div>
 

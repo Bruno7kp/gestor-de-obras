@@ -23,6 +23,7 @@ export interface ExpenseImportResult {
       labor: number;
       material: number;
       revenue: number;
+      other: number;
     }
   };
 }
@@ -81,6 +82,8 @@ export const excelService = {
       ["1.1.1", "item", "MA", "2024-06-01", "Cimento CP-II 50kg", "Depósito Silva", "sc", "100", "34.90", "150.00", "3340.00", "S"],
       ["2", "category", "MO", "", "02. MÃO DE OBRA", "", "", "", "", "", "", ""],
       ["2.1.1", "item", "MO", "2024-06-05", "Pedreiro - João Silva", "MEI João", "h", "160", "25.00", "0.00", "4000.00", "N"],
+      ["3", "category", "OT", "", "03. OUTROS", "", "", "", "", "", "", ""],
+      ["3.1.1", "item", "OT", "2024-06-10", "Imposto ISS", "Prefeitura", "vb", "1", "0", "0", "1200.00", "S"],
     ];
     const ws = XLSX.utils.aoa_to_sheet(data);
     XLSX.utils.book_append_sheet(wb, ws, "Modelo_Financeiro");
@@ -249,7 +252,11 @@ export const excelService = {
     const allIds = new Set(filtered.map(e => e.id));
     const fullFlattened = treeService.flattenTree(processedTree, allIds);
     const rows = fullFlattened.map(e => {
-      const typeLabel = e.type === 'labor' ? 'MO' : (e.type === 'revenue' ? 'RE' : 'MA');
+      const typeLabel = e.type === 'labor'
+        ? 'MO'
+        : (e.type === 'revenue'
+          ? 'RE'
+          : (e.type === 'other' ? 'OT' : 'MA'));
       return [
         e.wbs, e.itemType, typeLabel, e.itemType === 'item' ? e.date : "", e.description, e.itemType === 'item' ? e.entityName : "", e.unit || "", e.itemType === 'item' ? e.quantity : "", e.itemType === 'item' ? e.unitPrice : "", e.itemType === 'item' ? (e.discountValue || 0) : "", e.amount, e.itemType === 'item' ? (e.isPaid ? "S" : "N") : ""
       ];
@@ -272,13 +279,19 @@ export const excelService = {
           const importedExpenses: ProjectExpense[] = [];
           const dataRows = raw.slice(1).filter(r => r.length > 0 && r[0]);
           const wbsMap = new Map<string, ProjectExpense>();
-          const stats = { categories: 0, items: 0, byType: { labor: 0, material: 0, revenue: 0 } };
+          const stats = { categories: 0, items: 0, byType: { labor: 0, material: 0, revenue: 0, other: 0 } };
           dataRows.forEach((row, idx) => {
             const wbs = String(row[0] || "").trim();
             const itemType = (String(row[1] || "").toLowerCase() === 'category') ? 'category' : 'item';
             const rawCat = String(row[2] || "").toUpperCase().trim();
             let type: ExpenseType = 'material';
-            if (rawCat === 'MO' || rawCat === 'LABOR' || rawCat === 'MÃO DE OBRA' || rawCat === 'MAO DE OBRA') { type = 'labor'; } else if (rawCat === 'RE' || rawCat === 'REVENUE' || rawCat === 'RECEITA' || rawCat === 'RECEITAS') { type = 'revenue'; }
+            if (rawCat === 'MO' || rawCat === 'LABOR' || rawCat === 'MÃO DE OBRA' || rawCat === 'MAO DE OBRA') {
+              type = 'labor';
+            } else if (rawCat === 'RE' || rawCat === 'REVENUE' || rawCat === 'RECEITA' || rawCat === 'RECEITAS') {
+              type = 'revenue';
+            } else if (rawCat === 'OT' || rawCat === 'OUTRO' || rawCat === 'OUTROS' || rawCat === 'OTHER' || rawCat === 'IMPOSTO' || rawCat === 'IMPOSTOS') {
+              type = 'other';
+            }
             const qty = itemType === 'item' ? parseVal(row[7]) : 0;
             const unitPrice = itemType === 'item' ? parseVal(row[8]) : 0;
             const disc = itemType === 'item' ? parseVal(row[9]) : 0;

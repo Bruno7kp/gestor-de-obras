@@ -702,6 +702,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
           isReadOnly={isReadOnly}
           existingExpense={findExpenseForPayment(editingPayment.payment.id)}
           financialCategories={laborFinancialCategories}
+          onAddExpense={onAddExpense}
           onClose={() => setEditingPayment(null)}
           onSave={(payment, options) => handleSavePayment(editingPayment.contractId, payment, {
             ...options,
@@ -730,6 +731,7 @@ const PaymentModal = ({
   isNew,
   existingExpense,
   financialCategories,
+  onAddExpense,
   onClose,
   onSave,
   isReadOnly,
@@ -749,6 +751,7 @@ const PaymentModal = ({
   );
   const [confirmPaidOpen, setConfirmPaidOpen] = useState(false);
   const [pendingSave, setPendingSave] = useState(false);
+  const toast = useToast();
 
   useEffect(() => {
     setLocalFinancialCategories(financialCategories ?? []);
@@ -868,6 +871,10 @@ const PaymentModal = ({
                   onClick={() => {
                     const name = newGroupName.trim();
                     if (!name) return;
+                    if (!onAddExpense) {
+                      toast.error('Nao foi possivel criar o grupo financeiro.');
+                      return;
+                    }
                     const newCategory: ProjectExpense = {
                       id: crypto.randomUUID(),
                       parentId: null,
@@ -889,6 +896,7 @@ const PaymentModal = ({
                     setParentId(newCategory.id);
                     setIsAddingGroup(false);
                     setNewGroupName('');
+                    onAddExpense(newCategory);
                   }}
                   className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-[10px] font-black uppercase"
                 >

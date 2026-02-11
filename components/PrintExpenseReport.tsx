@@ -72,6 +72,7 @@ export const PrintExpenseReport: React.FC<PrintExpenseReportProps> = ({ project,
       .row-revenue { background-color: #f0fdf4 !important; -webkit-print-color-adjust: exact !important; }
       .row-labor { background-color: #eff6ff !important; -webkit-print-color-adjust: exact !important; }
       .row-material { background-color: #f8fafc !important; -webkit-print-color-adjust: exact !important; }
+      .row-other { background-color: #f1f5f9 !important; -webkit-print-color-adjust: exact !important; }
 
       .kpi-grid {
         display: grid !important;
@@ -166,9 +167,16 @@ export const PrintExpenseReport: React.FC<PrintExpenseReportProps> = ({ project,
           </thead>
           <tbody>
             {expenses.filter(e => e.itemType === 'item').map(e => (
-              <tr key={e.id} className={e.type === 'revenue' ? 'row-revenue' : (e.type === 'labor' ? 'row-labor' : 'row-material')}>
+              <tr
+                key={e.id}
+                className={e.type === 'revenue'
+                  ? 'row-revenue'
+                  : (e.type === 'labor'
+                    ? 'row-labor'
+                    : (e.type === 'other' ? 'row-other' : 'row-material'))}
+              >
                 <td>{financial.formatDate(e.date)}</td>
-                <td className="font-bold">{e.type === 'revenue' ? 'ENT' : (e.type === 'labor' ? 'M.O' : 'MAT')}</td>
+                <td className="font-bold">{e.type === 'revenue' ? 'ENT' : (e.type === 'labor' ? 'M.O' : (e.type === 'other' ? 'OUT' : 'MAT'))}</td>
                 <td>{e.description}</td>
                 <td className="text-slate-600">{e.entityName || '—'}</td>
                 <td style={{ textAlign: 'center' }}>{e.quantity} {e.unit}</td>
