@@ -599,6 +599,20 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
             <div className="flex items-center gap-2">
               <button onClick={() => setExpandedIds(new Set(expenses.map(e => e.id)))} className="px-3 py-1.5 text-[9px] font-black uppercase text-slate-500 border rounded-lg hover:bg-slate-50"><Maximize2 size={12} className="inline mr-1" /> Expandir</button>
               <button onClick={() => setExpandedIds(new Set())} className="px-3 py-1.5 text-[9px] font-black uppercase text-slate-500 border rounded-lg hover:bg-slate-50"><Minimize2 size={12} className="inline mr-1" /> Recolher</button>
+              {activeTab === 'other' && (
+                <div className="relative group">
+                  <button
+                    type="button"
+                    className="p-2 text-slate-400 hover:text-slate-600"
+                    aria-label="Informacoes sobre outros"
+                  >
+                    <Info size={14} />
+                  </button>
+                  <div className="pointer-events-none absolute left-1/2 top-full z-[200] mt-1 w-64 -translate-x-1/2 rounded-lg bg-slate-900 px-3 py-2 text-[10px] font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                    Documente transferências para controle interno que não impacte os custos diretos da obra
+                  </div>
+                </div>
+              )}
               {activeTab === 'material' && (
                 <button
                   onClick={importMaterialGroupsFromWbs}
@@ -642,13 +656,6 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
               </div>
             </div>
           </div>
-
-          {activeTab === 'other' && (
-            <div className="flex items-center gap-2 text-[10px] font-medium text-slate-400">
-              <Info size={12} className="text-slate-400" />
-              <span>Documente transferências para controle interno que não impacte os custos diretos da obra</span>
-            </div>
-          )}
 
           <ExpenseTreeTable
             data={flattenedExpenses}

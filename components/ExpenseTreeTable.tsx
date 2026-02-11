@@ -59,6 +59,7 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
   };
 
   const totalConsolidado = financial.sum(data.filter(i => i.depth === 0).map(i => i.amount));
+  const totalColSpan = isOtherTable ? 8 : 11;
 
   return (
     <div className={`overflow-x-auto border rounded-3xl bg-white dark:bg-slate-900 shadow-xl transition-colors ${isRevenueTable ? 'border-emerald-100 dark:border-emerald-900' : 'border-slate-200 dark:border-slate-800'}`}>
@@ -72,9 +73,9 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
               <th className="p-4 border-r border-slate-800 w-36 text-center">Ações</th>
               <th className="p-4 border-r border-slate-800 text-left min-w-[300px]">Descrição / Fornecedor</th>
               <th className="p-4 border-r border-slate-800 w-44 text-left">Datas</th>
-              <th className="p-4 border-r border-slate-800 w-16 text-center">Und</th>
-              <th className="p-4 border-r border-slate-800 w-20 text-center">Qtd</th>
-              <th className="p-4 border-r border-slate-800 w-32 text-right">Unitário</th>
+              {!isOtherTable && <th className="p-4 border-r border-slate-800 w-16 text-center">Und</th>}
+              {!isOtherTable && <th className="p-4 border-r border-slate-800 w-20 text-center">Qtd</th>}
+              {!isOtherTable && <th className="p-4 border-r border-slate-800 w-32 text-right">Unitário</th>}
               <th className="p-4 border-r border-slate-800 w-28 text-right">Desconto</th>
               <th className="p-4 border-r border-slate-800 w-28 text-right">Imposto</th>
               <th className="p-4 w-32 text-right">Total</th>
@@ -201,11 +202,17 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                             </div>
                           ) : '—'}
                         </td>
-                        <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 font-black text-slate-400 uppercase text-[9px]">{item.unit || '-'}</td>
-                        <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 font-mono">{item.itemType === 'item' ? item.quantity : '-'}</td>
-                        <td className="p-2 text-right border-r border-slate-100 dark:border-slate-800 text-slate-400 font-mono">
-                          {item.itemType === 'item' ? financial.formatVisual(item.unitPrice, currencySymbol) : '-'}
-                        </td>
+                        {!isOtherTable && (
+                          <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 font-black text-slate-400 uppercase text-[9px]">{item.unit || '-'}</td>
+                        )}
+                        {!isOtherTable && (
+                          <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 font-mono">{item.itemType === 'item' ? item.quantity : '-'}</td>
+                        )}
+                        {!isOtherTable && (
+                          <td className="p-2 text-right border-r border-slate-100 dark:border-slate-800 text-slate-400 font-mono">
+                            {item.itemType === 'item' ? financial.formatVisual(item.unitPrice, currencySymbol) : '-'}
+                          </td>
+                        )}
                         <td className="p-2 text-right border-r border-slate-100 dark:border-slate-800 text-rose-500 font-mono">
                           {item.itemType === 'item' && (item.discountValue || item.discountPercentage) ? (
                             <div className="flex flex-col items-end">
@@ -235,7 +242,7 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
           </Droppable>
           <tfoot className="bg-slate-900 dark:bg-black text-white font-black text-xs sticky bottom-0 z-20 shadow-2xl">
             <tr className="border-t border-slate-700">
-              <td colSpan={11} className="p-4 text-right uppercase tracking-[0.2em] text-[9px] border-r border-slate-800 opacity-70">
+              <td colSpan={totalColSpan} className="p-4 text-right uppercase tracking-[0.2em] text-[9px] border-r border-slate-800 opacity-70">
                 Total Consolidado da Tabela:
               </td>
               <td className="p-4 text-right text-sm tracking-tighter whitespace-nowrap">

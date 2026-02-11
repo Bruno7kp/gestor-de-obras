@@ -120,7 +120,7 @@ export class ProjectExpensesService {
     return this.prisma.projectExpense.update({
       where: { id: input.id },
       data: {
-        parentId: input.parentId ?? existing.parentId,
+        parentId: input.parentId === undefined ? existing.parentId : input.parentId,
         type: input.type ?? existing.type,
         itemType: input.itemType ?? existing.itemType,
         wbs: input.wbs ?? existing.wbs,

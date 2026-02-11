@@ -22,6 +22,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
 }) => {
   const isIncome = expenseType === 'revenue' || expenseType === 'other';
   const isRevenue = expenseType === 'revenue';
+  const isOther = expenseType === 'other';
   const isLabor = expenseType === 'labor';
   const [activeItemType, setActiveItemType] = useState<ItemType>(initialItemType);
 
@@ -264,17 +265,21 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                     </div>
 
                     <div className="p-8 bg-slate-50 dark:bg-slate-800/40 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 space-y-6">
-                      <div className="grid grid-cols-3 gap-6">
+                      <div className={`grid ${isOther ? 'grid-cols-1' : 'grid-cols-3'} gap-6`}>
+                        {!isOther && (
+                          <div>
+                            <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block text-center">Unidade</label>
+                            <input className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-black text-center uppercase outline-none focus:ring-2 focus:ring-indigo-500/20" value={formData.unit} onChange={e => setFormData(prev => ({ ...prev, unit: e.target.value }))} />
+                          </div>
+                        )}
+                        {!isOther && (
+                          <div>
+                            <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block text-center">Qtd</label>
+                            <input inputMode="decimal" className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-black text-center outline-none focus:ring-2 focus:ring-indigo-500/20" value={strQty} onChange={e => handleNumericChange(e.target.value, setStrQty, 'qty')} />
+                          </div>
+                        )}
                         <div>
-                          <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block text-center">Unidade</label>
-                          <input className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-black text-center uppercase outline-none focus:ring-2 focus:ring-indigo-500/20" value={formData.unit} onChange={e => setFormData(prev => ({ ...prev, unit: e.target.value }))} />
-                        </div>
-                        <div>
-                          <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block text-center">Qtd</label>
-                          <input inputMode="decimal" className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-black text-center outline-none focus:ring-2 focus:ring-indigo-500/20" value={strQty} onChange={e => handleNumericChange(e.target.value, setStrQty, 'qty')} />
-                        </div>
-                        <div>
-                          <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block text-center">Preço Unitário</label>
+                          <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block text-center">{isOther ? 'Valor' : 'Preço Unitário'}</label>
                           <div className="relative">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-300">R$</span>
                             <input inputMode="decimal" className="w-full pl-8 pr-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-black text-right outline-none focus:ring-2 focus:ring-indigo-500/20" value={strPrice} onChange={e => handleNumericChange(e.target.value, setStrPrice, 'price')} />

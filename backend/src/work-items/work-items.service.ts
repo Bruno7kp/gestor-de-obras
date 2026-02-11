@@ -250,7 +250,7 @@ export class WorkItemsService {
     return this.prisma.workItem.update({
       where: { id: input.id },
       data: {
-        parentId: input.parentId ?? existing.parentId,
+        parentId: input.parentId === undefined ? existing.parentId : input.parentId,
         name: input.name ?? existing.name,
         type: input.type ?? existing.type,
         wbs: input.wbs ?? existing.wbs,
