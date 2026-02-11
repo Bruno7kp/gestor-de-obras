@@ -688,6 +688,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
           workItems={project.items}
           isReadOnly={isReadOnly}
           financialCategories={laborFinancialCategories}
+          onAddExpense={onAddExpense}
           onClose={() => { setIsModalOpen(false); setEditingContract(null); }}
           onSave={handleSave}
         />
@@ -738,6 +739,9 @@ const PaymentModal = ({
     financial.formatVisual(payment.valor || 0, '').trim()
   );
   const [parentId, setParentId] = useState<string | null>(existingExpense?.parentId ?? null);
+  const [localFinancialCategories, setLocalFinancialCategories] = useState<ProjectExpense[]>(financialCategories ?? []);
+  const [isAddingGroup, setIsAddingGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
   const isPaidLocked = !!existingExpense?.isPaid || existingExpense?.status === 'PAID';
   const [isPaid, setIsPaid] = useState<boolean>(isPaidLocked);
   const [paymentProof, setPaymentProof] = useState<string | undefined>(
@@ -745,6 +749,10 @@ const PaymentModal = ({
   );
   const [confirmPaidOpen, setConfirmPaidOpen] = useState(false);
   const [pendingSave, setPendingSave] = useState(false);
+
+  useEffect(() => {
+    setLocalFinancialCategories(financialCategories ?? []);
+  }, [financialCategories]);
 
   if (!contract) return null;
 
@@ -822,9 +830,20 @@ const PaymentModal = ({
           </div>
 
           <div>
-            <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-2 block tracking-widest">
-              Vincular ao Grupo Financeiro (Opcional)
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase block tracking-widest">
+                Vincular ao Grupo Financeiro (Opcional)
+              </label>
+              {!isReadOnly && (
+                <button
+                  type="button"
+                  onClick={() => { setIsAddingGroup(true); setNewGroupName(''); }}
+                  className="text-[9px] font-black uppercase text-indigo-600 hover:text-indigo-500"
+                >
+                  Adicionar
+                </button>
+              )}
+            </div>
             <select
               className="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-white text-xs font-bold outline-none appearance-none"
               value={parentId || ''}
@@ -832,10 +851,58 @@ const PaymentModal = ({
               disabled={isReadOnly}
             >
               <option value="">Nenhum</option>
-              {financialCategories.map((c: any) => (
+              {localFinancialCategories.map((c: any) => (
                 <option key={c.id} value={c.id}>{c.description}</option>
               ))}
             </select>
+            {isAddingGroup && (
+              <div className="mt-3 flex items-center gap-2">
+                <input
+                  className="flex-1 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold outline-none"
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  placeholder="Nome do grupo"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const name = newGroupName.trim();
+                    if (!name) return;
+                    const newCategory: ProjectExpense = {
+                      id: crypto.randomUUID(),
+                      parentId: null,
+                      type: 'labor',
+                      itemType: 'category',
+                      wbs: '',
+                      order: localFinancialCategories.length,
+                      date: new Date().toISOString().split('T')[0],
+                      description: name,
+                      entityName: '',
+                      unit: '',
+                      quantity: 0,
+                      unitPrice: 0,
+                      amount: 0,
+                      isPaid: false,
+                      status: 'PENDING',
+                    };
+                    setLocalFinancialCategories((prev) => [...prev, newCategory]);
+                    setParentId(newCategory.id);
+                    setIsAddingGroup(false);
+                    setNewGroupName('');
+                  }}
+                  className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-[10px] font-black uppercase"
+                >
+                  Criar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setIsAddingGroup(false); setNewGroupName(''); }}
+                  className="px-3 py-2 rounded-xl text-[10px] font-black uppercase text-slate-400 hover:text-slate-600"
+                >
+                  Cancelar
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-800">
@@ -918,9 +985,10 @@ const PaymentModal = ({
   );
 };
 
-const ContractModal = ({ contract, workforce, workItems, isReadOnly, financialCategories, onClose, onSave }: any) => {
+const ContractModal = ({ contract, workforce, workItems, isReadOnly, financialCategories, onAddExpense, onClose, onSave }: any) => {
   const initialContract = contract || laborContractService.createContract('empreita');
   const [data, setData] = useState<LaborContract>(initialContract);
+  const [localFinancialCategories, setLocalFinancialCategories] = useState<ProjectExpense[]>(financialCategories ?? []);
   const workTree = useMemo(() => treeService.buildTree(workItems), [workItems]);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [strValorTotal, setStrValorTotal] = useState(
@@ -940,11 +1008,17 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, financialCa
   const [paymentParentIds, setPaymentParentIds] = useState<Record<string, string | null>>(() =>
     Object.fromEntries((initialContract.pagamentos || []).map(p => [p.id, null]))
   );
+  const [addingGroupForPaymentId, setAddingGroupForPaymentId] = useState<string | null>(null);
+  const [newGroupName, setNewGroupName] = useState('');
   const toast = useToast();
 
   useEffect(() => {
     setExpandedIds(new Set());
   }, [contract, workItems]);
+
+  useEffect(() => {
+    setLocalFinancialCategories(financialCategories ?? []);
+  }, [financialCategories]);
 
   useEffect(() => {
     if (data.linkedWorkItemIds !== undefined) return;
@@ -1044,6 +1118,43 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, financialCa
         toast.error('Falha ao enviar o comprovante. Tente novamente.');
       }
     }
+  };
+
+  const handleCreateFinancialGroup = async (paymentId: string) => {
+    if (isReadOnly) return;
+    if (!onAddExpense) {
+      toast.error('Nao foi possivel criar o grupo financeiro.');
+      return;
+    }
+    const name = newGroupName.trim();
+    if (!name) {
+      toast.error('Informe o nome do grupo.');
+      return;
+    }
+
+    const newCategory: ProjectExpense = {
+      id: crypto.randomUUID(),
+      parentId: null,
+      type: 'labor',
+      itemType: 'category',
+      wbs: '',
+      order: localFinancialCategories.length,
+      date: new Date().toISOString().split('T')[0],
+      description: name,
+      entityName: '',
+      unit: '',
+      quantity: 0,
+      unitPrice: 0,
+      amount: 0,
+      isPaid: false,
+      status: 'PENDING',
+    };
+
+    setLocalFinancialCategories((prev) => [...prev, newCategory]);
+    setPaymentParentIds((prev) => ({ ...prev, [paymentId]: newCategory.id }));
+    setAddingGroupForPaymentId(null);
+    setNewGroupName('');
+    onAddExpense(newCategory);
   };
 
   const getItemIds = (node: WorkItem): string[] => {
@@ -1421,9 +1532,23 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, financialCa
 
                       {paymentPaid[pag.id] && (
                         <div>
-                          <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block">
-                            Vincular ao Grupo Financeiro (Opcional)
-                          </label>
+                          <div className="flex items-center justify-between mb-2">
+                            <label className="text-[9px] font-black text-slate-400 uppercase block">
+                              Vincular ao Grupo Financeiro (Opcional)
+                            </label>
+                            {!isReadOnly && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAddingGroupForPaymentId(pag.id);
+                                  setNewGroupName('');
+                                }}
+                                className="text-[9px] font-black uppercase text-indigo-600 hover:text-indigo-500"
+                              >
+                                Adicionar
+                              </button>
+                            )}
+                          </div>
                           <select
                             className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold outline-none"
                             value={paymentParentIds[pag.id] ?? ''}
@@ -1434,10 +1559,34 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, financialCa
                             disabled={isReadOnly}
                           >
                             <option value="">Nenhum</option>
-                            {(financialCategories || []).map((c: any) => (
+                            {localFinancialCategories.map((c: any) => (
                               <option key={c.id} value={c.id}>{c.description}</option>
                             ))}
                           </select>
+                          {addingGroupForPaymentId === pag.id && (
+                            <div className="mt-3 flex items-center gap-2">
+                              <input
+                                className="flex-1 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold outline-none"
+                                value={newGroupName}
+                                onChange={(e) => setNewGroupName(e.target.value)}
+                                placeholder="Nome do grupo"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleCreateFinancialGroup(pag.id)}
+                                className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-[10px] font-black uppercase"
+                              >
+                                Criar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { setAddingGroupForPaymentId(null); setNewGroupName(''); }}
+                                className="px-3 py-2 rounded-xl text-[10px] font-black uppercase text-slate-400 hover:text-slate-600"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
