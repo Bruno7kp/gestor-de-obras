@@ -499,7 +499,7 @@ export const WbsView: React.FC<WbsViewProps> = ({
               onClick={() => void handleClearMeasurement()}
               disabled={isReadOnly}
               className="flex items-center gap-2 px-4 py-3 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-rose-600 hover:text-white transition-all disabled:opacity-30"
-              title="Limpar coluna de periodo"
+              title="Limpar coluna de período"
             >
               <Eraser size={14} /> Limpar Medição
             </button>

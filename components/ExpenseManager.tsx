@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { ProjectExpense, ExpenseType, WorkItem, ItemType, Project } from '../types';
 import { financial } from '../utils/math';
 import { expenseService } from '../services/expenseService';
@@ -52,6 +52,8 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
       : 'overview';
   });
   const [searchQuery, setSearchQuery] = useState('');
+  const [dateStart, setDateStart] = useState('');
+  const [dateEnd, setDateEnd] = useState('');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => {
     const saved = localStorage.getItem(`exp_fin_${project.id}`);
     return saved ? new Set<string>(JSON.parse(saved)) : new Set<string>();
@@ -84,7 +86,19 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
     uiPreferences.setString(expenseTabKey, activeTab);
   }, [activeTab, expenseTabKey]);
 
-  const stats = useMemo(() => expenseService.getExpenseStats(expenses), [expenses]);
+  const isWithinRange = useCallback((date?: string) => {
+    if (!dateStart && !dateEnd) return true;
+    if (!date) return false;
+    if (dateStart && date < dateStart) return false;
+    if (dateEnd && date > dateEnd) return false;
+    return true;
+  }, [dateStart, dateEnd]);
+
+  const filteredItemsByDate = useMemo(() => (
+    expenses.filter(expense => expense.itemType === 'item' && isWithinRange(expense.date))
+  ), [expenses, isWithinRange]);
+
+  const stats = useMemo(() => expenseService.getExpenseStats(filteredItemsByDate), [filteredItemsByDate]);
 
   const projectedBalance = financial.round(stats.revenue - stats.totalOut);
 
@@ -101,10 +115,30 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
 
   const currentExpenses = useMemo(() => {
     if (activeTab === 'overview') return [];
-    const filtered = expenses.filter(e => e.type === activeTab);
+    const scoped = expenses.filter(e => e.type === activeTab);
+    const filtered = (() => {
+      if (!dateStart && !dateEnd) return scoped;
+      const byId = new Map(scoped.map(expense => [expense.id, expense] as const));
+      const allowedIds = new Set<string>();
+
+      scoped.forEach(expense => {
+        if (expense.itemType !== 'item') return;
+        if (!isWithinRange(expense.date)) return;
+        let current: ProjectExpense | undefined = expense;
+        while (current) {
+          if (allowedIds.has(current.id)) break;
+          allowedIds.add(current.id);
+          if (!current.parentId) break;
+          current = byId.get(current.parentId);
+        }
+      });
+
+      return scoped.filter(expense => allowedIds.has(expense.id));
+    })();
+
     const tree = treeService.buildTree(filtered);
     return tree.map((root, idx) => treeService.processExpensesRecursive(root as ProjectExpense, '', idx));
-  }, [expenses, activeTab]);
+  }, [expenses, activeTab, dateStart, dateEnd, isWithinRange]);
 
   const flattenedExpenses = useMemo(() =>
     treeService.flattenTree(currentExpenses, expandedIds)
@@ -561,29 +595,52 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
         <FinancialSummary stats={stats} currencySymbol={project.theme?.currencySymbol} />
       ) : (
         <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <button onClick={() => setExpandedIds(new Set(expenses.map(e => e.id)))} className="px-3 py-1.5 text-[9px] font-black uppercase text-slate-500 border rounded-lg hover:bg-slate-50"><Maximize2 size={12} className="inline mr-1" /> Expandir</button>
-            <button onClick={() => setExpandedIds(new Set())} className="px-3 py-1.5 text-[9px] font-black uppercase text-slate-500 border rounded-lg hover:bg-slate-50"><Minimize2 size={12} className="inline mr-1" /> Recolher</button>
-            {activeTab === 'material' && (
-              <button
-                onClick={importMaterialGroupsFromWbs}
-                disabled={!canEditFinancial}
-                className={`px-3 py-1.5 text-[9px] font-black uppercase border rounded-lg transition-colors ${canEditFinancial ? 'text-slate-500 hover:bg-slate-50' : 'text-slate-300 cursor-not-allowed'}`}
-                title="Importar grupos da EAP"
-              >
-                <Layers size={12} className="inline mr-1" /> Importar Grupos
-              </button>
-            )}
-            {activeTab === 'labor' && (
-              <button
-                onClick={importLaborGroupsFromWbs}
-                disabled={!canEditFinancial}
-                className={`px-3 py-1.5 text-[9px] font-black uppercase border rounded-lg transition-colors ${canEditFinancial ? 'text-slate-500 hover:bg-slate-50' : 'text-slate-300 cursor-not-allowed'}`}
-                title="Importar grupos da EAP"
-              >
-                <Layers size={12} className="inline mr-1" /> Importar Grupos
-              </button>
-            )}
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-2">
+              <button onClick={() => setExpandedIds(new Set(expenses.map(e => e.id)))} className="px-3 py-1.5 text-[9px] font-black uppercase text-slate-500 border rounded-lg hover:bg-slate-50"><Maximize2 size={12} className="inline mr-1" /> Expandir</button>
+              <button onClick={() => setExpandedIds(new Set())} className="px-3 py-1.5 text-[9px] font-black uppercase text-slate-500 border rounded-lg hover:bg-slate-50"><Minimize2 size={12} className="inline mr-1" /> Recolher</button>
+              {activeTab === 'material' && (
+                <button
+                  onClick={importMaterialGroupsFromWbs}
+                  disabled={!canEditFinancial}
+                  className={`px-3 py-1.5 text-[9px] font-black uppercase border rounded-lg transition-colors ${canEditFinancial ? 'text-slate-500 hover:bg-slate-50' : 'text-slate-300 cursor-not-allowed'}`}
+                  title="Importar grupos da EAP"
+                >
+                  <Layers size={12} className="inline mr-1" /> Importar Grupos
+                </button>
+              )}
+              {activeTab === 'labor' && (
+                <button
+                  onClick={importLaborGroupsFromWbs}
+                  disabled={!canEditFinancial}
+                  className={`px-3 py-1.5 text-[9px] font-black uppercase border rounded-lg transition-colors ${canEditFinancial ? 'text-slate-500 hover:bg-slate-50' : 'text-slate-300 cursor-not-allowed'}`}
+                  title="Importar grupos da EAP"
+                >
+                  <Layers size={12} className="inline mr-1" /> Importar Grupos
+                </button>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Período</span>
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={dateStart}
+                  onChange={e => setDateStart(e.target.value)}
+                  className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest border rounded-lg text-slate-500 bg-white dark:bg-slate-900"
+                  aria-label="Data inicial"
+                />
+                <span className="text-[10px] font-bold text-slate-400">até</span>
+                <input
+                  type="date"
+                  value={dateEnd}
+                  onChange={e => setDateEnd(e.target.value)}
+                  className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest border rounded-lg text-slate-500 bg-white dark:bg-slate-900"
+                  aria-label="Data final"
+                />
+              </div>
+            </div>
           </div>
 
           <ExpenseTreeTable
