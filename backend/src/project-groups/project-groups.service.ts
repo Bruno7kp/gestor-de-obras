@@ -49,7 +49,7 @@ export class ProjectGroupsService {
       where: { id: input.id },
       data: {
         name: input.name ?? existing.name,
-        parentId: input.parentId ?? existing.parentId,
+        parentId: input.parentId !== undefined ? input.parentId : existing.parentId,
         order: input.order ?? existing.order,
       },
     });

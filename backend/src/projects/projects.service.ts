@@ -454,7 +454,7 @@ export class ProjectsService {
           input.measurementNumber ?? existing.measurementNumber,
         logo: input.logo ?? existing.logo,
         bdi: input.bdi ?? existing.bdi,
-        groupId: input.groupId ?? existing.groupId,
+        groupId: input.groupId !== undefined ? input.groupId : existing.groupId,
         order: input.order ?? existing.order,
         contractTotalOverride:
           input.contractTotalOverride !== undefined

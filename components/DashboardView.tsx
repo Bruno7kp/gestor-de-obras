@@ -1,9 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Project, ProjectGroup } from '../types';
 import { 
   Briefcase, Plus, Edit2, Trash2, AlertTriangle, 
   Folder, ChevronRight, Home, FolderPlus, Save, ChevronLeft, Search,
-  FolderInput, X, Check, Target, Layers, GripVertical
+  FolderInput, X, Check, Target, Layers, GripVertical, List, LayoutGrid
 } from 'lucide-react';
 import { treeService } from '../services/treeService';
 import { projectService } from '../services/projectService';
@@ -25,6 +25,7 @@ interface DashboardViewProps {
 
 export const DashboardView: React.FC<DashboardViewProps> = (props) => {
   const { getLevel } = usePermissions();
+  const dashboardViewKey = 'promeasure_dashboard_view_v1';
   const [currentGroupId, setCurrentGroupId] = useState<string | null>(null);
   const [editingGroup, setEditingGroup] = useState<ProjectGroup | null>(null);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
@@ -32,8 +33,16 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
   const [isDeleting, setIsDeleting] = useState<{ type: 'group' | 'project', id: string } | null>(null);
   const [newName, setNewName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
+    const saved = localStorage.getItem(dashboardViewKey);
+    return saved === 'list' ? 'list' : 'grid';
+  });
   const toast = useToast();
   const canRenameProjects = getLevel('projects_general') === 'edit';
+
+  useEffect(() => {
+    localStorage.setItem(dashboardViewKey, viewMode);
+  }, [dashboardViewKey, viewMode]);
 
   const sortByOrder = (a: { order?: number; name?: string }, b: { order?: number; name?: string }) => {
     const orderDiff = (a.order ?? 0) - (b.order ?? 0);
@@ -324,6 +333,22 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
             <p className="text-slate-500 dark:text-slate-400 font-medium">Gestão hierárquica por portfólio.</p>
           </header>
           <div className="flex items-center gap-3">
+             <div className="flex items-center gap-1 p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm">
+               <button
+                 onClick={() => setViewMode('grid')}
+                 className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-indigo-600'}`}
+                 title="Grade"
+               >
+                 <LayoutGrid size={16} />
+               </button>
+               <button
+                 onClick={() => setViewMode('list')}
+                 className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-indigo-600'}`}
+                 title="Lista"
+               >
+                 <List size={16} />
+               </button>
+             </div>
              <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                 <input 
@@ -385,12 +410,15 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
             </nav>
           )}
 
-          <Droppable droppableId="dashboard-grid" direction="horizontal" isCombineEnabled>
+          <Droppable droppableId="dashboard-grid" direction={viewMode === 'list' ? 'vertical' : 'horizontal'} isCombineEnabled>
             {(provided) => (
               <div 
                 {...provided.droppableProps} 
                 ref={provided.innerRef}
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                className={viewMode === 'grid'
+                  ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
+                  : 'flex flex-col gap-3'
+                }
               >
                 {!searchQuery && currentGroupId && (
                   <Draggable draggableId="target-back" index={0} isDragDisabled={true}>
@@ -399,7 +427,7 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
                         ref={p.innerRef}
                         {...p.draggableProps}
                         onClick={() => setCurrentGroupId(breadcrumbs[breadcrumbs.length - 2]?.id || null)}
-                        className={`bg-white dark:bg-slate-900 border-2 border-dashed rounded-[2rem] p-6 flex flex-col items-center justify-center transition-all group h-full cursor-pointer ${s.combineTargetFor ? 'bg-indigo-50 border-indigo-500 ring-4 ring-indigo-500/20 scale-105' : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-indigo-600 hover:bg-slate-50'}`}
+                        className={`bg-white dark:bg-slate-900 border-2 border-dashed rounded-[2rem] p-6 flex flex-col items-center justify-center transition-all group cursor-pointer ${viewMode === 'list' ? 'h-auto' : 'h-full'} ${s.combineTargetFor ? 'bg-indigo-50 border-indigo-500 ring-4 ring-indigo-500/20 scale-105' : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-indigo-600 hover:bg-slate-50'}`}
                       >
                         <ChevronLeft size={32} className={`${s.combineTargetFor ? 'animate-bounce' : 'group-hover:-translate-x-1'} transition-transform`} /> 
                         <span className="text-[10px] font-black uppercase tracking-widest mt-2">Mover para cima</span>
@@ -413,30 +441,54 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
                     {filteredGroups.map((g, idx) => (
                       <Draggable key={`grp-${g.id}`} draggableId={`grp-${g.id}`} index={idx}>
                         {(p) => (
-                          <FolderCard 
-                            provided={p} 
-                            group={g} 
-                            onOpen={() => { setCurrentGroupId(g.id); setSearchQuery(''); }} 
-                            onRename={() => { setEditingGroup(g); setNewName(g.name); }} 
-                            onDelete={() => setIsDeleting({ type: 'group', id: g.id })} 
-                            onMove={() => setMovingItem({ type: 'group', id: g.id })} 
-                            canRename={canRenameProjects}
-                          />
+                          viewMode === 'grid' ? (
+                            <FolderCard 
+                              provided={p} 
+                              group={g} 
+                              onOpen={() => { setCurrentGroupId(g.id); setSearchQuery(''); }} 
+                              onRename={() => { setEditingGroup(g); setNewName(g.name); }} 
+                              onDelete={() => setIsDeleting({ type: 'group', id: g.id })} 
+                              onMove={() => setMovingItem({ type: 'group', id: g.id })} 
+                              canRename={canRenameProjects}
+                            />
+                          ) : (
+                            <FolderRow
+                              provided={p}
+                              group={g}
+                              onOpen={() => { setCurrentGroupId(g.id); setSearchQuery(''); }}
+                              onRename={() => { setEditingGroup(g); setNewName(g.name); }}
+                              onDelete={() => setIsDeleting({ type: 'group', id: g.id })}
+                              onMove={() => setMovingItem({ type: 'group', id: g.id })}
+                              canRename={canRenameProjects}
+                            />
+                          )
                         )}
                       </Draggable>
                     ))}
                     {filteredProjects.map((p, idx) => (
                       <Draggable key={`prj-${p.id}`} draggableId={`prj-${p.id}`} index={idx + filteredGroups.length}>
                         {(pr) => (
-                          <ProjectCard 
-                            provided={pr} 
-                            project={p} 
-                            onOpen={() => props.onOpenProject(p.id)} 
-                            onRename={() => { setEditingProject(p); setNewName(p.name); }} 
-                            onDelete={() => setIsDeleting({ type: 'project', id: p.id })} 
-                            onMove={() => setMovingItem({ type: 'project', id: p.id })} 
-                            canRename={canRenameProjects}
-                          />
+                          viewMode === 'grid' ? (
+                            <ProjectCard 
+                              provided={pr} 
+                              project={p} 
+                              onOpen={() => props.onOpenProject(p.id)} 
+                              onRename={() => { setEditingProject(p); setNewName(p.name); }} 
+                              onDelete={() => setIsDeleting({ type: 'project', id: p.id })} 
+                              onMove={() => setMovingItem({ type: 'project', id: p.id })} 
+                              canRename={canRenameProjects}
+                            />
+                          ) : (
+                            <ProjectRow
+                              provided={pr}
+                              project={p}
+                              onOpen={() => props.onOpenProject(p.id)}
+                              onRename={() => { setEditingProject(p); setNewName(p.name); }}
+                              onDelete={() => setIsDeleting({ type: 'project', id: p.id })}
+                              onMove={() => setMovingItem({ type: 'project', id: p.id })}
+                              canRename={canRenameProjects}
+                            />
+                          )
                         )}
                       </Draggable>
                     ))}
@@ -448,15 +500,27 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
                       return (
                         <Draggable key={`grp-${g.id}`} draggableId={`grp-${g.id}`} index={baseIdx}>
                           {(p) => (
-                            <FolderCard 
-                              provided={p} 
-                              group={g} 
-                              onOpen={() => setCurrentGroupId(g.id)} 
-                              onRename={() => { setEditingGroup(g); setNewName(g.name); }} 
-                              onDelete={() => setIsDeleting({ type: 'group', id: g.id })} 
-                              onMove={() => setMovingItem({ type: 'group', id: g.id })} 
-                              canRename={canRenameProjects}
-                            />
+                            viewMode === 'grid' ? (
+                              <FolderCard 
+                                provided={p} 
+                                group={g} 
+                                onOpen={() => setCurrentGroupId(g.id)} 
+                                onRename={() => { setEditingGroup(g); setNewName(g.name); }} 
+                                onDelete={() => setIsDeleting({ type: 'group', id: g.id })} 
+                                onMove={() => setMovingItem({ type: 'group', id: g.id })} 
+                                canRename={canRenameProjects}
+                              />
+                            ) : (
+                              <FolderRow
+                                provided={p}
+                                group={g}
+                                onOpen={() => setCurrentGroupId(g.id)}
+                                onRename={() => { setEditingGroup(g); setNewName(g.name); }}
+                                onDelete={() => setIsDeleting({ type: 'group', id: g.id })}
+                                onMove={() => setMovingItem({ type: 'group', id: g.id })}
+                                canRename={canRenameProjects}
+                              />
+                            )
                           )}
                         </Draggable>
                       );
@@ -466,15 +530,27 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
                       return (
                         <Draggable key={`prj-${p.id}`} draggableId={`prj-${p.id}`} index={baseIdx}>
                           {(pr) => (
-                            <ProjectCard 
-                              provided={pr} 
-                              project={p} 
-                              onOpen={() => props.onOpenProject(p.id)} 
-                              onRename={() => { setEditingProject(p); setNewName(p.name); }} 
-                              onDelete={() => setIsDeleting({ type: 'project', id: p.id })} 
-                              onMove={() => setMovingItem({ type: 'project', id: p.id })} 
-                              canRename={canRenameProjects}
-                            />
+                            viewMode === 'grid' ? (
+                              <ProjectCard 
+                                provided={pr} 
+                                project={p} 
+                                onOpen={() => props.onOpenProject(p.id)} 
+                                onRename={() => { setEditingProject(p); setNewName(p.name); }} 
+                                onDelete={() => setIsDeleting({ type: 'project', id: p.id })} 
+                                onMove={() => setMovingItem({ type: 'project', id: p.id })} 
+                                canRename={canRenameProjects}
+                              />
+                            ) : (
+                              <ProjectRow
+                                provided={pr}
+                                project={p}
+                                onOpen={() => props.onOpenProject(p.id)}
+                                onRename={() => { setEditingProject(p); setNewName(p.name); }} 
+                                onDelete={() => setIsDeleting({ type: 'project', id: p.id })}
+                                onMove={() => setMovingItem({ type: 'project', id: p.id })}
+                                canRename={canRenameProjects}
+                              />
+                            )
                           )}
                         </Draggable>
                       );
@@ -586,6 +662,88 @@ const ProjectCard = ({ project, onOpen, onRename, onDelete, onMove, provided, ca
         </div>
         <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
           <div className="h-full bg-indigo-500 transition-all duration-1000 ease-out" style={{ width: `${stats.progress}%` }} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const FolderRow = ({ group, onOpen, onRename, onDelete, onMove, provided, canRename }: {
+  group: ProjectGroup,
+  onOpen: () => void,
+  onRename: () => void,
+  onDelete: () => void,
+  onMove: () => void,
+  provided: DraggableProvided,
+  canRename: boolean
+}) => (
+  <div
+    ref={provided.innerRef}
+    {...provided.draggableProps}
+    {...provided.dragHandleProps}
+    onClick={onOpen}
+    className="group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center justify-between"
+  >
+    <div className="flex items-center gap-4 min-w-0">
+      <div className="p-2.5 bg-amber-50 dark:bg-amber-900/20 text-amber-500 rounded-xl">
+        <Folder size={18} />
+      </div>
+      <div className="min-w-0">
+        <p className="text-[10px] font-black uppercase text-slate-400">Pasta</p>
+        <h3 className="text-sm font-black text-slate-800 dark:text-white truncate">{group.name}</h3>
+      </div>
+    </div>
+    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+      <button title="Mover" onClick={e => { e.stopPropagation(); onMove(); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><FolderInput size={16}/></button>
+      {canRename && (
+        <button title="Renomear" onClick={e => { e.stopPropagation(); onRename(); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><Edit2 size={16}/></button>
+      )}
+      <button title="Excluir" onClick={e => { e.stopPropagation(); onDelete(); }} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"><Trash2 size={16}/></button>
+    </div>
+  </div>
+);
+
+const ProjectRow = ({ project, onOpen, onRename, onDelete, onMove, provided, canRename }: {
+  project: Project,
+  onOpen: () => void,
+  onRename: () => void,
+  onDelete: () => void,
+  onMove: () => void,
+  provided: DraggableProvided,
+  canRename: boolean
+}) => {
+  const stats = treeService.calculateBasicStats(project.items, project.bdi || 0);
+  return (
+    <div
+      ref={provided.innerRef}
+      {...provided.draggableProps}
+      {...provided.dragHandleProps}
+      onClick={onOpen}
+      className="group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center justify-between"
+    >
+      <div className="flex items-center gap-4 min-w-0">
+        <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-500 rounded-xl">
+          <Briefcase size={18} />
+        </div>
+        <div className="min-w-0">
+          <p className="text-[10px] font-black uppercase text-slate-400">Obra</p>
+          <h3 className="text-sm font-black text-slate-800 dark:text-white truncate">{project.name}</h3>
+        </div>
+      </div>
+      <div className="flex items-center gap-4">
+        <div className="hidden sm:flex items-center gap-3">
+          <div className="text-[9px] font-black uppercase text-slate-400">Avanço</div>
+          <div className="w-28 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+            <div className="h-full bg-indigo-500" style={{ width: `${stats.progress}%` }} />
+          </div>
+          <div className="text-xs font-black text-indigo-600">{stats.progress.toFixed(1)}%</div>
+        </div>
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+          <button title="Mover" onClick={e => { e.stopPropagation(); onMove(); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><FolderInput size={16}/></button>
+          {canRename && (
+            <button title="Renomear" onClick={e => { e.stopPropagation(); onRename(); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><Edit2 size={16}/></button>
+          )}
+          <button title="Excluir" onClick={e => { e.stopPropagation(); onDelete(); }} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"><Trash2 size={16}/></button>
         </div>
       </div>
     </div>
