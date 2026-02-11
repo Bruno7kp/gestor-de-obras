@@ -4,7 +4,7 @@ import { ProjectExpense } from '../types';
 import { financial } from '../utils/math';
 import {
   ChevronRight, ChevronDown, ChevronUp, Trash2, Edit3, Layers,
-  Truck, CheckCircle2, GripVertical, Clock, Landmark, Receipt, Download
+  Truck, CheckCircle2, GripVertical, Clock, Landmark, Receipt, Download, Coins
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
@@ -135,8 +135,8 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                             <div className="flex justify-center">
                               {item.status === 'DELIVERED' ? (
                                 isIncomeTable ? (
-                                  <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center" title="Faturado">
-                                    <CheckCircle2 size={14} />
+                                  <div className="w-8 h-8 rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-600 flex items-center justify-center" title="Transferido">
+                                    <Coins size={20} />
                                   </div>
                                 ) : (
                                   <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 flex items-center justify-center" title="No Local">
@@ -148,7 +148,7 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                                   <CheckCircle2 size={14} />
                                 </div>
                               ) : (
-                                <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 flex items-center justify-center" title="Pendente">
+                                <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 flex items-center justify-center" title={isIncomeTable ? 'Transferencia pendente' : 'Pendente'}>
                                   <Clock size={14} />
                                 </div>
                               )}
@@ -183,7 +183,11 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                         <td className="p-2 border-r border-slate-100 dark:border-slate-800 text-[10px] text-slate-500">
                           {item.itemType === 'item' ? (
                             <div className="space-y-0.5">
-                              <p>{item.isPaid ? 'Pago' : item.status === 'PENDING' ? 'Pendência' : 'Competência'}: {financial.formatDate(item.isPaid ? (item.paymentDate || item.date) : item.date)}</p>
+                              <p>
+                                {isIncomeTable
+                                  ? item.status === 'PENDING' ? 'Transferencia pendente' : 'Transferido'
+                                  : item.isPaid ? 'Pago' : item.status === 'PENDING' ? 'Pendencia' : 'Competencia'}: {financial.formatDate(item.isPaid ? (item.paymentDate || item.date) : item.date)}
+                              </p>
                               {item.deliveryDate && item.type !== 'other' && (
                                 <p className="text-emerald-600 font-bold">Entregue: {financial.formatDate(item.deliveryDate)}</p>
                               )}
