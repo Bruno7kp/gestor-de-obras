@@ -4,7 +4,7 @@ import { ProjectExpense } from '../types';
 import { financial } from '../utils/math';
 import {
   ChevronRight, ChevronDown, ChevronUp, Trash2, Edit3, Layers,
-  Truck, CheckCircle2, GripVertical, Clock, Landmark, Receipt, Download, Coins
+  Truck, CheckCircle2, GripVertical, Clock, Landmark, Receipt, Download, Coins, ArrowUpRight
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
@@ -137,7 +137,7 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                               {item.status === 'DELIVERED' ? (
                                 isOtherTable ? (
                                   <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 flex items-center justify-center" title="Pago">
-                                    <CheckCircle2 size={14} />
+                                    <ArrowUpRight size={16} />
                                   </div>
                                 ) : isRevenueTable ? (
                                   <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center" title="Faturado">
