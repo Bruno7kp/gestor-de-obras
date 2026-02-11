@@ -1,6 +1,7 @@
 
 import { Project, ProjectGroup, DEFAULT_THEME, MeasurementSnapshot } from '../types';
 import { treeService } from './treeService';
+import { financial } from '../utils/math';
 
 export const projectService = {
   createProject: (name: string, companyName: string, groupId: string | null = null): Project => ({
@@ -67,8 +68,8 @@ export const projectService = {
         if (item.type === 'category') {
           return { ...item, currentTotal: 0, currentPercentage: 0 };
         }
-        const newPreviousQuantity = (item.previousQuantity || 0) + (item.currentQuantity || 0);
-        const newPreviousTotal = (item.previousTotal || 0) + (item.currentTotal || 0);
+        const newPreviousQuantity = financial.round((item.previousQuantity || 0) + (item.currentQuantity || 0));
+        const newPreviousTotal = financial.truncate((item.previousTotal || 0) + (item.currentTotal || 0));
 
         return {
           ...item,

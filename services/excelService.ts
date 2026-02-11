@@ -102,11 +102,11 @@ export const excelService = {
       i.cod || "", 
       i.name, 
       i.unit || "", 
-      i.contractQuantity || 0, 
-      i.unitPriceNoBdi || 0, 
+      financial.normalizeQuantity(i.contractQuantity || 0), 
+      financial.normalizeMoney(i.unitPriceNoBdi || 0), 
       i.fonte || "", 
-      i.type === 'item' ? (i.previousQuantity || 0) : "",
-      i.type === 'item' ? (i.currentQuantity || 0) : ""
+      i.type === 'item' ? financial.normalizeQuantity(i.previousQuantity || 0) : "",
+      i.type === 'item' ? financial.normalizeQuantity(i.currentQuantity || 0) : ""
     ]);
     const ws = XLSX.utils.aoa_to_sheet([WBS_HEADERS, ...rows]);
     XLSX.utils.book_append_sheet(wb, ws, "Planilha_de_Medicao");
@@ -120,8 +120,8 @@ export const excelService = {
     const forecastData = forecasts.map(f => [
       f.description,
       f.unit,
-      f.quantityNeeded,
-      f.unitPrice,
+      financial.normalizeQuantity(f.quantityNeeded),
+      financial.normalizeMoney(f.unitPrice),
       f.estimatedDate,
       f.status,
       f.isPaid ? "SIM" : "NÃO",
@@ -173,8 +173,8 @@ export const excelService = {
                 id: crypto.randomUUID(),
                 description: String(r.MATERIAL || ""),
                 unit: String(r.UND || "un"),
-                quantityNeeded: parseVal(r.QNT),
-                unitPrice: parseVal(r.PRECO_UNIT),
+                quantityNeeded: financial.normalizeQuantity(parseVal(r.QNT)),
+                unitPrice: financial.normalizeMoney(parseVal(r.PRECO_UNIT)),
                 estimatedDate: r.DATA_COMPRA instanceof Date ? r.DATA_COMPRA.toISOString() : new Date().toISOString(),
                 status: (r.STATUS || "pending") as any,
                 order: idx,
@@ -217,11 +217,11 @@ export const excelService = {
           dataRows.forEach((row, idx) => {
             const wbs = String(row[0] || "").trim();
             const type = (String(row[1] || "").toLowerCase() === 'category' ? 'category' : 'item') as ItemType;
-            const qty = parseVal(row[5]);
-            const priceNoBdi = parseVal(row[6]);
+            const qty = financial.normalizeQuantity(parseVal(row[5]));
+            const priceNoBdi = financial.normalizeMoney(parseVal(row[6]));
             const fonte = type === 'item' ? (row[7] ? String(row[7]).trim() : "Próprio") : "";
-            const prevQty = type === 'item' ? parseVal(row[8]) : 0;
-            const currentQty = type === 'item' ? parseVal(row[9]) : 0;
+            const prevQty = type === 'item' ? financial.normalizeQuantity(parseVal(row[8])) : 0;
+            const currentQty = type === 'item' ? financial.normalizeQuantity(parseVal(row[9])) : 0;
             const item: WorkItem = {
               id: crypto.randomUUID(), parentId: null, name: String(row[3] || "Novo Item").trim(), type: type, wbs: wbs, order: idx, cod: String(row[2] || "").trim(), unit: String(row[4] || ""), contractQuantity: qty, unitPriceNoBdi: priceNoBdi, fonte, unitPrice: 0, contractTotal: 0, previousQuantity: prevQty, previousTotal: 0, currentQuantity: currentQty, currentTotal: 0, currentPercentage: 0, accumulatedQuantity: 0, accumulatedTotal: 0, accumulatedPercentage: 0, balanceQuantity: 0, balanceTotal: 0
             };
@@ -258,7 +258,18 @@ export const excelService = {
           ? 'RE'
           : (e.type === 'other' ? 'OT' : 'MA'));
       return [
-        e.wbs, e.itemType, typeLabel, e.itemType === 'item' ? e.date : "", e.description, e.itemType === 'item' ? e.entityName : "", e.unit || "", e.itemType === 'item' ? e.quantity : "", e.itemType === 'item' ? e.unitPrice : "", e.itemType === 'item' ? (e.discountValue || 0) : "", e.amount, e.itemType === 'item' ? (e.isPaid ? "S" : "N") : ""
+        e.wbs,
+        e.itemType,
+        typeLabel,
+        e.itemType === 'item' ? e.date : "",
+        e.description,
+        e.itemType === 'item' ? e.entityName : "",
+        e.unit || "",
+        e.itemType === 'item' ? financial.normalizeQuantity(e.quantity || 0) : "",
+        e.itemType === 'item' ? financial.normalizeMoney(e.unitPrice || 0) : "",
+        e.itemType === 'item' ? financial.normalizeMoney(e.discountValue || 0) : "",
+        financial.normalizeMoney(e.amount || 0),
+        e.itemType === 'item' ? (e.isPaid ? "S" : "N") : ""
       ];
     });
     const ws = XLSX.utils.aoa_to_sheet([EXPENSE_HEADERS, ...rows]);
@@ -292,10 +303,10 @@ export const excelService = {
             } else if (rawCat === 'OT' || rawCat === 'OUTRO' || rawCat === 'OUTROS' || rawCat === 'OTHER' || rawCat === 'IMPOSTO' || rawCat === 'IMPOSTOS') {
               type = 'other';
             }
-            const qty = itemType === 'item' ? parseVal(row[7]) : 0;
-            const unitPrice = itemType === 'item' ? parseVal(row[8]) : 0;
-            const disc = itemType === 'item' ? parseVal(row[9]) : 0;
-            const total = itemType === 'item' ? parseVal(row[10]) : 0;
+            const qty = itemType === 'item' ? financial.normalizeQuantity(parseVal(row[7])) : 0;
+            const unitPrice = itemType === 'item' ? financial.normalizeMoney(parseVal(row[8])) : 0;
+            const disc = itemType === 'item' ? financial.normalizeMoney(parseVal(row[9])) : 0;
+            const total = itemType === 'item' ? financial.normalizeMoney(parseVal(row[10])) : 0;
             let expenseDate = new Date().toISOString().split('T')[0];
             if (itemType === 'item' && row[3] instanceof Date) { expenseDate = row[3].toISOString().split('T')[0]; } else if (itemType === 'item' && row[3]) { const d = new Date(row[3]); if (!isNaN(d.getTime())) expenseDate = d.toISOString().split('T')[0]; }
             // Fix: Adding missing 'status' property to the ProjectExpense object
@@ -312,10 +323,10 @@ export const excelService = {
               entityName: itemType === 'item' ? String(row[5] || "") : "", 
               unit: String(row[6] || ""), 
               quantity: qty || 1, 
-              unitPrice: unitPrice || (total + disc), 
+              unitPrice: unitPrice || financial.normalizeMoney(total + disc), 
               discountValue: disc, 
               discountPercentage: 0, 
-              amount: total || (qty * unitPrice - disc), 
+              amount: total || financial.normalizeMoney(qty * unitPrice - disc), 
               isPaid,
               status: isPaid ? 'PAID' : 'PENDING'
             };

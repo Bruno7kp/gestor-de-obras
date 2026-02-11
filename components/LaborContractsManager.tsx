@@ -215,7 +215,15 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
     paidPayments?: Array<{ paymentId: string; parentId: string | null }>
   ) => {
     if (isReadOnly) return;
-    const updated = laborContractService.updateContract(contract);
+    const normalizedContract = {
+      ...contract,
+      valorTotal: financial.normalizeMoney(contract.valorTotal),
+      pagamentos: contract.pagamentos.map(payment => ({
+        ...payment,
+        valor: financial.normalizeMoney(payment.valor),
+      })),
+    };
+    const updated = laborContractService.updateContract(normalizedContract);
     const exists = contracts.find(c => c.id === contract.id);
     const previous = contracts;
     const newContracts = exists
@@ -365,6 +373,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
 
     const normalizedPayment: LaborPayment = {
       ...payment,
+      valor: financial.normalizeMoney(payment.valor),
       comprovante: options.isPaid ? options.paymentProof : undefined,
       createdById: payment.createdById ?? user?.id,
       createdBy: payment.createdBy ?? (user?.id && user?.name
@@ -901,7 +910,7 @@ const PaymentModal = ({
                 onChange={e => {
                   const masked = financial.maskCurrency(e.target.value);
                   setStrValor(masked);
-                  setData({ ...data, valor: financial.parseLocaleNumber(masked) });
+                  setData({ ...data, valor: financial.normalizeMoney(financial.parseLocaleNumber(masked)) });
                 }}
                 disabled={isReadOnly}
               />
@@ -1429,7 +1438,7 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, financialCa
                     onChange={e => {
                       const masked = financial.maskCurrency(e.target.value);
                       setStrValorTotal(masked);
-                      setData({ ...data, valorTotal: financial.parseLocaleNumber(masked) });
+                      setData({ ...data, valorTotal: financial.normalizeMoney(financial.parseLocaleNumber(masked)) });
                     }}
                     disabled={isReadOnly}
                   />
@@ -1589,7 +1598,7 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, financialCa
                           onChange={e => {
                             const masked = financial.maskCurrency(e.target.value);
                             setPaymentValues(prev => ({ ...prev, [pag.id]: masked }));
-                            handleUpdatePayment(pag.id, { valor: financial.parseLocaleNumber(masked) });
+                            handleUpdatePayment(pag.id, { valor: financial.normalizeMoney(financial.parseLocaleNumber(masked)) });
                           }}
                           disabled={isReadOnly}
                         />

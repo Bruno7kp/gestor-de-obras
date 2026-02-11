@@ -43,6 +43,38 @@ export const financial = {
   },
 
   /**
+   * Formata quantidade com ate 2 casas decimais.
+   */
+  formatQuantity: (value: number): string => {
+    const num = financial.round(value || 0);
+    return new Intl.NumberFormat('pt-BR', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2
+    }).format(num);
+  },
+
+  /**
+   * Normaliza valores monetarios para 2 casas decimais.
+   */
+  normalizeMoney: (value: number): number => {
+    return financial.truncate(value || 0);
+  },
+
+  /**
+   * Normaliza quantidades para 2 casas decimais.
+   */
+  normalizeQuantity: (value: number): number => {
+    return financial.round(value || 0);
+  },
+
+  /**
+   * Normaliza percentuais para 2 casas decimais.
+   */
+  normalizePercent: (value: number): number => {
+    return financial.round(value || 0);
+  },
+
+  /**
    * Máscara de digitação: transforma "1234" em "12,34"
    */
   maskCurrency: (value: string): string => {

@@ -79,7 +79,18 @@ export const BiddingModal: React.FC<BiddingModalProps> = ({ isOpen, onClose, onS
           <button onClick={onClose} className="p-2 text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all"><X size={24}/></button>
         </div>
 
-        <form onSubmit={e => { e.preventDefault(); onSave(formData); }} className="flex-1 overflow-y-auto custom-scrollbar space-y-8 pr-2">
+        <form
+          onSubmit={e => {
+            e.preventDefault();
+            onSave({
+              ...formData,
+              estimatedValue: financial.normalizeMoney(formData.estimatedValue || 0),
+              ourProposalValue: financial.normalizeMoney(formData.ourProposalValue || 0),
+              bdi: financial.normalizePercent(formData.bdi || 0),
+            });
+          }}
+          className="flex-1 overflow-y-auto custom-scrollbar space-y-8 pr-2"
+        >
 
           {/* Row 1: Client + Tender */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

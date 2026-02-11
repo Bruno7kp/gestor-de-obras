@@ -101,9 +101,9 @@ export const WorkItemModal: React.FC<WorkItemModalProps> = ({
       type: activeType,
       cod: activeType === 'category' ? '' : (formData.cod || ''),
       fonte: activeType === 'category' ? '' : (formData.fonte || ''),
-      contractQuantity: financial.parseLocaleNumber(strQty),
-      unitPriceNoBdi: financial.parseLocaleNumber(strPriceNoBdi),
-      unitPrice: financial.parseLocaleNumber(strPriceWithBdi)
+      contractQuantity: financial.normalizeQuantity(financial.parseLocaleNumber(strQty)),
+      unitPriceNoBdi: financial.normalizeMoney(financial.parseLocaleNumber(strPriceNoBdi)),
+      unitPrice: financial.normalizeMoney(financial.parseLocaleNumber(strPriceWithBdi))
     };
     
     const result = WorkItemSchema.safeParse(finalData);

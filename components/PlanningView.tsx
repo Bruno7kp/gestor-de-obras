@@ -783,10 +783,10 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                         step="any"
                                         className="w-16 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg px-2 py-1 text-center text-[11px] font-black outline-none focus:border-indigo-500 transition-all dark:text-slate-200"
                                         value={f.quantityNeeded}
-                                        onBlur={(e) => onUpdatePlanning(planningService.updateForecast(planning, f.id, { quantityNeeded: parseFloat(e.target.value) || 0 }))}
+                                        onBlur={(e) => onUpdatePlanning(planningService.updateForecast(planning, f.id, { quantityNeeded: financial.normalizeQuantity(parseFloat(e.target.value) || 0) }))}
                                         onChange={(e) => {
                                           const val = e.target.value;
-                                          onUpdatePlanning(planningService.updateForecast(planning, f.id, { quantityNeeded: parseFloat(val) || 0 }));
+                                          onUpdatePlanning(planningService.updateForecast(planning, f.id, { quantityNeeded: financial.normalizeQuantity(parseFloat(val) || 0) }));
                                         }}
                                       />
                                     </td>
@@ -1235,7 +1235,7 @@ const ForecastModal = ({ onClose, onSave, allWorkItems, suppliers, editingItem }
                   type="number" 
                   className="w-full px-4 py-5 rounded-3xl bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-white text-sm font-black text-center outline-none focus:border-indigo-600" 
                   value={data.quantityNeeded} 
-                  onChange={e => setData({...data, quantityNeeded: parseFloat(e.target.value) || 0})} 
+                  onChange={e => setData({...data, quantityNeeded: financial.normalizeQuantity(parseFloat(e.target.value) || 0)})} 
                 />
               </div>
               <div>
@@ -1250,7 +1250,7 @@ const ForecastModal = ({ onClose, onSave, allWorkItems, suppliers, editingItem }
                     onChange={e => {
                       const masked = financial.maskCurrency(e.target.value);
                       setStrUnitPrice(masked);
-                      setData({ ...data, unitPrice: financial.parseLocaleNumber(masked) });
+                      setData({ ...data, unitPrice: financial.normalizeMoney(financial.parseLocaleNumber(masked)) });
                     }} 
                   />
                 </div>
@@ -1619,7 +1619,7 @@ const InlineCurrencyInput = ({ value, onUpdate }: { value: number, onUpdate: (va
         className="w-20 bg-transparent text-right text-[11px] font-black dark:text-slate-200 outline-none" 
         value={localVal}
         onChange={(e) => setLocalVal(financial.maskCurrency(e.target.value))}
-        onBlur={(e) => onUpdate(financial.parseLocaleNumber(e.target.value))}
+        onBlur={(e) => onUpdate(financial.normalizeMoney(financial.parseLocaleNumber(e.target.value)))}
       />
     </div>
   );

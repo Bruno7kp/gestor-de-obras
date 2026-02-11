@@ -206,7 +206,7 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                           <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 font-black text-slate-400 uppercase text-[9px]">{item.unit || '-'}</td>
                         )}
                         {!isOtherTable && (
-                          <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 font-mono">{item.itemType === 'item' ? item.quantity : '-'}</td>
+                          <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 font-mono">{item.itemType === 'item' ? financial.formatQuantity(item.quantity) : '-'}</td>
                         )}
                         {!isOtherTable && (
                           <td className="p-2 text-right border-r border-slate-100 dark:border-slate-800 text-slate-400 font-mono">

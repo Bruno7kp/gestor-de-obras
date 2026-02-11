@@ -379,7 +379,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                               </div>
                             </td>
                             <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 font-black text-slate-400 uppercase text-[9px]">{item.unit || '-'}</td>
-                            <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 font-mono text-slate-500 dark:text-slate-400">{item.type === 'item' ? item.contractQuantity : '-'}</td>
+                            <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 font-mono text-slate-500 dark:text-slate-400">{item.type === 'item' ? financial.formatQuantity(item.contractQuantity) : '-'}</td>
                             
                             {showUnitary && (
                               <>
@@ -398,7 +398,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
 
                             {showPrevious && (
                               <>
-                                <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 bg-amber-50/10 dark:bg-amber-900/10 text-slate-400 dark:text-slate-500 font-mono">{item.type === 'item' ? item.previousQuantity : '-'}</td>
+                                <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 bg-amber-50/10 dark:bg-amber-900/10 text-slate-400 dark:text-slate-500 font-mono">{item.type === 'item' ? financial.formatQuantity(item.previousQuantity) : '-'}</td>
                                 <td className="p-2 text-right border-r border-slate-100 dark:border-slate-800 bg-amber-50/10 dark:bg-amber-900/10 text-slate-400 dark:text-slate-500 whitespace-nowrap">{financial.formatVisual(item.previousTotal, currencySymbol)}</td>
                               </>
                             )}
@@ -421,7 +421,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                                       type="number" 
                                       step="any" 
                                       className={`w-16 bg-white dark:bg-slate-950 border border-blue-300 dark:border-blue-700 rounded px-1 py-0.5 text-center text-[10px] font-bold focus:ring-2 focus:ring-blue-500/20 outline-none ${isFullyMeasuredPreviously ? 'text-slate-400 bg-slate-50' : 'text-blue-700 dark:text-blue-300'}`} 
-                                      value={item.currentQuantity} 
+                                      value={financial.round(item.currentQuantity)} 
                                       onChange={(e) => onUpdateQuantity(item.id, parseFloat(e.target.value) || 0)} 
                                     />
                                   ) : '-'}
@@ -445,7 +445,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
 
                             {showAccumulated && (
                               <>
-                                <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 bg-emerald-50/10 dark:bg-emerald-900/10 font-bold text-slate-500 dark:text-slate-400 font-mono">{item.type === 'item' ? item.accumulatedQuantity : '-'}</td>
+                                <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 bg-emerald-50/10 dark:bg-emerald-900/10 font-bold text-slate-500 dark:text-slate-400 font-mono">{item.type === 'item' ? financial.formatQuantity(item.accumulatedQuantity) : '-'}</td>
                                 <td className="p-2 text-right border-r border-slate-100 dark:border-slate-800 bg-emerald-50/10 dark:bg-emerald-900/10 font-black text-emerald-700 dark:text-emerald-400 whitespace-nowrap">{financial.formatVisual(item.accumulatedTotal, currencySymbol)}</td>
                                 <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 bg-emerald-50/30 dark:bg-emerald-900/20 font-black text-emerald-800 dark:text-emerald-100 text-[10px]">{item.accumulatedPercentage}%</td>
                               </>
@@ -453,7 +453,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
 
                             {showBalance && (
                               <>
-                                <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 bg-rose-50/10 dark:bg-rose-900/10 font-bold text-rose-600/60 dark:text-rose-400/60 font-mono">{item.type === 'item' ? item.balanceQuantity : '-'}</td>
+                                <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 bg-rose-50/10 dark:bg-rose-900/10 font-bold text-rose-600/60 dark:text-rose-400/60 font-mono">{item.type === 'item' ? financial.formatQuantity(item.balanceQuantity) : '-'}</td>
                                 <td className="p-2 text-right bg-rose-50/20 dark:bg-rose-900/10 font-black text-rose-800 dark:text-rose-300 whitespace-nowrap">{financial.formatVisual(item.balanceTotal, currencySymbol)}</td>
                               </>
                             )}

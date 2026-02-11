@@ -439,7 +439,7 @@ export const WbsView: React.FC<WbsViewProps> = ({
       if (it.id === id) {
         const maxPossible = Math.max(0, (it.contractQuantity || 0) - (it.previousQuantity || 0));
         const safeQty = Math.min(Math.max(0, qty), maxPossible);
-        return { ...it, currentQuantity: safeQty };
+        return { ...it, currentQuantity: financial.round(safeQty) };
       }
       return it;
     });

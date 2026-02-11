@@ -43,7 +43,7 @@ export const PhysicalScheduleView: React.FC<PhysicalScheduleViewProps> = ({ proj
   const schedule = project.planning.schedule || {};
 
   const handleUpdatePlanned = (itemId: string, period: string, value: number) => {
-    const safeValue = Math.min(100, Math.max(0, value));
+    const safeValue = Math.min(100, Math.max(0, financial.normalizePercent(value)));
     const newSchedule = { ...schedule };
     if (!newSchedule[itemId]) newSchedule[itemId] = {};
     newSchedule[itemId][period] = { 

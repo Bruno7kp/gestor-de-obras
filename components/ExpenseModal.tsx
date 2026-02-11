@@ -156,13 +156,13 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
       ...formData,
       itemType: activeItemType,
       type: expenseType,
-      quantity: financial.parseLocaleNumber(strQty),
-      unitPrice: financial.parseLocaleNumber(strPrice),
-      discountValue: financial.parseLocaleNumber(strDiscountValue),
-      discountPercentage: financial.parseLocaleNumber(strDiscountPercent),
-      issValue: isIncome ? financial.parseLocaleNumber(strIssValue) : 0,
-      issPercentage: isIncome ? financial.parseLocaleNumber(strIssPercent) : 0,
-      amount: activeItemType === 'category' ? 0 : financial.parseLocaleNumber(strAmount),
+      quantity: financial.normalizeQuantity(financial.parseLocaleNumber(strQty)),
+      unitPrice: financial.normalizeMoney(financial.parseLocaleNumber(strPrice)),
+      discountValue: financial.normalizeMoney(financial.parseLocaleNumber(strDiscountValue)),
+      discountPercentage: financial.normalizePercent(financial.parseLocaleNumber(strDiscountPercent)),
+      issValue: isIncome ? financial.normalizeMoney(financial.parseLocaleNumber(strIssValue)) : 0,
+      issPercentage: isIncome ? financial.normalizePercent(financial.parseLocaleNumber(strIssPercent)) : 0,
+      amount: activeItemType === 'category' ? 0 : financial.normalizeMoney(financial.parseLocaleNumber(strAmount)),
       isPaid: formData.status === 'PAID' || formData.status === 'DELIVERED'
     });
     onClose();
