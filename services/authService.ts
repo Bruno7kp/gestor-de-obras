@@ -4,6 +4,7 @@ export type AuthUser = {
   id: string;
   name?: string;
   email?: string;
+  profileImage?: string | null;
   instanceId: string;
   instanceName?: string;
   roles: string[];

@@ -583,7 +583,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
             onClick={() => window.print()}
             className="flex items-center gap-2 px-5 py-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-[9px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700 shadow-sm hover:bg-slate-50 transition-all"
           >
-            <Printer size={16} /> PDF
+            <Printer size={16} />
           </button>
 
           <button onClick={() => fileInputRef.current?.click()} className="p-2.5 text-slate-400 hover:text-emerald-600" title="Importar Excel"><UploadCloud size={18} /></button>

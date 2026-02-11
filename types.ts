@@ -203,6 +203,8 @@ export interface MaterialForecast {
   supplierId?: string;
   categoryId?: string;
   paymentProof?: string; // URL do comprovante de pagamento
+  createdById?: string;
+  createdBy?: Pick<UserAccount, 'id' | 'name' | 'profileImage'> | null;
 }
 
 export interface Milestone {

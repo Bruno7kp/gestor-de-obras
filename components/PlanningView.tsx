@@ -21,6 +21,7 @@ import { ConfirmModal } from './ConfirmModal';
 import { usePermissions } from '../hooks/usePermissions';
 import { useToast } from '../hooks/useToast';
 import { uiPreferences } from '../utils/uiPreferences';
+import { useAuth } from '../auth/AuthContext';
 
 interface PlanningViewProps {
   project: Project;
@@ -38,6 +39,7 @@ interface PlanningViewProps {
 export const PlanningView: React.FC<PlanningViewProps> = ({ 
   project, suppliers, onUpdatePlanning, onAddExpense, onUpdateExpense, categories, allWorkItems, viewMode = 'planning', fixedSubTab, showSubTabs = true
 }) => {
+  const { user } = useAuth();
   const { canEdit, getLevel } = usePermissions();
   const toast = useToast();
   const isSuppliesView = viewMode === 'supplies';
@@ -77,6 +79,14 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   });
   
   const planning = project.planning;
+
+  const getInitials = (name?: string | null) => {
+    if (!name) return '';
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '';
+    if (parts.length === 1) return parts[0][0]?.toUpperCase() ?? '';
+    return `${parts[0][0] ?? ''}${parts[parts.length - 1][0] ?? ''}`.toUpperCase();
+  };
 
   useEffect(() => {
     if (fixedSubTab) {
@@ -745,6 +755,22 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                             <Calendar size={9} className="shrink-0" />
                                             {dateLabel}: {financial.formatDate(dateValue)} <span className="ml-1 opacity-70">{statusText}</span>
                                           </div>
+                                          {f.createdBy?.name && (
+                                            <div className="flex items-center gap-2 text-[8px] font-black uppercase tracking-widest text-slate-400">
+                                              {f.createdBy.profileImage ? (
+                                                <img
+                                                  src={f.createdBy.profileImage}
+                                                  alt={f.createdBy.name}
+                                                  className="w-5 h-5 rounded-full object-cover border border-slate-200"
+                                                />
+                                              ) : (
+                                                <div className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[9px] font-black">
+                                                  {getInitials(f.createdBy.name)}
+                                                </div>
+                                              )}
+                                              <span>Solicitado por {f.createdBy.name}</span>
+                                            </div>
+                                          )}
                                         </div>
                                       </div>
                                     </td>
@@ -905,7 +931,14 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
             if (editingForecast) {
               onUpdatePlanning(planningService.updateForecast(planning, editingForecast.id, data));
             } else {
-              onUpdatePlanning(planningService.addForecast(planning, data));
+              const createdBy = user?.id && user?.name
+                ? { id: user.id, name: user.name, profileImage: user.profileImage ?? null }
+                : undefined;
+              onUpdatePlanning(planningService.addForecast(planning, {
+                ...data,
+                createdById: user?.id,
+                createdBy,
+              }));
             }
             setIsAddingForecast(false);
             setEditingForecast(null);

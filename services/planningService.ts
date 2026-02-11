@@ -142,6 +142,8 @@ export const planningService = {
         supplierId: data.supplierId || undefined,
         categoryId: data.categoryId || undefined,
         paymentProof: data.paymentProof || undefined,
+        createdById: data.createdById || undefined,
+        createdBy: data.createdBy || undefined,
         order: 0
       }]
     };

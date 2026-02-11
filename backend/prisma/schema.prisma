@@ -79,6 +79,7 @@ model User {
   instance      Instance        @relation(fields: [instanceId], references: [id])
   roles         UserRole[]
   projectAccess ProjectMember[]
+  createdForecasts MaterialForecast[] @relation("UserForecasts")
 }
 
 model Role {
@@ -330,9 +331,11 @@ model MaterialForecast {
   order            Int
   supplierId       String?
   paymentProof     String?
+  createdById       String?
   projectPlanningId String
   projectPlanning  ProjectPlanning @relation(fields: [projectPlanningId], references: [id])
   supplier         Supplier? @relation(fields: [supplierId], references: [id])
+  createdBy        User? @relation("UserForecasts", fields: [createdById], references: [id])
 }
 
 model Milestone {

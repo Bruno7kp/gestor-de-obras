@@ -22,6 +22,7 @@ interface CreateForecastInput {
   projectId: string;
   instanceId: string;
   userId?: string;
+  createdById?: string | null;
   description: string;
   unit: string;
   quantityNeeded: number;
@@ -161,6 +162,11 @@ export class PlanningService {
     return this.prisma.materialForecast.findMany({
       where: { projectPlanningId: planning.id },
       orderBy: { order: 'asc' },
+      include: {
+        createdBy: {
+          select: { id: true, name: true, profileImage: true },
+        },
+      },
     });
   }
 
@@ -185,6 +191,7 @@ export class PlanningService {
         order: input.order ?? 0,
         supplierId: input.supplierId ?? null,
         paymentProof: input.paymentProof ?? null,
+        createdById: input.userId ?? input.createdById ?? null,
       },
     });
   }
@@ -351,6 +358,7 @@ export class PlanningService {
       order: f.order ?? 0,
       supplierId: f.supplierId ?? null,
       paymentProof: f.paymentProof ?? null,
+      createdById: f.createdById ?? null,
     }));
 
     const milestoneData = milestones.map((m) => ({

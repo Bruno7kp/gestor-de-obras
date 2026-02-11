@@ -241,7 +241,13 @@ export class ProjectsService {
           },
         },
         planning: {
-          include: { tasks: true, forecasts: true, milestones: true },
+          include: {
+            tasks: true,
+            forecasts: {
+              include: { createdBy: { select: { id: true, name: true, profileImage: true } } },
+            },
+            milestones: true,
+          },
         },
         journal: { include: { entries: true } },
         workforce: { include: { documentos: true, responsabilidades: true } },
@@ -289,7 +295,13 @@ export class ProjectsService {
             },
           },
           planning: {
-            include: { tasks: true, forecasts: true, milestones: true },
+            include: {
+              tasks: true,
+              forecasts: {
+                include: { createdBy: { select: { id: true, name: true, profileImage: true } } },
+              },
+              milestones: true,
+            },
           },
           journal: { include: { entries: true } },
           workforce: { include: { documentos: true, responsabilidades: true } },
@@ -709,7 +721,13 @@ export class ProjectsService {
           },
         },
         planning: {
-          include: { tasks: true, forecasts: true, milestones: true },
+          include: {
+            tasks: true,
+            forecasts: {
+              include: { createdBy: { select: { id: true, name: true, profileImage: true } } },
+            },
+            milestones: true,
+          },
         },
         journal: { include: { entries: true } },
         workforce: { include: { documentos: true, responsabilidades: true } },

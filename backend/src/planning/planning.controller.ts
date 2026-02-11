@@ -46,6 +46,7 @@ interface CreateForecastBody {
   order?: number;
   supplierId?: string | null;
   paymentProof?: string | null;
+  createdById?: string | null;
 }
 
 type UpdateForecastBody = Partial<CreateForecastBody>;
