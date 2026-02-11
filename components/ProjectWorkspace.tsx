@@ -331,7 +331,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     workforce: 'workforce',
     'labor-contracts': 'workforce',
     planning: 'planning',
-    schedule: 'planning',
+    schedule: 'schedule',
     journal: 'journal',
     documents: 'documents',
     branding: 'project_settings',
@@ -970,7 +970,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
               {canView('workforce') && <TabBtn active={tab === 'labor-contracts' || tab === 'workforce'} id="labor-contracts" label="Contratos M.O." icon={<Briefcase size={16} />} />}
               {canView('planning') && <TabBtn active={tab === 'planning'} id="planning" label="Planejamento" icon={<HardHat size={16} />} />}
               {canView('journal') && <TabBtn active={tab === 'journal'} id="journal" label="Diário de Obra" icon={<BookOpen size={16} />} />}
-              {canView('planning') && <TabBtn active={tab === 'schedule'} id="schedule" label="Cronograma" icon={<Target size={16} />} />}
+              {canView('schedule') && <TabBtn active={tab === 'schedule'} id="schedule" label="Cronograma" icon={<Target size={16} />} />}
               {canView('documents') && <TabBtn active={tab === 'documents'} id="documents" label="Repositório" icon={<FileText size={16} />} />}
               {canView('project_settings') && <TabBtn active={tab === 'branding'} id="branding" label="Ajustes" icon={<Sliders size={16} />} />}
             </div>

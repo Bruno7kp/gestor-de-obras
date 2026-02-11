@@ -53,6 +53,8 @@ async function main() {
     { code: 'workforce.edit', description: 'Edit workforce' },
     { code: 'planning.view', description: 'View planning' },
     { code: 'planning.edit', description: 'Edit planning' },
+    { code: 'schedule.view', description: 'View schedule' },
+    { code: 'schedule.edit', description: 'Edit schedule' },
     { code: 'journal.view', description: 'View journal' },
     { code: 'journal.edit', description: 'Edit journal' },
     { code: 'documents.view', description: 'View documents' },

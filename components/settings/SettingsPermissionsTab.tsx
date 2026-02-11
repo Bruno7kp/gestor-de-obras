@@ -16,6 +16,7 @@ const PERMISSION_MODULES = [
   { key: 'supplies', label: 'Suprimentos' },
   { key: 'workforce', label: 'Mao de Obra' },
   { key: 'planning', label: 'Planejamento' },
+  { key: 'schedule', label: 'Cronograma' },
   { key: 'journal', label: 'Diario de Obra' },
   { key: 'documents', label: 'Documentos' },
   { key: 'project_settings', label: 'Ajustes do projeto' },

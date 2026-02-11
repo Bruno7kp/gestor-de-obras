@@ -11,7 +11,7 @@ export type PermissionLevel = 'none' | 'view' | 'edit';
 export type PermissionModule = 
   | 'biddings' | 'suppliers' | 'projects_general' | 'projects_specific' 
   | 'wbs' | 'technical_analysis' | 'financial_flow' | 'supplies' | 'workforce' 
-  | 'planning' | 'journal' | 'documents' | 'project_settings' | 'global_settings';
+  | 'planning' | 'schedule' | 'journal' | 'documents' | 'project_settings' | 'global_settings';
 
 export const PERMISSION_MODULES: Array<{ key: PermissionModule; label: string }> = [
   { key: 'biddings', label: 'Licitações' },
@@ -24,6 +24,7 @@ export const PERMISSION_MODULES: Array<{ key: PermissionModule; label: string }>
   { key: 'supplies', label: 'Suprimentos' },
   { key: 'workforce', label: 'Mão de Obra' },
   { key: 'planning', label: 'Planejamento' },
+  { key: 'schedule', label: 'Cronograma' },
   { key: 'journal', label: 'Diário de Obra' },
   { key: 'documents', label: 'Documentos' },
   { key: 'project_settings', label: 'Ajustes do projeto' },
@@ -74,6 +75,10 @@ export const PERMISSIONS = {
   // Planning
   PLANNING_VIEW: 'planning.view',
   PLANNING_EDIT: 'planning.edit',
+
+  // Schedule
+  SCHEDULE_VIEW: 'schedule.view',
+  SCHEDULE_EDIT: 'schedule.edit',
   
   // Journal
   JOURNAL_VIEW: 'journal.view',
