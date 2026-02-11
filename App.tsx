@@ -296,6 +296,7 @@ const App: React.FC = () => {
               <DashboardView
                 projects={ownProjects}
                 groups={groups}
+                externalProjects={externalProjects}
                 onOpenProject={handleOpenProject}
                 onCreateProject={handleCreateProject}
                 onUpdateProject={updateProjects}

@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Project, ProjectGroup } from '../types';
+import { ExternalProject, Project, ProjectGroup } from '../types';
 import { 
   Briefcase, Plus, Edit2, Trash2, AlertTriangle, 
   Folder, ChevronRight, Home, FolderPlus, Save, ChevronLeft, Search,
-  FolderInput, X, Check, Target, Layers, GripVertical, List, LayoutGrid
+  FolderInput, X, Check, Target, Layers, GripVertical, List, LayoutGrid,
+  Share2
 } from 'lucide-react';
 import { treeService } from '../services/treeService';
 import { projectService } from '../services/projectService';
@@ -21,6 +22,7 @@ interface DashboardViewProps {
   onUpdateProject: (p: Project[]) => void;
   onUpdateGroups: (g: ProjectGroup[]) => void;
   onBulkUpdate: (updates: { projects?: Project[], groups?: ProjectGroup[] }) => void;
+  externalProjects: ExternalProject[];
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = (props) => {
@@ -324,6 +326,11 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
         .sort(sortByOrder)
     : [];
 
+  const filteredExternalProjects = searchQuery
+    ? props.externalProjects
+        .filter((p) => p.projectName.toLowerCase().includes(searchQuery.toLowerCase()))
+    : props.externalProjects;
+
   return (
     <div className="flex-1 overflow-y-auto p-6 sm:p-12 animate-in fade-in duration-500 bg-slate-50 dark:bg-slate-950 custom-scrollbar">
       <div className="max-w-6xl mx-auto space-y-8">
@@ -563,6 +570,14 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
             )}
           </Droppable>
         </DragDropContext>
+
+        {(filteredExternalProjects.length > 0 && (searchQuery || !currentGroupId)) && (
+          <ExternalProjectsSection
+            projects={filteredExternalProjects}
+            viewMode={viewMode}
+            onOpenProject={props.onOpenProject}
+          />
+        )}
       </div>
 
       {(editingGroup || editingProject) && (
@@ -753,6 +768,95 @@ const ProjectRow = ({ project, onOpen, onRename, onDelete, onMove, provided, can
     </div>
   );
 };
+
+const ExternalProjectsSection = ({
+  projects,
+  viewMode,
+  onOpenProject,
+}: {
+  projects: ExternalProject[];
+  viewMode: 'grid' | 'list';
+  onOpenProject: (id: string) => void;
+}) => (
+  <div className="mt-8 space-y-4">
+    <div className="flex items-center gap-3">
+      <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
+      <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+        Compartilhados
+      </span>
+      <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
+    </div>
+    <div className={viewMode === 'grid'
+      ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
+      : 'flex flex-col gap-3'
+    }
+    >
+      {projects.map((project) => (
+        viewMode === 'grid'
+          ? (
+            <ExternalProjectCard
+              key={project.projectId}
+              project={project}
+              onOpen={() => onOpenProject(project.projectId)}
+            />
+          )
+          : (
+            <ExternalProjectRow
+              key={project.projectId}
+              project={project}
+              onOpen={() => onOpenProject(project.projectId)}
+            />
+          )
+      ))}
+    </div>
+  </div>
+);
+
+const ExternalProjectCard = ({ project, onOpen }: {
+  project: ExternalProject;
+  onOpen: () => void;
+}) => (
+  <div
+    onClick={onOpen}
+    className="group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2rem] p-6 shadow-sm hover:shadow-xl transition-all cursor-pointer relative overflow-hidden h-full"
+  >
+    <div className="flex justify-between items-start mb-6">
+      <div className="p-4 bg-teal-50 dark:bg-teal-900/20 text-teal-600 rounded-2xl group-hover:scale-110 transition-transform">
+        <Share2 size={24} />
+      </div>
+      <span className="text-[9px] font-black uppercase tracking-widest text-teal-600 bg-teal-50 dark:bg-teal-900/20 px-2 py-1 rounded-full">
+        Compartilhado
+      </span>
+    </div>
+    <h3 className="text-sm font-black text-slate-800 dark:text-white truncate uppercase tracking-tight">{project.projectName}</h3>
+    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">{project.companyName}</p>
+    <p className="text-[9px] font-bold text-slate-400 mt-4">{project.instanceName}</p>
+  </div>
+);
+
+const ExternalProjectRow = ({ project, onOpen }: {
+  project: ExternalProject;
+  onOpen: () => void;
+}) => (
+  <div
+    onClick={onOpen}
+    className="group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center justify-between"
+  >
+    <div className="flex items-center gap-4 min-w-0">
+      <div className="p-2.5 bg-teal-50 dark:bg-teal-900/20 text-teal-600 rounded-xl">
+        <Share2 size={18} />
+      </div>
+      <div className="min-w-0">
+        <p className="text-[10px] font-black uppercase text-slate-400">Compartilhado</p>
+        <h3 className="text-sm font-black text-slate-800 dark:text-white truncate">{project.projectName}</h3>
+        <p className="text-[9px] font-bold text-slate-400 truncate">{project.instanceName}</p>
+      </div>
+    </div>
+    <div className="text-[9px] font-black uppercase tracking-widest text-teal-600 bg-teal-50 dark:bg-teal-900/20 px-2 py-1 rounded-full">
+      Externo
+    </div>
+  </div>
+);
 
 const MoveDialog = ({ groups, activeItem, onCancel, onConfirm }: any) => {
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
