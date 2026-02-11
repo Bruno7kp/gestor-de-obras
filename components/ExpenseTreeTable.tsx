@@ -27,7 +27,7 @@ interface ExpenseTreeTableProps {
 export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
   data, expandedIds, onToggle, onEdit, onDelete, onAddChild, onUpdateTotal, onUpdateUnitPrice, onTogglePaid, onReorder, onMoveManual, isReadOnly, currencySymbol = 'R$'
 }) => {
-  const isRevenueTable = data.some(d => d.type === 'revenue');
+  const isIncomeTable = data.some(d => d.type === 'revenue' || d.type === 'other');
   const apiBase = (import.meta as any).env?.VITE_API_URL ?? '';
 
   const resolveUploadUrl = (url: string) => {
@@ -60,10 +60,10 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
   const totalConsolidado = financial.sum(data.filter(i => i.depth === 0).map(i => i.amount));
 
   return (
-    <div className={`overflow-x-auto border rounded-3xl bg-white dark:bg-slate-900 shadow-xl transition-colors ${isRevenueTable ? 'border-emerald-100 dark:border-emerald-900' : 'border-slate-200 dark:border-slate-800'}`}>
+    <div className={`overflow-x-auto border rounded-3xl bg-white dark:bg-slate-900 shadow-xl transition-colors ${isIncomeTable ? 'border-emerald-100 dark:border-emerald-900' : 'border-slate-200 dark:border-slate-800'}`}>
       <DragDropContext onDragEnd={handleDragEnd}>
         <table className="min-w-full border-collapse text-[11px]">
-          <thead className={`${isRevenueTable ? 'bg-emerald-950 dark:bg-emerald-900/20' : 'bg-slate-900 dark:bg-black'} text-white sticky top-0 z-20`}>
+          <thead className={`${isIncomeTable ? 'bg-emerald-950 dark:bg-emerald-900/20' : 'bg-slate-900 dark:bg-black'} text-white sticky top-0 z-20`}>
             <tr className="uppercase tracking-widest font-black text-[9px] opacity-80">
               <th className="p-3 border-r border-slate-800 w-10 text-center"></th>
               <th className="p-4 border-r border-slate-800 w-16 text-center">Item</th>
@@ -134,7 +134,7 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                           {item.itemType === 'item' && (
                             <div className="flex justify-center">
                               {item.status === 'DELIVERED' ? (
-                                isRevenueTable ? (
+                                isIncomeTable ? (
                                   <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center" title="Faturado">
                                     <CheckCircle2 size={14} />
                                   </div>
@@ -212,7 +212,7 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                           ) : '-'}
                         </td>
                         <td className="p-2 text-right">
-                          <span className={`font-black ${isRevenueTable ? 'text-emerald-600' : 'text-slate-800 dark:text-slate-100'}`}>{financial.formatVisual(item.amount, currencySymbol)}</span>
+                          <span className={`font-black ${isIncomeTable ? 'text-emerald-600' : 'text-slate-800 dark:text-slate-100'}`}>{financial.formatVisual(item.amount, currencySymbol)}</span>
                         </td>
                       </tr>
                     )}
@@ -228,7 +228,7 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                 Total Consolidado da Tabela:
               </td>
               <td className="p-4 text-right text-sm tracking-tighter whitespace-nowrap">
-                <span className={`font-black ${isRevenueTable ? 'text-emerald-400' : 'text-indigo-400'}`}>
+                <span className={`font-black ${isIncomeTable ? 'text-emerald-400' : 'text-indigo-400'}`}>
                   {financial.formatVisual(totalConsolidado, currencySymbol)}
                 </span>
               </td>

@@ -20,14 +20,14 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
   isOpen, onClose, onSave, editingItem, expenseType, itemType: initialItemType, categories,
   currencySymbol = 'R$'
 }) => {
-  const isRevenue = expenseType === 'revenue';
+  const isIncome = expenseType === 'revenue' || expenseType === 'other';
   const isLabor = expenseType === 'labor';
   const [activeItemType, setActiveItemType] = useState<ItemType>(initialItemType);
 
   const buildDefaultFormData = () => ({
     description: '',
     parentId: null,
-    unit: isRevenue ? 'vb' : 'un',
+    unit: isIncome ? 'vb' : 'un',
     quantity: 1,
     unitPrice: 0,
     amount: 0,
@@ -87,15 +87,15 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
   useEffect(() => {
     if (activeItemType === 'item') {
       let newStatus: ExpenseStatus = formData.status || 'PENDING';
-      if (formData.invoiceDoc && !isLabor && !isRevenue) newStatus = 'DELIVERED';
-      if (isRevenue && formData.invoiceDoc) newStatus = 'DELIVERED';
+      if (formData.invoiceDoc && !isLabor && !isIncome) newStatus = 'DELIVERED';
+      if (isIncome && formData.invoiceDoc) newStatus = 'DELIVERED';
       if (formData.paymentProof && newStatus === 'PENDING') newStatus = 'PAID';
 
       if (newStatus !== formData.status) {
         setFormData(prev => ({ ...prev, status: newStatus }));
       }
     }
-  }, [formData.invoiceDoc, formData.paymentProof, activeItemType, isLabor, isRevenue]);
+  }, [formData.invoiceDoc, formData.paymentProof, activeItemType, isLabor, isIncome]);
 
   const handleNumericChange = (val: string, setter: (v: string) => void, field: 'qty' | 'price' | 'discountVal' | 'discountPct' | 'issVal' | 'issPct') => {
     const masked = financial.maskCurrency(val);
@@ -126,7 +126,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
     }
 
     // Lógica de ISS
-    if (isRevenue) {
+    if (isIncome) {
       if (field === 'issPct') {
         iVal = financial.round(subtotal * (iPct / 100));
         setStrIssValue(financial.formatVisual(iVal, '').trim());
@@ -158,8 +158,8 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
       unitPrice: financial.parseLocaleNumber(strPrice),
       discountValue: financial.parseLocaleNumber(strDiscountValue),
       discountPercentage: financial.parseLocaleNumber(strDiscountPercent),
-      issValue: isRevenue ? financial.parseLocaleNumber(strIssValue) : 0,
-      issPercentage: isRevenue ? financial.parseLocaleNumber(strIssPercent) : 0,
+      issValue: isIncome ? financial.parseLocaleNumber(strIssValue) : 0,
+      issPercentage: isIncome ? financial.parseLocaleNumber(strIssPercent) : 0,
       amount: activeItemType === 'category' ? 0 : financial.parseLocaleNumber(strAmount),
       isPaid: formData.status === 'PAID' || formData.status === 'DELIVERED'
     });
@@ -178,10 +178,10 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
     <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
       <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-[3.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[95vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
 
-        <div className={`px-8 py-6 border-b flex items-center justify-between shrink-0 ${isRevenue ? 'bg-emerald-50 dark:bg-emerald-900/10' : 'bg-indigo-50 dark:bg-indigo-900/10'}`}>
+        <div className={`px-8 py-6 border-b flex items-center justify-between shrink-0 ${isIncome ? 'bg-emerald-50 dark:bg-emerald-900/10' : 'bg-indigo-50 dark:bg-indigo-900/10'}`}>
           <div className="flex items-center gap-4">
-            <div className={`p-3 rounded-2xl text-white ${isRevenue ? 'bg-emerald-600' : 'bg-indigo-600'}`}>
-              {isCategory ? <Layers size={24} /> : (isRevenue ? <Landmark size={24} /> : (isLabor ? <Users size={24} /> : <ReceiptText size={24} />))}
+            <div className={`p-3 rounded-2xl text-white ${isIncome ? 'bg-emerald-600' : 'bg-indigo-600'}`}>
+              {isCategory ? <Layers size={24} /> : (isIncome ? <Landmark size={24} /> : (isLabor ? <Users size={24} /> : <ReceiptText size={24} />))}
             </div>
             <div>
               <h2 className="text-xl font-black dark:text-white tracking-tight">{editingItem ? 'Editar' : 'Novo'} {isCategory ? 'Grupo' : 'Lançamento'}</h2>
@@ -232,8 +232,8 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                         disabled={isSupplyLinked}
                       >
                         <option value="PENDING">Pendente</option>
-                        {!isRevenue && <option value="PAID">Pago / Liquidado</option>}
-                        {!isLabor && <option value="DELIVERED">{isRevenue ? 'Faturado' : 'Entregue no Local'}</option>}
+                        {!isIncome && <option value="PAID">Pago / Liquidado</option>}
+                        {!isLabor && <option value="DELIVERED">{isIncome ? 'Faturado' : 'Entregue no Local'}</option>}
                       </select>
                       {isSupplyLinked && (
                         <p className="mt-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
@@ -281,7 +281,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                         </div>
                       </div>
 
-                      <div className={`grid ${isRevenue ? 'grid-cols-2' : 'grid-cols-2'} gap-6 pt-4 border-t border-slate-200 dark:border-slate-700`}>
+                      <div className={`grid ${isIncome ? 'grid-cols-2' : 'grid-cols-2'} gap-6 pt-4 border-t border-slate-200 dark:border-slate-700`}>
                         <div className="col-span-2 grid grid-cols-2 gap-6">
                           <div>
                             <label className="text-[9px] font-black text-rose-500 uppercase mb-2 block text-center">Desconto (%)</label>
@@ -293,7 +293,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                           </div>
                         </div>
 
-                        {isRevenue && (
+                        {isIncome && (
                           <div className="col-span-2 grid grid-cols-2 gap-6 pt-4 border-t border-slate-100 dark:border-slate-800">
                             <div>
                               <label className="text-[9px] font-black text-rose-600 uppercase mb-2 block text-center">Imposto (%)</label>
@@ -326,7 +326,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                     <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Auditoria e Anexos</h3>
                   </div>
 
-                  {!isRevenue && (
+                  {!isIncome && (
                     <ExpenseAttachmentZone
                       label={isLabor ? "Recibo de Pagamento (Pix/DOC)" : "Comprovante de Pagamento"}
                       requiredStatus="PAID"
@@ -338,9 +338,9 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
 
                   {!isLabor && (
                     <ExpenseAttachmentZone
-                      label={isRevenue ? "Nota Fiscal de Faturamento" : "Nota Fiscal de Compra"}
+                      label={isIncome ? "Nota Fiscal de Faturamento" : "Nota Fiscal de Compra"}
                       requiredStatus="DELIVERED"
-                      requiredStatusLabel={isRevenue ? 'Faturado' : undefined}
+                      requiredStatusLabel={isIncome ? 'Faturado' : undefined}
                       currentFile={formData.invoiceDoc}
                       onUploadUrl={(url) => setFormData(prev => ({ ...prev, invoiceDoc: url }))}
                       onRemove={() => setFormData(prev => ({ ...prev, invoiceDoc: undefined }))}
@@ -349,7 +349,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
 
                   <div className="animate-in slide-in-from-top-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">
-                      {isLabor ? 'Data da Transferência' : (isRevenue ? 'Data do Faturamento' : 'Data da Entrega')}
+                      {isLabor ? 'Data da Transferência' : (isIncome ? 'Data do Faturamento' : 'Data da Entrega')}
                     </label>
                     <input
                       type="date"
@@ -365,7 +365,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
 
           <div className="px-8 py-6 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-4 shrink-0">
             <button type="button" onClick={onClose} className="px-8 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-700 transition-colors">Cancelar</button>
-            <button type="submit" className={`px-12 py-4 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center gap-3 ${isRevenue ? 'bg-emerald-600 shadow-emerald-500/20' : 'bg-indigo-600 shadow-indigo-500/20'}`}>
+            <button type="submit" className={`px-12 py-4 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center gap-3 ${isIncome ? 'bg-emerald-600 shadow-emerald-500/20' : 'bg-indigo-600 shadow-indigo-500/20'}`}>
               <Save size={18} /> {editingItem ? 'Atualizar Registro' : 'Salvar Lançamento'}
             </button>
           </div>
