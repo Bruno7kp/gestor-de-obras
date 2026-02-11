@@ -21,6 +21,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
   currencySymbol = 'R$'
 }) => {
   const isIncome = expenseType === 'revenue' || expenseType === 'other';
+  const isRevenue = expenseType === 'revenue';
   const isLabor = expenseType === 'labor';
   const [activeItemType, setActiveItemType] = useState<ItemType>(initialItemType);
 
@@ -231,9 +232,9 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                         onChange={e => setFormData(prev => ({ ...prev, status: e.target.value as ExpenseStatus }))}
                         disabled={isSupplyLinked}
                       >
-                        <option value="PENDING">{isIncome ? 'Transferencia pendente' : 'Pendente'}</option>
+                        <option value="PENDING">{isRevenue ? 'Pendente' : isIncome ? 'Transferencia pendente' : 'Pendente'}</option>
                         {!isIncome && <option value="PAID">Pago / Liquidado</option>}
-                        {!isLabor && <option value="DELIVERED">{isIncome ? 'Transferido' : 'Entregue no Local'}</option>}
+                        {!isLabor && <option value="DELIVERED">{isRevenue ? 'Faturado' : isIncome ? 'Transferido' : 'Entregue no Local'}</option>}
                       </select>
                       {isSupplyLinked && (
                         <p className="mt-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
@@ -340,7 +341,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                     <ExpenseAttachmentZone
                       label={isIncome ? "Nota Fiscal de Faturamento" : "Nota Fiscal de Compra"}
                       requiredStatus="DELIVERED"
-                      requiredStatusLabel={isIncome ? 'Transferido' : undefined}
+                      requiredStatusLabel={isRevenue ? 'Faturado' : isIncome ? 'Transferido' : undefined}
                       currentFile={formData.invoiceDoc}
                       onUploadUrl={(url) => setFormData(prev => ({ ...prev, invoiceDoc: url }))}
                       onRemove={() => setFormData(prev => ({ ...prev, invoiceDoc: undefined }))}
