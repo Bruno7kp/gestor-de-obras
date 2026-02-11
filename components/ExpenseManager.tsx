@@ -815,15 +815,25 @@ const FinancialSummary = ({ stats, currencySymbol }: { stats: any, currencySymbo
       </div>
     </div>
     <div className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-sm">
-      <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-8 flex items-center gap-2"><BarChart3 size={16} /> Fluxo de Liquidação</h3>
-      <div className="space-y-8">
-        <div>
-          <div className="flex justify-between text-[10px] font-black uppercase mb-2"><span>Total Pago</span><span className="text-rose-600">{financial.formatVisual(stats.paidOut, currencySymbol)}</span></div>
-          <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-rose-50" style={{ width: `${stats.totalOut > 0 ? (stats.paidOut / stats.totalOut) * 100 : 0}%` }} /></div>
+      <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-8 flex items-center gap-2"><BarChart3 size={16} /> Totais por Tipo</h3>
+      <div className="grid grid-cols-1 gap-6">
+        <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-slate-500">
+              <div className="w-3 h-3 rounded-full bg-blue-500" />
+              <span className="text-[10px] font-black uppercase tracking-widest">Mao de Obra</span>
+            </div>
+            <span className="text-sm font-black text-blue-600">{financial.formatVisual(stats.labor, currencySymbol)}</span>
+          </div>
         </div>
-        <div>
-          <div className="flex justify-between text-[10px] font-black uppercase mb-2"><span>A Pagar Pendente</span><span className="text-amber-600">{financial.formatVisual(stats.unpaidOut, currencySymbol)}</span></div>
-          <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-amber-50" style={{ width: `${stats.totalOut > 0 ? (stats.unpaidOut / stats.totalOut) * 100 : 0}%` }} /></div>
+        <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-slate-500">
+              <div className="w-3 h-3 rounded-full bg-indigo-600" />
+              <span className="text-[10px] font-black uppercase tracking-widest">Materiais</span>
+            </div>
+            <span className="text-sm font-black text-indigo-600">{financial.formatVisual(stats.material, currencySymbol)}</span>
+          </div>
         </div>
       </div>
     </div>

@@ -135,6 +135,13 @@ export class WorkItemsService {
     const chunks = this.chunkItems(createData, 200);
 
     await this.prisma.$transaction(async (tx) => {
+      await tx.laborContractWorkItem.deleteMany({
+        where: { workItem: { projectId } },
+      });
+      await tx.laborContract.updateMany({
+        where: { projectId },
+        data: { linkedWorkItemId: null },
+      });
       await tx.workItemResponsibility.deleteMany({
         where: { workItem: { projectId } },
       });
@@ -189,6 +196,13 @@ export class WorkItemsService {
 
     if (replaceFlag) {
       await this.prisma.$transaction(async (tx) => {
+        await tx.laborContractWorkItem.deleteMany({
+          where: { workItem: { projectId } },
+        });
+        await tx.laborContract.updateMany({
+          where: { projectId },
+          data: { linkedWorkItemId: null },
+        });
         await tx.workItemResponsibility.deleteMany({
           where: { workItem: { projectId } },
         });
