@@ -782,7 +782,7 @@ const PaymentModal = ({
 
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
+            <div className="flex flex-col">
               <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block">Data</label>
               <input
                 type="date"
@@ -1150,163 +1150,167 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, financialCa
         </h2>
         
         <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 space-y-8">
-          {/* Tipo e Informações Básicas */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">
-                Tipo de Contrato
-              </label>
-              <div className="flex gap-4">
-                {(['empreita', 'diaria'] as const).map(tipo => (
-                  <button
-                    key={tipo}
-                    type="button"
-                    onClick={() => setData({ ...data, tipo })}
+          <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-8">
+            <div className="space-y-8">
+              {/* Tipo e Informações Básicas */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">
+                    Tipo de Contrato
+                  </label>
+                  <div className="flex gap-4">
+                    {(['empreita', 'diaria'] as const).map(tipo => (
+                      <button
+                        key={tipo}
+                        type="button"
+                        onClick={() => setData({ ...data, tipo })}
+                        disabled={isReadOnly}
+                        className={`flex-1 py-4 rounded-2xl text-sm font-black uppercase transition-all ${
+                          data.tipo === tipo
+                            ? 'bg-indigo-600 text-white shadow-lg'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                        }`}
+                      >
+                        {tipo}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">
+                    Associado Responsável
+                  </label>
+                  <select
+                    className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500"
+                    value={data.associadoId}
+                    onChange={e => setData({ ...data, associadoId: e.target.value })}
                     disabled={isReadOnly}
-                    className={`flex-1 py-4 rounded-2xl text-sm font-black uppercase transition-all ${
-                      data.tipo === tipo
-                        ? 'bg-indigo-600 text-white shadow-lg'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
-                    }`}
                   >
-                    {tipo}
-                  </button>
-                ))}
+                    <option value="">Selecione...</option>
+                    {workforce.map((w: WorkforceMember) => (
+                      <option key={w.id} value={w.id}>
+                        {w.nome} - {w.cargo}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">
+                  Descrição do Trabalho
+                </label>
+                <input
+                  className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500"
+                  value={data.descricao}
+                  onChange={e => setData({ ...data, descricao: e.target.value })}
+                  disabled={isReadOnly}
+                  placeholder="Ex: Alvenaria Bloco 1, Pedreiro - Janeiro/2026"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">
+                    Valor Total (R$)
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500"
+                    value={strValorTotal}
+                    onChange={e => {
+                      const masked = financial.maskCurrency(e.target.value);
+                      setStrValorTotal(masked);
+                      setData({ ...data, valorTotal: financial.parseLocaleNumber(masked) });
+                    }}
+                    disabled={isReadOnly}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">
+                    Data Início
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500"
+                    value={data.dataInicio}
+                    onChange={e => setData({ ...data, dataInicio: e.target.value })}
+                    disabled={isReadOnly}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">
+                    Data Fim (opcional)
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500"
+                    value={data.dataFim || ''}
+                    onChange={e => setData({ ...data, dataFim: e.target.value })}
+                    disabled={isReadOnly}
+                  />
+                </div>
+              </div>
+
+              {/* Observações */}
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">
+                  Observações
+                </label>
+                <textarea
+                  className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 min-h-[80px]"
+                  value={data.observacoes || ''}
+                  onChange={e => setData({ ...data, observacoes: e.target.value })}
+                  disabled={isReadOnly}
+                  placeholder="Informações adicionais..."
+                />
               </div>
             </div>
 
+            {/* Vincular Item da EAP (Opcional) */}
             <div>
               <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">
-                Associado Responsável
+                Vincular Item da EAP (Opcional)
               </label>
-              <select
-                className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500"
-                value={data.associadoId}
-                onChange={e => setData({ ...data, associadoId: e.target.value })}
-                disabled={isReadOnly}
-              >
-                <option value="">Selecione...</option>
-                {workforce.map((w: WorkforceMember) => (
-                  <option key={w.id} value={w.id}>
-                    {w.nome} - {w.cargo}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">
-              Descrição do Trabalho
-            </label>
-            <input
-              className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500"
-              value={data.descricao}
-              onChange={e => setData({ ...data, descricao: e.target.value })}
-              disabled={isReadOnly}
-              placeholder="Ex: Alvenaria Bloco 1, Pedreiro - Janeiro/2026"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">
-                Valor Total (R$)
-              </label>
-              <input
-                type="text"
-                inputMode="decimal"
-                className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500"
-                value={strValorTotal}
-                onChange={e => {
-                  const masked = financial.maskCurrency(e.target.value);
-                  setStrValorTotal(masked);
-                  setData({ ...data, valorTotal: financial.parseLocaleNumber(masked) });
-                }}
-                disabled={isReadOnly}
-              />
-            </div>
-
-            <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">
-                Data Início
-              </label>
-              <input
-                type="date"
-                className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500"
-                value={data.dataInicio}
-                onChange={e => setData({ ...data, dataInicio: e.target.value })}
-                disabled={isReadOnly}
-              />
-            </div>
-
-            <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">
-                Data Fim (opcional)
-              </label>
-              <input
-                type="date"
-                className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500"
-                value={data.dataFim || ''}
-                onChange={e => setData({ ...data, dataFim: e.target.value })}
-                disabled={isReadOnly}
-              />
-            </div>
-          </div>
-
-          {/* Vincular Item da EAP (Opcional) */}
-          <div>
-            <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">
-              Vincular Item da EAP (Opcional)
-            </label>
-            <div className="flex items-center gap-2 mb-3">
-              <button
-                type="button"
-                onClick={() => setExpandedIds(new Set(categoryIds))}
-                className="px-3 py-1.5 text-[9px] font-black uppercase text-slate-500 border rounded-lg hover:bg-slate-50"
-              >
-                Expandir tudo
-              </button>
-              <button
-                type="button"
-                onClick={() => setExpandedIds(new Set())}
-                className="px-3 py-1.5 text-[9px] font-black uppercase text-slate-500 border rounded-lg hover:bg-slate-50"
-              >
-                Recolher
-              </button>
-              {!isReadOnly && (data.linkedWorkItemIds?.length || data.linkedWorkItemId) && (
+              <div className="flex items-center gap-2 mb-3">
                 <button
                   type="button"
-                  onClick={() => setData({ ...data, linkedWorkItemIds: [], linkedWorkItemId: undefined })}
+                  onClick={() => setExpandedIds(new Set(categoryIds))}
                   className="px-3 py-1.5 text-[9px] font-black uppercase text-slate-500 border rounded-lg hover:bg-slate-50"
                 >
-                  Limpar
+                  Expandir tudo
                 </button>
-              )}
+                <button
+                  type="button"
+                  onClick={() => setExpandedIds(new Set())}
+                  className="px-3 py-1.5 text-[9px] font-black uppercase text-slate-500 border rounded-lg hover:bg-slate-50"
+                >
+                  Recolher
+                </button>
+                {!isReadOnly && (data.linkedWorkItemIds?.length || data.linkedWorkItemId) && (
+                  <button
+                    type="button"
+                    onClick={() => setData({ ...data, linkedWorkItemIds: [], linkedWorkItemId: undefined })}
+                    className="px-3 py-1.5 text-[9px] font-black uppercase text-slate-500 border rounded-lg hover:bg-slate-50"
+                  >
+                    Limpar
+                  </button>
+                )}
+              </div>
+              <div className="flex-1 min-h-0 overflow-y-auto border-2 border-slate-100 dark:border-slate-800 rounded-3xl p-4 bg-slate-50 dark:bg-slate-950 space-y-2">
+                {workTree.length === 0 ? (
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    Nenhum item da EAP
+                  </p>
+                ) : (
+                  (workTree as WorkItem[]).map((node) => renderTreeNode(node, 0))
+                )}
+              </div>
             </div>
-            <div className="max-h-[240px] overflow-y-auto border-2 border-slate-100 dark:border-slate-800 rounded-3xl p-4 bg-slate-50 dark:bg-slate-950 space-y-2">
-              {workTree.length === 0 ? (
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                  Nenhum item da EAP
-                </p>
-              ) : (
-                (workTree as WorkItem[]).map((node) => renderTreeNode(node, 0))
-              )}
-            </div>
-          </div>
-
-          {/* Observações */}
-          <div>
-            <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">
-              Observações
-            </label>
-            <textarea
-              className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 min-h-[80px]"
-              value={data.observacoes || ''}
-              onChange={e => setData({ ...data, observacoes: e.target.value })}
-              disabled={isReadOnly}
-              placeholder="Informações adicionais..."
-            />
           </div>
 
           {/* Pagamentos (apenas no cadastro) */}
