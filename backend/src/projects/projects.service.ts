@@ -69,45 +69,65 @@ export class ProjectsService {
       permissions.includes('projects_general.view') ||
       permissions.includes('projects_general.edit');
 
-    if (hasGeneralAccess) {
-      // Return all projects in instance
-      return this.prisma.project.findMany({
-        where: {
-          instanceId,
-          ...(groupId ? { groupId } : {}),
-        },
-        orderBy: [{ order: 'asc' }, { name: 'asc' }],
-      });
-    }
+    const baseWhere = {
+      instanceId,
+      ...(groupId ? { groupId } : {}),
+    };
 
-    // Return only projects where user is a member with project permissions
-    return this.prisma.project.findMany({
-      where: {
-        instanceId,
-        ...(groupId ? { groupId } : {}),
-        members: {
-          some: {
-            userId,
-            assignedRole: {
-              permissions: {
-                some: {
-                  permission: {
-                    code: {
-                      in: [
-                        'projects_specific.view',
-                        'projects_specific.edit',
-                        'projects_general.view',
-                        'projects_general.edit',
-                      ],
+    const projects = await this.prisma.project.findMany({
+      where: hasGeneralAccess
+        ? baseWhere
+        : {
+            ...baseWhere,
+            members: {
+              some: {
+                userId,
+                assignedRole: {
+                  permissions: {
+                    some: {
+                      permission: {
+                        code: {
+                          in: [
+                            'projects_specific.view',
+                            'projects_specific.edit',
+                            'projects_general.view',
+                            'projects_general.edit',
+                          ],
+                        },
+                      },
                     },
                   },
                 },
               },
             },
           },
-        },
-      },
       orderBy: [{ order: 'asc' }, { name: 'asc' }],
+    });
+
+    if (projects.length === 0) return projects;
+
+    const aggregates = await this.prisma.workItem.groupBy({
+      by: ['projectId'],
+      where: {
+        projectId: { in: projects.map((project) => project.id) },
+        parentId: null,
+      },
+      _sum: {
+        contractTotal: true,
+        accumulatedTotal: true,
+      },
+    });
+
+    const aggregateMap = new Map(
+      aggregates.map((row) => [row.projectId, row] as const),
+    );
+
+    return projects.map((project) => {
+      const totals = aggregateMap.get(project.id);
+      const contractTotal = project.contractTotalOverride ?? totals?._sum.contractTotal ?? 0;
+      const accumulatedTotal = totals?._sum.accumulatedTotal ?? 0;
+      const progress = contractTotal > 0 ? (accumulatedTotal / contractTotal) * 100 : 0;
+      return { ...project, progress };
     });
   }
 

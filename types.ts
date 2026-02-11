@@ -352,6 +352,7 @@ export interface Project {
   instanceId?: string;
   groupId: string | null;
   order: number;
+  progress?: number;
   name: string;
   companyName: string;
   companyCnpj: string;

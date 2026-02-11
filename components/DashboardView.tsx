@@ -635,7 +635,9 @@ const ProjectCard = ({ project, onOpen, onRename, onDelete, onMove, provided, ca
   provided: DraggableProvided,
   canRename: boolean
 }) => {
-  const stats = treeService.calculateBasicStats(project.items, project.bdi || 0);
+  const stats = project.items?.length
+    ? treeService.calculateBasicStats(project.items, project.bdi || 0)
+    : { progress: project.progress ?? 0 };
   return (
     <div 
       ref={provided.innerRef}
@@ -712,7 +714,9 @@ const ProjectRow = ({ project, onOpen, onRename, onDelete, onMove, provided, can
   provided: DraggableProvided,
   canRename: boolean
 }) => {
-  const stats = treeService.calculateBasicStats(project.items, project.bdi || 0);
+  const stats = project.items?.length
+    ? treeService.calculateBasicStats(project.items, project.bdi || 0)
+    : { progress: project.progress ?? 0 };
   return (
     <div
       ref={provided.innerRef}
