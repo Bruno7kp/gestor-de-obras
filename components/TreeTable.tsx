@@ -421,7 +421,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                                       type="number" 
                                       step="any" 
                                       className={`w-16 bg-white dark:bg-slate-950 border border-blue-300 dark:border-blue-700 rounded px-1 py-0.5 text-center text-[10px] font-bold focus:ring-2 focus:ring-blue-500/20 outline-none ${isFullyMeasuredPreviously ? 'text-slate-400 bg-slate-50' : 'text-blue-700 dark:text-blue-300'}`} 
-                                      value={financial.round(item.currentQuantity)} 
+                                      value={financial.normalizeQuantity(item.currentQuantity).toFixed(2)} 
                                       onChange={(e) => onUpdateQuantity(item.id, parseFloat(e.target.value) || 0)} 
                                     />
                                   ) : '-'}
