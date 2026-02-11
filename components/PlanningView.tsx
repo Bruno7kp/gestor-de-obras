@@ -31,10 +31,12 @@ interface PlanningViewProps {
   categories: WorkItem[];
   allWorkItems: WorkItem[];
   viewMode?: 'planning' | 'supplies';
+  fixedSubTab?: 'tasks' | 'forecast' | 'milestones';
+  showSubTabs?: boolean;
 }
 
 export const PlanningView: React.FC<PlanningViewProps> = ({ 
-  project, suppliers, onUpdatePlanning, onAddExpense, onUpdateExpense, categories, allWorkItems, viewMode = 'planning'
+  project, suppliers, onUpdatePlanning, onAddExpense, onUpdateExpense, categories, allWorkItems, viewMode = 'planning', fixedSubTab, showSubTabs = true
 }) => {
   const { canEdit, getLevel } = usePermissions();
   const toast = useToast();
@@ -46,6 +48,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   const suppliesStatusKey = `supplies_status_${project.id}`;
 
   const [activeSubTab, setActiveSubTab] = useState<'tasks' | 'forecast' | 'milestones'>(() => {
+    if (fixedSubTab) return fixedSubTab;
     if (isSuppliesView) return 'forecast';
     const saved = uiPreferences.getString(planningTabKey);
     return saved && planningSubTabs.includes(saved as 'tasks' | 'forecast' | 'milestones')
@@ -76,6 +79,11 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   const planning = project.planning;
 
   useEffect(() => {
+    if (fixedSubTab) {
+      setActiveSubTab(fixedSubTab);
+      return;
+    }
+
     if (isSuppliesView) {
       setActiveSubTab('forecast');
       const saved = uiPreferences.getString(suppliesStatusKey);
@@ -93,12 +101,19 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     } else {
       setActiveSubTab('tasks');
     }
-  }, [isSuppliesView, planningTabKey, suppliesStatusKey]);
+  }, [fixedSubTab, isSuppliesView, planningTabKey, suppliesStatusKey]);
 
   useEffect(() => {
-    if (isSuppliesView) return;
+    if (!fixedSubTab) return;
+    if (activeSubTab !== fixedSubTab) {
+      setActiveSubTab(fixedSubTab);
+    }
+  }, [activeSubTab, fixedSubTab]);
+
+  useEffect(() => {
+    if (isSuppliesView || fixedSubTab) return;
     uiPreferences.setString(planningTabKey, activeSubTab);
-  }, [activeSubTab, isSuppliesView, planningTabKey]);
+  }, [activeSubTab, fixedSubTab, isSuppliesView, planningTabKey]);
 
   useEffect(() => {
     if (!isSuppliesView) return;
@@ -411,22 +426,24 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
             </div>
           </div>
 
-          <div className="flex bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-x-auto no-scrollbar">
-            <SubTabBtn active={activeSubTab === 'tasks'} onClick={() => setActiveSubTab('tasks')} label="Quadro Kanban" icon={<ListChecks size={14}/>} />
-            <SubTabBtn active={activeSubTab === 'milestones'} onClick={() => setActiveSubTab('milestones')} label="Cronograma" icon={<Target size={14}/>} />
-          </div>
+          {showSubTabs ? (
+            <div className="flex bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-x-auto no-scrollbar">
+              <SubTabBtn active={activeSubTab === 'tasks'} onClick={() => setActiveSubTab('tasks')} label="Quadro Kanban" icon={<ListChecks size={14}/>} />
+              <SubTabBtn active={activeSubTab === 'milestones'} onClick={() => setActiveSubTab('milestones')} label="Cronograma" icon={<Target size={14}/>} />
+            </div>
+          ) : (
+            activeSubTab === 'tasks' && (
+              <button onClick={handleAutoGenerate} className="flex items-center gap-2 px-6 py-3 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-sm">
+                <Wand2 size={16} /> Inteligência EAP
+              </button>
+            )
+          )}
         </div>
       )}
 
       <DragDropContext onDragEnd={onDragEnd}>
         {activeSubTab === 'tasks' && (
-          <div className="space-y-6">
-            <div className="flex justify-end items-center px-4">
-               <button onClick={handleAutoGenerate} className="flex items-center gap-2 px-6 py-3 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-sm">
-                  <Wand2 size={16} /> Inteligência EAP
-               </button>
-            </div>
-
+           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
               {columns.map(col => (
                 <div key={col.id} className="bg-slate-100/50 dark:bg-slate-900/40 rounded-[2.5rem] flex flex-col min-h-[600px] border border-transparent hover:border-slate-200 dark:hover:border-slate-800 transition-colors">

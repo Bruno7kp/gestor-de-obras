@@ -54,7 +54,7 @@ interface ProjectWorkspaceProps {
   onTabChange: (tab: TabID) => void;
 }
 
-export type TabID = 'wbs' | 'stats' | 'expenses' | 'supplies' | 'workforce' | 'labor-contracts' | 'planning' | 'journal' | 'documents' | 'branding';
+export type TabID = 'wbs' | 'stats' | 'expenses' | 'supplies' | 'workforce' | 'labor-contracts' | 'planning' | 'schedule' | 'journal' | 'documents' | 'branding';
 
 export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   project, globalSettings, suppliers, isExternalProject: isExternalProjectProp = false, onUpdateProject, onCloseMeasurement,
@@ -311,6 +311,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     workforce: 'workforce',
     'labor-contracts': 'workforce',
     planning: 'planning',
+    schedule: 'planning',
     journal: 'journal',
     documents: 'documents',
     branding: 'project_settings',
@@ -324,6 +325,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     'workforce',
     'labor-contracts',
     'planning',
+    'schedule',
     'journal',
     'documents',
     'branding',
@@ -919,6 +921,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
               {canView('workforce') && <TabBtn active={tab === 'labor-contracts' || tab === 'workforce'} id="labor-contracts" label="Contratos M.O." icon={<Briefcase size={16} />} />}
               {canView('planning') && <TabBtn active={tab === 'planning'} id="planning" label="Planejamento" icon={<HardHat size={16} />} />}
               {canView('journal') && <TabBtn active={tab === 'journal'} id="journal" label="Diário de Obra" icon={<BookOpen size={16} />} />}
+              {canView('planning') && <TabBtn active={tab === 'schedule'} id="schedule" label="Cronograma" icon={<Target size={16} />} />}
               {canView('documents') && <TabBtn active={tab === 'documents'} id="documents" label="Repositório" icon={<FileText size={16} />} />}
               {canView('project_settings') && <TabBtn active={tab === 'branding'} id="branding" label="Ajustes" icon={<Sliders size={16} />} />}
             </div>
@@ -1004,6 +1007,21 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     onUpdateExpense={handleExpenseUpdate}
                     categories={displayData.items.filter(i => i.type === 'category')}
                     allWorkItems={displayData.items}
+                    fixedSubTab="tasks"
+                    showSubTabs={false}
+                  />
+                )}
+                {tab === 'schedule' && (
+                  <PlanningView
+                    project={project}
+                    suppliers={effectiveSuppliers}
+                    onUpdatePlanning={handleUpdatePlanning}
+                    onAddExpense={handleExpenseAdd}
+                    onUpdateExpense={handleExpenseUpdate}
+                    categories={displayData.items.filter(i => i.type === 'category')}
+                    allWorkItems={displayData.items}
+                    fixedSubTab="milestones"
+                    showSubTabs={false}
                   />
                 )}
                 {tab === 'journal' && <JournalView project={project} onUpdateJournal={(j) => onUpdateProject({ journal: j })} allWorkItems={displayData.items} />}
@@ -1032,7 +1050,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                 stats={expenseStats}
               />
             )}
-            {(tab === 'planning' || tab === 'supplies') && (
+            {(tab === 'planning' || tab === 'supplies' || tab === 'schedule') && (
               <PrintPlanningReport
                 project={project}
               />

@@ -26,6 +26,7 @@ const PROJECT_TABS: TabID[] = [
   'workforce',
   'labor-contracts',
   'planning',
+  'schedule',
   'journal',
   'documents',
   'branding',
