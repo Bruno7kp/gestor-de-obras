@@ -12,6 +12,7 @@ export const laborContractService = {
       valorPago: 0,
       status: 'pendente',
       dataInicio: new Date().toISOString().split('T')[0],
+      linkedWorkItemIds: [],
       pagamentos: [],
       ordem: Math.floor(Date.now() / 1000)
     };

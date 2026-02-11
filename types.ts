@@ -85,7 +85,8 @@ export interface LaborContract {
   dataInicio: string;
   dataFim?: string;
   pagamentos: LaborPayment[];
-  linkedWorkItemId?: string; // FK para WorkItem
+  linkedWorkItemId?: string; // FK para WorkItem (legacy)
+  linkedWorkItemIds?: string[]; // FK(s) para WorkItem
   observacoes?: string;
   ordem: number;
 }

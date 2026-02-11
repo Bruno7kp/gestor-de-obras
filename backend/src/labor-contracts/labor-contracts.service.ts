@@ -22,6 +22,7 @@ interface CreateLaborContractInput {
   dataInicio: string;
   dataFim?: string;
   linkedWorkItemId?: string;
+  linkedWorkItemIds?: string[];
   observacoes?: string;
   ordem?: number;
   pagamentos?: LaborPaymentInput[];
@@ -66,6 +67,28 @@ export class LaborContractsService {
     if (!item) throw new NotFoundException('Item da EAP nao encontrado');
   }
 
+  private async ensureWorkItems(ids: string[], projectId: string) {
+    await Promise.all(ids.map((id) => this.ensureWorkItem(id, projectId)));
+  }
+
+  private normalizeLinkedWorkItemIds(linkedWorkItemIds?: string[], linkedWorkItemId?: string) {
+    const ids = linkedWorkItemIds ?? (linkedWorkItemId ? [linkedWorkItemId] : []);
+    return Array.from(new Set(ids.filter(Boolean)));
+  }
+
+  private resolveLinkedWorkItemIds(input: {
+    linkedWorkItemIds?: string[];
+    linkedWorkItemId?: string;
+  }): string[] | undefined {
+    if (input.linkedWorkItemIds !== undefined) {
+      return this.normalizeLinkedWorkItemIds(input.linkedWorkItemIds, undefined);
+    }
+    if (input.linkedWorkItemId !== undefined) {
+      return this.normalizeLinkedWorkItemIds(undefined, input.linkedWorkItemId);
+    }
+    return undefined;
+  }
+
   private getPaymentTotals(pagamentos: LaborPaymentInput[], valorTotal: number) {
     const valorPago = pagamentos.reduce((sum, p) => sum + (p.valor || 0), 0);
     const status = valorPago === 0 ? 'pendente' : valorPago >= valorTotal ? 'pago' : 'parcial';
@@ -77,15 +100,22 @@ export class LaborContractsService {
     return this.prisma.laborContract.findMany({
       where: { projectId },
       orderBy: { ordem: 'asc' },
-      include: { pagamentos: { orderBy: { data: 'asc' } } },
+      include: {
+        pagamentos: { orderBy: { data: 'asc' } },
+        linkedWorkItems: { select: { workItemId: true } },
+      },
     });
   }
 
   async create(input: CreateLaborContractInput) {
     await this.ensureProject(input.projectId, input.instanceId, input.userId);
     await this.ensureWorkforceMember(input.associadoId, input.projectId);
-    if (input.linkedWorkItemId) {
-      await this.ensureWorkItem(input.linkedWorkItemId, input.projectId);
+    const linkedWorkItemIds = this.normalizeLinkedWorkItemIds(
+      input.linkedWorkItemIds,
+      input.linkedWorkItemId,
+    );
+    if (linkedWorkItemIds.length) {
+      await this.ensureWorkItems(linkedWorkItemIds, input.projectId);
     }
 
     const pagamentos = input.pagamentos ?? [];
@@ -104,11 +134,21 @@ export class LaborContractsService {
           status: totals.status,
           dataInicio: input.dataInicio,
           dataFim: input.dataFim || null,
-          linkedWorkItemId: input.linkedWorkItemId || null,
+          linkedWorkItemId: linkedWorkItemIds[0] || null,
           observacoes: input.observacoes || null,
           ordem: normalizedOrder,
         },
       });
+
+      if (linkedWorkItemIds.length) {
+        await prisma.laborContractWorkItem.createMany({
+          data: linkedWorkItemIds.map((workItemId) => ({
+            laborContractId: contract.id,
+            workItemId,
+          })),
+          skipDuplicates: true,
+        });
+      }
 
       if (pagamentos.length) {
         await prisma.laborPayment.createMany({
@@ -125,7 +165,10 @@ export class LaborContractsService {
 
       return prisma.laborContract.findUnique({
         where: { id: contract.id },
-        include: { pagamentos: { orderBy: { data: 'asc' } } },
+        include: {
+          pagamentos: { orderBy: { data: 'asc' } },
+          linkedWorkItems: { select: { workItemId: true } },
+        },
       });
     });
   }
@@ -146,14 +189,18 @@ export class LaborContractsService {
       await this.ensureWorkforceMember(input.associadoId, existing.projectId);
     }
 
-    if (input.linkedWorkItemId) {
-      await this.ensureWorkItem(input.linkedWorkItemId, existing.projectId);
+    const linkedWorkItemIds = this.resolveLinkedWorkItemIds(input);
+    if (linkedWorkItemIds && linkedWorkItemIds.length) {
+      await this.ensureWorkItems(linkedWorkItemIds, existing.projectId);
     }
 
     const pagamentos = input.pagamentos;
     const valorTotal = input.valorTotal ?? existing.valorTotal;
     const totals = pagamentos ? this.getPaymentTotals(pagamentos, valorTotal) : null;
     const normalizedOrder = this.normalizeOrder(input.ordem ?? existing.ordem);
+    const nextLinkedWorkItemId = linkedWorkItemIds
+      ? linkedWorkItemIds[0] || null
+      : existing.linkedWorkItemId;
 
     return this.prisma.$transaction(async prisma => {
       const updated = await prisma.laborContract.update({
@@ -167,11 +214,27 @@ export class LaborContractsService {
           status: totals ? totals.status : existing.status,
           dataInicio: input.dataInicio ?? existing.dataInicio,
           dataFim: input.dataFim ?? existing.dataFim,
-          linkedWorkItemId: input.linkedWorkItemId ?? existing.linkedWorkItemId,
+          linkedWorkItemId: nextLinkedWorkItemId,
           observacoes: input.observacoes ?? existing.observacoes,
           ordem: normalizedOrder,
         },
       });
+
+      if (linkedWorkItemIds !== undefined) {
+        await prisma.laborContractWorkItem.deleteMany({
+          where: { laborContractId: updated.id },
+        });
+
+        if (linkedWorkItemIds.length) {
+          await prisma.laborContractWorkItem.createMany({
+            data: linkedWorkItemIds.map((workItemId) => ({
+              laborContractId: updated.id,
+              workItemId,
+            })),
+            skipDuplicates: true,
+          });
+        }
+      }
 
       if (pagamentos) {
         await prisma.laborPayment.deleteMany({
@@ -194,7 +257,10 @@ export class LaborContractsService {
 
       return prisma.laborContract.findUnique({
         where: { id: updated.id },
-        include: { pagamentos: { orderBy: { data: 'asc' } } },
+        include: {
+          pagamentos: { orderBy: { data: 'asc' } },
+          linkedWorkItems: { select: { workItemId: true } },
+        },
       });
     });
   }
@@ -219,6 +285,9 @@ export class LaborContractsService {
     await removeLocalUploads(payments.map(payment => payment.comprovante));
 
     await this.prisma.laborPayment.deleteMany({
+      where: { laborContractId: existing.id },
+    });
+    await this.prisma.laborContractWorkItem.deleteMany({
       where: { laborContractId: existing.id },
     });
     await this.prisma.laborContract.delete({ where: { id: existing.id } });

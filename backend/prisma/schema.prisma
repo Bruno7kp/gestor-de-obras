@@ -129,7 +129,6 @@ model ProjectMember {
   user      User     @relation(fields: [userId], references: [id])
   project   Project  @relation(fields: [projectId], references: [id])
   assignedRole Role  @relation(fields: [roleId], references: [id])
-
   @@unique([userId, projectId])
 }
 
@@ -227,7 +226,8 @@ model WorkItem {
   parent               WorkItem? @relation("WorkItemParent", fields: [parentId], references: [id])
   children             WorkItem[] @relation("WorkItemParent")
   responsibilities     WorkItemResponsibility[]
-  laborContracts       LaborContract[]
+  laborContractsLegacy LaborContract[] @relation("LaborContractLinkedWorkItem")
+  laborContractLinks   LaborContractWorkItem[]
 }
 
 model WorkItemResponsibility {
@@ -427,8 +427,19 @@ model LaborContract {
   projectId       String
   project         Project       @relation(fields: [projectId], references: [id])
   associado       WorkforceMember @relation(fields: [associadoId], references: [id])
-  linkedWorkItem  WorkItem?     @relation(fields: [linkedWorkItemId], references: [id])
+  linkedWorkItem  WorkItem?     @relation("LaborContractLinkedWorkItem", fields: [linkedWorkItemId], references: [id])
+  linkedWorkItems LaborContractWorkItem[]
   pagamentos      LaborPayment[]
+}
+
+model LaborContractWorkItem {
+  id              String        @id @default(uuid())
+  laborContractId String
+  workItemId      String
+  laborContract   LaborContract @relation(fields: [laborContractId], references: [id])
+  workItem        WorkItem      @relation(fields: [workItemId], references: [id])
+
+  @@unique([laborContractId, workItemId])
 }
 
 model LaborPayment {

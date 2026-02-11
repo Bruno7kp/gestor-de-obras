@@ -287,6 +287,8 @@ async function main() {
       for (const contract of project.laborContracts) {
         const pagamentos = contract.pagamentos || [];
         const totals = getLaborTotals(pagamentos, contract.valorTotal || 0);
+        const linkedWorkItemIds =
+          contract.linkedWorkItemIds ?? (contract.linkedWorkItemId ? [contract.linkedWorkItemId] : []);
 
         const createdContract = await (
           prisma as unknown as any
@@ -302,11 +304,21 @@ async function main() {
             status: totals.status,
             dataInicio: contract.dataInicio,
             dataFim: contract.dataFim || null,
-            linkedWorkItemId: contract.linkedWorkItemId || null,
+            linkedWorkItemId: linkedWorkItemIds[0] || null,
             observacoes: contract.observacoes || null,
             ordem: contract.ordem || 0,
           },
         });
+
+        if (linkedWorkItemIds.length) {
+          await (prisma as unknown as any).laborContractWorkItem.createMany({
+            data: linkedWorkItemIds.map((workItemId: string) => ({
+              laborContractId: createdContract.id,
+              workItemId,
+            })),
+            skipDuplicates: true,
+          });
+        }
 
         if (pagamentos.length) {
           await (prisma as unknown as any).laborPayment.createMany({

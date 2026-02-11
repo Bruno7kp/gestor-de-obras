@@ -32,6 +32,7 @@ interface CreateLaborContractBody {
   dataInicio: string;
   dataFim?: string;
   linkedWorkItemId?: string;
+  linkedWorkItemIds?: string[];
   observacoes?: string;
   ordem?: number;
   pagamentos?: LaborPaymentBody[];

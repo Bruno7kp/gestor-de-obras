@@ -246,7 +246,10 @@ export class ProjectsService {
         journal: { include: { entries: true } },
         workforce: { include: { documentos: true, responsabilidades: true } },
         laborContracts: {
-          include: { pagamentos: { orderBy: { data: 'asc' } } },
+          include: {
+            pagamentos: { orderBy: { data: 'asc' } },
+            linkedWorkItems: { select: { workItemId: true } },
+          },
         },
       },
     });
@@ -291,7 +294,10 @@ export class ProjectsService {
           journal: { include: { entries: true } },
           workforce: { include: { documentos: true, responsabilidades: true } },
           laborContracts: {
-            include: { pagamentos: { orderBy: { data: 'asc' } } },
+            include: {
+              pagamentos: { orderBy: { data: 'asc' } },
+              linkedWorkItems: { select: { workItemId: true } },
+            },
           },
         },
       });
@@ -532,6 +538,17 @@ export class ProjectsService {
         },
       },
     });
+    await this.prisma.laborContractWorkItem.deleteMany({
+      where: {
+        laborContract: {
+          OR: [
+            { projectId: id },
+            { associado: { projectId: id } },
+            { associadoId: { in: workforceIds } },
+          ],
+        },
+      },
+    });
     await this.prisma.laborContract.deleteMany({
       where: {
         OR: [
@@ -697,7 +714,10 @@ export class ProjectsService {
         journal: { include: { entries: true } },
         workforce: { include: { documentos: true, responsabilidades: true } },
         laborContracts: {
-          include: { pagamentos: { orderBy: { data: 'asc' } } },
+          include: {
+            pagamentos: { orderBy: { data: 'asc' } },
+            linkedWorkItems: { select: { workItemId: true } },
+          },
         },
       },
     });

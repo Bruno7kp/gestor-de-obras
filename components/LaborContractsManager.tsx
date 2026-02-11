@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Project, LaborContract, LaborPayment, WorkforceMember, ProjectExpense } from '../types';
+import { Project, LaborContract, LaborPayment, WorkforceMember, ProjectExpense, WorkItem } from '../types';
 import { laborContractService } from '../services/laborContractService';
 import { uploadService } from '../services/uploadService';
 import { laborContractsApi } from '../services/laborContractsApi';
@@ -8,10 +8,11 @@ import { ExpenseAttachmentZone } from './ExpenseAttachmentZone';
 import { useToast } from '../hooks/useToast';
 import { uiPreferences } from '../utils/uiPreferences';
 import { financial } from '../utils/math';
+import { treeService } from '../services/treeService';
 import { 
   Briefcase, Plus, Search, Trash2, Edit2, DollarSign, Calendar, 
   CheckCircle2, Clock, AlertCircle, User, FileText, Download, X,
-  TrendingUp, TrendingDown, Wallet, ChevronDown, ChevronUp, CreditCard
+  TrendingUp, TrendingDown, Wallet, ChevronDown, ChevronUp, ChevronRight, CreditCard
 } from 'lucide-react';
 
 interface LaborContractsManagerProps {
@@ -129,6 +130,9 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
     const effectiveDate = payment.data || new Date().toISOString().split('T')[0];
     const prefix = contract.tipo === 'empreita' ? 'Empreita M.O.' : 'Diaria M.O.';
     const description = `${prefix}: ${contract.descricao} - ${payment.descricao || 'Pagamento'}`;
+    const primaryLinkedWorkItemId = contract.linkedWorkItemIds?.[0] ?? contract.linkedWorkItemId;
+
+    const status: ProjectExpense['status'] = isPaid ? 'PAID' : 'PENDING';
 
     return {
       parentId,
@@ -143,9 +147,9 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
       unitPrice: payment.valor,
       amount: payment.valor,
       isPaid,
-      status: isPaid ? 'PAID' : 'PENDING',
+      status,
       paymentProof: isPaid ? paymentProof : undefined,
-      linkedWorkItemId: contract.linkedWorkItemId,
+      linkedWorkItemId: primaryLinkedWorkItemId,
     };
   };
 
@@ -196,7 +200,8 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
           valorTotal: updated.valorTotal,
           dataInicio: updated.dataInicio,
           dataFim: updated.dataFim,
-          linkedWorkItemId: updated.linkedWorkItemId,
+          linkedWorkItemId: updated.linkedWorkItemIds?.[0] ?? updated.linkedWorkItemId,
+          linkedWorkItemIds: updated.linkedWorkItemIds ?? (updated.linkedWorkItemId ? [updated.linkedWorkItemId] : []),
           observacoes: updated.observacoes,
           ordem: updated.ordem,
           pagamentos: updated.pagamentos,
@@ -210,7 +215,8 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
           valorTotal: updated.valorTotal,
           dataInicio: updated.dataInicio,
           dataFim: updated.dataFim,
-          linkedWorkItemId: updated.linkedWorkItemId,
+          linkedWorkItemId: updated.linkedWorkItemIds?.[0] ?? updated.linkedWorkItemId,
+          linkedWorkItemIds: updated.linkedWorkItemIds ?? (updated.linkedWorkItemId ? [updated.linkedWorkItemId] : []),
           observacoes: updated.observacoes,
           ordem: updated.ordem,
           pagamentos: updated.pagamentos,
@@ -679,7 +685,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
         <ContractModal 
           contract={editingContract}
           workforce={workforce}
-          workItems={project.items.filter(i => i.type === 'item')}
+          workItems={project.items}
           isReadOnly={isReadOnly}
           financialCategories={laborFinancialCategories}
           onClose={() => { setIsModalOpen(false); setEditingContract(null); }}
@@ -915,6 +921,8 @@ const PaymentModal = ({
 const ContractModal = ({ contract, workforce, workItems, isReadOnly, financialCategories, onClose, onSave }: any) => {
   const initialContract = contract || laborContractService.createContract('empreita');
   const [data, setData] = useState<LaborContract>(initialContract);
+  const workTree = useMemo(() => treeService.buildTree(workItems), [workItems]);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [strValorTotal, setStrValorTotal] = useState(
     financial.formatVisual(initialContract.valorTotal || 0, '').trim()
   );
@@ -933,6 +941,16 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, financialCa
     Object.fromEntries((initialContract.pagamentos || []).map(p => [p.id, null]))
   );
   const toast = useToast();
+
+  useEffect(() => {
+    setExpandedIds(new Set());
+  }, [contract, workItems]);
+
+  useEffect(() => {
+    if (data.linkedWorkItemIds !== undefined) return;
+    const fallback = data.linkedWorkItemId ? [data.linkedWorkItemId] : [];
+    setData((prev) => ({ ...prev, linkedWorkItemIds: fallback }));
+  }, [data.linkedWorkItemIds, data.linkedWorkItemId]);
 
   useEffect(() => {
     setPaymentValues(prev => {
@@ -967,7 +985,16 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, financialCa
       .filter(p => paymentPaid[p.id])
       .map(p => ({ paymentId: p.id, parentId: paymentParentIds[p.id] ?? null }));
 
-    onSave(data, paidPayments);
+    const normalizedLinkedIds =
+      data.linkedWorkItemIds ?? (data.linkedWorkItemId ? [data.linkedWorkItemId] : []);
+    onSave(
+      {
+        ...data,
+        linkedWorkItemIds: normalizedLinkedIds,
+        linkedWorkItemId: normalizedLinkedIds[0] ?? undefined,
+      },
+      paidPayments,
+    );
   };
 
   const handleAddPayment = () => {
@@ -1017,6 +1044,96 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, financialCa
         toast.error('Falha ao enviar o comprovante. Tente novamente.');
       }
     }
+  };
+
+  const getItemIds = (node: WorkItem): string[] => {
+    const children = node.children ?? [];
+    const childIds = children.flatMap(getItemIds);
+    if (node.type === 'item') return [node.id, ...childIds];
+    return childIds;
+  };
+
+  const toggleItemIds = (ids: string[], checked: boolean) => {
+    if (ids.length === 0) return;
+    const current = new Set(data.linkedWorkItemIds ?? []);
+    ids.forEach((id) => {
+      if (checked) current.add(id);
+      else current.delete(id);
+    });
+    const nextIds = Array.from(current);
+    setData({
+      ...data,
+      linkedWorkItemIds: nextIds,
+      linkedWorkItemId: nextIds[0] ?? undefined,
+    });
+  };
+
+  const toggleExpanded = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const collectCategoryIds = (nodes: WorkItem[]): string[] => {
+    return nodes.flatMap((node) => {
+      const childIds = collectCategoryIds(node.children ?? []);
+      return node.type === 'category' ? [node.id, ...childIds] : childIds;
+    });
+  };
+
+  const categoryIds = useMemo(() => collectCategoryIds(workTree as WorkItem[]), [workTree]);
+
+  const renderTreeNode = (node: WorkItem, depth: number) => {
+    const itemIds = getItemIds(node);
+    const checked = itemIds.length > 0 && itemIds.every((id) => (data.linkedWorkItemIds ?? []).includes(id));
+    const indeterminate =
+      itemIds.length > 0 &&
+      itemIds.some((id) => (data.linkedWorkItemIds ?? []).includes(id)) &&
+      !checked;
+    const isCategory = node.type === 'category';
+    const isExpanded = isCategory && expandedIds.has(node.id);
+
+    return (
+      <div key={node.id} className="space-y-2">
+        <label
+          className={`flex items-center gap-3 cursor-pointer group ${isCategory ? '' : 'hover:text-indigo-600'}`}
+          style={{ marginLeft: `${depth * 1.25}rem` }}
+        >
+          {isCategory ? (
+            <button
+              type="button"
+              className="p-1 rounded-md text-slate-400 bg-slate-100 dark:bg-slate-800 group-hover:text-indigo-600"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                toggleExpanded(node.id);
+              }}
+            >
+              {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            </button>
+          ) : (
+            <div className="w-5" />
+          )}
+          <input
+            type="checkbox"
+            className="w-4 h-4 rounded text-indigo-600 focus:ring-0"
+            checked={checked}
+            disabled={itemIds.length === 0 || isReadOnly}
+            ref={(el) => {
+              if (el) el.indeterminate = indeterminate;
+            }}
+            onChange={(e) => toggleItemIds(itemIds, e.target.checked)}
+          />
+          <span className={`text-[10px] font-bold ${node.type === 'category' ? 'text-slate-700 dark:text-slate-300 uppercase' : 'text-slate-600 dark:text-slate-400'} group-hover:text-indigo-600`}>
+            {node.wbs} - {node.name}
+          </span>
+        </label>
+        {isExpanded && node.children?.map((child) => renderTreeNode(child, depth + 1))}
+      </div>
+    );
   };
 
   return (
@@ -1142,19 +1259,40 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, financialCa
             <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">
               Vincular Item da EAP (Opcional)
             </label>
-            <select
-              className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500"
-              value={data.linkedWorkItemId || ''}
-              onChange={e => setData({ ...data, linkedWorkItemId: e.target.value })}
-              disabled={isReadOnly}
-            >
-              <option value="">Nenhum</option>
-              {workItems.map((item: any) => (
-                <option key={item.id} value={item.id}>
-                  {item.wbs} - {item.name}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2 mb-3">
+              <button
+                type="button"
+                onClick={() => setExpandedIds(new Set(categoryIds))}
+                className="px-3 py-1.5 text-[9px] font-black uppercase text-slate-500 border rounded-lg hover:bg-slate-50"
+              >
+                Expandir tudo
+              </button>
+              <button
+                type="button"
+                onClick={() => setExpandedIds(new Set())}
+                className="px-3 py-1.5 text-[9px] font-black uppercase text-slate-500 border rounded-lg hover:bg-slate-50"
+              >
+                Recolher
+              </button>
+              {!isReadOnly && (data.linkedWorkItemIds?.length || data.linkedWorkItemId) && (
+                <button
+                  type="button"
+                  onClick={() => setData({ ...data, linkedWorkItemIds: [], linkedWorkItemId: undefined })}
+                  className="px-3 py-1.5 text-[9px] font-black uppercase text-slate-500 border rounded-lg hover:bg-slate-50"
+                >
+                  Limpar
+                </button>
+              )}
+            </div>
+            <div className="max-h-[240px] overflow-y-auto border-2 border-slate-100 dark:border-slate-800 rounded-3xl p-4 bg-slate-50 dark:bg-slate-950 space-y-2">
+              {workTree.length === 0 ? (
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                  Nenhum item da EAP
+                </p>
+              ) : (
+                (workTree as WorkItem[]).map((node) => renderTreeNode(node, 0))
+              )}
+            </div>
           </div>
 
           {/* Observações */}

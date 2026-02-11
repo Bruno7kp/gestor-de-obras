@@ -1,5 +1,5 @@
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Project, GlobalSettings, WorkItem, Supplier, ProjectAsset, ProjectExpense, ProjectPlanning, PlanningTask, MaterialForecast, Milestone } from '../types';
 import {
   Layers, BarChart3, Coins, Users, HardHat, BookOpen, FileText, Sliders, Boxes,
@@ -351,20 +351,21 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     'branding',
   ] as TabID[]).filter((tabId) => canView(tabPermissions[tabId])), [canView]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isProjectLoading) return;
     const node = tabsNavRef.current;
     if (!node) return;
     const saved = uiPreferences.getString(tabsScrollKey);
-    if (!saved) return;
-    const value = Number(saved);
-    if (!Number.isFinite(value)) return;
-    const maxScroll = Math.max(0, node.scrollWidth - node.clientWidth);
-    const clamped = Math.min(value, maxScroll);
-    window.requestAnimationFrame(() => {
-      node.scrollLeft = clamped;
-    });
-  }, [availableTabs.length, isProjectLoading, tabsScrollKey]);
+    const value = saved ? Number(saved) : node.scrollLeft;
+    if (Number.isFinite(value)) {
+      const maxScroll = Math.max(0, node.scrollWidth - node.clientWidth);
+      node.scrollLeft = Math.min(value, maxScroll);
+    }
+    const activeBtn = node.querySelector<HTMLButtonElement>(`[data-tab="${tab}"]`);
+    if (activeBtn) {
+      activeBtn.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+  }, [availableTabs.length, isProjectLoading, tab, tabsScrollKey]);
 
   const hasTabAccess = availableTabs.includes(tab);
 
@@ -445,6 +446,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
   const handleTabClick = (newTab: TabID) => {
     if (Date.now() < dragBlockUntilRef.current) return;
+    saveTabsScroll();
     onTabChange(newTab);
   };
 
@@ -793,7 +795,11 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   };
 
   const TabBtn: React.FC<{ active: boolean; id: TabID; label: string; icon: React.ReactNode }> = ({ active, id, label, icon }) => (
-    <button onClick={() => handleTabClick(id)} className={`flex items-center gap-2.5 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0 select-none cursor-pointer ${active ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'bg-white dark:bg-slate-900 text-slate-500 hover:text-indigo-600 border border-slate-200 dark:border-slate-800'}`}>
+    <button
+      data-tab={id}
+      onClick={() => handleTabClick(id)}
+      className={`flex items-center gap-2.5 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0 select-none cursor-pointer ${active ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'bg-white dark:bg-slate-900 text-slate-500 hover:text-indigo-600 border border-slate-200 dark:border-slate-800'}`}
+    >
       <span className={active ? 'text-white' : 'text-slate-400'}>{icon}</span>
       <span>{label}</span>
     </button>

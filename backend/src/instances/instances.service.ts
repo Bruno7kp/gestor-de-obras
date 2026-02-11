@@ -267,6 +267,13 @@ export class InstancesService {
         },
       });
 
+      // 11b. Delete labor contract work item links
+      await this.prisma.laborContractWorkItem.deleteMany({
+        where: {
+          laborContract: { projectId: { in: projectIds } },
+        },
+      });
+
       // 12. Delete labor contracts
       await this.prisma.laborContract.deleteMany({
         where: { projectId: { in: projectIds } },
