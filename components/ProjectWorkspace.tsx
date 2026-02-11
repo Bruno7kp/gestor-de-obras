@@ -28,6 +28,7 @@ import { PrintPlanningReport } from './PrintPlanningReport';
 import { treeService } from '../services/treeService';
 import { projectService } from '../services/projectService';
 import { financial } from '../utils/math';
+import { uiPreferences } from '../utils/uiPreferences';
 import { expenseService } from '../services/expenseService';
 import { workItemsApi } from '../services/workItemsApi';
 import { projectExpensesApi } from '../services/projectExpensesApi';
@@ -80,6 +81,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const tabsNavRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef<{ x: number; scrollLeft: number; moved: boolean } | null>(null);
   const dragBlockUntilRef = useRef(0);
+  const tabsScrollRafRef = useRef<number | null>(null);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState<'category' | 'item'>('item');
@@ -110,6 +112,24 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     }
     dragStartRef.current = null;
   };
+
+  const tabsScrollKey = 'project_tabs_scroll_global';
+
+  const saveTabsScroll = useCallback(() => {
+    if (!tabsNavRef.current) return;
+    uiPreferences.setString(tabsScrollKey, String(tabsNavRef.current.scrollLeft));
+  }, [tabsScrollKey]);
+
+  const handleTabsScroll = useCallback(() => {
+    if (tabsScrollRafRef.current) {
+      window.cancelAnimationFrame(tabsScrollRafRef.current);
+    }
+    tabsScrollRafRef.current = window.requestAnimationFrame(() => {
+      tabsScrollRafRef.current = null;
+      saveTabsScroll();
+    });
+  }, [saveTabsScroll]);
+
 
   // Fetch project members, users, and general access list
   useEffect(() => {
@@ -330,6 +350,21 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     'documents',
     'branding',
   ] as TabID[]).filter((tabId) => canView(tabPermissions[tabId])), [canView]);
+
+  useEffect(() => {
+    if (isProjectLoading) return;
+    const node = tabsNavRef.current;
+    if (!node) return;
+    const saved = uiPreferences.getString(tabsScrollKey);
+    if (!saved) return;
+    const value = Number(saved);
+    if (!Number.isFinite(value)) return;
+    const maxScroll = Math.max(0, node.scrollWidth - node.clientWidth);
+    const clamped = Math.min(value, maxScroll);
+    window.requestAnimationFrame(() => {
+      node.scrollLeft = clamped;
+    });
+  }, [availableTabs.length, isProjectLoading, tabsScrollKey]);
 
   const hasTabAccess = availableTabs.includes(tab);
 
@@ -913,7 +948,15 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         <>
           {/* 2. SUB-NAVEGAÇÃO */}
           <nav className="no-print bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 shrink-0 sticky top-0 z-20 overflow-hidden">
-            <div ref={tabsNavRef} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUpOrLeave} onMouseLeave={handleMouseUpOrLeave} className={`px-6 py-3 flex items-center gap-2 overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing select-none`}>
+            <div
+              ref={tabsNavRef}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUpOrLeave}
+              onMouseLeave={handleMouseUpOrLeave}
+              onScroll={handleTabsScroll}
+              className={`px-6 py-3 flex items-center gap-2 overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing select-none`}
+            >
               {canView('wbs') && <TabBtn active={tab === 'wbs'} id="wbs" label="Planilha EAP" icon={<Layers size={16} />} />}
               {canView('technical_analysis') && <TabBtn active={tab === 'stats'} id="stats" label="Análise Técnica" icon={<BarChart3 size={16} />} />}
               {canView('financial_flow') && <TabBtn active={tab === 'expenses'} id="expenses" label="Fluxo Financeiro" icon={<Coins size={16} />} />}
