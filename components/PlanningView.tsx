@@ -401,30 +401,34 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
       
       {!isSuppliesView && (
         <div className="no-print flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => window.print()}
-              className="flex items-center gap-2 px-5 py-3 text-slate-700 dark:text-slate-300 text-[9px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700 rounded-xl hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all"
-            >
-              <Printer size={16} /> PDF
-            </button>
-            <div className="flex items-center gap-1">
+          {showSubTabs ? (
+            <div className="flex flex-wrap items-center gap-3">
               <button
-                onClick={() => fileInputRef.current?.click()}
-                className="p-2 text-slate-400 hover:text-emerald-600 transition-colors"
-                title="Importar Excel"
+                onClick={() => window.print()}
+                className="flex items-center gap-2 px-5 py-3 text-slate-700 dark:text-slate-300 text-[9px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700 rounded-xl hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all"
               >
-                <UploadCloud size={16}/>
+                <Printer size={16} /> PDF
               </button>
-              <button
-                onClick={() => excelService.exportPlanningToExcel(project)}
-                className="p-2 text-slate-400 hover:text-blue-600 transition-colors"
-                title="Exportar Excel"
-              >
-                <Download size={16}/>
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-2 text-slate-400 hover:text-emerald-600 transition-colors"
+                  title="Importar Excel"
+                >
+                  <UploadCloud size={16}/>
+                </button>
+                <button
+                  onClick={() => excelService.exportPlanningToExcel(project)}
+                  className="p-2 text-slate-400 hover:text-blue-600 transition-colors"
+                  title="Exportar Excel"
+                >
+                  <Download size={16}/>
+                </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div />
+          )}
 
           {showSubTabs ? (
             <div className="flex bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-x-auto no-scrollbar">
@@ -432,11 +436,30 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
               <SubTabBtn active={activeSubTab === 'milestones'} onClick={() => setActiveSubTab('milestones')} label="Cronograma" icon={<Target size={14}/>} />
             </div>
           ) : (
-            activeSubTab === 'tasks' && (
-              <button onClick={handleAutoGenerate} className="flex items-center gap-2 px-6 py-3 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-sm">
-                <Wand2 size={16} /> Inteligência EAP
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                onClick={() => window.print()}
+                className="flex items-center gap-2 px-5 py-3 text-slate-700 dark:text-slate-300 text-[9px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700 rounded-xl hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all"
+              >
+                <Printer size={16} /> PDF
               </button>
-            )
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-2 text-slate-400 hover:text-emerald-600 transition-colors"
+                  title="Importar Excel"
+                >
+                  <UploadCloud size={16}/>
+                </button>
+                <button
+                  onClick={() => excelService.exportPlanningToExcel(project)}
+                  className="p-2 text-slate-400 hover:text-blue-600 transition-colors"
+                  title="Exportar Excel"
+                >
+                  <Download size={16}/>
+                </button>
+              </div>
+            </div>
           )}
         </div>
       )}
