@@ -191,7 +191,9 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                               <p>
                                 {isRevenueTable
                                   ? item.status === 'PENDING' ? 'Pendente' : 'Faturado'
-                                  : item.isPaid ? 'Pago' : item.status === 'PENDING' ? 'Pendencia' : 'Competencia'}: {financial.formatDate(item.isPaid ? (item.paymentDate || item.date) : item.date)}
+                                  : isOtherTable
+                                    ? item.isPaid ? 'Transferido' : item.status === 'PENDING' ? 'Pendencia' : 'Competencia'
+                                    : item.isPaid ? 'Pago' : item.status === 'PENDING' ? 'Pendencia' : 'Competencia'}: {financial.formatDate(item.isPaid ? (item.paymentDate || item.date) : item.date)}
                               </p>
                               {item.deliveryDate && item.type !== 'other' && (
                                 <p className="text-emerald-600 font-bold">Entregue: {financial.formatDate(item.deliveryDate)}</p>

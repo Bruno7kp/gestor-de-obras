@@ -16,7 +16,7 @@ import {
   Plus, Search, CheckCircle2, Wallet, ArrowRightLeft,
   X, BarChart3, PieChart, Clock, ArrowUpRight,
   Maximize2, Minimize2, Truck, Users, Download, UploadCloud,
-  FileSpreadsheet, Landmark, Coins, AlertCircle, Printer, FolderPlus, Layers
+  FileSpreadsheet, Landmark, Coins, AlertCircle, Printer, FolderPlus, Layers, Info
 } from 'lucide-react';
 
 interface ExpenseManagerProps {
@@ -594,7 +594,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
       {activeTab === 'overview' ? (
         <FinancialSummary stats={stats} currencySymbol={project.theme?.currencySymbol} />
       ) : (
-        <div className="space-y-4">
+        <div className={activeTab === 'other' ? 'space-y-1' : 'space-y-4'}>
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-2">
               <button onClick={() => setExpandedIds(new Set(expenses.map(e => e.id)))} className="px-3 py-1.5 text-[9px] font-black uppercase text-slate-500 border rounded-lg hover:bg-slate-50"><Maximize2 size={12} className="inline mr-1" /> Expandir</button>
@@ -642,6 +642,13 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
               </div>
             </div>
           </div>
+
+          {activeTab === 'other' && (
+            <div className="flex items-center gap-2 text-[10px] font-medium text-slate-400">
+              <Info size={12} className="text-slate-400" />
+              <span>Documente transferências para controle interno que não impacte os custos diretos da obra</span>
+            </div>
+          )}
 
           <ExpenseTreeTable
             data={flattenedExpenses}
