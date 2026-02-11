@@ -79,6 +79,23 @@ export const laborContractsApi = {
     return normalizeContract(await response.json());
   },
 
+  async upsertPayment(id: string, payment: LaborPayment): Promise<LaborContract> {
+    const response = await fetch(`${API_BASE}/labor-contracts/${id}/payments`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(payment),
+    });
+
+    if (!response.ok) {
+      throw new Error('Falha ao salvar pagamento');
+    }
+
+    return normalizeContract(await response.json());
+  },
+
   async remove(id: string): Promise<void> {
     const response = await fetch(`${API_BASE}/labor-contracts/${id}`, {
       method: 'DELETE',

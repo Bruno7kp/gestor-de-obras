@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { removeLocalUploads } from '../uploads/file.utils';
 import { ensureProjectAccess } from '../common/project-access.util';
@@ -8,7 +9,8 @@ interface LaborPaymentInput {
   data: string;
   valor: number;
   descricao: string;
-  comprovante?: string;
+  comprovante?: string | null;
+  createdById?: string | null;
 }
 
 interface CreateLaborContractInput {
@@ -101,7 +103,10 @@ export class LaborContractsService {
       where: { projectId },
       orderBy: { ordem: 'asc' },
       include: {
-        pagamentos: { orderBy: { data: 'asc' } },
+        pagamentos: {
+          orderBy: { data: 'asc' },
+          include: { createdBy: { select: { id: true, name: true, profileImage: true } } },
+        },
         linkedWorkItems: { select: { workItemId: true } },
       },
     });
@@ -153,12 +158,13 @@ export class LaborContractsService {
       if (pagamentos.length) {
         await prisma.laborPayment.createMany({
           data: pagamentos.map(p => ({
-            id: p.id,
+              id: p.id,
             data: p.data,
             valor: p.valor,
             descricao: p.descricao,
             comprovante: p.comprovante || null,
             laborContractId: contract.id,
+              createdById: p.createdById ?? input.userId ?? null,
           })),
         });
       }
@@ -166,7 +172,10 @@ export class LaborContractsService {
       return prisma.laborContract.findUnique({
         where: { id: contract.id },
         include: {
-          pagamentos: { orderBy: { data: 'asc' } },
+          pagamentos: {
+            orderBy: { data: 'asc' },
+            include: { createdBy: { select: { id: true, name: true, profileImage: true } } },
+          },
           linkedWorkItems: { select: { workItemId: true } },
         },
       });
@@ -237,20 +246,31 @@ export class LaborContractsService {
       }
 
       if (pagamentos) {
+        const existingPayments = await prisma.laborPayment.findMany({
+          where: { laborContractId: updated.id },
+          select: { id: true, createdById: true },
+        });
+        const createdByMap = new Map(existingPayments.map(p => [p.id, p.createdById] as const));
+
         await prisma.laborPayment.deleteMany({
           where: { laborContractId: updated.id },
         });
 
         if (pagamentos.length) {
           await prisma.laborPayment.createMany({
-            data: pagamentos.map(p => ({
-              id: p.id,
-              data: p.data,
-              valor: p.valor,
-              descricao: p.descricao,
-              comprovante: p.comprovante || null,
-              laborContractId: updated.id,
-            })),
+            data: pagamentos.map(p => {
+              const paymentId = p.id ?? null;
+              const existingCreatedById = paymentId ? createdByMap.get(paymentId) : null;
+              return {
+                id: p.id,
+                data: p.data,
+                valor: p.valor,
+                descricao: p.descricao,
+                comprovante: p.comprovante || null,
+                laborContractId: updated.id,
+                createdById: existingCreatedById ?? p.createdById ?? input.userId ?? null,
+              };
+            }),
           });
         }
       }
@@ -258,10 +278,84 @@ export class LaborContractsService {
       return prisma.laborContract.findUnique({
         where: { id: updated.id },
         include: {
-          pagamentos: { orderBy: { data: 'asc' } },
+          pagamentos: {
+            orderBy: { data: 'asc' },
+            include: { createdBy: { select: { id: true, name: true, profileImage: true } } },
+          },
           linkedWorkItems: { select: { workItemId: true } },
         },
       });
+    });
+  }
+
+  async upsertPayment(
+    contractId: string,
+    payment: LaborPaymentInput,
+    instanceId: string,
+    userId?: string,
+  ) {
+    let existing = await this.prisma.laborContract.findFirst({
+      where: { id: contractId, project: { instanceId } },
+    });
+    if (!existing && userId) {
+      existing = await this.prisma.laborContract.findFirst({
+        where: { id: contractId, project: { members: { some: { userId } } } },
+      });
+    }
+    if (!existing) throw new NotFoundException('Contrato nao encontrado');
+
+    const paymentId = payment.id ?? randomUUID();
+    const currentPayment = await this.prisma.laborPayment.findFirst({
+      where: { id: paymentId, laborContractId: existing.id },
+      select: { id: true, createdById: true },
+    });
+
+    if (currentPayment) {
+      await this.prisma.laborPayment.update({
+        where: { id: currentPayment.id },
+        data: {
+          data: payment.data,
+          valor: payment.valor,
+          descricao: payment.descricao,
+          comprovante: payment.comprovante || null,
+        },
+      });
+    } else {
+      await this.prisma.laborPayment.create({
+        data: {
+          id: paymentId,
+          data: payment.data,
+          valor: payment.valor,
+          descricao: payment.descricao,
+          comprovante: payment.comprovante || null,
+          laborContractId: existing.id,
+          createdById: payment.createdById ?? userId ?? null,
+        },
+      });
+    }
+
+    const allPayments = await this.prisma.laborPayment.findMany({
+      where: { laborContractId: existing.id },
+    });
+    const totals = this.getPaymentTotals(allPayments, existing.valorTotal);
+
+    await this.prisma.laborContract.update({
+      where: { id: existing.id },
+      data: {
+        valorPago: totals.valorPago,
+        status: totals.status,
+      },
+    });
+
+    return this.prisma.laborContract.findUnique({
+      where: { id: existing.id },
+      include: {
+        pagamentos: {
+          orderBy: { data: 'asc' },
+          include: { createdBy: { select: { id: true, name: true, profileImage: true } } },
+        },
+        linkedWorkItems: { select: { workItemId: true } },
+      },
     });
   }
 

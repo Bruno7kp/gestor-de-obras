@@ -72,6 +72,8 @@ export interface LaborPayment {
   valor: number;
   descricao: string;
   comprovante?: string; // URL
+  createdById?: string;
+  createdBy?: Pick<UserAccount, 'id' | 'name' | 'profileImage'> | null;
 }
 
 export interface LaborContract {

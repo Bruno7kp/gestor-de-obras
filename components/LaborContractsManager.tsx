@@ -9,6 +9,7 @@ import { useToast } from '../hooks/useToast';
 import { uiPreferences } from '../utils/uiPreferences';
 import { financial } from '../utils/math';
 import { treeService } from '../services/treeService';
+import { useAuth } from '../auth/AuthContext';
 import { 
   Briefcase, Plus, Search, Trash2, Edit2, DollarSign, Calendar, 
   CheckCircle2, Clock, AlertCircle, User, FileText, Download, X,
@@ -30,6 +31,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
   onUpdateExpense,
   isReadOnly = false,
 }) => {
+  const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingContract, setEditingContract] = useState<LaborContract | null>(null);
@@ -47,6 +49,14 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
     isNew: boolean;
   } | null>(null);
   const toast = useToast();
+
+  const getInitials = (name?: string | null) => {
+    if (!name) return '';
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '';
+    if (parts.length === 1) return parts[0][0]?.toUpperCase() ?? '';
+    return `${parts[0][0] ?? ''}${parts[parts.length - 1][0] ?? ''}`.toUpperCase();
+  };
 
   const contracts = project.laborContracts || [];
   const workforce = project.workforce || [];
@@ -193,6 +203,17 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
 
     try {
       if (exists) {
+        const normalizedPayments = user
+          ? updated.pagamentos.map((payment) => (
+              payment.createdById
+                ? payment
+                : {
+                    ...payment,
+                    createdById: user.id,
+                    createdBy: { id: user.id, name: user.name, profileImage: user.profileImage ?? null },
+                  }
+            ))
+          : updated.pagamentos;
         const saved = await laborContractsApi.update(contract.id, {
           tipo: updated.tipo,
           descricao: updated.descricao,
@@ -204,10 +225,21 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
           linkedWorkItemIds: updated.linkedWorkItemIds ?? (updated.linkedWorkItemId ? [updated.linkedWorkItemId] : []),
           observacoes: updated.observacoes,
           ordem: updated.ordem,
-          pagamentos: updated.pagamentos,
+          pagamentos: normalizedPayments,
         });
         onUpdateProject({ laborContracts: newContracts.map(c => c.id === contract.id ? saved : c) });
       } else {
+        const normalizedPayments = user
+          ? updated.pagamentos.map((payment) => (
+              payment.createdById
+                ? payment
+                : {
+                    ...payment,
+                    createdById: user.id,
+                    createdBy: { id: user.id, name: user.name, profileImage: user.profileImage ?? null },
+                  }
+            ))
+          : updated.pagamentos;
         const created = await laborContractsApi.create(project.id, {
           tipo: updated.tipo,
           descricao: updated.descricao,
@@ -219,7 +251,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
           linkedWorkItemIds: updated.linkedWorkItemIds ?? (updated.linkedWorkItemId ? [updated.linkedWorkItemId] : []),
           observacoes: updated.observacoes,
           ordem: updated.ordem,
-          pagamentos: updated.pagamentos,
+          pagamentos: normalizedPayments,
         });
         onUpdateProject({ laborContracts: [...contracts, created] });
 
@@ -285,7 +317,13 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
 
   const handleOpenPaymentModal = (contractId: string, payment?: LaborPayment) => {
     if (isReadOnly) return;
-    const targetPayment = payment ?? laborContractService.createPayment();
+    const targetPayment = payment ?? {
+      ...laborContractService.createPayment(),
+      createdById: user?.id,
+      createdBy: user?.id && user?.name
+        ? { id: user.id, name: user.name, profileImage: user.profileImage ?? null }
+        : undefined,
+    };
     setExpandedPayments(prev => ({ ...prev, [contractId]: true }));
     setEditingPayment({
       contractId,
@@ -306,6 +344,10 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
     const normalizedPayment: LaborPayment = {
       ...payment,
       comprovante: options.isPaid ? options.paymentProof : undefined,
+      createdById: payment.createdById ?? user?.id,
+      createdBy: payment.createdBy ?? (user?.id && user?.name
+        ? { id: user.id, name: user.name, profileImage: user.profileImage ?? null }
+        : undefined),
     };
 
     const nextPayments = options.isNew
@@ -362,9 +404,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
     }
 
     try {
-      const saved = await laborContractsApi.update(contractId, {
-        pagamentos: updatedContract.pagamentos,
-      });
+      const saved = await laborContractsApi.upsertPayment(contractId, normalizedPayment);
       onUpdateProject({
         laborContracts: nextContracts.map(c => c.id === contractId ? saved : c)
       });
@@ -626,9 +666,25 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
                             <p className="text-xs font-bold text-slate-800 dark:text-white">
                               {pag.descricao || 'Pagamento'}
                             </p>
-                            <p className="text-[9px] text-slate-400">
-                              {formatLocalDate(pag.data)}
-                            </p>
+                              <div className="flex flex-wrap items-center gap-2 text-[9px] text-slate-400">
+                                <span>{formatLocalDate(pag.data)}</span>
+                                {pag.createdBy?.name && (
+                                  <span className="flex items-center gap-2">
+                                    {pag.createdBy.profileImage ? (
+                                      <img
+                                        src={pag.createdBy.profileImage}
+                                        alt={pag.createdBy.name}
+                                        className="w-5 h-5 rounded-full object-cover border border-slate-200"
+                                      />
+                                    ) : (
+                                      <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[9px] font-black">
+                                        {getInitials(pag.createdBy.name)}
+                                      </span>
+                                    )}
+                                    <span>Solicitado por {pag.createdBy.name}</span>
+                                  </span>
+                                )}
+                              </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">

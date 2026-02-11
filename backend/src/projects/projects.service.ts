@@ -253,7 +253,10 @@ export class ProjectsService {
         workforce: { include: { documentos: true, responsabilidades: true } },
         laborContracts: {
           include: {
-            pagamentos: { orderBy: { data: 'asc' } },
+            pagamentos: {
+              orderBy: { data: 'asc' },
+              include: { createdBy: { select: { id: true, name: true, profileImage: true } } },
+            },
             linkedWorkItems: { select: { workItemId: true } },
           },
         },
@@ -307,7 +310,10 @@ export class ProjectsService {
           workforce: { include: { documentos: true, responsabilidades: true } },
           laborContracts: {
             include: {
-              pagamentos: { orderBy: { data: 'asc' } },
+              pagamentos: {
+                orderBy: { data: 'asc' },
+                include: { createdBy: { select: { id: true, name: true, profileImage: true } } },
+              },
               linkedWorkItems: { select: { workItemId: true } },
             },
           },
@@ -733,7 +739,10 @@ export class ProjectsService {
         workforce: { include: { documentos: true, responsabilidades: true } },
         laborContracts: {
           include: {
-            pagamentos: { orderBy: { data: 'asc' } },
+            pagamentos: {
+              orderBy: { data: 'asc' },
+              include: { createdBy: { select: { id: true, name: true, profileImage: true } } },
+            },
             linkedWorkItems: { select: { workItemId: true } },
           },
         },

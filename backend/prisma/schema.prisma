@@ -80,6 +80,7 @@ model User {
   roles         UserRole[]
   projectAccess ProjectMember[]
   createdForecasts MaterialForecast[] @relation("UserForecasts")
+  createdLaborPayments LaborPayment[] @relation("UserLaborPayments")
 }
 
 model Role {
@@ -451,8 +452,10 @@ model LaborPayment {
   valor           Float
   descricao       String
   comprovante     String?
+  createdById     String?
   laborContractId String
   laborContract   LaborContract @relation(fields: [laborContractId], references: [id])
+  createdBy       User? @relation("UserLaborPayments", fields: [createdById], references: [id])
 }
 
 model StaffDocument {

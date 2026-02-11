@@ -21,6 +21,7 @@ interface LaborPaymentBody {
   valor: number;
   descricao: string;
   comprovante?: string;
+  createdById?: string | null;
 }
 
 interface CreateLaborContractBody {
@@ -72,6 +73,20 @@ export class LaborContractsController {
       instanceId: req.user.instanceId,
       userId: req.user.id,
     });
+  }
+
+  @Post(':id/payments')
+  upsertPayment(
+    @Param('id') id: string,
+    @Body() body: LaborPaymentBody,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.laborContractsService.upsertPayment(
+      id,
+      body,
+      req.user.instanceId,
+      req.user.id,
+    );
   }
 
   @Delete(':id')
