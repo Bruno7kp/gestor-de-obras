@@ -7,6 +7,7 @@ import { workItemsApi } from '../services/workItemsApi';
 import { projectsApi } from '../services/projectsApi';
 import { financial } from '../utils/math';
 import { TreeTable } from './TreeTable';
+import { ConfirmModal } from './ConfirmModal';
 import { usePermissions } from '../hooks/usePermissions';
 import { useToast } from '../hooks/useToast';
 import { 
@@ -45,6 +46,7 @@ export const WbsView: React.FC<WbsViewProps> = ({
   const localItemsRef = useRef<WorkItem[]>(project.items);
   const [localContractOverride, setLocalContractOverride] = useState<number | undefined>(project.contractTotalOverride);
   const [localCurrentOverride, setLocalCurrentOverride] = useState<number | undefined>(project.currentTotalOverride);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const initialSnapshotRef = useRef<{
     items: WorkItem[];
     contractOverride: number | undefined;
@@ -185,6 +187,18 @@ export const WbsView: React.FC<WbsViewProps> = ({
       updateLocalItems(items);
       onUpdateProject({ items });
     });
+  };
+
+  const handleDeleteItem = async (id: string) => {
+    if (isReadOnly) return;
+    const idsToRemove = collectDescendants(localItemsRef.current, id);
+    const nextItems = localItemsRef.current.filter(item => !idsToRemove.has(item.id));
+    updateItemsState(nextItems);
+    try {
+      await workItemsApi.remove(id);
+    } catch (error) {
+      console.error('Erro ao remover item:', error);
+    }
   };
 
   const moveWorkItemInParent = async (id: string, direction: 'up' | 'down') => {
@@ -540,16 +554,9 @@ export const WbsView: React.FC<WbsViewProps> = ({
           onExpandAll={() => setExpandedIds(new Set<string>(localItemsRef.current.filter(i => i.type === 'category').map(i => i.id)))}
           onCollapseAll={() => setExpandedIds(new Set<string>())}
           onScrollContainer={(el) => { tableScrollRef.current = el; }}
-          onDelete={async (id) => {
+          onDelete={(id) => {
             if (isReadOnly) return;
-            const idsToRemove = collectDescendants(localItemsRef.current, id);
-            const nextItems = localItemsRef.current.filter(item => !idsToRemove.has(item.id));
-            updateItemsState(nextItems);
-            try {
-              await workItemsApi.remove(id);
-            } catch (error) {
-              console.error('Erro ao remover item:', error);
-            }
+            setConfirmDeleteId(id);
           }}
           onUpdateQuantity={updateItemQuantity}
           onUpdatePercentage={updateItemPercentage}
@@ -640,6 +647,32 @@ export const WbsView: React.FC<WbsViewProps> = ({
           currentTotalOverride={localCurrentOverride}
         />
       </div>
+
+      <ConfirmModal
+        isOpen={!!confirmDeleteId}
+        title="Excluir item da EAP"
+        message={(() => {
+          if (!confirmDeleteId) return 'Deseja realmente excluir este item da EAP?';
+          const target = localItemsRef.current.find(item => item.id === confirmDeleteId);
+          const idsToRemove = collectDescendants(localItemsRef.current, confirmDeleteId);
+          const count = idsToRemove.size;
+          const name = target?.name ? `"${target.name}"` : 'este item';
+          if (count > 1) {
+            return `Deseja realmente excluir ${name}? ${count - 1} itens abaixo também serão removidos.`;
+          }
+          return `Deseja realmente excluir ${name}?`;
+        })()}
+        confirmLabel="Excluir"
+        cancelLabel="Cancelar"
+        variant="danger"
+        onConfirm={async () => {
+          if (!confirmDeleteId) return;
+          const deleteId = confirmDeleteId;
+          setConfirmDeleteId(null);
+          await handleDeleteItem(deleteId);
+        }}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
 
       {importSummary && (
         <div 

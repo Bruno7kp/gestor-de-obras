@@ -8,6 +8,7 @@ import { excelService, ExpenseImportResult } from '../services/excelService';
 import { projectExpensesApi } from '../services/projectExpensesApi';
 import { ExpenseTreeTable } from './ExpenseTreeTable';
 import { ExpenseModal } from './ExpenseModal';
+import { ConfirmModal } from './ConfirmModal';
 import { usePermissions } from '../hooks/usePermissions';
 import { useToast } from '../hooks/useToast';
 import { uiPreferences } from '../utils/uiPreferences';
@@ -64,6 +65,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
   const [modalItemType, setModalItemType] = useState<ItemType>('item');
   const [editingExpense, setEditingExpense] = useState<ProjectExpense | null>(null);
   const [targetParentId, setTargetParentId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     localStorage.setItem(`exp_fin_${project.id}`, JSON.stringify(Array.from(expandedIds)));
@@ -203,6 +205,11 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
       }
       return item;
     });
+  };
+
+  const requestDeleteExpense = (id: string) => {
+    if (!canEditFinancial) return;
+    setConfirmDeleteId(id);
   };
 
   const handleImportExpenses = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -588,7 +595,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
               });
             }}
             onEdit={expense => { setEditingExpense(expense); setIsModalOpen(true); }}
-            onDelete={onDelete}
+            onDelete={requestDeleteExpense}
             onAddChild={(pid, itype) => { setTargetParentId(pid); setModalItemType(itype); setIsModalOpen(true); }}
             onUpdateTotal={(id, total) => onUpdate(id, { amount: total })}
             onUpdateUnitPrice={(id, price) => onUpdate(id, { unitPrice: price })}
@@ -628,6 +635,31 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
         itemType={modalItemType}
         categories={processedExpenseCategories as any}
         currencySymbol={project.theme?.currencySymbol || 'R$'}
+      />
+
+      <ConfirmModal
+        isOpen={!!confirmDeleteId}
+        title="Excluir lançamento"
+        message={(() => {
+          if (!confirmDeleteId) return 'Deseja realmente excluir este lançamento?';
+          const target = expenses.find(expense => expense.id === confirmDeleteId);
+          const hasChildren = expenses.some(expense => expense.parentId === confirmDeleteId);
+          const isCategory = target?.itemType === 'category';
+          if (isCategory && hasChildren) {
+            return 'Deseja realmente excluir este grupo? Os itens vinculados também serão removidos.';
+          }
+          return 'Deseja realmente excluir este lançamento?';
+        })()}
+        confirmLabel="Excluir"
+        cancelLabel="Cancelar"
+        variant="danger"
+        onConfirm={() => {
+          if (!confirmDeleteId) return;
+          const deleteId = confirmDeleteId;
+          setConfirmDeleteId(null);
+          onDelete(deleteId);
+        }}
+        onCancel={() => setConfirmDeleteId(null)}
       />
     </div>
   );
