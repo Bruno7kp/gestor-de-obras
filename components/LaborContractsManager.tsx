@@ -1412,7 +1412,7 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, financialCa
                   </button>
                 )}
               </div>
-              <div className="flex-1 min-h-0 overflow-y-auto border-2 border-slate-100 dark:border-slate-800 rounded-3xl p-4 bg-slate-50 dark:bg-slate-950 space-y-2">
+              <div className="flex-1 min-h-0 max-h-[400px] overflow-y-auto border-2 border-slate-100 dark:border-slate-800 rounded-3xl p-4 bg-slate-50 dark:bg-slate-950 space-y-2">
                 {workTree.length === 0 ? (
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                     Nenhum item da EAP
