@@ -15,7 +15,7 @@ import {
   Plus, Search, CheckCircle2, Wallet, ArrowRightLeft,
   X, BarChart3, PieChart, Clock, ArrowUpRight,
   Maximize2, Minimize2, Truck, Users, Download, UploadCloud,
-  FileSpreadsheet, Landmark, Coins, AlertCircle, Printer, FolderPlus
+  FileSpreadsheet, Landmark, Coins, AlertCircle, Printer, FolderPlus, Layers
 } from 'lucide-react';
 
 interface ExpenseManagerProps {
@@ -268,6 +268,96 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
     }
   };
 
+  const importMaterialGroupsFromWbs = () => {
+    if (activeTab !== 'material') return;
+    if (!canEditFinancial) return;
+
+    const categories = workItems.filter(item => item.type === 'category');
+    if (categories.length === 0) {
+      toast.warning('Nenhum grupo encontrado na EAP.');
+      return;
+    }
+
+    const existingCategories = expenses.filter(expense =>
+      expense.type === 'material' &&
+      expense.itemType === 'category' &&
+      expense.linkedWorkItemId
+    );
+
+    const byWorkItemId = new Map<string, ProjectExpense>(
+      existingCategories.map(expense => [expense.linkedWorkItemId as string, expense])
+    );
+
+    const categoryMap = new Map(categories.map(item => [item.id, item] as const));
+    const depthCache = new Map<string, number>();
+    const getDepth = (id: string): number => {
+      const cached = depthCache.get(id);
+      if (cached !== undefined) return cached;
+      const current = categoryMap.get(id);
+      if (!current?.parentId) {
+        depthCache.set(id, 0);
+        return 0;
+      }
+      const parent = categoryMap.get(current.parentId);
+      if (!parent || parent.type !== 'category') {
+        depthCache.set(id, 0);
+        return 0;
+      }
+      const depth = getDepth(parent.id) + 1;
+      depthCache.set(id, depth);
+      return depth;
+    };
+
+    const sorted = [...categories].sort((a, b) => {
+      const depthDiff = getDepth(a.id) - getDepth(b.id);
+      if (depthDiff !== 0) return depthDiff;
+      return a.order - b.order;
+    });
+
+    const today = new Date().toISOString().split('T')[0];
+    const newCategories: ProjectExpense[] = [];
+
+    sorted.forEach((item) => {
+      if (byWorkItemId.has(item.id)) return;
+
+      const parentExpense = item.parentId ? byWorkItemId.get(item.parentId) : undefined;
+      const newCategory: ProjectExpense = {
+        id: crypto.randomUUID(),
+        parentId: parentExpense?.id ?? null,
+        type: 'material',
+        itemType: 'category',
+        wbs: item.wbs,
+        order: item.order,
+        date: today,
+        description: item.name,
+        entityName: '',
+        unit: '',
+        quantity: 0,
+        unitPrice: 0,
+        amount: 0,
+        isPaid: false,
+        status: 'PENDING',
+        linkedWorkItemId: item.id,
+      };
+
+      newCategories.push(newCategory);
+      byWorkItemId.set(item.id, newCategory);
+    });
+
+    if (newCategories.length === 0) {
+      toast.info('Todos os grupos da EAP ja existem em Materiais.');
+      return;
+    }
+
+    onAddMany(newCategories);
+    setExpandedIds((prev: Set<string>) => {
+      const next = new Set<string>(prev);
+      newCategories.forEach(category => next.add(category.id));
+      return next;
+    });
+    toast.success('Grupos da EAP importados para Materiais.');
+  };
+
   const handleSaveExpense = (data: Partial<ProjectExpense>) => {
     if (editingExpense) {
       const nextType = (data.type ?? editingExpense.type) as ExpenseType;
@@ -344,7 +434,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
                 onClick={() => { setModalItemType('category'); setEditingExpense(null); setTargetParentId(null); setIsModalOpen(true); }}
                 className="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-[9px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700 shadow-sm hover:bg-slate-50 transition-all"
               >
-                <FolderPlus size={14} /> Criar Grupo
+                <FolderPlus size={14} /> Grupo
               </button>
               <button
                 onClick={() => { setModalItemType('item'); setEditingExpense(null); setTargetParentId(null); setIsModalOpen(true); }}
@@ -375,6 +465,16 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
           <div className="flex items-center gap-2">
             <button onClick={() => setExpandedIds(new Set(expenses.map(e => e.id)))} className="px-3 py-1.5 text-[9px] font-black uppercase text-slate-500 border rounded-lg hover:bg-slate-50"><Maximize2 size={12} className="inline mr-1" /> Expandir</button>
             <button onClick={() => setExpandedIds(new Set())} className="px-3 py-1.5 text-[9px] font-black uppercase text-slate-500 border rounded-lg hover:bg-slate-50"><Minimize2 size={12} className="inline mr-1" /> Recolher</button>
+            {activeTab === 'material' && (
+              <button
+                onClick={importMaterialGroupsFromWbs}
+                disabled={!canEditFinancial}
+                className={`px-3 py-1.5 text-[9px] font-black uppercase border rounded-lg transition-colors ${canEditFinancial ? 'text-slate-500 hover:bg-slate-50' : 'text-slate-300 cursor-not-allowed'}`}
+                title="Importar grupos da EAP"
+              >
+                <Layers size={12} className="inline mr-1" /> Importar Grupos
+              </button>
+            )}
           </div>
 
           <ExpenseTreeTable
