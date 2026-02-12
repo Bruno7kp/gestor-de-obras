@@ -90,7 +90,7 @@ export const normalizeProject = (project: any): Project => {
     date: snapshot.date,
     items: snapshot.items ?? snapshot.itemsSnapshot ?? [],
     totals: snapshot.totals ?? {},
-  }));
+  })).sort((a, b) => (b.measurementNumber ?? 0) - (a.measurementNumber ?? 0));
 
   return {
     id: project.id,

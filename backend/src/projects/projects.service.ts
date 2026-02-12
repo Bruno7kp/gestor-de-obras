@@ -232,7 +232,9 @@ export class ProjectsService {
       where: { id, instanceId },
       include: {
         items: true,
-        history: true,
+        history: {
+          orderBy: { measurementNumber: 'desc' },
+        },
         expenses: true,
         assets: {
           include: {
@@ -293,7 +295,9 @@ export class ProjectsService {
         where: { id, members: { some: { userId } } },
         include: {
           items: true,
-          history: true,
+          history: {
+            orderBy: { measurementNumber: 'desc' },
+          },
           expenses: true,
           assets: {
             include: {
@@ -726,7 +730,9 @@ export class ProjectsService {
       where: { id: projectId },
       include: {
         items: true,
-        history: true,
+        history: {
+          orderBy: { measurementNumber: 'desc' },
+        },
         expenses: true,
         assets: {
           include: {
