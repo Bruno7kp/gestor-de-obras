@@ -443,7 +443,7 @@ export const WbsView: React.FC<WbsViewProps> = ({
       }
       return it;
     });
-    updateLocalItems(nextItems);
+    updateItemsState(nextItems);
     await syncItemUpdate(id, { currentQuantity: nextItems.find(it => it.id === id)?.currentQuantity ?? 0 });
   };
 
@@ -461,7 +461,7 @@ export const WbsView: React.FC<WbsViewProps> = ({
       return it;
     });
     const updated = nextItems.find(it => it.id === id);
-    updateLocalItems(nextItems);
+    updateItemsState(nextItems);
     if (updated) {
       await syncItemUpdate(id, { currentQuantity: updated.currentQuantity, currentPercentage: updated.currentPercentage });
     }
@@ -573,7 +573,7 @@ export const WbsView: React.FC<WbsViewProps> = ({
               return it;
             });
             const updated = nextItems.find(it => it.id === id);
-            updateLocalItems(nextItems);
+            updateItemsState(nextItems);
             if (updated) {
               await syncItemUpdate(id, { unitPrice: updated.unitPrice, unitPriceNoBdi: updated.unitPriceNoBdi });
             }
@@ -590,7 +590,7 @@ export const WbsView: React.FC<WbsViewProps> = ({
               return it;
             });
             const updated = nextItems.find(it => it.id === id);
-            updateLocalItems(nextItems);
+            updateItemsState(nextItems);
             if (updated) {
               await syncItemUpdate(id, { unitPrice: updated.unitPrice, unitPriceNoBdi: updated.unitPriceNoBdi });
             }
