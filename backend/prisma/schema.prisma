@@ -81,6 +81,7 @@ model User {
   projectAccess ProjectMember[]
   createdForecasts MaterialForecast[] @relation("UserForecasts")
   createdLaborPayments LaborPayment[] @relation("UserLaborPayments")
+  createdProjectAssets ProjectAsset[] @relation("UserProjectAssets")
 }
 
 model Role {
@@ -255,12 +256,15 @@ model MeasurementSnapshot {
 model ProjectAsset {
   id         String  @id @default(uuid())
   name       String
+  category   String  @default("DOCUMENTO_DIVERSO")
   fileType   String
   fileSize   Int
   uploadDate String
   data       String
+  createdById String?
   projectId  String
   project    Project @relation(fields: [projectId], references: [id])
+  createdBy  User?   @relation("UserProjectAssets", fields: [createdById], references: [id])
 }
 
 model ProjectExpense {

@@ -234,7 +234,11 @@ export class ProjectsService {
         items: true,
         history: true,
         expenses: true,
-        assets: true,
+        assets: {
+          include: {
+            createdBy: { select: { id: true, name: true, profileImage: true } },
+          },
+        },
         theme: true,
         members: {
           include: {
@@ -291,7 +295,11 @@ export class ProjectsService {
           items: true,
           history: true,
           expenses: true,
-          assets: true,
+          assets: {
+            include: {
+              createdBy: { select: { id: true, name: true, profileImage: true } },
+            },
+          },
           theme: true,
           members: {
             include: {
@@ -720,7 +728,11 @@ export class ProjectsService {
         items: true,
         history: true,
         expenses: true,
-        assets: true,
+        assets: {
+          include: {
+            createdBy: { select: { id: true, name: true, profileImage: true } },
+          },
+        },
         theme: true,
         members: {
           include: {

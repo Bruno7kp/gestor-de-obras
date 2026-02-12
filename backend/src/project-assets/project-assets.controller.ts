@@ -20,10 +20,12 @@ interface CreateAssetBody {
   id?: string;
   projectId: string;
   name: string;
+  category?: string;
   fileType: string;
   fileSize: number;
   uploadDate: string;
   data: string;
+  createdById?: string | null;
 }
 
 type UpdateAssetBody = Partial<CreateAssetBody>;

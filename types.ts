@@ -134,13 +134,22 @@ export interface MeasurementSnapshot {
 }
 
 // --- DOCUMENTOS E ATIVOS ---
+export type ProjectAssetCategory =
+  | 'PLANTA_BAIXA'
+  | 'MEMORIAL'
+  | 'ART'
+  | 'DOCUMENTO_DIVERSO';
+
 export interface ProjectAsset {
   id: string;
   name: string;
+  category?: ProjectAssetCategory;
   fileType: string;
   fileSize: number;
   uploadDate: string;
   data: string;
+  createdById?: string;
+  createdBy?: Pick<UserAccount, 'id' | 'name' | 'profileImage'> | null;
 }
 
 // --- FINANCEIRO ---

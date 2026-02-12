@@ -108,7 +108,11 @@ export const normalizeProject = (project: any): Project => {
     history,
     theme: normalizeTheme(project.theme),
     bdi: project.bdi ?? 25,
-    assets: project.assets ?? [],
+    assets: (project.assets ?? []).map((asset: any) => ({
+      ...asset,
+      category: asset.category ?? 'DOCUMENTO_DIVERSO',
+      createdBy: asset.createdBy ?? null,
+    })),
     expenses: normalizeExpenses(project.expenses),
     workforce: normalizeWorkforce(project.workforce),
     laborContracts: normalizeLaborContracts(project.laborContracts),

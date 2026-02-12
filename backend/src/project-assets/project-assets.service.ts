@@ -9,10 +9,12 @@ interface CreateAssetInput {
   instanceId: string;
   userId?: string;
   name: string;
+  category?: string;
   fileType: string;
   fileSize: number;
   uploadDate: string;
   data: string;
+  createdById?: string | null;
 }
 
 interface UpdateAssetInput extends Partial<CreateAssetInput> {
@@ -37,6 +39,11 @@ export class ProjectAssetsService {
     return this.prisma.projectAsset.findMany({
       where: { projectId },
       orderBy: { uploadDate: 'desc' },
+      include: {
+        createdBy: {
+          select: { id: true, name: true, profileImage: true },
+        },
+      },
     });
   }
 
@@ -47,10 +54,17 @@ export class ProjectAssetsService {
         id: input.id,
         projectId: input.projectId,
         name: input.name,
+        category: input.category ?? 'DOCUMENTO_DIVERSO',
         fileType: input.fileType,
         fileSize: input.fileSize,
         uploadDate: input.uploadDate,
         data: input.data,
+        createdById: input.userId ?? input.createdById ?? null,
+      },
+      include: {
+        createdBy: {
+          select: { id: true, name: true, profileImage: true },
+        },
       },
     });
   }
@@ -77,10 +91,16 @@ export class ProjectAssetsService {
       where: { id: input.id },
       data: {
         name: input.name ?? existing.name,
+        category: input.category ?? existing.category,
         fileType: input.fileType ?? existing.fileType,
         fileSize: input.fileSize ?? existing.fileSize,
         uploadDate: input.uploadDate ?? existing.uploadDate,
         data: input.data ?? existing.data,
+      },
+      include: {
+        createdBy: {
+          select: { id: true, name: true, profileImage: true },
+        },
       },
     });
   }
