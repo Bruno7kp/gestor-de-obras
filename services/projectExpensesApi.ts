@@ -3,6 +3,26 @@ import type { ProjectExpense } from '../types';
 const API_BASE = (import.meta as any).env?.VITE_API_URL ?? '/api';
 
 export const projectExpensesApi = {
+  async getMaterialSuggestions(projectId: string, query: string, limit = 8) {
+    const params = new URLSearchParams({
+      projectId,
+      q: query,
+      limit: String(limit),
+    });
+
+    const response = await fetch(`${API_BASE}/project-expenses/material-suggestions?${params.toString()}`, {
+      method: 'GET',
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error('Falha ao carregar sugestões de material');
+    }
+
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  },
+
   async list(projectId: string): Promise<ProjectExpense[]> {
     const response = await fetch(`${API_BASE}/project-expenses?projectId=${projectId}`, {
       method: 'GET',

@@ -55,6 +55,31 @@ export class ProjectExpensesController {
     private readonly projectExpensesService: ProjectExpensesService,
   ) {}
 
+  @Get('material-suggestions')
+  @HasPermission(
+    'supplies.view',
+    'supplies.edit',
+    'planning.view',
+    'planning.edit',
+    'financial_flow.view',
+    'financial_flow.edit',
+  )
+  getMaterialSuggestions(
+    @Query('projectId') projectId: string,
+    @Query('q') query: string,
+    @Query('limit') limit: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.projectExpensesService.getMaterialSuggestions({
+      projectId,
+      query,
+      limit: Number(limit) || 8,
+      instanceId: req.user.instanceId,
+      userId: req.user.id,
+      permissions: req.user.permissions ?? [],
+    });
+  }
+
   @Get()
   findAll(
     @Query('projectId') projectId: string,

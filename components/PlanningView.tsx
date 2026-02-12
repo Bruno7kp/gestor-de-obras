@@ -4,6 +4,13 @@ import { Project, PlanningTask, MaterialForecast, Milestone, WorkItem, TaskStatu
 import { planningApi } from '../services/planningApi';
 import { planningService } from '../services/planningService';
 import { excelService } from '../services/excelService';
+import {
+  createFallbackMaterialAutocompleteProvider,
+  createLocalMaterialAutocompleteProvider,
+  createRemoteMaterialAutocompleteProvider,
+  type MaterialSuggestion,
+} from '../services/materialAutocompleteService';
+import { projectExpensesApi } from '../services/projectExpensesApi';
 import { financial } from '../utils/math';
 import { 
   CheckCircle2, Circle, Clock, Package, Flag, Plus, 
@@ -13,7 +20,7 @@ import {
   ChevronUp, ChevronDown, List, CalendarDays, Filter, Users, Download, UploadCloud,
   Layers, FlagTriangleRight, Printer, CreditCard, ChevronLeft, ChevronRight,
   Building2, User, FolderTree, FileCheck, ReceiptText, Receipt, FileText, FileSpreadsheet,
-  ArrowRight
+  ArrowRight, Loader2
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { ExpenseAttachmentZone } from './ExpenseAttachmentZone';
@@ -924,8 +931,11 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
       {(isAddingForecast || editingForecast) && (
         <ForecastModal 
           onClose={() => { setIsAddingForecast(false); setEditingForecast(null); }}
+          projectId={project.id}
           allWorkItems={allWorkItems}
           suppliers={suppliers}
+          expenses={project.expenses}
+          forecasts={planning.forecasts}
           editingItem={editingForecast}
           onSave={(data: any) => {
             if (editingForecast) {
@@ -1143,7 +1153,7 @@ const ProcurementStep = ({ active, onClick, label, count, icon, color }: any) =>
 };
 
 // --- PREMIUM FORECAST MODAL (DARK) ---
-const ForecastModal = ({ onClose, onSave, allWorkItems, suppliers, editingItem }: any) => {
+const ForecastModal = ({ onClose, onSave, projectId, allWorkItems, suppliers, expenses, forecasts, editingItem }: any) => {
   const [data, setData] = useState({
     description: editingItem?.description || '',
     quantityNeeded: editingItem?.quantityNeeded || 1,
@@ -1159,10 +1169,150 @@ const ForecastModal = ({ onClose, onSave, allWorkItems, suppliers, editingItem }
   const [strUnitPrice, setStrUnitPrice] = useState(
     financial.formatVisual(editingItem?.unitPrice || 0, '').trim()
   );
+  const [isSearchingSuggestions, setIsSearchingSuggestions] = useState(false);
+  const [suggestions, setSuggestions] = useState<MaterialSuggestion[]>([]);
+  const [highlightedSuggestionIndex, setHighlightedSuggestionIndex] = useState(-1);
+  const [pauseSuggestionsUntilTyping, setPauseSuggestionsUntilTyping] = useState(false);
+  const suggestionsContainerRef = useRef<HTMLDivElement | null>(null);
+  const [manualEdited, setManualEdited] = useState({
+    unit: false,
+    supplierId: false,
+    unitPrice: false,
+  });
+
+  const autocompleteProvider = useMemo(
+    () => {
+      const localProvider = createLocalMaterialAutocompleteProvider({
+        forecasts,
+        expenses,
+        suppliers,
+      });
+
+      const remoteProvider = createRemoteMaterialAutocompleteProvider({
+        searchMaterialSuggestions: (query: string, limit = 8) =>
+          projectExpensesApi.getMaterialSuggestions(projectId, query, limit),
+      });
+
+      return createFallbackMaterialAutocompleteProvider(remoteProvider, localProvider);
+    },
+    [forecasts, expenses, suppliers, projectId],
+  );
+
+  const applySuggestion = (suggestion: MaterialSuggestion, force = false) => {
+    setPauseSuggestionsUntilTyping(true);
+    setData((prev: any) => ({
+      ...prev,
+      description: force ? suggestion.label : (prev.description || suggestion.label),
+      unit: force || !manualEdited.unit ? suggestion.unit || prev.unit : prev.unit,
+      supplierId:
+        force || !manualEdited.supplierId
+          ? (suggestion.supplierId ?? prev.supplierId)
+          : prev.supplierId,
+    }));
+
+    if ((force || !manualEdited.unitPrice) && suggestion.lastUnitPrice !== undefined) {
+      const normalized = financial.normalizeMoney(suggestion.lastUnitPrice || 0);
+      setStrUnitPrice(financial.formatVisual(normalized, '').trim());
+      setData((prev: any) => ({ ...prev, unitPrice: normalized }));
+    }
+
+    setSuggestions([]);
+    setHighlightedSuggestionIndex(-1);
+    setIsSearchingSuggestions(false);
+  };
+
+  const visibleSuggestions = useMemo(() => suggestions.slice(0, 5), [suggestions]);
+
+  useEffect(() => {
+    let active = true;
+    const query = data.description?.trim() || '';
+
+    if (pauseSuggestionsUntilTyping) {
+      setSuggestions([]);
+      setHighlightedSuggestionIndex(-1);
+      setIsSearchingSuggestions(false);
+      return () => {
+        active = false;
+      };
+    }
+
+    if (query.length < 2) {
+      setSuggestions([]);
+      setHighlightedSuggestionIndex(-1);
+      setIsSearchingSuggestions(false);
+      return () => {
+        active = false;
+      };
+    }
+
+    setIsSearchingSuggestions(true);
+    const timer = window.setTimeout(async () => {
+      try {
+        const result = await autocompleteProvider.search(query, 6);
+        if (!active) return;
+        setSuggestions(result);
+        setHighlightedSuggestionIndex(result.length > 0 ? 0 : -1);
+      } finally {
+        if (active) setIsSearchingSuggestions(false);
+      }
+    }, 220);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [autocompleteProvider, data.description, pauseSuggestionsUntilTyping]);
+
+  useEffect(() => {
+    if (highlightedSuggestionIndex < 0) return;
+    const container = suggestionsContainerRef.current;
+    if (!container) return;
+
+    const target = container.querySelector<HTMLButtonElement>(
+      `[data-suggestion-index="${highlightedSuggestionIndex}"]`,
+    );
+    target?.scrollIntoView({ block: 'nearest' });
+  }, [highlightedSuggestionIndex, suggestions.length]);
+
+  const handleDescriptionKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (visibleSuggestions.length === 0) {
+      if (event.key === 'Escape') setSuggestions([]);
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setHighlightedSuggestionIndex((prev) =>
+        prev < 0 ? 0 : Math.min(prev + 1, visibleSuggestions.length - 1),
+      );
+      return;
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setHighlightedSuggestionIndex((prev) =>
+        prev <= 0 ? 0 : Math.max(prev - 1, 0),
+      );
+      return;
+    }
+
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      const target = visibleSuggestions[highlightedSuggestionIndex] ?? visibleSuggestions[0];
+      if (target) applySuggestion(target, true);
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setSuggestions([]);
+      setHighlightedSuggestionIndex(-1);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}>
-      <div className="bg-white dark:bg-[#0f111a] w-full max-w-2xl rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden max-h-[95vh] relative" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-[#0f111a] w-full max-w-4xl rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden max-h-[95vh] relative" onClick={e => e.stopPropagation()}>
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-indigo-500/5 blur-[120px] pointer-events-none"></div>
         
         <div className="p-10 pb-6 shrink-0 flex items-center justify-between z-10">
@@ -1181,13 +1331,63 @@ const ForecastModal = ({ onClose, onSave, allWorkItems, suppliers, editingItem }
         <div className="p-10 pt-0 overflow-y-auto custom-scrollbar flex-1 relative z-10 space-y-8">
            <div>
               <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest block mb-3 ml-1">Descrição Técnica do Material</label>
-              <input 
-                autoFocus 
-                className="w-full px-8 py-5 rounded-3xl bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white text-base font-black outline-none focus:border-indigo-600 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-800" 
-                value={data.description} 
-                onChange={e => setData({...data, description: e.target.value})} 
-                placeholder="Ex: Cimento Portland CP-II" 
-              />
+              <div className="relative">
+                <input 
+                  autoFocus 
+                  className="w-full px-8 py-5 rounded-3xl bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white text-base font-black outline-none focus:border-indigo-600 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-800" 
+                  value={data.description} 
+                  onChange={e => {
+                    setPauseSuggestionsUntilTyping(false);
+                    setData({...data, description: e.target.value});
+                  }} 
+                  onKeyDown={handleDescriptionKeyDown}
+                  placeholder="Ex: Cimento Portland CP-II" 
+                />
+                {isSearchingSuggestions && (
+                  <div className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400">
+                    <Loader2 size={16} className="animate-spin" />
+                  </div>
+                )}
+              </div>
+
+              {(isSearchingSuggestions || suggestions.length > 0) && (
+                <div className="mt-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 overflow-hidden">
+                  {visibleSuggestions.length > 0 && (
+                    <div ref={suggestionsContainerRef} className="max-h-56 overflow-y-auto custom-scrollbar divide-y divide-slate-200 dark:divide-slate-800">
+                      {visibleSuggestions.map((suggestion, index) => (
+                        <button
+                          key={suggestion.normalizedLabel}
+                          type="button"
+                          data-suggestion-index={index}
+                          onClick={() => applySuggestion(suggestion, true)}
+                          onMouseEnter={() => setHighlightedSuggestionIndex(index)}
+                          className={`w-full px-4 py-3 text-left transition-all border-l-2 ${
+                            highlightedSuggestionIndex === index
+                              ? 'bg-white dark:bg-slate-800 border-indigo-500'
+                              : 'border-transparent hover:bg-white dark:hover:bg-slate-800'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">{suggestion.label}</p>
+                              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                                {suggestion.unit || 'UN'} • {financial.formatVisual(suggestion.lastUnitPrice || 0, 'R$')} • {suggestion.supplierName || 'Sem fornecedor'}
+                              </p>
+                            </div>
+                            <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">{suggestion.usageCount}x</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {visibleSuggestions.length > 0 && (
+                    <div className="px-4 py-2 border-t border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 text-[9px] font-bold uppercase tracking-widest text-slate-400">
+                      ↑↓ navegar • Enter aplicar • Esc fechar
+                    </div>
+                  )}
+                </div>
+              )}
            </div>
 
            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1198,7 +1398,10 @@ const ForecastModal = ({ onClose, onSave, allWorkItems, suppliers, editingItem }
                    <select 
                     className="w-full pl-14 pr-10 py-5 rounded-3xl bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-white text-xs font-bold outline-none appearance-none focus:border-indigo-600 transition-all" 
                     value={data.supplierId} 
-                    onChange={e => setData({...data, supplierId: e.target.value})}
+                    onChange={e => {
+                      setManualEdited((prev) => ({ ...prev, supplierId: true }));
+                      setData({...data, supplierId: e.target.value});
+                    }}
                    >
                      <option value="">Não definido (Spot)</option>
                      {suppliers.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -1226,7 +1429,10 @@ const ForecastModal = ({ onClose, onSave, allWorkItems, suppliers, editingItem }
                 <input 
                   className="w-full px-4 py-5 rounded-3xl bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-white text-sm font-black text-center uppercase outline-none focus:border-indigo-600" 
                   value={data.unit} 
-                  onChange={e => setData({...data, unit: e.target.value})} 
+                  onChange={e => {
+                    setManualEdited((prev) => ({ ...prev, unit: true }));
+                    setData({...data, unit: e.target.value});
+                  }} 
                 />
               </div>
               <div>
@@ -1248,6 +1454,7 @@ const ForecastModal = ({ onClose, onSave, allWorkItems, suppliers, editingItem }
                     className="w-full pl-12 pr-6 py-5 rounded-3xl bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-white text-sm font-black text-right outline-none focus:border-indigo-600" 
                     value={strUnitPrice} 
                     onChange={e => {
+                      setManualEdited((prev) => ({ ...prev, unitPrice: true }));
                       const masked = financial.maskCurrency(e.target.value);
                       setStrUnitPrice(masked);
                       setData({ ...data, unitPrice: financial.normalizeMoney(financial.parseLocaleNumber(masked)) });

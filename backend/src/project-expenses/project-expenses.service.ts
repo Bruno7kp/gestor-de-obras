@@ -39,9 +39,50 @@ interface UpdateExpenseInput extends Partial<CreateExpenseInput> {
   userId?: string;
 }
 
+interface MaterialSuggestionInput {
+  projectId: string;
+  query: string;
+  limit: number;
+  instanceId: string;
+  userId?: string;
+  permissions: string[];
+}
+
+type MaterialSuggestion = {
+  label: string;
+  normalizedLabel: string;
+  unit?: string;
+  lastUnitPrice?: number;
+  supplierId?: string;
+  supplierName?: string;
+  usageCount: number;
+  lastDate?: string;
+  source: 'forecast' | 'expense' | 'mixed';
+};
+
 @Injectable()
 export class ProjectExpensesService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private normalizeText(value: string) {
+    return value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+  }
+
+  private extractExpenseMaterialDescription(description: string) {
+    const parts = description.split(':');
+    if (parts.length <= 1) return description.trim();
+    return parts.slice(1).join(':').trim() || description.trim();
+  }
+
+  private parseDate(value?: string) {
+    if (!value) return 0;
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
 
   private async ensureProject(
     projectId: string,
@@ -57,6 +98,176 @@ export class ProjectExpensesService {
       where: { projectId },
       orderBy: { order: 'asc' },
     });
+  }
+
+  async getMaterialSuggestions(input: MaterialSuggestionInput): Promise<MaterialSuggestion[]> {
+    const query = input.query?.trim();
+    if (!query || query.length < 2) return [];
+
+    await this.ensureProject(input.projectId, input.instanceId, input.userId);
+
+    const currentProject = await this.prisma.project.findUnique({
+      where: { id: input.projectId },
+      select: { id: true, instanceId: true },
+    });
+
+    if (!currentProject) {
+      throw new NotFoundException('Projeto nao encontrado');
+    }
+
+    const targetInstanceId = currentProject.instanceId;
+
+    const hasGeneralProjectAccess =
+      input.permissions.includes('projects_general.view') ||
+      input.permissions.includes('projects_general.edit');
+
+    const isNativeToTargetInstance = input.instanceId === targetInstanceId;
+
+    const scopedProjectIds = new Set<string>([input.projectId]);
+
+    if (hasGeneralProjectAccess && isNativeToTargetInstance) {
+      const projects = await this.prisma.project.findMany({
+        where: { instanceId: targetInstanceId },
+        select: { id: true },
+      });
+      projects.forEach((project) => scopedProjectIds.add(project.id));
+    }
+
+    if (input.userId) {
+      const memberships = await this.prisma.projectMember.findMany({
+        where: {
+          userId: input.userId,
+          project: { instanceId: targetInstanceId },
+        },
+        select: { projectId: true },
+      });
+      memberships.forEach((membership) => scopedProjectIds.add(membership.projectId));
+    }
+
+    const projectIds = Array.from(scopedProjectIds);
+
+    const [expenses, forecasts] = await Promise.all([
+      this.prisma.projectExpense.findMany({
+        where: {
+          projectId: { in: projectIds },
+          type: 'material',
+          itemType: 'item',
+          description: { contains: query, mode: 'insensitive' },
+        },
+        select: {
+          description: true,
+          unit: true,
+          unitPrice: true,
+          entityName: true,
+          date: true,
+        },
+        orderBy: { date: 'desc' },
+        take: 400,
+      }),
+      this.prisma.materialForecast.findMany({
+        where: {
+          projectPlanning: { projectId: { in: projectIds } },
+          description: { contains: query, mode: 'insensitive' },
+        },
+        select: {
+          description: true,
+          unit: true,
+          unitPrice: true,
+          supplierId: true,
+          estimatedDate: true,
+          purchaseDate: true,
+          deliveryDate: true,
+          supplier: { select: { name: true } },
+        },
+        orderBy: { estimatedDate: 'desc' },
+        take: 400,
+      }),
+    ]);
+
+    const normalizedQuery = this.normalizeText(query);
+    const bucket = new Map<string, MaterialSuggestion>();
+
+    for (const forecast of forecasts) {
+      const label = forecast.description?.trim();
+      if (!label) continue;
+      const normalizedLabel = this.normalizeText(label);
+      if (!normalizedLabel.includes(normalizedQuery)) continue;
+
+      const date = forecast.deliveryDate || forecast.purchaseDate || forecast.estimatedDate;
+      const existing = bucket.get(normalizedLabel);
+
+      if (!existing) {
+        bucket.set(normalizedLabel, {
+          label,
+          normalizedLabel,
+          unit: forecast.unit || undefined,
+          lastUnitPrice: forecast.unitPrice || 0,
+          supplierId: forecast.supplierId || undefined,
+          supplierName: forecast.supplier?.name || undefined,
+          usageCount: 1,
+          lastDate: date,
+          source: 'forecast',
+        });
+        continue;
+      }
+
+      const existingDate = this.parseDate(existing.lastDate);
+      const nextDate = this.parseDate(date);
+      bucket.set(normalizedLabel, {
+        ...existing,
+        usageCount: existing.usageCount + 1,
+        unit: existing.unit || forecast.unit || undefined,
+        lastUnitPrice: nextDate >= existingDate ? forecast.unitPrice : existing.lastUnitPrice,
+        supplierId: existing.supplierId || forecast.supplierId || undefined,
+        supplierName: existing.supplierName || forecast.supplier?.name || undefined,
+        lastDate: nextDate >= existingDate ? date : existing.lastDate,
+        source: existing.source === 'expense' ? 'mixed' : 'forecast',
+      });
+    }
+
+    for (const expense of expenses) {
+      const label = this.extractExpenseMaterialDescription(expense.description || '');
+      if (!label) continue;
+      const normalizedLabel = this.normalizeText(label);
+      if (!normalizedLabel.includes(normalizedQuery)) continue;
+
+      const existing = bucket.get(normalizedLabel);
+      if (!existing) {
+        bucket.set(normalizedLabel, {
+          label,
+          normalizedLabel,
+          unit: expense.unit || undefined,
+          lastUnitPrice: expense.unitPrice || 0,
+          supplierName: expense.entityName || undefined,
+          usageCount: 1,
+          lastDate: expense.date,
+          source: 'expense',
+        });
+        continue;
+      }
+
+      const existingDate = this.parseDate(existing.lastDate);
+      const nextDate = this.parseDate(expense.date);
+      bucket.set(normalizedLabel, {
+        ...existing,
+        usageCount: existing.usageCount + 1,
+        unit: existing.unit || expense.unit || undefined,
+        lastUnitPrice: nextDate >= existingDate ? expense.unitPrice : existing.lastUnitPrice,
+        supplierName: existing.supplierName || expense.entityName || undefined,
+        lastDate: nextDate >= existingDate ? expense.date : existing.lastDate,
+        source: existing.source === 'forecast' ? 'mixed' : 'expense',
+      });
+    }
+
+    return Array.from(bucket.values())
+      .sort((a, b) => {
+        const aStarts = a.normalizedLabel.startsWith(normalizedQuery) ? 1 : 0;
+        const bStarts = b.normalizedLabel.startsWith(normalizedQuery) ? 1 : 0;
+        if (aStarts !== bStarts) return bStarts - aStarts;
+        if (a.usageCount !== b.usageCount) return b.usageCount - a.usageCount;
+        return this.parseDate(b.lastDate) - this.parseDate(a.lastDate);
+      })
+      .slice(0, Math.max(1, Math.min(input.limit || 8, 20)));
   }
 
   async create(input: CreateExpenseInput) {
