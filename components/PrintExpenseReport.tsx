@@ -179,7 +179,7 @@ export const PrintExpenseReport: React.FC<PrintExpenseReportProps> = ({ project,
                 <td className="font-bold">{e.type === 'revenue' ? 'ENT' : (e.type === 'labor' ? 'M.O' : (e.type === 'other' ? 'OUT' : 'MAT'))}</td>
                 <td>{e.description}</td>
                 <td className="text-slate-600">{e.entityName || '—'}</td>
-                <td style={{ textAlign: 'center' }}>{e.quantity} {e.unit}</td>
+                <td style={{ textAlign: 'center' }}>{financial.formatQuantity(e.quantity)} {e.unit}</td>
                 <td style={{ textAlign: 'right' }}>{financial.formatVisual(e.unitPrice, currencySymbol)}</td>
                 <td style={{ textAlign: 'right' }} className="font-bold">{financial.formatVisual(e.amount, currencySymbol)}</td>
               </tr>

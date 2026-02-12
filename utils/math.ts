@@ -45,8 +45,11 @@ export const financial = {
   /**
    * Formata quantidade com ate 2 casas decimais.
    */
-  formatQuantity: (value: number): string => {
-    const num = financial.round(value || 0);
+  formatQuantity: (value: number | string | null | undefined): string => {
+    const parsed = typeof value === 'string'
+      ? parseFloat(value.replace(/\./g, '').replace(',', '.'))
+      : (value ?? 0);
+    const num = financial.round(Number.isFinite(parsed) ? parsed : 0);
     return new Intl.NumberFormat('pt-BR', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 2
