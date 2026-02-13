@@ -57,6 +57,8 @@ async function main() {
     { code: 'schedule.edit', description: 'Edit schedule' },
     { code: 'journal.view', description: 'View journal' },
     { code: 'journal.edit', description: 'Edit journal' },
+    { code: 'notifications.view', description: 'View notifications' },
+    { code: 'notifications.edit', description: 'Edit notifications' },
     { code: 'documents.view', description: 'View documents' },
     { code: 'documents.edit', description: 'Edit documents' },
     { code: 'project_settings.view', description: 'View project settings' },

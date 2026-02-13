@@ -1,6 +1,5 @@
 
-import { JournalEntry, JournalCategory, WeatherType, ProjectJournal, WorkItem, ProjectExpense, ExpenseStatus } from '../types';
-import { financial } from '../utils/math';
+import { JournalEntry, JournalCategory, WeatherType, ProjectJournal, WorkItem, ProjectExpense } from '../types';
 
 export const journalService = {
   createEntry: (
@@ -54,14 +53,7 @@ export const journalService = {
       const newStatus = exp.status;
 
       if (oldStatus !== newStatus) {
-        if (newStatus === 'PAID') {
-          logs.push(journalService.createEntry(
-            'Liquidação Financeira',
-            `Pagamento confirmado para: ${exp.description}. Valor: ${financial.formatVisual(exp.amount, 'R$')}. Credor: ${exp.entityName || 'Não informado'}.`,
-            'FINANCIAL',
-            'AUTO'
-          ));
-        } else if (newStatus === 'DELIVERED') {
+        if (newStatus === 'DELIVERED') {
           logs.push(journalService.createEntry(
             'Recebimento de Material',
             `Entrega confirmada no canteiro: ${exp.description}. Documento fiscal vinculado ao sistema.`,

@@ -26,6 +26,7 @@ import { PermissionsModule } from './permissions/permissions.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { LaborContractsModule } from './labor-contracts/labor-contracts.module';
 import { DebugModule } from './debug/debug.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { DebugModule } from './debug/debug.module';
     UploadsModule,
     LaborContractsModule,
     DebugModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [

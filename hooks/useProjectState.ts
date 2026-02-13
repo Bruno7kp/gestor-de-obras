@@ -1,8 +1,6 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Project, ProjectGroup, GlobalSettings, BiddingProcess, Supplier, CompanyCertificate, JournalEntry, ExternalProject } from '../types';
-import { journalService } from '../services/journalService';
-import { journalApi } from '../services/journalApi';
+import { Project, ProjectGroup, GlobalSettings, BiddingProcess, Supplier, CompanyCertificate, ExternalProject } from '../types';
 import { projectsApi, normalizeProject } from '../services/projectsApi';
 import { projectGroupsApi } from '../services/projectGroupsApi';
 import { suppliersApi } from '../services/suppliersApi';
@@ -201,28 +199,18 @@ export const useProjectState = () => {
   }, [future]);
 
   const updateActiveProject = useCallback((data: Partial<Project>) => {
-    let autoLogsToSync: JournalEntry[] = [];
-    let projectId: string | null = null;
-
     commit(prev => {
       const activeIdx = prev.projects.findIndex(p => p.id === prev.activeProjectId);
       if (activeIdx === -1) return prev;
 
       const active = prev.projects[activeIdx];
-      let autoLogs: JournalEntry[] = [];
-      if (data.expenses) autoLogs = [...autoLogs, ...journalService.checkExpenseStatusDeltas(active.expenses, data.expenses)];
-      if (data.items) autoLogs = [...autoLogs, ...journalService.checkWorkItemDeltas(active.items, data.items)];
-      autoLogsToSync = autoLogs;
-      projectId = active.id;
-
-      const baseEntries = data.journal?.entries ?? active.journal.entries;
       const updatedProject: Project = {
         ...active,
         ...data,
         journal: {
           ...active.journal,
           ...(data.journal ?? {}),
-          entries: autoLogs.length > 0 ? [...autoLogs, ...baseEntries] : baseEntries
+          entries: data.journal?.entries ?? active.journal.entries
         }
       };
 
@@ -230,13 +218,6 @@ export const useProjectState = () => {
       updatedProjects[activeIdx] = updatedProject;
       return { ...prev, projects: updatedProjects };
     });
-
-    if (autoLogsToSync.length > 0 && projectId) {
-      void Promise.all(autoLogsToSync.map((entry) => journalApi.create(projectId as string, entry)))
-        .catch((error) => {
-          console.error('Erro ao sincronizar registros automaticos:', error);
-        });
-    }
   }, [commit]);
 
   return {

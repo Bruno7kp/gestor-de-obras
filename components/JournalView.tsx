@@ -10,9 +10,10 @@ import { ConfirmModal } from './ConfirmModal';
 import { useToast } from '../hooks/useToast';
 import { uiPreferences } from '../utils/uiPreferences';
 import { 
-  BookOpen, Plus, Camera, CloudRain, Cloud, Zap, 
+  BookOpen, Camera, CloudRain, Cloud, Zap, 
   Trash2, Search, Filter, History, Loader2,
-  AlertCircle, DollarSign, BarChart, Send, X, ShieldCheck, Edit3
+  AlertCircle, DollarSign, BarChart, Send, X, ShieldCheck, Edit3, Sun,
+  ArrowUp, ArrowDown
 } from 'lucide-react';
 
 interface JournalViewProps {
@@ -28,17 +29,23 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
   const toast = useToast();
 
   const journalFilterKey = `journal_filter_${project.id}`;
+  const journalSortKey = `journal_sort_${project.id}`;
   const [filter, setFilter] = useState<JournalCategory | 'ALL'>(() => {
     const saved = uiPreferences.getString(journalFilterKey);
     return saved === 'ALL' || saved === 'PROGRESS' || saved === 'FINANCIAL' || saved === 'INCIDENT' || saved === 'WEATHER'
       ? (saved as JournalCategory | 'ALL')
       : 'ALL';
   });
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>(() => {
+    const saved = uiPreferences.getString(journalSortKey);
+    return saved === 'asc' || saved === 'desc' ? saved : 'desc';
+  });
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
   
   // Quick Composer State
   const [isExpanded, setIsExpanded] = useState(false);
@@ -49,8 +56,16 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
     weatherStatus: 'sunny',
     photoUrls: []
   });
+  const [editEntryDraft, setEditEntryDraft] = useState<Partial<JournalEntry>>({
+    title: '',
+    description: '',
+    category: 'PROGRESS',
+    weatherStatus: 'sunny',
+    photoUrls: []
+  });
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
   const journal = project.journal;
 
   const getInitials = (name?: string | null) => {
@@ -74,6 +89,14 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
     uiPreferences.setString(journalFilterKey, filter);
   }, [filter, journalFilterKey]);
 
+  useEffect(() => {
+    uiPreferences.setString(journalSortKey, sortOrder);
+  }, [journalSortKey, sortOrder]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [filter, search, sortOrder]);
+
   // Filtragem e Paginação
   const filteredEntries = useMemo(() => { 
     return journal.entries.filter(e => {
@@ -84,12 +107,54 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
     });
   }, [journal.entries, filter, search]);
 
+  const sortedEntries = useMemo(() => {
+    return [...filteredEntries].sort((a, b) => {
+      const aTime = new Date(a.timestamp).getTime();
+      const bTime = new Date(b.timestamp).getTime();
+      return sortOrder === 'asc' ? aTime - bTime : bTime - aTime;
+    });
+  }, [filteredEntries, sortOrder]);
+
   const visibleEntries = useMemo(() => {
-    return journalService.getPaginatedEntries(filteredEntries, 1, page * PAGE_SIZE);
-  }, [filteredEntries, page]);
+    return journalService.getPaginatedEntries(sortedEntries, 1, page * PAGE_SIZE);
+  }, [sortedEntries, page]);
+
+  const resetComposer = () => {
+    setNewEntry({
+      title: '',
+      description: '',
+      category: 'PROGRESS',
+      weatherStatus: 'sunny',
+      photoUrls: [],
+    });
+    setIsExpanded(false);
+  };
+
+  const closeEditModal = () => {
+    setEditingEntry(null);
+    setEditEntryDraft({
+      title: '',
+      description: '',
+      category: 'PROGRESS',
+      weatherStatus: 'sunny',
+      photoUrls: [],
+    });
+  };
+
+  const startEditEntry = (entry: JournalEntry) => {
+    if (entry.type !== 'MANUAL') return;
+    setEditingEntry(entry);
+    setEditEntryDraft({
+      title: entry.title,
+      description: entry.description,
+      category: entry.category === 'FINANCIAL' ? 'PROGRESS' : entry.category,
+      weatherStatus: entry.weatherStatus ?? 'sunny',
+      photoUrls: entry.photoUrls ?? [],
+    });
+  };
 
   // Handlers
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: 'new' | 'edit') => {
     // Fix: Explicitly cast Array.from result to File[] to satisfy strict TS checks on file.size
     const files = Array.from(e.target.files || []) as File[];
     for (const file of files) {
@@ -100,29 +165,40 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
 
       try {
         const uploaded = await uploadService.uploadFile(file);
-        setNewEntry(prev => ({
-          ...prev,
-          photoUrls: [...(prev.photoUrls || []), uploaded.url],
-        }));
+        if (target === 'edit') {
+          setEditEntryDraft(prev => ({
+            ...prev,
+            photoUrls: [...(prev.photoUrls || []), uploaded.url],
+          }));
+        } else {
+          setNewEntry(prev => ({
+            ...prev,
+            photoUrls: [...(prev.photoUrls || []), uploaded.url],
+          }));
+        }
       } catch (error) {
         console.error('Erro ao enviar foto:', error);
         toast.error('Falha ao enviar imagem. Tente novamente.');
       }
     }
+
+    e.target.value = '';
   };
 
   const handlePost = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEntry.description) return;
 
+    const normalizedCategory = (newEntry.category === 'FINANCIAL' ? 'PROGRESS' : (newEntry.category ?? 'PROGRESS')) as JournalCategory;
+
     const entryToSave: JournalEntry = {
       id: crypto.randomUUID(),
       timestamp: new Date().toISOString(),
       type: 'MANUAL',
-      category: (newEntry.category ?? 'PROGRESS') as JournalCategory,
+      category: normalizedCategory,
       title: newEntry.title || `Registro de ${new Date().toLocaleDateString('pt-BR')}`,
       description: newEntry.description,
-      weatherStatus: newEntry.category === 'WEATHER' ? (newEntry.weatherStatus ?? 'sunny') : undefined,
+      weatherStatus: normalizedCategory === 'WEATHER' ? (newEntry.weatherStatus ?? 'sunny') : undefined,
       photoUrls: newEntry.photoUrls || [],
       createdById: user?.id,
       createdBy: user?.id && user?.name ? { id: user.id, name: user.name, profileImage: user.profileImage ?? null } : undefined,
@@ -136,9 +212,54 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
       onUpdateJournal({ entries: [entryToSave, ...journal.entries] });
     }
 
-    // Reset Composer
-    setNewEntry({ title: '', description: '', category: 'PROGRESS', weatherStatus: 'sunny', photoUrls: [] });
-    setIsExpanded(false);
+    resetComposer();
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEntry || !editEntryDraft.description) return;
+
+    const normalizedCategory = (editEntryDraft.category === 'FINANCIAL'
+      ? 'PROGRESS'
+      : (editEntryDraft.category ?? 'PROGRESS')) as JournalCategory;
+
+    const updatePayload: Partial<JournalEntry> = {
+      title: editEntryDraft.title || editingEntry.title,
+      description: editEntryDraft.description,
+      category: normalizedCategory,
+      weatherStatus: normalizedCategory === 'WEATHER' ? (editEntryDraft.weatherStatus ?? 'sunny') : undefined,
+      photoUrls: editEntryDraft.photoUrls || [],
+    };
+
+    const optimisticEntry: JournalEntry = {
+      ...editingEntry,
+      ...updatePayload,
+      weatherStatus: updatePayload.category === 'WEATHER'
+        ? (updatePayload.weatherStatus as WeatherType | undefined)
+        : undefined,
+      photoUrls: updatePayload.photoUrls ?? [],
+    };
+
+    onUpdateJournal({
+      entries: journal.entries.map((entry) =>
+        entry.id === editingEntry.id ? optimisticEntry : entry,
+      ),
+    });
+
+    try {
+      const updated = await journalApi.update(editingEntry.id, updatePayload);
+      onUpdateJournal({
+        entries: journal.entries.map((entry) =>
+          entry.id === editingEntry.id ? updated : entry,
+        ),
+      });
+      toast.success('Registro atualizado com sucesso.');
+    } catch (error) {
+      console.error('Erro ao atualizar registro do diario:', error);
+      toast.warning('Registro editado localmente; falha ao sincronizar no servidor.');
+    }
+
+    closeEditModal();
   };
 
   const handleDelete = async (id: string) => {
@@ -211,7 +332,6 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
                         onChange={e => setNewEntry({...newEntry, category: e.target.value as JournalCategory})}
                       >
                         <option value="PROGRESS">Progresso</option>
-                        <option value="FINANCIAL">Financeiro</option>
                         <option value="INCIDENT">Ocorrência</option>
                         <option value="WEATHER">Clima</option>
                       </select>
@@ -261,13 +381,13 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
                 className="p-3 text-slate-400 hover:text-indigo-600 hover:bg-white dark:hover:bg-slate-700 rounded-xl transition-all"
               >
                 <Camera size={20} />
-                <input type="file" ref={fileInputRef} className="hidden" multiple accept="image/*" onChange={handlePhotoUpload} />
+                <input type="file" ref={fileInputRef} className="hidden" multiple accept="image/*" onChange={(e) => handlePhotoUpload(e, 'new')} />
               </button>
             </div>
             
             <div className="flex items-center gap-3">
               {isExpanded && (
-                <button type="button" onClick={() => setIsExpanded(false)} className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-4">Cancelar</button>
+                <button type="button" onClick={resetComposer} className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-4">Cancelar</button>
               )}
               <button 
                 type="submit"
@@ -283,20 +403,42 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
 
       {/* FILTER & SEARCH BAR */}
       <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full md:w-auto">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full md:w-auto md:flex-1">
           <FilterBtn active={filter === 'ALL'} onClick={() => setFilter('ALL')} label="Tudo" />
           <FilterBtn active={filter === 'PROGRESS'} onClick={() => setFilter('PROGRESS')} label="Avanço" />
-          <FilterBtn active={filter === 'FINANCIAL'} onClick={() => setFilter('FINANCIAL')} label="Gastos" />
           <FilterBtn active={filter === 'INCIDENT'} onClick={() => setFilter('INCIDENT')} label="Ocorrências" />
+          <FilterBtn active={filter === 'WEATHER'} onClick={() => setFilter('WEATHER')} label="Clima" />
         </div>
-        <div className="relative w-full md:w-64">
-           <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-           <input 
-             placeholder="Buscar no histórico..."
-             className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all"
-             value={search}
-             onChange={e => setSearch(e.target.value)}
-           />
+        <div className="flex w-full md:w-auto items-center gap-2">
+          <div className="flex items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1">
+            <button
+              type="button"
+              title="Ordenar por data decrescente"
+              aria-label="Ordenar por data decrescente"
+              onClick={() => setSortOrder('desc')}
+              className={`p-2 rounded-lg transition-all ${sortOrder === 'desc' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+            >
+              <ArrowDown size={14} />
+            </button>
+            <button
+              type="button"
+              title="Ordenar por data crescente"
+              aria-label="Ordenar por data crescente"
+              onClick={() => setSortOrder('asc')}
+              className={`p-2 rounded-lg transition-all ${sortOrder === 'asc' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+            >
+              <ArrowUp size={14} />
+            </button>
+          </div>
+          <div className="relative w-full md:w-64">
+             <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+             <input 
+               placeholder="Buscar no histórico..."
+               className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all"
+               value={search}
+               onChange={e => setSearch(e.target.value)}
+             />
+          </div>
         </div>
       </div>
 
@@ -352,13 +494,17 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
                 </div>
                 
                 {/* Actions (Only for Manual) */}
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                <div className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all">
                   {entry.type === 'MANUAL' && (
-                    <button className="p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition-all">
+                    <button
+                      type="button"
+                      onClick={() => startEditEntry(entry)}
+                      className="p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition-all"
+                    >
                       <Edit3 size={18} />
                     </button>
                   )}
-                  <button onClick={() => setConfirmDeleteId(entry.id)} className="p-2.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all">
+                  <button type="button" onClick={() => setConfirmDeleteId(entry.id)} className="p-2.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all">
                     <Trash2 size={18} />
                   </button>
                 </div>
@@ -387,7 +533,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
         ))}
 
         {/* LOAD MORE BUTTON */}
-        {filteredEntries.length > visibleEntries.length && (
+        {sortedEntries.length > visibleEntries.length && (
           <div className="flex justify-center pt-8">
             <button 
               onClick={() => setPage(p => p + 1)}
@@ -445,6 +591,120 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
             className="max-h-[90vh] max-w-[90vw] object-contain rounded-2xl shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           />
+        </div>
+      )}
+
+      {editingEntry && (
+        <div className="fixed inset-0 z-[2400] bg-slate-950/70 backdrop-blur-sm p-4 flex items-center justify-center" onClick={closeEditModal}>
+          <div className="w-full max-w-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <form onSubmit={handleSaveEdit}>
+              <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <h3 className="text-sm font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">Editar Registro</h3>
+                <button
+                  type="button"
+                  onClick={closeEditModal}
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                  aria-label="Fechar modal"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                <input
+                  type="text"
+                  placeholder="Título do registro"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm outline-none focus:ring-4 focus:ring-indigo-500/10"
+                  value={editEntryDraft.title || ''}
+                  onChange={(e) => setEditEntryDraft({ ...editEntryDraft, title: e.target.value })}
+                />
+
+                <textarea
+                  placeholder="Descreva o ocorrido"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm outline-none focus:ring-4 focus:ring-indigo-500/10 resize-none min-h-[140px]"
+                  value={editEntryDraft.description || ''}
+                  onChange={(e) => setEditEntryDraft({ ...editEntryDraft, description: e.target.value })}
+                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <select
+                    className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase tracking-widest outline-none px-4 py-3"
+                    value={editEntryDraft.category}
+                    onChange={(e) => setEditEntryDraft({ ...editEntryDraft, category: e.target.value as JournalCategory })}
+                  >
+                    <option value="PROGRESS">Progresso</option>
+                    <option value="INCIDENT">Ocorrência</option>
+                    <option value="WEATHER">Clima</option>
+                  </select>
+
+                  {editEntryDraft.category === 'WEATHER' && (
+                    <select
+                      className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase tracking-widest outline-none px-4 py-3"
+                      value={editEntryDraft.weatherStatus}
+                      onChange={(e) => setEditEntryDraft({ ...editEntryDraft, weatherStatus: e.target.value as WeatherType })}
+                    >
+                      <option value="sunny">Ensolarado</option>
+                      <option value="cloudy">Nublado</option>
+                      <option value="rainy">Chuvoso</option>
+                      <option value="storm">Tempestade</option>
+                    </select>
+                  )}
+                </div>
+
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => editFileInputRef.current?.click()}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-indigo-600 transition-all"
+                  >
+                    <Camera size={14} /> Adicionar fotos
+                  </button>
+                  <input
+                    type="file"
+                    ref={editFileInputRef}
+                    className="hidden"
+                    multiple
+                    accept="image/*"
+                    onChange={(e) => handlePhotoUpload(e, 'edit')}
+                  />
+                </div>
+
+                {editEntryDraft.photoUrls && editEntryDraft.photoUrls.length > 0 && (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {editEntryDraft.photoUrls.map((url, index) => (
+                      <div key={`${url}-${index}`} className="relative w-20 h-20 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
+                        <img src={url} className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setEditEntryDraft(prev => ({ ...prev, photoUrls: prev.photoUrls?.filter((_, idx) => idx !== index) }))}
+                          className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full hover:bg-rose-500 transition-colors"
+                        >
+                          <X size={10} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={closeEditModal}
+                  className="px-5 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={!editEntryDraft.description}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20 disabled:opacity-40"
+                >
+                  Salvar edição <Send size={12} />
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

@@ -261,6 +261,62 @@ export interface ProjectJournal {
   entries: JournalEntry[];
 }
 
+// --- NOTIFICAÇÕES ---
+export type NotificationPriority = 'low' | 'normal' | 'high' | 'critical';
+export type NotificationFrequency = 'immediate' | 'digest' | 'off';
+
+export interface UserNotification {
+  id: string;
+  recipientId: string;
+  projectId: string | null;
+  category: string;
+  eventType: string;
+  priority: NotificationPriority;
+  title: string;
+  body: string;
+  metadata?: Record<string, unknown> | null;
+  triggeredAt: string;
+  createdAt: string;
+  isRead: boolean;
+  readAt?: string | null;
+}
+
+export interface NotificationPreference {
+  id: string;
+  userId: string;
+  projectId: string | null;
+  category: string;
+  eventType: string;
+  channelInApp: boolean;
+  channelEmail: boolean;
+  frequency: NotificationFrequency;
+  minPriority: NotificationPriority;
+  isEnabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NotificationDigestGroup {
+  key: string;
+  projectId: string | null;
+  category: string;
+  eventType: string;
+  count: number;
+  highestPriority: NotificationPriority;
+  firstTriggeredAt: string;
+  lastTriggeredAt: string;
+  sampleTitles: string[];
+}
+
+export interface NotificationDigestPreview {
+  windowMinutes: number;
+  generatedAt: string;
+  totalEvents: number;
+  totalGroups: number;
+  groupedEvents: number;
+  groups: NotificationDigestGroup[];
+}
+
 // --- ESTRUTURA GLOBAL ---
 export interface ProjectGroup {
   id: string;

@@ -3,6 +3,8 @@ import type { ExpenseStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { removeLocalUploads } from '../uploads/file.utils';
 import { ensureProjectAccess } from '../common/project-access.util';
+import { NotificationsService } from '../notifications/notifications.service';
+import { JournalService } from '../journal/journal.service';
 
 interface CreateExpenseInput {
   id?: string;
@@ -62,7 +64,84 @@ type MaterialSuggestion = {
 
 @Injectable()
 export class ProjectExpensesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+    private readonly journalService: JournalService,
+  ) {}
+
+  private async emitExpenseJournalEntry(
+    instanceId: string,
+    expense: {
+      projectId: string;
+      status: ExpenseStatus;
+      description: string;
+    },
+  ) {
+    if (expense.status !== 'DELIVERED') return;
+
+    await this.journalService.createEntry({
+      projectId: expense.projectId,
+      instanceId,
+      timestamp: new Date().toISOString(),
+      type: 'AUTO',
+      category: 'PROGRESS',
+      title: 'Recebimento de Material',
+      description: `Entrega confirmada no canteiro: ${expense.description}. Documento fiscal vinculado ao sistema.`,
+      photoUrls: [],
+    });
+  }
+
+  private async emitExpenseStatusNotification(
+    instanceId: string,
+    expense: {
+      id: string;
+      projectId: string;
+      status: ExpenseStatus;
+      description: string;
+      amount: number;
+      entityName: string;
+    },
+  ) {
+    if (expense.status === 'PAID') {
+      await this.notificationsService.emit({
+        instanceId,
+        projectId: expense.projectId,
+        category: 'FINANCIAL',
+        eventType: 'EXPENSE_PAID',
+        priority: 'high',
+        title: 'Liquidação Financeira',
+        body: `Pagamento confirmado para ${expense.description}. Valor: R$ ${expense.amount.toFixed(2)}. Credor: ${expense.entityName || 'Não informado'}.`,
+        dedupeKey: `expense:${expense.id}:PAID`,
+        permissionCodes: ['financial_flow.view', 'financial_flow.edit'],
+        includeProjectMembers: true,
+        metadata: {
+          expenseId: expense.id,
+          status: expense.status,
+        },
+      });
+      return;
+    }
+
+    if (expense.status === 'DELIVERED') {
+      await this.notificationsService.emit({
+        instanceId,
+        projectId: expense.projectId,
+        category: 'SUPPLIES',
+        eventType: 'EXPENSE_DELIVERED',
+        priority: 'normal',
+        title: 'Recebimento de Material',
+        body: `Entrega confirmada no canteiro: ${expense.description}.`,
+        dedupeKey: `expense:${expense.id}:DELIVERED`,
+        permissionCodes: ['supplies.view', 'supplies.edit', 'financial_flow.view', 'financial_flow.edit'],
+        includeProjectMembers: true,
+        metadata: {
+          expenseId: expense.id,
+          status: expense.status,
+        },
+      });
+    }
+  }
 
   private normalizeText(value: string) {
     return value
@@ -274,7 +353,7 @@ export class ProjectExpensesService {
     await this.ensureProject(input.projectId, input.instanceId, input.userId);
     const fallbackStatus: ExpenseStatus = input.isPaid ? 'PAID' : 'PENDING';
 
-    return this.prisma.projectExpense.create({
+    const created = await this.prisma.projectExpense.create({
       data: {
         id: input.id,
         projectId: input.projectId,
@@ -303,6 +382,25 @@ export class ProjectExpensesService {
         linkedWorkItemId: input.linkedWorkItemId || null,
       },
     });
+
+    if (created.status === 'PAID' || created.status === 'DELIVERED') {
+      void this.emitExpenseStatusNotification(input.instanceId, {
+        id: created.id,
+        projectId: created.projectId,
+        status: created.status,
+        description: created.description,
+        amount: created.amount,
+        entityName: created.entityName,
+      }).catch(() => undefined);
+
+      void this.emitExpenseJournalEntry(input.instanceId, {
+        projectId: created.projectId,
+        status: created.status,
+        description: created.description,
+      }).catch(() => undefined);
+    }
+
+    return created;
   }
 
   async update(input: UpdateExpenseInput) {
@@ -328,7 +426,9 @@ export class ProjectExpensesService {
 
     if (!existing) throw new NotFoundException('Despesa nao encontrada');
 
-    return this.prisma.projectExpense.update({
+    const nextStatus = input.status ?? existing.status;
+
+    const updated = await this.prisma.projectExpense.update({
       where: { id: input.id },
       data: {
         parentId: input.parentId === undefined ? existing.parentId : input.parentId,
@@ -357,6 +457,29 @@ export class ProjectExpensesService {
         linkedWorkItemId: input.linkedWorkItemId ?? existing.linkedWorkItemId,
       },
     });
+
+    if (
+      input.instanceId &&
+      existing.status !== nextStatus &&
+      (nextStatus === 'PAID' || nextStatus === 'DELIVERED')
+    ) {
+      void this.emitExpenseStatusNotification(input.instanceId, {
+        id: updated.id,
+        projectId: updated.projectId,
+        status: updated.status,
+        description: updated.description,
+        amount: updated.amount,
+        entityName: updated.entityName,
+      }).catch(() => undefined);
+
+      void this.emitExpenseJournalEntry(input.instanceId, {
+        projectId: updated.projectId,
+        status: updated.status,
+        description: updated.description,
+      }).catch(() => undefined);
+    }
+
+    return updated;
   }
 
   private collectDescendants(

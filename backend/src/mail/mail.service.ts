@@ -42,4 +42,24 @@ export class MailService {
       html: `<p>Para redefinir sua senha, acesse: <a href="${resetLink}">${resetLink}</a></p>`,
     });
   }
+
+  async sendNotificationEmail(input: {
+    to: string;
+    subject: string;
+    html: string;
+  }) {
+    if (!this.resend) {
+      this.logger.warn(
+        'Resend nao configurado; envio de notificacao por email ignorado.',
+      );
+      return;
+    }
+
+    await this.resend.emails.send({
+      from: this.fromEmail,
+      to: input.to,
+      subject: input.subject,
+      html: input.html,
+    });
+  }
 }

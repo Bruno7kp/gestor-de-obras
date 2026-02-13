@@ -64,7 +64,7 @@ export const LoginPage: React.FC = () => {
               value={instanceId}
               onChange={(event) => setInstanceId(event.target.value)}
               type="text"
-              placeholder="EMPRESAX"
+              placeholder="EMPRESA X"
               required
             />
           </div>

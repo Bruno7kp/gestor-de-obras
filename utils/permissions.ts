@@ -2,7 +2,7 @@
  * Permission system constants and utilities
  * 
  * Modules: biddings, suppliers, projects_general, projects_specific, wbs, technical_analysis, financial_flow,
- *          supplies, workforce, planning, journal, documents, project_settings, global_settings
+ *          supplies, workforce, planning, journal, notifications, documents, project_settings, global_settings
  * 
  * Levels: view (read-only), edit (read+write), none (no access)
  */
@@ -11,7 +11,7 @@ export type PermissionLevel = 'none' | 'view' | 'edit';
 export type PermissionModule = 
   | 'biddings' | 'suppliers' | 'projects_general' | 'projects_specific' 
   | 'wbs' | 'technical_analysis' | 'financial_flow' | 'supplies' | 'workforce' 
-  | 'planning' | 'schedule' | 'journal' | 'documents' | 'project_settings' | 'global_settings';
+  | 'planning' | 'schedule' | 'journal' | 'notifications' | 'documents' | 'project_settings' | 'global_settings';
 
 export const PERMISSION_MODULES: Array<{ key: PermissionModule; label: string }> = [
   { key: 'biddings', label: 'Licitações' },
@@ -26,6 +26,7 @@ export const PERMISSION_MODULES: Array<{ key: PermissionModule; label: string }>
   { key: 'planning', label: 'Planejamento' },
   { key: 'schedule', label: 'Cronograma' },
   { key: 'journal', label: 'Diário de Obra' },
+  { key: 'notifications', label: 'Notificações' },
   { key: 'documents', label: 'Documentos' },
   { key: 'project_settings', label: 'Ajustes do projeto' },
   { key: 'global_settings', label: 'Configurações gerais' },
@@ -83,6 +84,10 @@ export const PERMISSIONS = {
   // Journal
   JOURNAL_VIEW: 'journal.view',
   JOURNAL_EDIT: 'journal.edit',
+
+  // Notifications
+  NOTIFICATIONS_VIEW: 'notifications.view',
+  NOTIFICATIONS_EDIT: 'notifications.edit',
   
   // Documents
   DOCUMENTS_VIEW: 'documents.view',

@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ensureProjectAccess } from '../common/project-access.util';
+import { NotificationsService } from '../notifications/notifications.service';
+import { JournalService } from '../journal/journal.service';
 
 interface CreateWorkItemInput {
   id?: string;
@@ -38,7 +40,27 @@ interface UpdateWorkItemInput extends Partial<CreateWorkItemInput> {
 
 @Injectable()
 export class WorkItemsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+    private readonly journalService: JournalService,
+  ) {}
+
+  private async emitWorkItemJournalEntry(
+    instanceId: string,
+    item: { projectId: string; wbs: string; name: string },
+  ) {
+    await this.journalService.createEntry({
+      projectId: item.projectId,
+      instanceId,
+      timestamp: new Date().toISOString(),
+      type: 'AUTO',
+      category: 'PROGRESS',
+      title: `Marco de Execução: ${item.wbs}`,
+      description: `O serviço "${item.name}" foi concluído fisicamente (100% acumulado).`,
+      photoUrls: [],
+    });
+  }
 
   private chunkItems<T>(items: T[], size: number) {
     const chunks: T[][] = [];
@@ -247,7 +269,10 @@ export class WorkItemsService {
 
     if (!existing) throw new NotFoundException('Item nao encontrado');
 
-    return this.prisma.workItem.update({
+    const nextAccumulatedPercentage =
+      input.accumulatedPercentage ?? existing.accumulatedPercentage;
+
+    const updated = await this.prisma.workItem.update({
       where: { id: input.id },
       data: {
         parentId: input.parentId === undefined ? existing.parentId : input.parentId,
@@ -277,6 +302,40 @@ export class WorkItemsService {
         balanceTotal: input.balanceTotal ?? existing.balanceTotal,
       },
     });
+
+    const crossedCompletion =
+      existing.type === 'item' &&
+      existing.accumulatedPercentage < 100 &&
+      nextAccumulatedPercentage >= 100;
+
+    if (crossedCompletion && input.instanceId) {
+      void this.notificationsService
+        .emit({
+          instanceId: input.instanceId,
+          projectId: updated.projectId,
+          category: 'PROGRESS',
+          eventType: 'WORKITEM_COMPLETED',
+          priority: 'normal',
+          title: `Marco de Execução: ${updated.wbs}`,
+          body: `O serviço "${updated.name}" foi concluído fisicamente (100% acumulado).`,
+          dedupeKey: `workitem:${updated.id}:COMPLETED`,
+          permissionCodes: ['wbs.view', 'wbs.edit', 'planning.view', 'planning.edit'],
+          includeProjectMembers: true,
+          metadata: {
+            workItemId: updated.id,
+            wbs: updated.wbs,
+          },
+        })
+        .catch(() => undefined);
+
+      void this.emitWorkItemJournalEntry(input.instanceId, {
+        projectId: updated.projectId,
+        wbs: updated.wbs,
+        name: updated.name,
+      }).catch(() => undefined);
+    }
+
+    return updated;
   }
 
   private collectDescendants(
