@@ -150,6 +150,14 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
       });
   }, [planning.forecasts, forecastSearch, forecastStatusFilter]);
 
+  const financialGroupNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    financialCategories.forEach((category) => {
+      map.set(category.id, category.description);
+    });
+    return map;
+  }, [financialCategories]);
+
   const getForecastNetTotal = (forecast: MaterialForecast) => {
     const gross = financial.round((forecast.quantityNeeded || 0) * (forecast.unitPrice || 0));
     const discount = financial.normalizeMoney(forecast.discountValue || 0);
@@ -681,6 +689,8 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                           {sortedForecasts.map((f, index) => {
                             const supplier = suppliers.find(s => s.id === f.supplierId);
                             const linkedExpense = findExpenseForForecast(f);
+                            const financialGroupId = f.categoryId || linkedExpense?.parentId || undefined;
+                            const stageName = financialGroupId ? financialGroupNameById.get(financialGroupId) : undefined;
                             
                             // Lógica refinada de rótulo e valor de data baseada no status e pagamento
                             let dateLabel = 'Previsto';
@@ -790,6 +800,10 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                           <div className={`flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest ${dateColor}`}>
                                             <Calendar size={9} className="shrink-0" />
                                             {dateLabel}: {financial.formatDate(dateValue)} <span className="ml-1 opacity-70">{statusText}</span>
+                                          </div>
+                                          <div className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-slate-400">
+                                            <Layers size={9} className="shrink-0" />
+                                            ETAPA: {stageName || 'SEM GRUPO'}
                                           </div>
                                           {f.createdBy?.name && (
                                             <div className="flex items-center gap-2 text-[8px] font-black uppercase tracking-widest text-slate-400">
