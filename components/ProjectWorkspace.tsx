@@ -1030,6 +1030,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                 {tab === 'expenses' && (
                   <ExpenseManager
                     project={project}
+                    suppliers={effectiveSuppliers}
                     expenses={project.expenses}
                     onAdd={handleExpenseAdd}
                     onAddMany={handleExpenseAddMany}

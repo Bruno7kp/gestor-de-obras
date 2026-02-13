@@ -22,13 +22,14 @@ interface ExpenseTreeTableProps {
   onMoveManual: (id: string, direction: 'up' | 'down') => void;
   isReadOnly?: boolean;
   currencySymbol?: string;
+  expenseType?: 'overview' | 'revenue' | 'material' | 'labor' | 'other';
 }
 
 export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
-  data, expandedIds, onToggle, onEdit, onDelete, onAddChild, onUpdateTotal, onUpdateUnitPrice, onTogglePaid, onReorder, onMoveManual, isReadOnly, currencySymbol = 'R$'
+  data, expandedIds, onToggle, onEdit, onDelete, onAddChild, onUpdateTotal, onUpdateUnitPrice, onTogglePaid, onReorder, onMoveManual, isReadOnly, currencySymbol = 'R$', expenseType
 }) => {
-  const isRevenueTable = data.some(d => d.type === 'revenue');
-  const isOtherTable = data.some(d => d.type === 'other');
+  const isRevenueTable = expenseType === 'revenue' || data.some(d => d.type === 'revenue');
+  const isOtherTable = expenseType === 'other' || data.some(d => d.type === 'other');
   const apiBase = (import.meta as any).env?.VITE_API_URL ?? '';
 
   const resolveUploadUrl = (url: string) => {
@@ -59,7 +60,7 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
   };
 
   const totalConsolidado = financial.sum(data.filter(i => i.depth === 0).map(i => i.amount));
-  const totalColSpan = isOtherTable ? 8 : 11;
+  const totalColSpan = isOtherTable ? 7 : (isRevenueTable ? 11 : 10);
 
   return (
     <div className={`overflow-x-auto border rounded-3xl bg-white dark:bg-slate-900 shadow-xl transition-colors ${isRevenueTable ? 'border-emerald-100 dark:border-emerald-900' : 'border-slate-200 dark:border-slate-800'}`}>
@@ -77,7 +78,7 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
               {!isOtherTable && <th className="p-4 border-r border-slate-800 w-20 text-center">Qtd</th>}
               {!isOtherTable && <th className="p-4 border-r border-slate-800 w-32 text-right">Unitário</th>}
               <th className="p-4 border-r border-slate-800 w-28 text-right">Desconto</th>
-              <th className="p-4 border-r border-slate-800 w-28 text-right">Imposto</th>
+              {isRevenueTable && <th className="p-4 border-r border-slate-800 w-28 text-right">Imposto</th>}
               <th className="p-4 w-32 text-right">Total</th>
             </tr>
           </thead>
@@ -221,14 +222,16 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                             </div>
                           ) : '-'}
                         </td>
-                        <td className="p-2 text-right border-r border-slate-100 dark:border-slate-800 text-emerald-500 font-mono">
-                          {item.itemType === 'item' && (item.issValue || item.issPercentage) ? (
-                            <div className="flex flex-col items-end">
-                              <span className="font-bold">-{financial.formatVisual(item.issValue || 0, currencySymbol)}</span>
-                              <span className="text-[8px] opacity-60">({item.issPercentage || 0}%)</span>
-                            </div>
-                          ) : '-'}
-                        </td>
+                        {isRevenueTable && (
+                          <td className="p-2 text-right border-r border-slate-100 dark:border-slate-800 text-emerald-500 font-mono">
+                            {item.itemType === 'item' && (item.issValue || item.issPercentage) ? (
+                              <div className="flex flex-col items-end">
+                                <span className="font-bold">-{financial.formatVisual(item.issValue || 0, currencySymbol)}</span>
+                                <span className="text-[8px] opacity-60">({item.issPercentage || 0}%)</span>
+                              </div>
+                            ) : '-'}
+                          </td>
+                        )}
                         <td className="p-2 text-right">
                           <span className={`font-black ${isRevenueTable ? 'text-emerald-600' : 'text-slate-800 dark:text-slate-100'}`}>{financial.formatVisual(item.amount, currencySymbol)}</span>
                         </td>

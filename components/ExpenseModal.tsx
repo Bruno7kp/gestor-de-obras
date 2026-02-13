@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ProjectExpense, ItemType, ExpenseType, ExpenseStatus } from '../types';
+import { ProjectExpense, ItemType, ExpenseType, ExpenseStatus, Supplier } from '../types';
 import { financial } from '../utils/math';
 import { ExpenseAttachmentZone } from './ExpenseAttachmentZone';
 import { X, Save, Truck, Users, Calculator, FolderTree, Landmark, ReceiptText, ClipboardCheck, Percent, Layers } from 'lucide-react';
@@ -10,6 +10,7 @@ interface ExpenseModalProps {
   onClose: () => void;
   onSave: (data: Partial<ProjectExpense>) => void;
   editingItem: ProjectExpense | null;
+  suppliers: Supplier[];
   expenseType: ExpenseType;
   itemType: ItemType;
   categories: (ProjectExpense & { depth: number })[];
@@ -17,7 +18,7 @@ interface ExpenseModalProps {
 }
 
 export const ExpenseModal: React.FC<ExpenseModalProps> = ({
-  isOpen, onClose, onSave, editingItem, expenseType, itemType: initialItemType, categories,
+  isOpen, onClose, onSave, editingItem, suppliers, expenseType, itemType: initialItemType, categories,
   currencySymbol = 'R$'
 }) => {
   const isIncome = expenseType === 'revenue' || expenseType === 'other';
@@ -256,7 +257,23 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                     <div className="grid grid-cols-2 gap-6 mb-6">
                       <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">Entidade / Fornecedor / MEI</label>
-                        <input className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all" value={formData.entityName} onChange={e => setFormData(prev => ({ ...prev, entityName: e.target.value }))} placeholder="Nome Fantasia ou Razão" />
+                        {suppliers.length > 0 ? (
+                          <select
+                            className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none appearance-none focus:border-indigo-500 transition-all"
+                            value={formData.entityName || ''}
+                            onChange={e => setFormData(prev => ({ ...prev, entityName: e.target.value }))}
+                          >
+                            <option value="">Selecione um fornecedor</option>
+                            {suppliers
+                              .slice()
+                              .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+                              .map((supplier) => (
+                                <option key={supplier.id} value={supplier.name}>{supplier.name}</option>
+                              ))}
+                          </select>
+                        ) : (
+                          <input className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all" value={formData.entityName} onChange={e => setFormData(prev => ({ ...prev, entityName: e.target.value }))} placeholder="Nome Fantasia ou Razão" />
+                        )}
                       </div>
                       <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">Mês de Competência</label>

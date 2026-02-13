@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { ProjectExpense, ExpenseType, WorkItem, ItemType, Project } from '../types';
+import { ProjectExpense, ExpenseType, WorkItem, ItemType, Project, Supplier } from '../types';
 import { financial } from '../utils/math';
 import { expenseService } from '../services/expenseService';
 import { treeService } from '../services/treeService';
@@ -21,6 +21,7 @@ import {
 
 interface ExpenseManagerProps {
   project: Project;
+  suppliers: Supplier[];
   expenses: ProjectExpense[];
   onAdd: (expense: ProjectExpense) => void;
   onAddMany: (expenses: ProjectExpense[]) => void;
@@ -33,7 +34,7 @@ interface ExpenseManagerProps {
 }
 
 export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
-  project, expenses, onAdd, onAddMany, onUpdate, onDelete, workItems, measuredValue, onUpdateExpenses, isReadOnly
+  project, suppliers, expenses, onAdd, onAddMany, onUpdate, onDelete, workItems, measuredValue, onUpdateExpenses, isReadOnly
 }) => {
   const { canEdit, getLevel } = usePermissions();
   const toast = useToast();
@@ -518,6 +519,10 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
         unit: data.unit || 'un',
         quantity: data.quantity || 1,
         unitPrice: data.unitPrice || 0,
+        discountValue: data.discountValue || 0,
+        discountPercentage: data.discountPercentage || 0,
+        issValue: data.issValue || 0,
+        issPercentage: data.issPercentage || 0,
         amount: data.amount || 0,
         isPaid: data.isPaid || false,
         status: data.status || 'PENDING',
@@ -594,7 +599,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
       {activeTab === 'overview' ? (
         <FinancialSummary stats={stats} currencySymbol={project.theme?.currencySymbol} />
       ) : (
-        <div className={activeTab === 'other' ? 'space-y-1' : 'space-y-4'}>
+        <div className="space-y-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-2">
               <button onClick={() => setExpandedIds(new Set(expenses.map(e => e.id)))} className="px-3 py-1.5 text-[9px] font-black uppercase text-slate-500 border rounded-lg hover:bg-slate-50"><Maximize2 size={12} className="inline mr-1" /> Expandir</button>
@@ -659,6 +664,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
 
           <ExpenseTreeTable
             data={flattenedExpenses}
+            expenseType={activeTab}
             expandedIds={expandedIds}
             onToggle={id => {
               setExpandedIds((prev: Set<string>) => {
@@ -704,6 +710,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveExpense}
         editingItem={editingExpense}
+        suppliers={suppliers}
         expenseType={activeTab === 'overview' ? 'material' : (activeTab as ExpenseType)}
         itemType={modalItemType}
         categories={processedExpenseCategories as any}
