@@ -46,9 +46,35 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, pro
   const [suppliesProjectFilter, setSuppliesProjectFilter] = useState<string>('ALL');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  const ensureDetailedProjectsLoaded = async () => {
+    if (hasLoadedSuppliesProjects || isLoadingSuppliesProjects || projects.length === 0) return;
+
+    setIsLoadingSuppliesProjects(true);
+    try {
+      const detailedProjects = await Promise.all(
+        projects.map(async (project) => {
+          try {
+            return await projectsApi.get(project.id);
+          } catch (error) {
+            console.error(`Erro ao carregar dados completos da obra ${project.id}:`, error);
+            return project;
+          }
+        }),
+      );
+      setProjectsForSupplies(detailedProjects);
+      setHasLoadedSuppliesProjects(true);
+    } finally {
+      setIsLoadingSuppliesProjects(false);
+    }
+  };
+
   useEffect(() => {
     setProjectsForSupplies(projects);
     setHasLoadedSuppliesProjects(false);
+  }, [projects]);
+
+  useEffect(() => {
+    void ensureDetailedProjectsLoaded();
   }, [projects]);
 
   const filteredSuppliers = useMemo(() => {
@@ -67,7 +93,7 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, pro
   }, [categoryFilter, supplierFilterKey]);
 
   const stats = useMemo(() => {
-    const linkedSupplies = projects.reduce((acc, project) => {
+    const linkedSupplies = projectsForSupplies.reduce((acc, project) => {
       return acc + project.planning.forecasts.filter((forecast) => !!forecast.supplierId).length;
     }, 0);
 
@@ -79,7 +105,7 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, pro
         Serviço: suppliers.filter(s => s.category === 'Serviço').length,
       }
     };
-  }, [suppliers, projects]);
+  }, [suppliers, projectsForSupplies]);
 
   const supplierSupplies = useMemo(() => {
     if (!supplierSuppliesModal) return [];
@@ -258,25 +284,7 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, pro
     setSuppliesSearch('');
     setSuppliesProjectFilter('ALL');
 
-    if (hasLoadedSuppliesProjects || projects.length === 0) return;
-
-    setIsLoadingSuppliesProjects(true);
-    try {
-      const detailedProjects = await Promise.all(
-        projects.map(async (project) => {
-          try {
-            return await projectsApi.get(project.id);
-          } catch (error) {
-            console.error(`Erro ao carregar dados completos da obra ${project.id}:`, error);
-            return project;
-          }
-        }),
-      );
-      setProjectsForSupplies(detailedProjects);
-      setHasLoadedSuppliesProjects(true);
-    } finally {
-      setIsLoadingSuppliesProjects(false);
-    }
+    await ensureDetailedProjectsLoaded();
   };
 
   const statusLabel: Record<string, string> = {
