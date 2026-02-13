@@ -146,7 +146,8 @@ export const projectsApi = {
     });
 
     if (!response.ok) {
-      throw new Error('Falha ao carregar projeto');
+      const errorBody = await response.text().catch(() => '');
+      throw new Error(`Falha ao carregar projeto (${response.status})${errorBody ? `: ${errorBody}` : ''}`);
     }
 
     const data = await response.json();
@@ -218,7 +219,8 @@ export const projectsApi = {
     });
 
     if (!response.ok) {
-      throw new Error('Falha ao carregar projeto externo');
+      const errorBody = await response.text().catch(() => '');
+      throw new Error(`Falha ao carregar projeto externo (${response.status})${errorBody ? `: ${errorBody}` : ''}`);
     }
 
     return normalizeProject(await response.json());

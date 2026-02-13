@@ -129,9 +129,22 @@ export const useProjectState = () => {
     let isMounted = true;
     const loadProject = async () => {
       try {
-        const project = isExternal
-          ? await projectsApi.getExternal(activeId)
-          : await projectsApi.get(activeId);
+        let project: Project;
+
+        if (isExternal) {
+          try {
+            project = await projectsApi.getExternal(activeId);
+          } catch {
+            project = await projectsApi.get(activeId);
+          }
+        } else {
+          try {
+            project = await projectsApi.get(activeId);
+          } catch {
+            project = await projectsApi.getExternal(activeId);
+          }
+        }
+
         if (!isMounted) return;
 
         loadedProjectIdsRef.current.add(activeId);
@@ -152,7 +165,7 @@ export const useProjectState = () => {
     return () => {
       isMounted = false;
     };
-  }, [present.activeProjectId]);
+  }, [present.activeProjectId, present.externalProjects]);
 
   const commit = useCallback((updater: (prev: State) => State) => {
     setPresent(prev => {

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Supplier } from '../types';
-import { X, Save, Truck, Building2, Phone, Mail, Star, CreditCard, User, AlignLeft } from 'lucide-react';
+import { X, Save, Truck, Building2, Phone, Mail, CreditCard, User, AlignLeft } from 'lucide-react';
 
 interface SupplierModalProps {
   isOpen: boolean;
@@ -12,12 +12,12 @@ interface SupplierModalProps {
 
 export const SupplierModal: React.FC<SupplierModalProps> = ({ isOpen, onClose, onSave, supplier }) => {
   const [formData, setFormData] = useState<Partial<Supplier>>({
-    name: '', cnpj: '', category: 'Material', contactName: '', email: '', phone: '', rating: 0, notes: ''
+    name: '', cnpj: '', category: 'Material', contactName: '', email: '', phone: '', notes: ''
   });
 
   useEffect(() => {
     if (supplier) setFormData(supplier);
-    else setFormData({ name: '', cnpj: '', category: 'Material', contactName: '', email: '', phone: '', rating: 0, notes: '' });
+    else setFormData({ name: '', cnpj: '', category: 'Material', contactName: '', email: '', phone: '', notes: '' });
   }, [supplier, isOpen]);
 
   if (!isOpen) return null;
@@ -55,7 +55,7 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({ isOpen, onClose, o
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6">
             <div>
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">Categoria de Atuação</label>
               <select className="w-full px-6 py-4 rounded-2xl border-2 border-slate-50 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none appearance-none focus:border-indigo-500" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value as any})}>
@@ -64,16 +64,6 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({ isOpen, onClose, o
                 <option value="Locação">Locação de Equipamentos</option>
                 <option value="Outros">Outros</option>
               </select>
-            </div>
-            <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">Qualificação (Rating)</label>
-              <div className="flex items-center gap-2 h-[56px] bg-slate-50 dark:bg-slate-950 rounded-2xl px-6 border-2 border-slate-50 dark:border-slate-800">
-                {[1, 2, 3, 4, 5].map(star => (
-                  <button key={star} type="button" onClick={() => setFormData({...formData, rating: star})}>
-                    <Star size={24} className={star <= (formData.rating || 0) ? 'fill-amber-400 text-amber-400' : 'text-slate-200 dark:text-slate-800'} />
-                  </button>
-                ))}
-              </div>
             </div>
           </div>
 

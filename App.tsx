@@ -319,7 +319,7 @@ const App: React.FC = () => {
           />
           <Route
             path="suppliers"
-            element={<SupplierManager suppliers={suppliers} onUpdateSuppliers={updateSuppliers} />}
+            element={<SupplierManager suppliers={suppliers} projects={projects} onUpdateSuppliers={updateSuppliers} />}
           />
           <Route
             path="settings/:tab?"

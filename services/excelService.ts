@@ -1,6 +1,6 @@
 
 import * as XLSX from 'xlsx';
-import { WorkItem, ItemType, Project, ProjectExpense, ExpenseType, ProjectPlanning, PlanningTask, MaterialForecast, Milestone } from '../types';
+import { WorkItem, ItemType, Project, ProjectExpense, ExpenseType, ProjectPlanning, PlanningTask, MaterialForecast, Milestone, Supplier } from '../types';
 import { financial } from '../utils/math';
 import { treeService } from './treeService';
 
@@ -28,6 +28,19 @@ export interface ExpenseImportResult {
   };
 }
 
+export interface SupplierImportResult {
+  suppliers: Array<{
+    name: string;
+    cnpj: string;
+    category: Supplier['category'];
+    contactName: string;
+    email: string;
+    phone: string;
+    notes: string;
+  }>;
+  errors: string[];
+}
+
 const WBS_HEADERS = [
   "WBS", 
   "TIPO_ITEM", 
@@ -42,6 +55,7 @@ const WBS_HEADERS = [
 ];
 
 const EXPENSE_HEADERS = ["WBS", "TIPO_REGISTRO", "CATEGORIA", "DATA", "DESCRICAO", "ENTIDADE", "UNIDADE", "QUANTIDADE", "UNITARIO", "DESCONTO", "TOTAL_LIQUIDO", "PAGO"];
+const SUPPLIER_HEADERS = ["NOME", "CNPJ", "CATEGORIA", "CONTATO", "EMAIL", "TELEFONE", "OBSERVACOES"];
 
 const parseVal = (v: any): number => {
   if (v === undefined || v === null || v === '') return 0;
@@ -138,6 +152,74 @@ export const excelService = {
     XLSX.utils.book_append_sheet(wb, wsForecasts, "Suprimentos");
     XLSX.utils.book_append_sheet(wb, wsMilestones, "Cronograma");
     XLSX.writeFile(wb, `Planejamento_${project.name}.xlsx`);
+  },
+
+  exportSuppliersToExcel: (suppliers: Supplier[]) => {
+    const wb = XLSX.utils.book_new();
+    const data = suppliers
+      .sort((a, b) => a.order - b.order)
+      .map((supplier) => [
+        supplier.name,
+        supplier.cnpj,
+        supplier.category,
+        supplier.contactName,
+        supplier.email,
+        supplier.phone,
+        supplier.notes,
+      ]);
+
+    const ws = XLSX.utils.aoa_to_sheet([SUPPLIER_HEADERS, ...data]);
+    XLSX.utils.book_append_sheet(wb, ws, 'Fornecedores');
+    XLSX.writeFile(wb, 'Fornecedores_Canteiro_Digital.xlsx');
+  },
+
+  parseSuppliersExcel: async (file: File): Promise<SupplierImportResult> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const buffer = e.target?.result;
+          const data = new Uint8Array(buffer as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const raw: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+          const suppliers: SupplierImportResult['suppliers'] = [];
+          const errors: string[] = [];
+
+          const normalizeCategory = (value: string): Supplier['category'] => {
+            const normalized = value.trim().toLowerCase();
+            if (normalized === 'serviço' || normalized === 'servico') return 'Serviço';
+            if (normalized === 'locação' || normalized === 'locacao') return 'Locação';
+            if (normalized === 'outros' || normalized === 'outro') return 'Outros';
+            return 'Material';
+          };
+
+          raw.slice(1).forEach((row, idx) => {
+            const name = String(row[0] || '').trim();
+            if (!name) {
+              errors.push(`Linha ${idx + 2}: nome obrigatório.`);
+              return;
+            }
+
+            suppliers.push({
+              name,
+              cnpj: String(row[1] || '').trim(),
+              category: normalizeCategory(String(row[2] || 'Material')),
+              contactName: String(row[3] || '').trim(),
+              email: String(row[4] || '').trim(),
+              phone: String(row[5] || '').trim(),
+              notes: String(row[6] || '').trim(),
+            });
+          });
+
+          resolve({ suppliers, errors });
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    });
   },
 
   parsePlanningExcel: async (file: File): Promise<ProjectPlanning> => {
