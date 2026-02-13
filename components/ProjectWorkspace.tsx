@@ -1158,7 +1158,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                       }
                     }}
                     disabled={isClosingInProgress}
-                    className="flex-[2] py-5 bg-indigo-600 hover:bg-indigo-50 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-[0_10px_30px_-10px_rgba(79,70,229,0.5)] active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="flex-[2] py-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-[0_10px_30px_-10px_rgba(79,70,229,0.5)] active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {isClosingInProgress ? 'Processando...' : 'Confirmar e abrir próxima'}
                   </button>
