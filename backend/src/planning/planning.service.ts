@@ -27,6 +27,8 @@ interface CreateForecastInput {
   unit: string;
   quantityNeeded: number;
   unitPrice: number;
+  discountValue?: number;
+  discountPercentage?: number;
   estimatedDate: string;
   purchaseDate?: string | null;
   deliveryDate?: string | null;
@@ -182,6 +184,8 @@ export class PlanningService {
         unit: input.unit,
         quantityNeeded: input.quantityNeeded,
         unitPrice: input.unitPrice,
+        discountValue: input.discountValue ?? null,
+        discountPercentage: input.discountPercentage ?? null,
         estimatedDate: input.estimatedDate,
         purchaseDate: input.purchaseDate ?? null,
         deliveryDate: input.deliveryDate ?? null,
@@ -232,6 +236,8 @@ export class PlanningService {
         unit: data.unit ?? forecast.unit,
         quantityNeeded: data.quantityNeeded ?? forecast.quantityNeeded,
         unitPrice: data.unitPrice ?? forecast.unitPrice,
+        discountValue: data.discountValue ?? forecast.discountValue,
+        discountPercentage: data.discountPercentage ?? forecast.discountPercentage,
         estimatedDate: data.estimatedDate ?? forecast.estimatedDate,
         purchaseDate: data.purchaseDate ?? forecast.purchaseDate,
         deliveryDate: data.deliveryDate ?? forecast.deliveryDate,
@@ -349,6 +355,8 @@ export class PlanningService {
       unit: f.unit,
       quantityNeeded: f.quantityNeeded,
       unitPrice: f.unitPrice,
+      discountValue: f.discountValue ?? null,
+      discountPercentage: f.discountPercentage ?? null,
       estimatedDate: f.estimatedDate,
       purchaseDate: f.purchaseDate ?? null,
       deliveryDate: f.deliveryDate ?? null,

@@ -37,6 +37,8 @@ interface CreateForecastBody {
   unit: string;
   quantityNeeded: number;
   unitPrice: number;
+  discountValue?: number;
+  discountPercentage?: number;
   estimatedDate: string;
   purchaseDate?: string | null;
   deliveryDate?: string | null;

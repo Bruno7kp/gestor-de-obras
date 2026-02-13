@@ -683,6 +683,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         if (prev.unit !== next.unit) patch.unit = next.unit;
         if (prev.quantityNeeded !== next.quantityNeeded) patch.quantityNeeded = next.quantityNeeded;
         if (prev.unitPrice !== next.unitPrice) patch.unitPrice = next.unitPrice;
+        if (prev.discountValue !== next.discountValue) patch.discountValue = next.discountValue;
+        if (prev.discountPercentage !== next.discountPercentage) patch.discountPercentage = next.discountPercentage;
         if (prev.estimatedDate !== next.estimatedDate) patch.estimatedDate = next.estimatedDate;
         if (prev.purchaseDate !== next.purchaseDate) patch.purchaseDate = next.purchaseDate;
         if (prev.deliveryDate !== next.deliveryDate) patch.deliveryDate = next.deliveryDate;

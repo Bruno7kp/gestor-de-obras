@@ -55,8 +55,22 @@ export const planningService = {
     return 'normal';
   },
 
-  prepareExpenseFromForecast: (forecast: MaterialForecast, parentId: string | null = null, purchaseDate?: string, isPaid: boolean = false, expenseId?: string, forecastStatus?: MaterialForecast['status']): Partial<ProjectExpense> => {
+  prepareExpenseFromForecast: (
+    forecast: MaterialForecast,
+    parentId: string | null = null,
+    purchaseDate?: string,
+    isPaid: boolean = false,
+    expenseId?: string,
+    forecastStatus?: MaterialForecast['status'],
+    discounts?: {
+      discountValue?: number;
+      discountPercentage?: number;
+    }
+  ): Partial<ProjectExpense> => {
     const totalAmount = (forecast.quantityNeeded || 0) * (forecast.unitPrice || 0);
+    const discountValue = discounts?.discountValue ?? forecast.discountValue ?? 0;
+    const discountPercentage = discounts?.discountPercentage ?? forecast.discountPercentage ?? 0;
+    const netAmount = Math.max(0, totalAmount - discountValue);
     const prefix = getExpensePrefix(forecastStatus ?? forecast.status, isPaid);
     const effectiveDate = purchaseDate || new Date().toISOString().split('T')[0];
     return {
@@ -71,8 +85,10 @@ export const planningService = {
       unit: forecast.unit,
       quantity: forecast.quantityNeeded,
       unitPrice: forecast.unitPrice,
+      discountValue,
+      discountPercentage,
       isPaid: isPaid, 
-      amount: totalAmount,
+      amount: netAmount,
       status: isPaid ? 'PAID' : 'PENDING'
     };
   },
@@ -134,6 +150,8 @@ export const planningService = {
         description: data.description || 'Insumo Previsto',
         quantityNeeded: data.quantityNeeded || 0,
         unitPrice: data.unitPrice || 0,
+        discountValue: data.discountValue || 0,
+        discountPercentage: data.discountPercentage || 0,
         unit: data.unit || 'un',
         estimatedDate: data.estimatedDate || new Date().toISOString(),
         status,

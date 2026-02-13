@@ -327,6 +327,8 @@ model MaterialForecast {
   unit             String
   quantityNeeded   Float
   unitPrice        Float
+  discountValue    Float?
+  discountPercentage Float?
   estimatedDate    String
   purchaseDate     String?
   deliveryDate     String?

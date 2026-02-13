@@ -150,13 +150,19 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
       });
   }, [planning.forecasts, forecastSearch, forecastStatusFilter]);
 
+  const getForecastNetTotal = (forecast: MaterialForecast) => {
+    const gross = financial.round((forecast.quantityNeeded || 0) * (forecast.unitPrice || 0));
+    const discount = financial.normalizeMoney(forecast.discountValue || 0);
+    return Math.max(0, financial.round(gross - discount));
+  };
+
   const forecastStats = useMemo(() => {
     const list = planning.forecasts || [];
     const totalList = isSuppliesView
       ? list.filter(f => f.status === 'pending')
       : list.filter(f => !f.isCleared);
     const total = totalList
-      .reduce((acc, f) => acc + ((f.quantityNeeded || 0) * (f.unitPrice || 0)), 0);
+      .reduce((acc, f) => acc + getForecastNetTotal(f), 0);
     
     const countPending = list.filter(f => f.status === 'pending').length;
     const countOrdered = list.filter(f => f.status === 'ordered').length;
@@ -165,10 +171,10 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
 
     const pending = list
       .filter(f => f.status === 'ordered' && !f.isPaid)
-      .reduce((acc, f) => acc + ((f.quantityNeeded || 0) * (f.unitPrice || 0)), 0);
-    const ordered = list.filter(f => f.status === 'ordered').reduce((acc, f) => acc + ((f.quantityNeeded || 0) * (f.unitPrice || 0)), 0);
-    const delivered = list.filter(f => f.status === 'delivered').reduce((acc, f) => acc + ((f.quantityNeeded || 0) * (f.unitPrice || 0)), 0);
-    const effective = list.filter(f => f.status !== 'pending').reduce((acc, f) => acc + ((f.quantityNeeded || 0) * (f.unitPrice || 0)), 0);
+      .reduce((acc, f) => acc + getForecastNetTotal(f), 0);
+    const ordered = list.filter(f => f.status === 'ordered').reduce((acc, f) => acc + getForecastNetTotal(f), 0);
+    const delivered = list.filter(f => f.status === 'delivered').reduce((acc, f) => acc + getForecastNetTotal(f), 0);
+    const effective = list.filter(f => f.status !== 'pending').reduce((acc, f) => acc + getForecastNetTotal(f), 0);
     
     return { total, pending, ordered, delivered, effective, countPending, countOrdered, countDelivered, countEffective };
   }, [planning.forecasts, isSuppliesView]);
@@ -286,9 +292,28 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     );
   };
 
-  const handleFinalizePurchase = (forecast: MaterialForecast, parentId: string | null, isPaid: boolean, proof?: string, purchaseDate?: string) => {
+  const handleFinalizePurchase = (
+    forecast: MaterialForecast,
+    parentId: string | null,
+    isPaid: boolean,
+    proof?: string,
+    purchaseDate?: string,
+    discountValue?: number,
+    discountPercentage?: number,
+  ) => {
     const existingExpense = project.expenses.find(expense => isExpenseForForecast(expense, forecast));
-    const expenseData = planningService.prepareExpenseFromForecast(forecast, parentId, purchaseDate, isPaid, forecast.id, 'ordered');
+    const expenseData = planningService.prepareExpenseFromForecast(
+      forecast,
+      parentId,
+      purchaseDate,
+      isPaid,
+      forecast.id,
+      'ordered',
+      {
+        discountValue,
+        discountPercentage,
+      },
+    );
     const supplierName = suppliers.find(s => s.id === forecast.supplierId)?.name;
     if (supplierName) {
       expenseData.entityName = supplierName;
@@ -306,6 +331,8 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
         unit: expenseData.unit,
         quantity: expenseData.quantity,
         unitPrice: expenseData.unitPrice,
+        discountValue: expenseData.discountValue,
+        discountPercentage: expenseData.discountPercentage,
         amount: expenseData.amount,
         isPaid: expenseData.isPaid,
         status: expenseData.status,
@@ -320,6 +347,8 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
       isPaid: isPaid,
       paymentProof: proof,
       purchaseDate: purchaseDate || new Date().toISOString().split('T')[0],
+      discountValue: expenseData.discountValue ?? forecast.discountValue ?? 0,
+      discountPercentage: expenseData.discountPercentage ?? forecast.discountPercentage ?? 0,
     });
     onUpdatePlanning(updatedPlanning);
     setConfirmingForecast(null);
@@ -805,7 +834,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                     </td>
                                     <td className="py-6">
                                       <span className="text-sm font-black text-indigo-600 dark:text-indigo-400">
-                                        {financial.formatVisual((f.quantityNeeded || 0) * (f.unitPrice || 0), project.theme?.currencySymbol)}
+                                        {financial.formatVisual(getForecastNetTotal(f), project.theme?.currencySymbol)}
                                       </span>
                                     </td>
                                     <td className="py-6">
@@ -1056,7 +1085,12 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
         <ConfirmForecastModal 
           forecast={confirmingForecast} 
           onClose={() => { setConfirmingForecast(null); setForcePaidConfirm(false); }} 
-          onConfirm={(isPaid: boolean, parentId: string | null, proof?: string, purchaseDate?: string) => { handleFinalizePurchase(confirmingForecast, parentId, isPaid, proof, purchaseDate); setForcePaidConfirm(false); }}
+          onConfirm={(isPaid: boolean, parentId: string | null, proof?: string, purchaseDate?: string, discountValue?: number, discountPercentage?: number) => {
+            handleFinalizePurchase(confirmingForecast, parentId, isPaid, proof, purchaseDate, discountValue, discountPercentage);
+            setForcePaidConfirm(false);
+          }}
+          initialDiscountValue={confirmingForecast.discountValue ?? findExpenseForForecast(confirmingForecast)?.discountValue}
+          initialDiscountPercentage={confirmingForecast.discountPercentage ?? findExpenseForForecast(confirmingForecast)?.discountPercentage}
           financialCategories={financialCategories}
           toast={toast}
           forcePaid={forcePaidConfirm}
@@ -1158,6 +1192,8 @@ const ForecastModal = ({ onClose, onSave, projectId, allWorkItems, suppliers, ex
     description: editingItem?.description || '',
     quantityNeeded: editingItem?.quantityNeeded || 1,
     unitPrice: editingItem?.unitPrice || 0,
+    discountValue: editingItem?.discountValue || 0,
+    discountPercentage: editingItem?.discountPercentage || 0,
     unit: editingItem?.unit || 'un',
     isPaid: editingItem?.isPaid || false,
     isCleared: editingItem?.isCleared || false,
@@ -1169,10 +1205,16 @@ const ForecastModal = ({ onClose, onSave, projectId, allWorkItems, suppliers, ex
   const [strUnitPrice, setStrUnitPrice] = useState(
     financial.formatVisual(editingItem?.unitPrice || 0, '').trim()
   );
+  const [strDiscountValue, setStrDiscountValue] = useState(
+    financial.formatVisual(editingItem?.discountValue || 0, '').trim()
+  );
+  const [strDiscountPercent, setStrDiscountPercent] = useState(
+    financial.formatVisual(editingItem?.discountPercentage || 0, '').trim()
+  );
   const [isSearchingSuggestions, setIsSearchingSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState<MaterialSuggestion[]>([]);
   const [highlightedSuggestionIndex, setHighlightedSuggestionIndex] = useState(-1);
-  const [pauseSuggestionsUntilTyping, setPauseSuggestionsUntilTyping] = useState(false);
+  const [pauseSuggestionsUntilTyping, setPauseSuggestionsUntilTyping] = useState(!!editingItem);
   const suggestionsContainerRef = useRef<HTMLDivElement | null>(null);
   const [manualEdited, setManualEdited] = useState({
     unit: false,
@@ -1222,6 +1264,10 @@ const ForecastModal = ({ onClose, onSave, projectId, allWorkItems, suppliers, ex
   };
 
   const visibleSuggestions = useMemo(() => suggestions.slice(0, 5), [suggestions]);
+
+  useEffect(() => {
+    setPauseSuggestionsUntilTyping(!!editingItem);
+  }, [editingItem?.id]);
 
   useEffect(() => {
     let active = true;
@@ -1308,6 +1354,34 @@ const ForecastModal = ({ onClose, onSave, projectId, allWorkItems, suppliers, ex
       setSuggestions([]);
       setHighlightedSuggestionIndex(-1);
     }
+  };
+
+  const handleDiscountChange = (value: string, field: 'value' | 'percent') => {
+    const subtotal = financial.round((data.quantityNeeded || 0) * (data.unitPrice || 0));
+    const masked = financial.maskCurrency(value);
+
+    if (field === 'percent') {
+      const discountPercentage = financial.parseLocaleNumber(masked);
+      const discountValue = financial.round(subtotal * (discountPercentage / 100));
+      setStrDiscountPercent(masked);
+      setStrDiscountValue(financial.formatVisual(discountValue, '').trim());
+      setData(prev => ({
+        ...prev,
+        discountPercentage: financial.normalizePercent(discountPercentage),
+        discountValue: financial.normalizeMoney(discountValue),
+      }));
+      return;
+    }
+
+    const discountValue = financial.parseLocaleNumber(masked);
+    const discountPercentage = subtotal > 0 ? financial.round((discountValue / subtotal) * 100) : 0;
+    setStrDiscountValue(masked);
+    setStrDiscountPercent(financial.formatVisual(discountPercentage, '').trim());
+    setData(prev => ({
+      ...prev,
+      discountValue: financial.normalizeMoney(discountValue),
+      discountPercentage: financial.normalizePercent(discountPercentage),
+    }));
   };
 
   return (
@@ -1441,7 +1515,19 @@ const ForecastModal = ({ onClose, onSave, projectId, allWorkItems, suppliers, ex
                   type="number" 
                   className="w-full px-4 py-5 rounded-3xl bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-white text-sm font-black text-center outline-none focus:border-indigo-600" 
                   value={data.quantityNeeded} 
-                  onChange={e => setData({...data, quantityNeeded: financial.normalizeQuantity(parseFloat(e.target.value) || 0)})} 
+                  onChange={e => {
+                    const nextQuantity = financial.normalizeQuantity(parseFloat(e.target.value) || 0);
+                    const subtotal = financial.round(nextQuantity * (data.unitPrice || 0));
+                    const currentDiscountPercentage = financial.parseLocaleNumber(strDiscountPercent);
+                    const nextDiscountValue = financial.round(subtotal * (currentDiscountPercentage / 100));
+                    setStrDiscountValue(financial.formatVisual(nextDiscountValue, '').trim());
+                    setData({
+                      ...data,
+                      quantityNeeded: nextQuantity,
+                      discountValue: financial.normalizeMoney(nextDiscountValue),
+                      discountPercentage: financial.normalizePercent(currentDiscountPercentage),
+                    });
+                  }} 
                 />
               </div>
               <div>
@@ -1456,12 +1542,43 @@ const ForecastModal = ({ onClose, onSave, projectId, allWorkItems, suppliers, ex
                     onChange={e => {
                       setManualEdited((prev) => ({ ...prev, unitPrice: true }));
                       const masked = financial.maskCurrency(e.target.value);
+                      const parsedPrice = financial.normalizeMoney(financial.parseLocaleNumber(masked));
+                      const subtotal = financial.round((data.quantityNeeded || 0) * parsedPrice);
+                      const currentDiscountPercentage = financial.parseLocaleNumber(strDiscountPercent);
+                      const nextDiscountValue = financial.round(subtotal * (currentDiscountPercentage / 100));
                       setStrUnitPrice(masked);
-                      setData({ ...data, unitPrice: financial.normalizeMoney(financial.parseLocaleNumber(masked)) });
+                      setStrDiscountValue(financial.formatVisual(nextDiscountValue, '').trim());
+                      setData({
+                        ...data,
+                        unitPrice: parsedPrice,
+                        discountValue: financial.normalizeMoney(nextDiscountValue),
+                        discountPercentage: financial.normalizePercent(currentDiscountPercentage),
+                      });
                     }} 
                   />
                 </div>
               </div>
+           </div>
+
+           <div className="grid grid-cols-2 gap-4">
+             <div>
+               <label className="text-[10px] font-black text-rose-500 uppercase mb-2 block tracking-widest ml-1">Desconto (%)</label>
+               <input
+                 inputMode="decimal"
+                 className="w-full px-4 py-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-rose-600 dark:text-rose-500 text-xs font-bold outline-none focus:border-rose-500 transition-all"
+                 value={strDiscountPercent}
+                 onChange={e => handleDiscountChange(e.target.value, 'percent')}
+               />
+             </div>
+             <div>
+               <label className="text-[10px] font-black text-rose-500 uppercase mb-2 block tracking-widest ml-1">Desconto (R$)</label>
+               <input
+                 inputMode="decimal"
+                 className="w-full px-4 py-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-rose-600 dark:text-rose-500 text-xs font-bold outline-none focus:border-rose-500 transition-all"
+                 value={strDiscountValue}
+                 onChange={e => handleDiscountChange(e.target.value, 'value')}
+               />
+             </div>
            </div>
 
         </div>
@@ -1675,18 +1792,45 @@ const MilestoneModal = ({ milestone, onClose, onSave }: any) => {
 };
 
 // --- CONFIRM PURCHASE MODAL ---
-const ConfirmForecastModal = ({ forecast, onClose, onConfirm, financialCategories, toast, forcePaid }: any) => {
+const ConfirmForecastModal = ({ forecast, onClose, onConfirm, financialCategories, toast, forcePaid, initialDiscountValue = 0, initialDiscountPercentage = 0 }: any) => {
   const [parentId, setParentId] = useState<string | null>(null);
   const [purchaseDate, setPurchaseDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [isPaid, setIsPaid] = useState(!!forecast.isPaid);
   const [paymentProof, setPaymentProof] = useState<string | undefined>(forecast.paymentProof);
   const [confirmPaidOpen, setConfirmPaidOpen] = useState(false);
+  const [strDiscountValue, setStrDiscountValue] = useState(financial.formatVisual(initialDiscountValue || 0, '').trim());
+  const [strDiscountPercent, setStrDiscountPercent] = useState(financial.formatVisual(initialDiscountPercentage || 0, '').trim());
+
+  const grossAmount = financial.round((forecast.quantityNeeded || 0) * (forecast.unitPrice || 0));
+  const discountValueNumber = financial.parseLocaleNumber(strDiscountValue);
+  const netAmount = Math.max(0, financial.round(grossAmount - discountValueNumber));
 
   useEffect(() => {
     if (forcePaid) {
       setIsPaid(true);
     }
   }, [forcePaid]);
+
+  useEffect(() => {
+    setStrDiscountValue(financial.formatVisual(initialDiscountValue || 0, '').trim());
+    setStrDiscountPercent(financial.formatVisual(initialDiscountPercentage || 0, '').trim());
+  }, [forecast.id, initialDiscountValue, initialDiscountPercentage]);
+
+  const handleDiscountChange = (value: string, field: 'value' | 'percent') => {
+    const masked = financial.maskCurrency(value);
+    if (field === 'percent') {
+      const discountPercent = financial.parseLocaleNumber(masked);
+      const discountValue = financial.round(grossAmount * (discountPercent / 100));
+      setStrDiscountPercent(masked);
+      setStrDiscountValue(financial.formatVisual(discountValue, '').trim());
+      return;
+    }
+
+    const discountValue = financial.parseLocaleNumber(masked);
+    const discountPercent = grossAmount > 0 ? financial.round((discountValue / grossAmount) * 100) : 0;
+    setStrDiscountValue(masked);
+    setStrDiscountPercent(financial.formatVisual(discountPercent, '').trim());
+  };
 
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}>
@@ -1703,11 +1847,37 @@ const ConfirmForecastModal = ({ forecast, onClose, onConfirm, financialCategorie
         
         <div className="space-y-6 mb-8 w-full text-center">
            <p className="text-slate-500 dark:text-slate-400 text-base leading-relaxed">
-             Registrar compra de <span className="text-slate-900 dark:text-white font-bold">{forecast.description}</span> no valor de <span className="text-indigo-600 dark:text-indigo-400 font-bold">{financial.formatVisual((forecast.quantityNeeded || 0) * (forecast.unitPrice || 0), 'R$')}</span>.
+             Registrar compra de <span className="text-slate-900 dark:text-white font-bold">{forecast.description}</span> no valor de <span className="text-indigo-600 dark:text-indigo-400 font-bold">{financial.formatVisual(grossAmount, 'R$')}</span>.
            </p>
            
            <div className="text-left space-y-6">
               <div className="grid grid-cols-1 gap-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-black text-rose-500 uppercase mb-2 block tracking-widest ml-1">Desconto (%)</label>
+                    <input
+                      inputMode="decimal"
+                      className="w-full px-4 py-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-rose-600 dark:text-rose-500 text-xs font-bold outline-none focus:border-rose-500 transition-all"
+                      value={strDiscountPercent}
+                      onChange={e => handleDiscountChange(e.target.value, 'percent')}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-rose-500 uppercase mb-2 block tracking-widest ml-1">Desconto (R$)</label>
+                    <input
+                      inputMode="decimal"
+                      className="w-full px-4 py-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-rose-600 dark:text-rose-500 text-xs font-bold outline-none focus:border-rose-500 transition-all"
+                      value={strDiscountValue}
+                      onChange={e => handleDiscountChange(e.target.value, 'value')}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-800">
+                  <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Valor Líquido</span>
+                  <span className="text-sm font-black text-indigo-600 dark:text-indigo-400">{financial.formatVisual(netAmount, 'R$')}</span>
+                </div>
+
                 <div>
                   <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-2 block tracking-widest ml-1">Data da Compra</label>
                   <div className="relative">
@@ -1782,7 +1952,14 @@ const ConfirmForecastModal = ({ forecast, onClose, onConfirm, financialCategorie
                   setConfirmPaidOpen(true);
                   return;
                 }
-                onConfirm(isPaid, parentId, paymentProof, purchaseDate);
+                onConfirm(
+                  isPaid,
+                  parentId,
+                  paymentProof,
+                  purchaseDate,
+                  financial.normalizeMoney(financial.parseLocaleNumber(strDiscountValue)),
+                  financial.normalizePercent(financial.parseLocaleNumber(strDiscountPercent)),
+                );
               }} 
               className={`flex-[2] py-4 rounded-[1.5rem] font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all ${
                 isPaid ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/20 text-white' : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-500/20 text-white'
@@ -1802,7 +1979,14 @@ const ConfirmForecastModal = ({ forecast, onClose, onConfirm, financialCategorie
         variant="warning"
         onConfirm={() => {
           setConfirmPaidOpen(false);
-          onConfirm(isPaid, parentId, paymentProof, purchaseDate);
+          onConfirm(
+            isPaid,
+            parentId,
+            paymentProof,
+            purchaseDate,
+            financial.normalizeMoney(financial.parseLocaleNumber(strDiscountValue)),
+            financial.normalizePercent(financial.parseLocaleNumber(strDiscountPercent)),
+          );
         }}
         onCancel={() => setConfirmPaidOpen(false)}
       />
