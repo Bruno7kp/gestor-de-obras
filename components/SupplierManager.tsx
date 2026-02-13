@@ -4,12 +4,13 @@ import { Project, Supplier } from '../types';
 import { 
   Truck, Search, Plus, Phone, Mail,
   Trash2, Edit2, GripVertical, Building2, Filter,
-  Boxes, Download, UploadCloud, X
+  Boxes, Download, UploadCloud, X, Loader2
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { SupplierModal } from './SupplierModal';
 import { ConfirmModal } from './ConfirmModal';
 import { suppliersApi } from '../services/suppliersApi';
+import { projectsApi } from '../services/projectsApi';
 import { usePermissions } from '../hooks/usePermissions';
 import { useToast } from '../hooks/useToast';
 import { uiPreferences } from '../utils/uiPreferences';
@@ -38,9 +39,17 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, pro
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [supplierSuppliesModal, setSupplierSuppliesModal] = useState<Supplier | null>(null);
+  const [projectsForSupplies, setProjectsForSupplies] = useState<Project[]>(projects);
+  const [isLoadingSuppliesProjects, setIsLoadingSuppliesProjects] = useState(false);
+  const [hasLoadedSuppliesProjects, setHasLoadedSuppliesProjects] = useState(false);
   const [suppliesSearch, setSuppliesSearch] = useState('');
   const [suppliesProjectFilter, setSuppliesProjectFilter] = useState<string>('ALL');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setProjectsForSupplies(projects);
+    setHasLoadedSuppliesProjects(false);
+  }, [projects]);
 
   const filteredSuppliers = useMemo(() => {
     return suppliers
@@ -75,7 +84,7 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, pro
   const supplierSupplies = useMemo(() => {
     if (!supplierSuppliesModal) return [];
 
-    return projects.flatMap((project) =>
+    return projectsForSupplies.flatMap((project) =>
       project.planning.forecasts
         .filter((forecast) => forecast.supplierId === supplierSuppliesModal.id)
         .sort((a, b) => a.order - b.order)
@@ -92,7 +101,7 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, pro
           estimatedDate: forecast.estimatedDate,
         })),
     );
-  }, [projects, supplierSuppliesModal]);
+  }, [projectsForSupplies, supplierSuppliesModal]);
 
   const filteredSupplierSupplies = useMemo(() => {
     return supplierSupplies.filter((item) => {
@@ -244,10 +253,30 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, pro
     excelService.exportSuppliersToExcel(suppliers);
   };
 
-  const openSupplierSuppliesModal = (supplier: Supplier) => {
+  const openSupplierSuppliesModal = async (supplier: Supplier) => {
     setSupplierSuppliesModal(supplier);
     setSuppliesSearch('');
     setSuppliesProjectFilter('ALL');
+
+    if (hasLoadedSuppliesProjects || projects.length === 0) return;
+
+    setIsLoadingSuppliesProjects(true);
+    try {
+      const detailedProjects = await Promise.all(
+        projects.map(async (project) => {
+          try {
+            return await projectsApi.get(project.id);
+          } catch (error) {
+            console.error(`Erro ao carregar dados completos da obra ${project.id}:`, error);
+            return project;
+          }
+        }),
+      );
+      setProjectsForSupplies(detailedProjects);
+      setHasLoadedSuppliesProjects(true);
+    } finally {
+      setIsLoadingSuppliesProjects(false);
+    }
   };
 
   const statusLabel: Record<string, string> = {
@@ -457,7 +486,11 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, pro
               </select>
             </div>
 
-            {filteredSupplierSupplies.length === 0 ? (
+            {isLoadingSuppliesProjects ? (
+              <div className="flex-1 flex items-center justify-center text-sm font-semibold text-slate-500 dark:text-slate-400 gap-2">
+                <Loader2 size={16} className="animate-spin" /> Carregando suprimentos...
+              </div>
+            ) : filteredSupplierSupplies.length === 0 ? (
               <div className="flex-1 flex items-center justify-center text-sm font-semibold text-slate-500 dark:text-slate-400">
                 Nenhum suprimento associado a este fornecedor.
               </div>
