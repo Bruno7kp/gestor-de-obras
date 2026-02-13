@@ -82,6 +82,7 @@ model User {
   createdForecasts MaterialForecast[] @relation("UserForecasts")
   createdLaborPayments LaborPayment[] @relation("UserLaborPayments")
   createdProjectAssets ProjectAsset[] @relation("UserProjectAssets")
+  createdJournalEntries JournalEntry[] @relation("UserJournalEntries")
 }
 
 model Role {
@@ -370,7 +371,9 @@ model JournalEntry {
   description     String
   weatherStatus   String?
   photoUrls       String[]
+  createdById     String?
   projectJournalId String
+  createdBy       User? @relation("UserJournalEntries", fields: [createdById], references: [id])
   projectJournal  ProjectJournal @relation(fields: [projectJournalId], references: [id])
 }
 

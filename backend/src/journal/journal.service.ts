@@ -47,6 +47,11 @@ export class JournalService {
     return this.prisma.journalEntry.findMany({
       where: { projectJournalId: journal.id },
       orderBy: { timestamp: 'desc' },
+      include: {
+        createdBy: {
+          select: { id: true, name: true, profileImage: true },
+        },
+      },
     });
   }
 
@@ -65,6 +70,12 @@ export class JournalService {
         description: input.description,
         weatherStatus: input.weatherStatus ?? null,
         photoUrls: input.photoUrls ?? [],
+        createdById: input.userId ?? null,
+      },
+      include: {
+        createdBy: {
+          select: { id: true, name: true, profileImage: true },
+        },
       },
     });
   }
@@ -98,6 +109,11 @@ export class JournalService {
         description: data.description ?? entry.description,
         weatherStatus: data.weatherStatus ?? entry.weatherStatus,
         photoUrls: data.photoUrls ?? entry.photoUrls,
+      },
+      include: {
+        createdBy: {
+          select: { id: true, name: true, profileImage: true },
+        },
       },
     });
   }

@@ -275,7 +275,15 @@ export class ProjectsService {
             milestones: true,
           },
         },
-        journal: { include: { entries: true } },
+        journal: {
+          include: {
+            entries: {
+              include: {
+                createdBy: { select: { id: true, name: true, profileImage: true } },
+              },
+            },
+          },
+        },
         workforce: { include: { documentos: true, responsabilidades: true } },
         laborContracts: {
           include: {
@@ -338,7 +346,15 @@ export class ProjectsService {
               milestones: true,
             },
           },
-          journal: { include: { entries: true } },
+          journal: {
+            include: {
+              entries: {
+                include: {
+                  createdBy: { select: { id: true, name: true, profileImage: true } },
+                },
+              },
+            },
+          },
           workforce: { include: { documentos: true, responsabilidades: true } },
           laborContracts: {
             include: {

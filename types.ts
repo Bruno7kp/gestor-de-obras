@@ -253,6 +253,8 @@ export interface JournalEntry {
   description: string;
   weatherStatus?: WeatherType;
   photoUrls: string[];
+  createdById?: string;
+  createdBy?: Pick<UserAccount, 'id' | 'name' | 'profileImage'> | null;
 }
 
 export interface ProjectJournal {

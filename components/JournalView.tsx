@@ -5,11 +5,12 @@ import { journalService } from '../services/journalService';
 import { journalApi } from '../services/journalApi';
 import { uploadService } from '../services/uploadService';
 import { usePermissions } from '../hooks/usePermissions';
+import { useAuth } from '../auth/AuthContext';
 import { ConfirmModal } from './ConfirmModal';
 import { useToast } from '../hooks/useToast';
 import { uiPreferences } from '../utils/uiPreferences';
 import { 
-  BookOpen, Plus, Camera, Sun, CloudRain, Cloud, Zap, 
+  BookOpen, Plus, Camera, CloudRain, Cloud, Zap, 
   Trash2, Search, Filter, History, Loader2,
   AlertCircle, DollarSign, BarChart, Send, X, ShieldCheck, Edit3
 } from 'lucide-react';
@@ -21,6 +22,7 @@ interface JournalViewProps {
 }
 
 export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJournal, allWorkItems }) => {
+  const { user } = useAuth();
   const { canEdit, getLevel } = usePermissions();
   const canEditJournal = canEdit('journal');
   const toast = useToast();
@@ -36,6 +38,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   
   // Quick Composer State
   const [isExpanded, setIsExpanded] = useState(false);
@@ -49,6 +52,14 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const journal = project.journal;
+
+  const getInitials = (name?: string | null) => {
+    if (!name) return '';
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '';
+    if (parts.length === 1) return parts[0][0]?.toUpperCase() ?? '';
+    return `${parts[0][0] ?? ''}${parts[parts.length - 1][0] ?? ''}`.toUpperCase();
+  };
 
   useEffect(() => {
     const saved = uiPreferences.getString(journalFilterKey);
@@ -113,6 +124,8 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
       description: newEntry.description,
       weatherStatus: newEntry.category === 'WEATHER' ? (newEntry.weatherStatus ?? 'sunny') : undefined,
       photoUrls: newEntry.photoUrls || [],
+      createdById: user?.id,
+      createdBy: user?.id && user?.name ? { id: user.id, name: user.name, profileImage: user.profileImage ?? null } : undefined,
     };
 
     try {
@@ -157,6 +170,15 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
       case 'rainy': return <CloudRain size={14} className="text-blue-400" />;
       case 'cloudy': return <Cloud size={14} className="text-slate-400" />;
       case 'storm': return <Zap size={14} className="text-indigo-500" />;
+    }
+  };
+
+  const getWeatherLabel = (type: WeatherType) => {
+    switch (type) {
+      case 'sunny': return 'Ensolarado';
+      case 'cloudy': return 'Nublado';
+      case 'rainy': return 'Chuvoso';
+      case 'storm': return 'Tempestade';
     }
   };
 
@@ -241,9 +263,6 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
                 <Camera size={20} />
                 <input type="file" ref={fileInputRef} className="hidden" multiple accept="image/*" onChange={handlePhotoUpload} />
               </button>
-              <button type="button" className="p-3 text-slate-400 hover:text-indigo-600 hover:bg-white dark:hover:bg-slate-700 rounded-xl transition-all">
-                <Sun size={20} />
-              </button>
             </div>
             
             <div className="flex items-center gap-3">
@@ -310,10 +329,26 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
                     <span className="flex items-center gap-1.5"><History size={12}/> {new Date(entry.timestamp).toLocaleString('pt-BR')}</span>
                     {entry.weatherStatus && (
                       <span className="flex items-center gap-1.5 border-l border-slate-200 dark:border-slate-700 pl-3">
-                        <WeatherIcon type={entry.weatherStatus} /> {entry.weatherStatus}
+                        <WeatherIcon type={entry.weatherStatus} /> {getWeatherLabel(entry.weatherStatus)}
                       </span>
                     )}
                   </div>
+                  {entry.createdBy?.name && (
+                    <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-slate-400">
+                      {entry.createdBy.profileImage ? (
+                        <img
+                          src={entry.createdBy.profileImage}
+                          alt={entry.createdBy.name}
+                          className="w-6 h-6 rounded-full object-cover border border-slate-200 dark:border-slate-700"
+                        />
+                      ) : (
+                        <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px] font-black">
+                          {getInitials(entry.createdBy.name)}
+                        </div>
+                      )}
+                      <span>Cadastrado por {entry.createdBy.name}</span>
+                    </div>
+                  )}
                 </div>
                 
                 {/* Actions (Only for Manual) */}
@@ -336,9 +371,14 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
               {entry.photoUrls && entry.photoUrls.length > 0 && (
                 <div className="mt-6 flex flex-wrap gap-3">
                   {entry.photoUrls.map((url, i) => (
-                    <div key={i} className="w-28 h-28 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800 shadow-sm hover:scale-105 transition-transform cursor-pointer">
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setLightboxImage(url)}
+                      className="w-28 h-28 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800 shadow-sm hover:scale-105 transition-transform cursor-pointer"
+                    >
                       <img src={url} className="w-full h-full object-cover" />
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
@@ -385,6 +425,28 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
         onConfirm={() => confirmDeleteId && handleDelete(confirmDeleteId)}
         onCancel={() => setConfirmDeleteId(null)}
       />
+
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 z-[2500] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm"
+          onClick={() => setLightboxImage(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setLightboxImage(null)}
+            className="absolute top-6 right-6 p-2 rounded-xl bg-black/40 text-white hover:bg-black/60 transition-all"
+            aria-label="Fechar imagem"
+          >
+            <X size={20} />
+          </button>
+          <img
+            src={lightboxImage}
+            alt="Imagem do diário"
+            className="max-h-[90vh] max-w-[90vw] object-contain rounded-2xl shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 };
