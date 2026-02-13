@@ -45,6 +45,52 @@ const extractMaterialDescription = (description: string) => {
   return parts.slice(1).join(':').trim() || description.trim();
 };
 
+const sortSuggestions = (suggestions: MaterialSuggestion[], normalizedQuery: string) =>
+  suggestions.sort((a, b) => {
+    const aStarts = a.normalizedLabel.startsWith(normalizedQuery) ? 1 : 0;
+    const bStarts = b.normalizedLabel.startsWith(normalizedQuery) ? 1 : 0;
+    if (aStarts !== bStarts) return bStarts - aStarts;
+
+    const dateDiff = parseDate(b.lastDate) - parseDate(a.lastDate);
+    if (dateDiff !== 0) return dateDiff;
+
+    return (b.usageCount || 0) - (a.usageCount || 0);
+  });
+
+const mergeSuggestions = (
+  primary: MaterialSuggestion[],
+  fallback: MaterialSuggestion[],
+  normalizedQuery: string,
+  limit: number,
+) => {
+  const bucket = new Map<string, MaterialSuggestion>();
+
+  for (const suggestion of [...primary, ...fallback]) {
+    const normalizedLabel = suggestion.normalizedLabel || normalizeText(suggestion.label || '');
+    if (!normalizedLabel) continue;
+
+    const current = bucket.get(normalizedLabel);
+    if (!current) {
+      bucket.set(normalizedLabel, { ...suggestion, normalizedLabel });
+      continue;
+    }
+
+    const currentDate = parseDate(current.lastDate);
+    const nextDate = parseDate(suggestion.lastDate);
+    const useNext = nextDate > currentDate || (nextDate === currentDate && (suggestion.usageCount || 0) >= (current.usageCount || 0));
+
+    bucket.set(normalizedLabel, {
+      ...(useNext ? current : suggestion),
+      ...(useNext ? suggestion : current),
+      normalizedLabel,
+      usageCount: (current.usageCount || 0) + (suggestion.usageCount || 0),
+      lastDate: useNext ? suggestion.lastDate : current.lastDate,
+    });
+  }
+
+  return sortSuggestions(Array.from(bucket.values()), normalizedQuery).slice(0, limit);
+};
+
 export const createLocalMaterialAutocompleteProvider = (
   source: MaterialAutocompleteSource,
 ): MaterialAutocompleteProvider => {
@@ -137,8 +183,9 @@ export const createLocalMaterialAutocompleteProvider = (
           const aStarts = a.normalizedLabel.startsWith(normalizedQuery) ? 1 : 0;
           const bStarts = b.normalizedLabel.startsWith(normalizedQuery) ? 1 : 0;
           if (aStarts !== bStarts) return bStarts - aStarts;
-          if (a.usageCount !== b.usageCount) return b.usageCount - a.usageCount;
-          return parseDate(b.lastDate) - parseDate(a.lastDate);
+          const dateDiff = parseDate(b.lastDate) - parseDate(a.lastDate);
+          if (dateDiff !== 0) return dateDiff;
+          return b.usageCount - a.usageCount;
         })
         .slice(0, limit);
     },
@@ -152,10 +199,20 @@ export const createRemoteMaterialAutocompleteProvider = (
     const normalizedQuery = normalizeText(query);
     if (!normalizedQuery || normalizedQuery.length < 2) return [];
     const result = await api.searchMaterialSuggestions(query, limit);
-    return result.map((suggestion) => ({
-      ...suggestion,
-      normalizedLabel: suggestion.normalizedLabel || normalizeText(suggestion.label || ''),
-    }));
+    return result
+      .map((suggestion) => ({
+        ...suggestion,
+        normalizedLabel: suggestion.normalizedLabel || normalizeText(suggestion.label || ''),
+      }))
+      .sort((a, b) => {
+        const aStarts = a.normalizedLabel.startsWith(normalizedQuery) ? 1 : 0;
+        const bStarts = b.normalizedLabel.startsWith(normalizedQuery) ? 1 : 0;
+        if (aStarts !== bStarts) return bStarts - aStarts;
+        const dateDiff = parseDate(b.lastDate) - parseDate(a.lastDate);
+        if (dateDiff !== 0) return dateDiff;
+        return (b.usageCount || 0) - (a.usageCount || 0);
+      })
+      .slice(0, limit);
   },
 });
 
@@ -164,12 +221,28 @@ export const createFallbackMaterialAutocompleteProvider = (
   fallback: MaterialAutocompleteProvider,
 ): MaterialAutocompleteProvider => ({
   async search(query: string, limit = 8) {
+    const normalizedQuery = normalizeText(query);
+    if (!normalizedQuery || normalizedQuery.length < 2) return [];
+
+    let primaryResults: MaterialSuggestion[] = [];
+    let fallbackResults: MaterialSuggestion[] = [];
+
     try {
-      const primaryResults = await primary.search(query, limit);
-      if (primaryResults.length > 0) return primaryResults;
+      primaryResults = await primary.search(query, limit);
     } catch {
-      // fallback below
+      primaryResults = [];
     }
-    return fallback.search(query, limit);
+
+    try {
+      fallbackResults = await fallback.search(query, limit);
+    } catch {
+      fallbackResults = [];
+    }
+
+    if (primaryResults.length === 0 && fallbackResults.length === 0) return [];
+    if (primaryResults.length === 0) return sortSuggestions(fallbackResults, normalizedQuery).slice(0, limit);
+    if (fallbackResults.length === 0) return sortSuggestions(primaryResults, normalizedQuery).slice(0, limit);
+
+    return mergeSuggestions(primaryResults, fallbackResults, normalizedQuery, limit);
   },
 });
