@@ -40,6 +40,18 @@ export class MeasurementSnapshotsService {
 
   async create(input: CreateSnapshotInput) {
     await this.ensureProject(input.projectId, input.instanceId, input.userId);
+
+    const existing = await this.prisma.measurementSnapshot.findFirst({
+      where: {
+        projectId: input.projectId,
+        measurementNumber: input.measurementNumber,
+      },
+    });
+
+    if (existing) {
+      return existing;
+    }
+
     return this.prisma.measurementSnapshot.create({
       data: {
         projectId: input.projectId,

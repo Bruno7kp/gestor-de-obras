@@ -161,6 +161,7 @@ const App: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const [isClosingMeasurement, setIsClosingMeasurement] = useState(false);
 
   useEffect(() => {
     const tabFromPath = getTabFromPath(location.pathname);
@@ -187,56 +188,62 @@ const App: React.FC = () => {
   }, [setActiveProjectId, navigate]);
 
   const handleCloseMeasurement = useCallback(async () => {
-    if (!activeProject) return;
-    const updated = projectService.closeMeasurement(activeProject);
-    updateActiveProject(updated);
+    if (!activeProject || isClosingMeasurement) return;
+    setIsClosingMeasurement(true);
 
-    const snapshot = updated.history?.[0];
-    if (snapshot) {
-      try {
-        await measurementSnapshotsApi.create(activeProject.id, snapshot);
-      } catch (error) {
-        console.error('Erro ao salvar snapshot:', error);
+    try {
+      const updated = projectService.closeMeasurement(activeProject);
+      updateActiveProject(updated);
+
+      const snapshot = updated.history?.[0];
+      if (snapshot) {
+        try {
+          await measurementSnapshotsApi.create(activeProject.id, snapshot);
+        } catch (error) {
+          console.error('Erro ao salvar snapshot:', error);
+        }
       }
-    }
 
-    try {
-      await projectsApi.update(activeProject.id, {
-        measurementNumber: updated.measurementNumber,
-        referenceDate: updated.referenceDate,
-      });
-    } catch (error) {
-      console.error('Erro ao atualizar medição do projeto:', error);
-    }
+      try {
+        await projectsApi.update(activeProject.id, {
+          measurementNumber: updated.measurementNumber,
+          referenceDate: updated.referenceDate,
+        });
+      } catch (error) {
+        console.error('Erro ao atualizar medição do projeto:', error);
+      }
 
-    try {
-      await Promise.all(
-        updated.items.map(item =>
-          workItemsApi.update(item.id, {
-            parentId: item.parentId,
-            order: item.order,
-            wbs: item.wbs,
-            contractQuantity: item.contractQuantity,
-            unitPrice: item.unitPrice,
-            unitPriceNoBdi: item.unitPriceNoBdi,
-            contractTotal: item.contractTotal,
-            previousQuantity: item.previousQuantity,
-            previousTotal: item.previousTotal,
-            currentQuantity: item.currentQuantity,
-            currentTotal: item.currentTotal,
-            currentPercentage: item.currentPercentage,
-            accumulatedQuantity: item.accumulatedQuantity,
-            accumulatedTotal: item.accumulatedTotal,
-            accumulatedPercentage: item.accumulatedPercentage,
-            balanceQuantity: item.balanceQuantity,
-            balanceTotal: item.balanceTotal,
-          }),
-        ),
-      );
-    } catch (error) {
-      console.error('Erro ao atualizar itens apos fechamento:', error);
+      try {
+        await Promise.all(
+          updated.items.map(item =>
+            workItemsApi.update(item.id, {
+              parentId: item.parentId,
+              order: item.order,
+              wbs: item.wbs,
+              contractQuantity: item.contractQuantity,
+              unitPrice: item.unitPrice,
+              unitPriceNoBdi: item.unitPriceNoBdi,
+              contractTotal: item.contractTotal,
+              previousQuantity: item.previousQuantity,
+              previousTotal: item.previousTotal,
+              currentQuantity: item.currentQuantity,
+              currentTotal: item.currentTotal,
+              currentPercentage: item.currentPercentage,
+              accumulatedQuantity: item.accumulatedQuantity,
+              accumulatedTotal: item.accumulatedTotal,
+              accumulatedPercentage: item.accumulatedPercentage,
+              balanceQuantity: item.balanceQuantity,
+              balanceTotal: item.balanceTotal,
+            }),
+          ),
+        );
+      } catch (error) {
+        console.error('Erro ao atualizar itens apos fechamento:', error);
+      }
+    } finally {
+      setIsClosingMeasurement(false);
     }
-  }, [activeProject, updateActiveProject]);
+  }, [activeProject, isClosingMeasurement, updateActiveProject]);
 
   const handleCreateProject = useCallback(async (groupId?: string | null) => {
     try {

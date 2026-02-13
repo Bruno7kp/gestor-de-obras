@@ -46,7 +46,7 @@ interface ProjectWorkspaceProps {
   suppliers: Supplier[];
   isExternalProject?: boolean;
   onUpdateProject: (data: Partial<Project>) => void;
-  onCloseMeasurement: () => void;
+  onCloseMeasurement: () => Promise<void> | void;
   canUndo: boolean;
   canRedo: boolean;
   onUndo: () => void;
@@ -69,6 +69,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const [isClosingModalOpen, setIsClosingModalOpen] = useState(false);
   const [isReopenModalOpen, setIsReopenModalOpen] = useState(false);
   const [showMembersModal, setShowMembersModal] = useState(false);
+  const [isClosingInProgress, setIsClosingInProgress] = useState(false);
   const [projectMembers, setProjectMembers] = useState<any[]>([]);
   const [membersLoading, setMembersLoading] = useState(true);
   const [allUsers, setAllUsers] = useState<any[]>([]);
@@ -1145,7 +1146,22 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                 </div>
                 <div className="flex items-center gap-6 w-full">
                   <button onClick={() => setIsClosingModalOpen(false)} className="flex-1 py-4 text-slate-500 dark:text-slate-500 font-black uppercase text-xs tracking-widest hover:text-slate-800 dark:hover:text-white transition-colors">Voltar</button>
-                  <button onClick={() => { onCloseMeasurement(); setIsClosingModalOpen(false); }} className="flex-[2] py-5 bg-indigo-600 hover:bg-indigo-50 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-[0_10px_30px_-10px_rgba(79,70,229,0.5)] active:scale-95 transition-all">Confirmar e abrir próxima</button>
+                  <button
+                    onClick={async () => {
+                      if (isClosingInProgress) return;
+                      setIsClosingInProgress(true);
+                      try {
+                        await onCloseMeasurement();
+                        setIsClosingModalOpen(false);
+                      } finally {
+                        setIsClosingInProgress(false);
+                      }
+                    }}
+                    disabled={isClosingInProgress}
+                    className="flex-[2] py-5 bg-indigo-600 hover:bg-indigo-50 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-[0_10px_30px_-10px_rgba(79,70,229,0.5)] active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isClosingInProgress ? 'Processando...' : 'Confirmar e abrir próxima'}
+                  </button>
                 </div>
               </div>
             </div>
