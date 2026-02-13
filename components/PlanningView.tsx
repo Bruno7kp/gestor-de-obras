@@ -1106,6 +1106,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
           initialDiscountValue={confirmingForecast.discountValue ?? findExpenseForForecast(confirmingForecast)?.discountValue}
           initialDiscountPercentage={confirmingForecast.discountPercentage ?? findExpenseForForecast(confirmingForecast)?.discountPercentage}
           financialCategories={financialCategories}
+          onAddExpense={onAddExpense}
           toast={toast}
           forcePaid={forcePaidConfirm}
         />
@@ -1806,12 +1807,15 @@ const MilestoneModal = ({ milestone, onClose, onSave }: any) => {
 };
 
 // --- CONFIRM PURCHASE MODAL ---
-const ConfirmForecastModal = ({ forecast, onClose, onConfirm, financialCategories, toast, forcePaid, initialDiscountValue = 0, initialDiscountPercentage = 0 }: any) => {
+const ConfirmForecastModal = ({ forecast, onClose, onConfirm, financialCategories, onAddExpense, toast, forcePaid, initialDiscountValue = 0, initialDiscountPercentage = 0 }: any) => {
   const [parentId, setParentId] = useState<string | null>(null);
   const [purchaseDate, setPurchaseDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [isPaid, setIsPaid] = useState(!!forecast.isPaid);
   const [paymentProof, setPaymentProof] = useState<string | undefined>(forecast.paymentProof);
   const [confirmPaidOpen, setConfirmPaidOpen] = useState(false);
+  const [localFinancialCategories, setLocalFinancialCategories] = useState<ProjectExpense[]>(financialCategories || []);
+  const [isAddingGroup, setIsAddingGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
   const [strDiscountValue, setStrDiscountValue] = useState(financial.formatVisual(initialDiscountValue || 0, '').trim());
   const [strDiscountPercent, setStrDiscountPercent] = useState(financial.formatVisual(initialDiscountPercentage || 0, '').trim());
 
@@ -1829,6 +1833,10 @@ const ConfirmForecastModal = ({ forecast, onClose, onConfirm, financialCategorie
     setStrDiscountValue(financial.formatVisual(initialDiscountValue || 0, '').trim());
     setStrDiscountPercent(financial.formatVisual(initialDiscountPercentage || 0, '').trim());
   }, [forecast.id, initialDiscountValue, initialDiscountPercentage]);
+
+  useEffect(() => {
+    setLocalFinancialCategories(financialCategories || []);
+  }, [financialCategories, forecast.id]);
 
   const handleDiscountChange = (value: string, field: 'value' | 'percent') => {
     const masked = financial.maskCurrency(value);
@@ -1936,7 +1944,16 @@ const ConfirmForecastModal = ({ forecast, onClose, onConfirm, financialCategorie
                 )}
 
                 <div>
-                  <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-2 block tracking-widest ml-1">Vincular ao Grupo Financeiro (Opcional)</label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase block tracking-widest ml-1">Vincular ao Grupo Financeiro (Opcional)</label>
+                    <button
+                      type="button"
+                      onClick={() => { setIsAddingGroup(true); setNewGroupName(''); }}
+                      className="text-[9px] font-black uppercase text-indigo-600 hover:text-indigo-500"
+                    >
+                      Adicionar
+                    </button>
+                  </div>
                   <div className="relative">
                     <FolderTree className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-600" size={14} />
                     <select 
@@ -1945,10 +1962,63 @@ const ConfirmForecastModal = ({ forecast, onClose, onConfirm, financialCategorie
                       onChange={e => setParentId(e.target.value || null)}
                     >
                       <option value="">Sem grupo (Raiz do Financeiro)</option>
-                      {financialCategories.map((c: any) => <option key={c.id} value={c.id}>{c.description}</option>)}
+                      {localFinancialCategories.map((c: any) => <option key={c.id} value={c.id}>{c.description}</option>)}
                     </select>
                     <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-600 pointer-events-none" size={14} />
                   </div>
+                  {isAddingGroup && (
+                    <div className="mt-3 flex items-center gap-2">
+                      <input
+                        className="flex-1 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold outline-none"
+                        value={newGroupName}
+                        onChange={(e) => setNewGroupName(e.target.value)}
+                        placeholder="Nome do grupo"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const name = newGroupName.trim();
+                          if (!name) return;
+                          if (!onAddExpense) {
+                            toast.error('Nao foi possivel criar o grupo financeiro.');
+                            return;
+                          }
+                          const newCategory: ProjectExpense = {
+                            id: crypto.randomUUID(),
+                            parentId: null,
+                            type: 'material',
+                            itemType: 'category',
+                            wbs: '',
+                            order: localFinancialCategories.length,
+                            date: new Date().toISOString().split('T')[0],
+                            description: name,
+                            entityName: '',
+                            unit: '',
+                            quantity: 0,
+                            unitPrice: 0,
+                            amount: 0,
+                            isPaid: false,
+                            status: 'PENDING',
+                          };
+                          setLocalFinancialCategories((prev) => [...prev, newCategory]);
+                          setParentId(newCategory.id);
+                          setIsAddingGroup(false);
+                          setNewGroupName('');
+                          onAddExpense(newCategory);
+                        }}
+                        className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-[10px] font-black uppercase"
+                      >
+                        Criar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setIsAddingGroup(false); setNewGroupName(''); }}
+                        className="px-3 py-2 rounded-xl text-[10px] font-black uppercase text-slate-400 hover:text-slate-600"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
            </div>
