@@ -1,31 +1,27 @@
 import React from 'react';
 import { Users } from 'lucide-react';
 
-interface ProjectMember {
+interface ProjectMemberPreviewUser {
   id: string;
-  role: string;
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    profileImage: string | null;
-    status: string;
-  };
+  name: string;
+  email: string;
+  profileImage: string | null;
+  status: string;
 }
 
 interface ProjectMembersBadgeProps {
-  members: ProjectMember[];
+  users: ProjectMemberPreviewUser[];
   onClick: () => void;
   canEdit: boolean;
 }
 
 export const ProjectMembersBadge: React.FC<ProjectMembersBadgeProps> = ({
-  members,
+  users,
   onClick,
   canEdit,
 }) => {
-  const displayMembers = members.slice(0, 3);
-  const remainingCount = members.length - 3;
+  const displayUsers = users.slice(0, 3);
+  const remainingCount = users.length - 3;
 
   return (
     <button
@@ -34,21 +30,21 @@ export const ProjectMembersBadge: React.FC<ProjectMembersBadgeProps> = ({
       title={canEdit ? 'Gerenciar membros do projeto' : 'Ver membros do projeto'}
     >
       <div className="flex items-center -space-x-2">
-        {displayMembers.map((member, index) => (
+        {displayUsers.map((previewUser, index) => (
           <div
-            key={member.id}
+            key={previewUser.id}
             className="w-8 h-8 rounded-full border-2 border-white bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-semibold relative"
-            style={{ zIndex: displayMembers.length - index }}
-            title={member.user.name}
+            style={{ zIndex: displayUsers.length - index }}
+            title={previewUser.name}
           >
-            {member.user.profileImage ? (
+            {previewUser.profileImage ? (
               <img
-                src={member.user.profileImage}
-                alt={member.user.name}
+                src={previewUser.profileImage}
+                alt={previewUser.name}
                 className="w-full h-full rounded-full object-cover"
               />
             ) : (
-              <span>{member.user.name.charAt(0).toUpperCase()}</span>
+              <span>{previewUser.name.charAt(0).toUpperCase()}</span>
             )}
           </div>
         ))}
@@ -61,7 +57,7 @@ export const ProjectMembersBadge: React.FC<ProjectMembersBadgeProps> = ({
             +{remainingCount}
           </div>
         )}
-        {members.length === 0 && (
+        {users.length === 0 && (
           <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center text-gray-400">
             <Users size={16} />
           </div>

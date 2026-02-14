@@ -219,6 +219,26 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     [isExternalProjectProp, externalSuppliers, suppliers],
   );
 
+  const memberPreviewUsers = useMemo(() => {
+    const uniqueUsers = new Map<string, any>();
+
+    projectMembers.forEach((member: any) => {
+      if (member?.user?.id) {
+        uniqueUsers.set(member.user.id, member.user);
+      }
+    });
+
+    allUsers
+      .filter((user: any) => generalAccessUserIds.includes(user.id))
+      .forEach((user: any) => {
+        if (user?.id && !uniqueUsers.has(user.id)) {
+          uniqueUsers.set(user.id, user);
+        }
+      });
+
+    return Array.from(uniqueUsers.values());
+  }, [projectMembers, allUsers, generalAccessUserIds]);
+
   const handleMembersChange = async () => {
     try {
       const response = await fetch(`/api/projects/${project.id}/members`, {
@@ -902,7 +922,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         <div className="flex items-center gap-3 shrink-0">
           {/* Project Members Badge */}
           <ProjectMembersBadge
-            members={projectMembers}
+            users={memberPreviewUsers}
             onClick={() => setShowMembersModal(true)}
             canEdit={canEditMembers}
           />
