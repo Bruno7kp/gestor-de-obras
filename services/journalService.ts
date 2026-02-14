@@ -7,7 +7,9 @@ export const journalService = {
     description: string, 
     category: JournalCategory = 'PROGRESS',
     type: 'AUTO' | 'MANUAL' = 'MANUAL',
-    weather?: WeatherType
+    weather?: WeatherType,
+    progressStage?: string,
+    progressItem?: string
   ): JournalEntry => ({
     id: crypto.randomUUID(),
     timestamp: new Date().toISOString(),
@@ -15,6 +17,8 @@ export const journalService = {
     category,
     title,
     description,
+    progressStage,
+    progressItem,
     weatherStatus: weather,
     photoUrls: []
   }),
@@ -74,6 +78,8 @@ export const journalService = {
       category: entry.category || 'PROGRESS',
       title: entry.title || 'Novo Registro',
       description: entry.description || '',
+      progressStage: entry.progressStage,
+      progressItem: entry.progressItem,
       weatherStatus: entry.weatherStatus,
       photoUrls: entry.photoUrls || []
     };

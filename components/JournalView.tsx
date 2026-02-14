@@ -22,6 +22,121 @@ interface JournalViewProps {
   allWorkItems: WorkItem[];
 }
 
+const PROGRESS_CLASSIFICATION_OPTIONS: Array<{ stage: string; items: string[] }> = [
+  {
+    stage: 'Serviços Preliminares',
+    items: [
+      'Canteiro de Obras',
+      'Demolições e Limpezas',
+      'Documentação e Licenciamentos',
+      'Gestão de Projeto e Planejamento',
+      'Mobilização e Desmobilização',
+      'Movimento de Terra',
+      'Projetos Executivos',
+      'Serviços Preliminares',
+      'Terraplenagem',
+      'Topografia e Sondagem',
+    ],
+  },
+  {
+    stage: 'Fundações e Estrutura',
+    items: [
+      'Alvenaria',
+      'Base e Sub-base',
+      'Escoramento',
+      'Estrutura de Concreto Armado',
+      'Estrutura Metálica',
+      'Fundações',
+    ],
+  },
+  {
+    stage: 'Envidraçamento e Esquadrias',
+    items: ['Esquadrias', 'Fachada e Pele de Vidro', 'Vidros e Espelhos'],
+  },
+  {
+    stage: 'Instalações',
+    items: [
+      'Ar Condicionado e Climatização',
+      'Assentamento de Tubos e Peças',
+      'Automação',
+      'Instalações de Combate a Incêndio',
+      'Instalações de Elevadores e Escadas Rolantes',
+      'Instalações de Energia Renovável',
+      'Instalações de Gás',
+      'Instalações de Telecomunicações',
+      'Instalações Elétricas',
+      'Instalações Hidrossanitárias',
+      'Instalações Hidráulicas',
+      'Instalações Sanitárias',
+      'Ligações Prediais Água/Esgoto/Energia/Telefone',
+      'Sistemas de Automação Predial (BMS)',
+      'Sistemas de Proteção contra Descargas Atmosféricas (SPDA)',
+      'Sistemas de Refrigeração Industrial',
+      'Sistemas de Reuso de Água',
+      'Sistemas de Ventilação Mecânica',
+    ],
+  },
+  {
+    stage: 'Acabamentos',
+    items: [
+      'Acústica e Isolamento Acústico',
+      'Cobertura',
+      'Divisórias e Paredes Móveis',
+      'Forros e Sancas',
+      'Impermeabilização',
+      'Mobiliário',
+      'Paredes/Painéis',
+      'Pintura e Acabamentos',
+      'Pisos e Contrapisos',
+      'Reforma de Telhados',
+      'Revestimentos Externos',
+      'Revestimentos Internos',
+    ],
+  },
+  {
+    stage: 'Infraestrutura Externa',
+    items: [
+      'Drenagem',
+      'Iluminação Externa',
+      'Infraestrutura',
+      'Jardinagem e Irrigação Automatizada',
+      'Paisagismo e Urbanização',
+      'Pavimentação',
+      'Pavimentação Asfáltica',
+      'Sinalização Viária',
+    ],
+  },
+  {
+    stage: 'Segurança e Proteção',
+    items: [
+      'Acessibilidade',
+      'Controle de Acesso',
+      'Segurança do Trabalho',
+      'Segurança Eletrônica',
+      'Sistema de Prevenção de Incêndio',
+      'Serviços Complementares',
+      'Controle de Qualidade e Ensaios',
+      'Entrega da Obra',
+      'Gestão de Resíduos',
+      'Limpeza Final',
+      'Manutenção e Retrofit',
+      'Outros',
+    ],
+  },
+  {
+    stage: 'Serviços Complementares',
+    items: [
+      'Serviços de Consultoria',
+      'Serviços de Engenharia',
+      'Serviços Diversos',
+      'Serviços Técnicos',
+      'Sinalização e Identificação',
+      'Testes e Comissionamento',
+      'Transportes, Cargas e Descargas',
+    ],
+  },
+];
+
 export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJournal, allWorkItems }) => {
   const { user } = useAuth();
   const { canEdit, getLevel } = usePermissions();
@@ -54,6 +169,8 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
     description: '',
     category: 'PROGRESS',
     progressPercent: 0,
+    progressStage: undefined,
+    progressItem: undefined,
     weatherStatus: 'sunny',
     photoUrls: []
   });
@@ -62,6 +179,8 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
     description: '',
     category: 'PROGRESS',
     progressPercent: 0,
+    progressStage: undefined,
+    progressItem: undefined,
     weatherStatus: 'sunny',
     photoUrls: []
   });
@@ -104,7 +223,9 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
     return journal.entries.filter(e => {
       const matchFilter = filter === 'ALL' || e.category === filter;
       const matchSearch = e.title.toLowerCase().includes(search.toLowerCase()) || 
-                          e.description.toLowerCase().includes(search.toLowerCase());
+                          e.description.toLowerCase().includes(search.toLowerCase()) ||
+                          (e.progressItem ?? '').toLowerCase().includes(search.toLowerCase()) ||
+                          (e.progressStage ?? '').toLowerCase().includes(search.toLowerCase());
       return matchFilter && matchSearch;
     });
   }, [journal.entries, filter, search]);
@@ -129,6 +250,13 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
 
   const latestProgressPercent = latestProgressEntry?.progressPercent ?? 0;
 
+  const progressItemsByStage = useMemo(() => {
+    return PROGRESS_CLASSIFICATION_OPTIONS.reduce<Record<string, string[]>>((acc, option) => {
+      acc[option.stage] = option.items;
+      return acc;
+    }, {});
+  }, []);
+
   const normalizeProgressPercent = (value: number) => {
     if (!Number.isFinite(value)) return 0;
     const clamped = Math.max(0, Math.min(100, value));
@@ -141,6 +269,8 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
       description: '',
       category: 'PROGRESS',
       progressPercent: latestProgressPercent,
+      progressStage: undefined,
+      progressItem: undefined,
       weatherStatus: 'sunny',
       photoUrls: [],
     });
@@ -154,6 +284,8 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
       description: '',
       category: 'PROGRESS',
       progressPercent: 0,
+      progressStage: undefined,
+      progressItem: undefined,
       weatherStatus: 'sunny',
       photoUrls: [],
     });
@@ -167,6 +299,8 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
       description: entry.description,
       category: entry.category === 'FINANCIAL' || entry.category === 'WEATHER' ? 'PROGRESS' : entry.category,
       progressPercent: entry.progressPercent ?? latestProgressPercent,
+      progressStage: entry.progressStage ?? undefined,
+      progressItem: entry.progressItem ?? undefined,
       weatherStatus: entry.weatherStatus ?? 'sunny',
       photoUrls: entry.photoUrls ?? [],
     });
@@ -221,6 +355,8 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
       title: newEntry.title || `Registro de ${new Date().toLocaleDateString('pt-BR')}`,
       description: newEntry.description,
       progressPercent: resolvedProgressPercent,
+      progressStage: normalizedCategory === 'PROGRESS' ? (newEntry.progressStage ?? null) : null,
+      progressItem: normalizedCategory === 'PROGRESS' ? (newEntry.progressItem ?? null) : null,
       weatherStatus: normalizedCategory === 'WEATHER' ? (newEntry.weatherStatus ?? 'sunny') : undefined,
       photoUrls: newEntry.photoUrls || [],
       createdById: user?.id,
@@ -260,6 +396,12 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
       description: editEntryDraft.description,
       category: normalizedCategory,
       progressPercent: resolvedProgressPercent,
+      progressStage: normalizedCategory === 'PROGRESS'
+        ? (editEntryDraft.progressStage ?? null)
+        : null,
+      progressItem: normalizedCategory === 'PROGRESS'
+        ? (editEntryDraft.progressItem ?? null)
+        : null,
       weatherStatus: normalizedCategory === 'WEATHER' ? (editEntryDraft.weatherStatus ?? 'sunny') : undefined,
       photoUrls: editEntryDraft.photoUrls || [],
     };
@@ -268,6 +410,8 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
       ...editingEntry,
       ...updatePayload,
       progressPercent: resolvedProgressPercent,
+      progressStage: updatePayload.progressStage,
+      progressItem: updatePayload.progressItem,
       weatherStatus: updatePayload.category === 'WEATHER'
         ? (updatePayload.weatherStatus as WeatherType | undefined)
         : undefined,
@@ -359,7 +503,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
                 
                 {isExpanded && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300 pt-2 border-t border-slate-50 dark:border-slate-800">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                       <select 
                         className="bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-[10px] font-black uppercase tracking-widest outline-none px-4 py-2"
                         value={newEntry.category}
@@ -371,6 +515,8 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
                             progressPercent: category === 'PROGRESS'
                               ? Number(newEntry.progressPercent ?? latestProgressPercent)
                               : undefined,
+                            progressStage: category === 'PROGRESS' ? newEntry.progressStage : undefined,
+                            progressItem: category === 'PROGRESS' ? newEntry.progressItem : undefined,
                           });
                         }}
                       >
@@ -394,6 +540,44 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
                             })}
                           />
                         </label>
+                      )}
+
+                      {newEntry.category === 'PROGRESS' && (
+                        <select
+                          className="bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-[10px] font-black uppercase tracking-widest outline-none px-4 py-2"
+                          value={newEntry.progressStage ?? ''}
+                          onChange={(e) => {
+                            const progressStage = e.target.value || undefined;
+                            setNewEntry({
+                              ...newEntry,
+                              progressStage,
+                              progressItem: undefined,
+                            });
+                          }}
+                        >
+                          <option value="">Etapa (opcional)</option>
+                          {PROGRESS_CLASSIFICATION_OPTIONS.map((option) => (
+                            <option key={option.stage} value={option.stage}>
+                              {option.stage}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+
+                      {newEntry.category === 'PROGRESS' && (
+                        <select
+                          className="bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-[10px] font-black uppercase tracking-widest outline-none px-4 py-2"
+                          value={newEntry.progressItem ?? ''}
+                          disabled={!newEntry.progressStage}
+                          onChange={(e) => setNewEntry({ ...newEntry, progressItem: e.target.value || undefined })}
+                        >
+                          <option value="">{newEntry.progressStage ? 'Item (opcional)' : 'Selecione a etapa primeiro'}</option>
+                          {(newEntry.progressStage ? (progressItemsByStage[newEntry.progressStage] ?? []) : []).map((item) => (
+                            <option key={`${newEntry.progressStage}-${item}`} value={item}>
+                              {item}
+                            </option>
+                          ))}
+                        </select>
                       )}
                       
                     </div>
@@ -537,6 +721,11 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
                         <BarChart size={12} /> {entry.progressPercent.toFixed(2)}%
                       </span>
                     )}
+                    {entry.category === 'PROGRESS' && (entry.progressStage || entry.progressItem) && (
+                      <span className="flex items-center gap-1.5 border-l border-slate-200 dark:border-slate-700 pl-3">
+                        <span>{entry.progressStage && entry.progressItem ? `${entry.progressStage} - ${entry.progressItem}` : (entry.progressStage ?? entry.progressItem)}</span>
+                      </span>
+                    )}
                     {entry.weatherStatus && (
                       <span className="flex items-center gap-1.5 border-l border-slate-200 dark:border-slate-700 pl-3">
                         <WeatherIcon type={entry.weatherStatus} /> {getWeatherLabel(entry.weatherStatus)}
@@ -588,6 +777,11 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
                     <span>Progresso do dia</span>
                     <span>{entry.progressPercent.toFixed(2)}%</span>
                   </div>
+                  {(entry.progressStage || entry.progressItem) && (
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      {entry.progressStage && entry.progressItem ? `${entry.progressStage} - ${entry.progressItem}` : (entry.progressStage ?? entry.progressItem)}
+                    </div>
+                  )}
                   <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                     <div
                       className="h-full bg-indigo-600"
@@ -709,7 +903,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
                   onChange={(e) => setEditEntryDraft({ ...editEntryDraft, description: e.target.value })}
                 />
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <select
                     className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase tracking-widest outline-none px-4 py-3"
                     value={editEntryDraft.category}
@@ -721,6 +915,8 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
                         progressPercent: category === 'PROGRESS'
                           ? Number(editEntryDraft.progressPercent ?? editingEntry.progressPercent ?? latestProgressPercent)
                           : undefined,
+                        progressStage: category === 'PROGRESS' ? editEntryDraft.progressStage : undefined,
+                        progressItem: category === 'PROGRESS' ? editEntryDraft.progressItem : undefined,
                       });
                     }}
                   >
@@ -744,6 +940,44 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
                         })}
                       />
                     </label>
+                  )}
+
+                  {editEntryDraft.category === 'PROGRESS' && (
+                    <select
+                      className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase tracking-widest outline-none px-4 py-3"
+                      value={editEntryDraft.progressStage ?? ''}
+                      onChange={(e) => {
+                        const progressStage = e.target.value || undefined;
+                        setEditEntryDraft({
+                          ...editEntryDraft,
+                          progressStage,
+                          progressItem: undefined,
+                        });
+                      }}
+                    >
+                      <option value="">Etapa (opcional)</option>
+                      {PROGRESS_CLASSIFICATION_OPTIONS.map((option) => (
+                        <option key={option.stage} value={option.stage}>
+                          {option.stage}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+
+                  {editEntryDraft.category === 'PROGRESS' && (
+                    <select
+                      className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase tracking-widest outline-none px-4 py-3"
+                      value={editEntryDraft.progressItem ?? ''}
+                      disabled={!editEntryDraft.progressStage}
+                      onChange={(e) => setEditEntryDraft({ ...editEntryDraft, progressItem: e.target.value || undefined })}
+                    >
+                      <option value="">{editEntryDraft.progressStage ? 'Item (opcional)' : 'Selecione a etapa primeiro'}</option>
+                      {(editEntryDraft.progressStage ? (progressItemsByStage[editEntryDraft.progressStage] ?? []) : []).map((item) => (
+                        <option key={`${editEntryDraft.progressStage}-${item}`} value={item}>
+                          {item}
+                        </option>
+                      ))}
+                    </select>
                   )}
 
                 </div>

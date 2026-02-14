@@ -269,6 +269,8 @@ export interface JournalEntry {
   title: string;
   description: string;
   progressPercent?: number | null;
+  progressStage?: string | null;
+  progressItem?: string | null;
   weatherStatus?: WeatherType;
   photoUrls: string[];
   createdById?: string;

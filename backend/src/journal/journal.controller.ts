@@ -25,6 +25,8 @@ interface CreateJournalEntryBody {
   title: string;
   description: string;
   progressPercent?: number | null;
+  progressStage?: string | null;
+  progressItem?: string | null;
   weatherStatus?: string | null;
   photoUrls?: string[];
 }

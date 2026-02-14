@@ -484,6 +484,8 @@ model JournalEntry {
   title           String
   description     String
   progressPercent Float?
+  progressStage   String?
+  progressItem    String?
   weatherStatus   String?
   photoUrls       String[]
   createdById     String?
