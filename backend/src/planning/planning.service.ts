@@ -23,6 +23,7 @@ interface CreateForecastInput {
   instanceId: string;
   userId?: string;
   createdById?: string | null;
+  categoryId?: string | null;
   description: string;
   unit: string;
   quantityNeeded: number;
@@ -579,6 +580,7 @@ export class PlanningService {
       data: {
         id: input.id,
         projectPlanningId: planning.id,
+        categoryId: input.categoryId ?? null,
         description: input.description,
         unit: input.unit,
         quantityNeeded: input.quantityNeeded,
@@ -632,6 +634,10 @@ export class PlanningService {
     return this.prisma.materialForecast.update({
       where: { id },
       data: {
+        categoryId:
+          Object.prototype.hasOwnProperty.call(data, 'categoryId')
+            ? (data.categoryId ?? null)
+            : forecast.categoryId,
         description: data.description ?? forecast.description,
         unit: data.unit ?? forecast.unit,
         quantityNeeded: data.quantityNeeded ?? forecast.quantityNeeded,

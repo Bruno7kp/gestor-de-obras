@@ -90,6 +90,16 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const [targetParentId, setTargetParentId] = useState<string | null>(null);
   const brandingDebounceRef = useRef<number | null>(null);
   const pendingBrandingRef = useRef<Partial<Project>>({});
+  const expensesRef = useRef<ProjectExpense[]>(project.expenses);
+
+  useEffect(() => {
+    expensesRef.current = project.expenses;
+  }, [project.expenses]);
+
+  const applyExpenses = useCallback((nextExpenses: ProjectExpense[]) => {
+    expensesRef.current = nextExpenses;
+    onUpdateProject({ expenses: nextExpenses });
+  }, [onUpdateProject]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!tabsNavRef.current) return;
@@ -605,48 +615,64 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const handleExpenseAdd = useCallback(async (expense: ProjectExpense) => {
     try {
       const created = await projectExpensesApi.create(project.id, expense);
-      onUpdateProject({ expenses: [...project.expenses, created] });
+      const currentExpenses = expensesRef.current;
+      const existingIndex = currentExpenses.findIndex((item) => item.id === created.id);
+      const nextExpenses = existingIndex >= 0
+        ? currentExpenses.map((item, index) => (index === existingIndex ? created : item))
+        : [...currentExpenses, created];
+      applyExpenses(nextExpenses);
     } catch (error) {
       console.error('Erro ao criar despesa:', error);
       toast.error(error instanceof Error ? error.message : 'Erro ao criar despesa.');
-      onUpdateProject({ expenses: [...project.expenses, expense] });
+      const currentExpenses = expensesRef.current;
+      if (currentExpenses.some((item) => item.id === expense.id)) return;
+      applyExpenses([...currentExpenses, expense]);
     }
-  }, [project.expenses, project.id, onUpdateProject, toast]);
+  }, [project.id, applyExpenses, toast]);
 
   const handleExpenseAddMany = useCallback(async (expenses: ProjectExpense[]) => {
-    onUpdateProject({ expenses: [...project.expenses, ...expenses] });
+    const currentExpenses = expensesRef.current;
+    const existingIds = new Set(currentExpenses.map((expense) => expense.id));
+    const nextExpenses = [...currentExpenses, ...expenses.filter((expense) => !existingIds.has(expense.id))];
+    applyExpenses(nextExpenses);
     try {
-      await Promise.all(expenses.map(expense => projectExpensesApi.create(project.id, expense)));
+      await Promise.all(
+        expenses
+          .filter((expense) => !existingIds.has(expense.id))
+          .map((expense) => projectExpensesApi.create(project.id, expense)),
+      );
     } catch (error) {
       console.error('Erro ao importar despesas:', error);
     }
-  }, [project.expenses, project.id, onUpdateProject]);
+  }, [project.id, applyExpenses]);
 
   const handleExpenseUpdate = useCallback(async (id: string, data: Partial<ProjectExpense>) => {
-    const updatedExpenses = project.expenses.map(expense => expense.id === id ? { ...expense, ...data } : expense);
-    onUpdateProject({ expenses: updatedExpenses });
+    const updatedExpenses = expensesRef.current.map((expense) =>
+      expense.id === id ? { ...expense, ...data } : expense,
+    );
+    applyExpenses(updatedExpenses);
     try {
       await projectExpensesApi.update(id, data);
     } catch (error) {
       console.error('Erro ao atualizar despesa:', error);
     }
-  }, [project.expenses, onUpdateProject]);
+  }, [applyExpenses]);
 
   const handleExpenseDelete = useCallback(async (id: string) => {
-    const updatedExpenses = project.expenses.filter(expense => expense.id !== id && expense.parentId !== id);
-    onUpdateProject({ expenses: updatedExpenses });
+    const updatedExpenses = expensesRef.current.filter((expense) => expense.id !== id && expense.parentId !== id);
+    applyExpenses(updatedExpenses);
     try {
       await projectExpensesApi.remove(id);
     } catch (error) {
       console.error('Erro ao excluir despesa:', error);
     }
-  }, [project.expenses, onUpdateProject]);
+  }, [applyExpenses]);
 
   const handleExpensesReplace = useCallback(async (nextExpenses: ProjectExpense[]) => {
-    const prevExpenses = project.expenses;
-    onUpdateProject({ expenses: nextExpenses });
+    const prevExpenses = expensesRef.current;
+    applyExpenses(nextExpenses);
     await syncExpenseChanges(prevExpenses, nextExpenses);
-  }, [project.expenses, onUpdateProject, syncExpenseChanges]);
+  }, [applyExpenses, syncExpenseChanges]);
 
   const syncPlanningEntities = useCallback(async (nextPlanning: ProjectPlanning) => {
     const prevPlanning = project.planning;

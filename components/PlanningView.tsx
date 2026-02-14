@@ -516,6 +516,27 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     return project.expenses.find(expense => isExpenseForForecast(expense, forecast));
   };
 
+  const syncItemFinancialGroup = (
+    forecastId: string,
+    categoryId: string | null,
+    description: string,
+  ) => {
+    const forecast = planning.forecasts.find((item) => item.id === forecastId);
+    const byId = project.expenses.find((expense) => expense.id === forecastId);
+    const linkedExpense = byId || (forecast ? findExpenseForForecast(forecast) : undefined) || project.expenses.find((expense) => {
+      const suffix = `: ${description}`;
+      return expense.type === 'material' && expense.itemType === 'item' && expense.description.endsWith(suffix);
+    });
+
+    if (!linkedExpense) return;
+
+    const nextParentId = categoryId || null;
+    const currentParentId = linkedExpense.parentId || null;
+    if (currentParentId === nextParentId) return;
+
+    onUpdateExpense(linkedExpense.id, { parentId: nextParentId });
+  };
+
   const refreshForecastsFromApi = async () => {
     try {
       const latestForecasts = await planningApi.listForecasts(project.id);
@@ -1650,6 +1671,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
           onClose={() => setEditingSupplyGroup(null)}
           onUpdate={(payload) => handleUpdateSupplyGroup(editingSupplyGroup.id, payload)}
           onDeleteGroup={() => setConfirmingDeleteSupplyGroup(editingSupplyGroup)}
+          onSyncItemFinancialGroup={syncItemFinancialGroup}
         />
       )}
 
@@ -2448,6 +2470,7 @@ const SupplyGroupModal = ({
   onCreate,
   onUpdate,
   onDeleteGroup,
+  onSyncItemFinancialGroup,
 }: {
   mode: 'create' | 'edit';
   projectId: string;
@@ -2475,6 +2498,11 @@ const SupplyGroupModal = ({
     payload: Partial<Omit<SupplyGroup, 'id' | 'forecasts'>>,
   ) => Promise<void> | void;
   onDeleteGroup?: () => Promise<void> | void;
+  onSyncItemFinancialGroup?: (
+    forecastId: string,
+    categoryId: string | null,
+    description: string,
+  ) => Promise<void> | void;
 }) => {
   const toast = useToast();
   const [title, setTitle] = useState(group?.title || '');
@@ -2758,10 +2786,15 @@ const SupplyGroupModal = ({
           unitPrice: item.unitPrice,
           discountValue: item.discountValue,
           discountPercentage: item.discountPercentage,
-          categoryId: item.categoryId || undefined,
+          categoryId: item.categoryId,
           supplierId: supplierId || undefined,
           estimatedDate,
         });
+        await onSyncItemFinancialGroup?.(
+          item.id,
+          item.categoryId || null,
+          item.description,
+        );
         continue;
       }
 

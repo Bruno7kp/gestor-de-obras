@@ -33,6 +33,7 @@ type UpdateTaskBody = Partial<CreateTaskBody>;
 interface CreateForecastBody {
   id?: string;
   projectId: string;
+  categoryId?: string | null;
   description: string;
   unit: string;
   quantityNeeded: number;
