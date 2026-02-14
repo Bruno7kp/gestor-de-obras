@@ -1,4 +1,4 @@
-import type { MaterialForecast, Milestone, PlanningTask } from '../types';
+import type { MaterialForecast, Milestone, PlanningTask, SupplyGroup } from '../types';
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL ?? '/api';
 
@@ -77,6 +77,117 @@ export const planningApi = {
 
     const data = await response.json();
     return Array.isArray(data) ? data : [];
+  },
+
+  async listSupplyGroups(projectId: string): Promise<SupplyGroup[]> {
+    const response = await fetch(`${API_BASE}/planning/supply-groups?projectId=${projectId}`, {
+      method: 'GET',
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error('Falha ao carregar grupos de suprimentos');
+    }
+
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  },
+
+  async createSupplyGroup(
+    projectId: string,
+    payload: {
+      title?: string | null;
+      supplierId?: string | null;
+      estimatedDate: string;
+      purchaseDate?: string | null;
+      deliveryDate?: string | null;
+      status: 'pending' | 'ordered' | 'delivered';
+      isPaid: boolean;
+      isCleared: boolean;
+      paymentProof?: string | null;
+      invoiceDoc?: string | null;
+      items: Array<{
+        id?: string;
+        description: string;
+        unit: string;
+        quantityNeeded: number;
+        unitPrice: number;
+        discountValue?: number;
+        discountPercentage?: number;
+        categoryId?: string | null;
+        order?: number;
+      }>;
+    },
+  ): Promise<SupplyGroup> {
+    const response = await fetch(`${API_BASE}/planning/supply-groups`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        projectId,
+        ...payload,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Falha ao criar grupo de suprimentos');
+    }
+
+    return response.json();
+  },
+
+  async updateSupplyGroup(id: string, input: Partial<Omit<SupplyGroup, 'id' | 'forecasts'>>) {
+    const response = await fetch(`${API_BASE}/planning/supply-groups/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(input),
+    });
+
+    if (!response.ok) {
+      throw new Error('Falha ao atualizar grupo de suprimentos');
+    }
+
+    return response.json();
+  },
+
+  async convertForecastsToGroup(
+    projectId: string,
+    payload: {
+      forecastIds: string[];
+      title?: string | null;
+      supplierId?: string | null;
+      estimatedDate: string;
+      purchaseDate?: string | null;
+      deliveryDate?: string | null;
+      status: 'pending' | 'ordered' | 'delivered';
+      isPaid: boolean;
+      isCleared: boolean;
+      paymentProof?: string | null;
+      invoiceDoc?: string | null;
+    },
+  ): Promise<SupplyGroup> {
+    const response = await fetch(`${API_BASE}/planning/supply-groups/convert`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        projectId,
+        ...payload,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Falha ao converter suprimentos para grupo');
+    }
+
+    return response.json();
   },
 
   async createForecast(projectId: string, forecast: MaterialForecast): Promise<MaterialForecast> {

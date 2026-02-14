@@ -49,9 +49,56 @@ interface CreateForecastBody {
   supplierId?: string | null;
   paymentProof?: string | null;
   createdById?: string | null;
+  supplyGroupId?: string | null;
 }
 
 type UpdateForecastBody = Partial<CreateForecastBody>;
+
+interface SupplyGroupItemBody {
+  id?: string;
+  description: string;
+  unit: string;
+  quantityNeeded: number;
+  unitPrice: number;
+  discountValue?: number;
+  discountPercentage?: number;
+  categoryId?: string | null;
+  order?: number;
+}
+
+interface CreateSupplyGroupBody {
+  projectId: string;
+  title?: string | null;
+  supplierId?: string | null;
+  estimatedDate: string;
+  purchaseDate?: string | null;
+  deliveryDate?: string | null;
+  status: string;
+  isPaid: boolean;
+  isCleared: boolean;
+  paymentProof?: string | null;
+  invoiceDoc?: string | null;
+  items: SupplyGroupItemBody[];
+}
+
+type UpdateSupplyGroupBody = Partial<
+  Omit<CreateSupplyGroupBody, 'projectId' | 'items'>
+>;
+
+interface ConvertForecastsBody {
+  projectId: string;
+  forecastIds: string[];
+  title?: string | null;
+  supplierId?: string | null;
+  estimatedDate: string;
+  purchaseDate?: string | null;
+  deliveryDate?: string | null;
+  status: string;
+  isPaid: boolean;
+  isCleared: boolean;
+  paymentProof?: string | null;
+  invoiceDoc?: string | null;
+}
 
 interface CreateMilestoneBody {
   id?: string;
@@ -126,6 +173,74 @@ export class PlanningController {
       req.user.instanceId,
       req.user.id,
     );
+  }
+
+  @Get('supply-groups')
+  listSupplyGroups(
+    @Query('projectId') projectId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.planningService.listSupplyGroups(
+      projectId,
+      req.user.instanceId,
+      req.user.id,
+    );
+  }
+
+  @Post('supply-groups')
+  @HasPermission('planning.edit')
+  createSupplyGroup(
+    @Body() body: CreateSupplyGroupBody,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.planningService.createSupplyGroup({
+      ...body,
+      instanceId: req.user.instanceId,
+      userId: req.user.id,
+    });
+  }
+
+  @Patch('supply-groups/:id')
+  @HasPermission('planning.edit')
+  updateSupplyGroup(
+    @Param('id') id: string,
+    @Body() body: UpdateSupplyGroupBody,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.planningService.updateSupplyGroup(
+      id,
+      req.user.instanceId,
+      body,
+      req.user.id,
+    );
+  }
+
+  @Post('supply-groups/:id/items')
+  @HasPermission('planning.edit')
+  addItemsToSupplyGroup(
+    @Param('id') id: string,
+    @Body() body: { items: SupplyGroupItemBody[] },
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.planningService.addItemsToSupplyGroup(
+      id,
+      body.items,
+      req.user.instanceId,
+      req.user.id,
+    );
+  }
+
+  @Post('supply-groups/convert')
+  @HasPermission('planning.edit')
+  convertForecastsToGroup(
+    @Body() body: ConvertForecastsBody,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.planningService.convertForecastsToGroup({
+      ...body,
+      instanceId: req.user.instanceId,
+      userId: req.user.id,
+    });
   }
 
   @Post('forecasts')

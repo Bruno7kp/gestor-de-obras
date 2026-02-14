@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Project, PlanningTask, MaterialForecast, Milestone, WorkItem, TaskStatus, ProjectPlanning, ProjectExpense, Supplier } from '../types';
+import { Project, PlanningTask, MaterialForecast, Milestone, WorkItem, TaskStatus, ProjectPlanning, ProjectExpense, Supplier, SupplyGroup } from '../types';
 import { planningApi } from '../services/planningApi';
 import { planningService } from '../services/planningService';
 import { excelService } from '../services/excelService';
@@ -70,10 +70,17 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   const [confirmingDeliveryForecast, setConfirmingDeliveryForecast] = useState<MaterialForecast | null>(null);
   const [confirmingClearanceForecast, setConfirmingClearanceForecast] = useState<MaterialForecast | null>(null);
   const [isAddingForecast, setIsAddingForecast] = useState(false);
+  const [isAddingSupplyGroup, setIsAddingSupplyGroup] = useState(false);
+  const [isConvertingForecastsToGroup, setIsConvertingForecastsToGroup] = useState(false);
+  const [isNewOrderPopoverOpen, setIsNewOrderPopoverOpen] = useState(false);
+  const [isBatchSelectionMode, setIsBatchSelectionMode] = useState(false);
   const [editingForecast, setEditingForecast] = useState<MaterialForecast | null>(null);
+  const [editingSupplyGroup, setEditingSupplyGroup] = useState<SupplyGroup | null>(null);
+  const [selectedForecastIds, setSelectedForecastIds] = useState<string[]>([]);
   const [isDeletingForecast, setIsDeletingForecast] = useState<MaterialForecast | null>(null);
   const [isAddingTask, setIsAddingTask] = useState<TaskStatus | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const newOrderPopoverRef = useRef<HTMLDivElement>(null);
   
   const [milestoneView, setMilestoneView] = useState<'list' | 'calendar'>('list');
   const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(null);
@@ -137,6 +144,27 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     uiPreferences.setString(suppliesStatusKey, forecastStatusFilter);
   }, [forecastStatusFilter, isSuppliesView, suppliesStatusKey]);
 
+  useEffect(() => {
+    if (forecastStatusFilter === 'pending') return;
+    setIsBatchSelectionMode(false);
+    setSelectedForecastIds([]);
+    setIsConvertingForecastsToGroup(false);
+    setIsNewOrderPopoverOpen(false);
+  }, [forecastStatusFilter]);
+
+  useEffect(() => {
+    if (!isNewOrderPopoverOpen) return;
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (!newOrderPopoverRef.current) return;
+      if (newOrderPopoverRef.current.contains(event.target as Node)) return;
+      setIsNewOrderPopoverOpen(false);
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [isNewOrderPopoverOpen]);
+
   const financialCategories = useMemo(() => {
     return project.expenses.filter(e => e.itemType === 'category' && e.type === 'material');
   }, [project.expenses]);
@@ -149,6 +177,22 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
         return matchesSearch && matchesStatus;
       });
   }, [planning.forecasts, forecastSearch, forecastStatusFilter]);
+
+  const selectableForecastIds = useMemo(
+    () =>
+      sortedForecasts
+        .filter((forecast) => forecast.status === 'pending' && !forecast.supplyGroupId)
+        .map((forecast) => forecast.id),
+    [sortedForecasts],
+  );
+
+  const allSelectableChecked =
+    selectableForecastIds.length > 0 &&
+    selectableForecastIds.every((id) => selectedForecastIds.includes(id));
+
+  useEffect(() => {
+    setSelectedForecastIds((prev) => prev.filter((id) => selectableForecastIds.includes(id)));
+  }, [selectableForecastIds]);
 
   const financialGroupNameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -365,6 +409,318 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
 
   const findExpenseForForecast = (forecast: MaterialForecast) => {
     return project.expenses.find(expense => isExpenseForForecast(expense, forecast));
+  };
+
+  const refreshForecastsFromApi = async () => {
+    try {
+      const latestForecasts = await planningApi.listForecasts(project.id);
+      onUpdatePlanning({
+        ...planning,
+        forecasts: latestForecasts,
+      });
+    } catch (error) {
+      console.error('Erro ao recarregar suprimentos:', error);
+      toast.error('Erro ao atualizar lista de suprimentos.');
+    }
+  };
+
+  const openSupplyGroupEditorFromForecast = async (forecast: MaterialForecast) => {
+    if (!forecast.supplyGroupId) return;
+
+    if (forecast.supplyGroup) {
+      setEditingSupplyGroup(forecast.supplyGroup);
+      return;
+    }
+
+    try {
+      const groups = await planningApi.listSupplyGroups(project.id);
+      const target = groups.find((group) => group.id === forecast.supplyGroupId);
+      if (!target) {
+        toast.warning('Grupo de suprimentos não encontrado.');
+        return;
+      }
+      setEditingSupplyGroup(target);
+    } catch (error) {
+      console.error('Erro ao carregar grupo de suprimentos:', error);
+      toast.error('Erro ao abrir grupo de suprimentos.');
+    }
+  };
+
+  const handleCreateSupplyGroup = async (payload: {
+    title?: string | null;
+    supplierId?: string | null;
+    estimatedDate: string;
+    purchaseDate?: string | null;
+    deliveryDate?: string | null;
+    status: 'pending' | 'ordered' | 'delivered';
+    isPaid: boolean;
+    isCleared: boolean;
+    paymentProof?: string | null;
+    invoiceDoc?: string | null;
+    items: Array<{
+      description: string;
+      unit: string;
+      quantityNeeded: number;
+      unitPrice: number;
+      discountValue?: number;
+      discountPercentage?: number;
+      categoryId?: string | null;
+    }>;
+  }) => {
+    try {
+      const createdGroup = await planningApi.createSupplyGroup(project.id, payload);
+
+      if (payload.status !== 'pending') {
+        const supplierName = suppliers.find((supplier) => supplier.id === (payload.supplierId || ''))?.name;
+
+        (createdGroup.forecasts || []).forEach((forecast) => {
+          const expenseData = planningService.prepareExpenseFromForecast(
+            forecast,
+            forecast.categoryId || null,
+            payload.purchaseDate || undefined,
+            payload.isPaid,
+            forecast.id,
+            payload.status,
+            {
+              discountValue: forecast.discountValue,
+              discountPercentage: forecast.discountPercentage,
+            },
+          );
+
+          if (supplierName) {
+            expenseData.entityName = supplierName;
+          }
+
+          if (payload.isPaid && payload.paymentProof) {
+            expenseData.paymentProof = payload.paymentProof;
+          }
+
+          if (payload.status === 'delivered') {
+            expenseData.status = 'DELIVERED';
+            expenseData.deliveryDate = payload.deliveryDate || new Date().toISOString().split('T')[0];
+          }
+
+          if (payload.isCleared && payload.invoiceDoc) {
+            expenseData.invoiceDoc = payload.invoiceDoc;
+          }
+
+          onAddExpense(expenseData as ProjectExpense);
+        });
+      }
+
+      await refreshForecastsFromApi();
+      setSelectedForecastIds([]);
+      setIsAddingSupplyGroup(false);
+      toast.success('Grupo de suprimentos criado com sucesso.');
+    } catch (error) {
+      console.error('Erro ao criar grupo de suprimentos:', error);
+      toast.error('Erro ao criar grupo de suprimentos.');
+    }
+  };
+
+  const handleUpdateSupplyGroup = async (
+    groupId: string,
+    payload: Partial<Omit<SupplyGroup, 'id' | 'forecasts'>>,
+  ) => {
+    try {
+      await planningApi.updateSupplyGroup(groupId, payload);
+
+      const shouldSyncFinancial =
+        payload.status !== undefined ||
+        payload.isPaid !== undefined ||
+        payload.isCleared !== undefined ||
+        payload.paymentProof !== undefined ||
+        payload.invoiceDoc !== undefined ||
+        payload.purchaseDate !== undefined ||
+        payload.deliveryDate !== undefined ||
+        payload.supplierId !== undefined;
+
+      if (shouldSyncFinancial) {
+        const groupedForecasts = planning.forecasts.filter((forecast) => forecast.supplyGroupId === groupId);
+        const supplierName = suppliers.find((supplier) => supplier.id === (payload.supplierId || ''))?.name;
+
+        groupedForecasts.forEach((forecast) => {
+          const linkedExpense = findExpenseForForecast(forecast);
+          const targetStatus = payload.status || forecast.status;
+          const targetIsPaid = payload.isPaid ?? forecast.isPaid;
+          const targetPurchaseDate = payload.purchaseDate || forecast.purchaseDate;
+          const targetDeliveryDate = payload.deliveryDate || forecast.deliveryDate;
+
+          if (targetStatus !== 'pending') {
+            const expenseData = planningService.prepareExpenseFromForecast(
+              forecast,
+              linkedExpense?.parentId ?? (forecast.categoryId || null),
+              targetPurchaseDate || undefined,
+              targetIsPaid,
+              linkedExpense?.id || forecast.id,
+              targetStatus,
+              {
+                discountValue: forecast.discountValue,
+                discountPercentage: forecast.discountPercentage,
+              },
+            );
+
+            if (supplierName) {
+              expenseData.entityName = supplierName;
+            }
+
+            if (targetIsPaid && payload.paymentProof) {
+              expenseData.paymentProof = payload.paymentProof;
+            }
+
+            if (targetStatus === 'delivered') {
+              expenseData.status = 'DELIVERED';
+              expenseData.deliveryDate = targetDeliveryDate || new Date().toISOString().split('T')[0];
+            }
+
+            if (linkedExpense) {
+              onUpdateExpense(linkedExpense.id, {
+                parentId: expenseData.parentId ?? linkedExpense.parentId,
+                date: expenseData.date,
+                description: expenseData.description,
+                entityName: expenseData.entityName,
+                unit: expenseData.unit,
+                quantity: expenseData.quantity,
+                unitPrice: expenseData.unitPrice,
+                discountValue: expenseData.discountValue,
+                discountPercentage: expenseData.discountPercentage,
+                amount: expenseData.amount,
+                isPaid: expenseData.isPaid,
+                status: expenseData.status,
+                paymentDate: expenseData.paymentDate ?? linkedExpense.paymentDate,
+                paymentProof: expenseData.paymentProof ?? linkedExpense.paymentProof,
+                deliveryDate: expenseData.deliveryDate ?? linkedExpense.deliveryDate,
+                invoiceDoc: payload.isCleared ? (payload.invoiceDoc ?? linkedExpense.invoiceDoc) : linkedExpense.invoiceDoc,
+              });
+            } else {
+              onAddExpense(expenseData as ProjectExpense);
+            }
+          } else if (linkedExpense && payload.isCleared && payload.invoiceDoc) {
+            onUpdateExpense(linkedExpense.id, { invoiceDoc: payload.invoiceDoc });
+          }
+        });
+      }
+
+      await refreshForecastsFromApi();
+      setEditingSupplyGroup(null);
+      toast.success('Grupo atualizado com sucesso.');
+    } catch (error) {
+      console.error('Erro ao atualizar grupo de suprimentos:', error);
+      toast.error('Erro ao atualizar grupo de suprimentos.');
+    }
+  };
+
+  const toggleForecastSelection = (forecastId: string) => {
+    setSelectedForecastIds((prev) =>
+      prev.includes(forecastId)
+        ? prev.filter((id) => id !== forecastId)
+        : [...prev, forecastId],
+    );
+  };
+
+  const toggleAllSelectableForecasts = () => {
+    if (allSelectableChecked) {
+      setSelectedForecastIds([]);
+      return;
+    }
+    setSelectedForecastIds(selectableForecastIds);
+  };
+
+  const handleConvertSelectedForecasts = async (payload: {
+    title?: string | null;
+    supplierId?: string | null;
+    estimatedDate: string;
+    purchaseDate?: string | null;
+    deliveryDate?: string | null;
+    status: 'pending' | 'ordered' | 'delivered';
+    isPaid: boolean;
+    isCleared: boolean;
+    paymentProof?: string | null;
+    invoiceDoc?: string | null;
+  }) => {
+    if (selectedForecastIds.length === 0) {
+      toast.warning('Selecione ao menos um item para converter.');
+      return;
+    }
+
+    try {
+      await planningApi.convertForecastsToGroup(project.id, {
+        forecastIds: selectedForecastIds,
+        ...payload,
+      });
+
+      const shouldSyncFinancial = payload.status !== 'pending';
+      if (shouldSyncFinancial) {
+        const targetForecasts = planning.forecasts.filter((forecast) =>
+          selectedForecastIds.includes(forecast.id),
+        );
+        const supplierName = suppliers.find((supplier) => supplier.id === (payload.supplierId || ''))?.name;
+
+        targetForecasts.forEach((forecast) => {
+          const linkedExpense = findExpenseForForecast(forecast);
+          const expenseData = planningService.prepareExpenseFromForecast(
+            forecast,
+            linkedExpense?.parentId ?? (forecast.categoryId || null),
+            payload.purchaseDate || undefined,
+            payload.isPaid,
+            linkedExpense?.id || forecast.id,
+            payload.status,
+            {
+              discountValue: forecast.discountValue,
+              discountPercentage: forecast.discountPercentage,
+            },
+          );
+
+          if (supplierName) {
+            expenseData.entityName = supplierName;
+          }
+
+          if (payload.isPaid && payload.paymentProof) {
+            expenseData.paymentProof = payload.paymentProof;
+          }
+
+          if (payload.status === 'delivered') {
+            expenseData.status = 'DELIVERED';
+            expenseData.deliveryDate = payload.deliveryDate || new Date().toISOString().split('T')[0];
+          }
+
+          if (payload.isCleared && payload.invoiceDoc) {
+            expenseData.invoiceDoc = payload.invoiceDoc;
+          }
+
+          if (linkedExpense) {
+            onUpdateExpense(linkedExpense.id, {
+              parentId: expenseData.parentId ?? linkedExpense.parentId,
+              date: expenseData.date,
+              description: expenseData.description,
+              entityName: expenseData.entityName,
+              unit: expenseData.unit,
+              quantity: expenseData.quantity,
+              unitPrice: expenseData.unitPrice,
+              discountValue: expenseData.discountValue,
+              discountPercentage: expenseData.discountPercentage,
+              amount: expenseData.amount,
+              isPaid: expenseData.isPaid,
+              status: expenseData.status,
+              paymentDate: expenseData.paymentDate ?? linkedExpense.paymentDate,
+              paymentProof: expenseData.paymentProof ?? linkedExpense.paymentProof,
+              deliveryDate: expenseData.deliveryDate ?? linkedExpense.deliveryDate,
+              invoiceDoc: expenseData.invoiceDoc ?? linkedExpense.invoiceDoc,
+            });
+          } else {
+            onAddExpense(expenseData as ProjectExpense);
+          }
+        });
+      }
+
+      await refreshForecastsFromApi();
+      setSelectedForecastIds([]);
+      setIsConvertingForecastsToGroup(false);
+      toast.success('Itens convertidos para grupo com sucesso.');
+    } catch (error) {
+      console.error('Erro ao converter itens para grupo:', error);
+      toast.error('Erro ao converter itens para grupo.');
+    }
   };
 
   const handleFinalizeDelivery = (forecast: MaterialForecast) => {
@@ -648,9 +1004,36 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
 
                     <div className="flex flex-wrap items-center justify-end ml-auto gap-2">
                       {forecastStatusFilter === 'pending' && (
-                        <button onClick={() => setIsAddingForecast(true)} className="inline-flex items-center gap-2 whitespace-nowrap px-5 py-3 bg-indigo-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg hover:scale-105 transition-transform">
-                          <Plus size={16} /> Novo Insumo
-                        </button>
+                        <div className="relative" ref={newOrderPopoverRef}>
+                          <button
+                            onClick={() => setIsNewOrderPopoverOpen((prev) => !prev)}
+                            className="inline-flex items-center gap-2 whitespace-nowrap px-5 py-3 bg-indigo-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg hover:scale-105 transition-transform"
+                          >
+                            <Plus size={16} /> Novo Pedido <ChevronDown size={14} />
+                          </button>
+                          {isNewOrderPopoverOpen && (
+                            <div className="absolute right-0 mt-2 z-30 w-56 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl p-2">
+                              <button
+                                onClick={() => {
+                                  setIsAddingSupplyGroup(true);
+                                  setIsNewOrderPopoverOpen(false);
+                                }}
+                                className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                              >
+                                <Layers size={14} /> Pedido em Lote
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setIsAddingForecast(true);
+                                  setIsNewOrderPopoverOpen(false);
+                                }}
+                                className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                              >
+                                <Plus size={14} /> Pedido Individual
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       )}
                       <div className="relative group">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
@@ -664,10 +1047,54 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                     </div>
                   </div>
 
+                  {forecastStatusFilter === 'pending' && (
+                    <div className="mb-4 flex items-center justify-start gap-2">
+                      <button
+                        onClick={() => {
+                          setIsBatchSelectionMode((prev) => {
+                            const next = !prev;
+                            if (!next) {
+                              setSelectedForecastIds([]);
+                              setIsConvertingForecastsToGroup(false);
+                            }
+                            return next;
+                          });
+                        }}
+                        className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all ${
+                          isBatchSelectionMode
+                            ? 'bg-slate-700 text-white border-slate-700'
+                            : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <ListChecks size={12} /> {isBatchSelectionMode ? 'Ocultar Seleção' : 'Selecionar Itens'}
+                      </button>
+
+                      {isBatchSelectionMode && (
+                        <button
+                          onClick={() => setIsConvertingForecastsToGroup(true)}
+                          disabled={selectedForecastIds.length === 0}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest bg-emerald-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Layers size={12} /> Converter em Grupo {selectedForecastIds.length > 0 ? `(${selectedForecastIds.length})` : ''}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   <table className="w-full text-left border-separate border-spacing-y-3">
                     <thead>
                       <tr className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 text-center">
-                        <th className="pb-2 w-10"></th>
+                        <th className="pb-2 w-12">
+                          {forecastStatusFilter === 'pending' && isBatchSelectionMode && (
+                            <input
+                              type="checkbox"
+                              checked={allSelectableChecked}
+                              onChange={toggleAllSelectableForecasts}
+                              className="w-4 h-4 rounded border-slate-300"
+                              title="Selecionar todos os itens sem grupo"
+                            />
+                          )}
+                        </th>
                         <th className="pb-2 pl-4 text-left">Material / Fornecedor</th>
                         <th className="pb-2">Und</th>
                         <th className="pb-2">Qtd</th>
@@ -691,6 +1118,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                             const linkedExpense = findExpenseForForecast(f);
                             const financialGroupId = f.categoryId || linkedExpense?.parentId || undefined;
                             const stageName = financialGroupId ? financialGroupNameById.get(financialGroupId) : undefined;
+                            const isGrouped = !!f.supplyGroupId;
                             
                             // Lógica refinada de rótulo e valor de data baseada no status e pagamento
                             let dateLabel = 'Previsto';
@@ -732,6 +1160,16 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                   >
                                     <td className="py-4 pl-2 rounded-l-3xl">
                                       <div className="flex items-center justify-center gap-0.5">
+                                        {forecastStatusFilter === 'pending' && isBatchSelectionMode && (
+                                          <input
+                                            type="checkbox"
+                                            checked={selectedForecastIds.includes(f.id)}
+                                            onChange={() => toggleForecastSelection(f.id)}
+                                            disabled={isGrouped}
+                                            className="w-4 h-4 rounded border-slate-300"
+                                            title={isGrouped ? 'Item já pertence a um grupo' : 'Selecionar item'}
+                                          />
+                                        )}
                                         <div className="flex flex-col">
                                           <button
                                             type="button"
@@ -773,6 +1211,11 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                             </span>
                                           )}
                                           <span className="text-sm font-black dark:text-white leading-tight uppercase">{f.description}</span>
+                                          {isGrouped && (
+                                            <span className="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 text-[8px] font-black uppercase tracking-widest">
+                                              Grupo
+                                            </span>
+                                          )}
                                           {linkedExpense?.invoiceDoc && (
                                             <button
                                               onClick={() => handleViewProof(linkedExpense.invoiceDoc!)}
@@ -856,6 +1299,11 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                         <StatusCircle
                                           active={f.status === 'pending'}
                                           onClick={() => {
+                                            if (isGrouped) {
+                                              toast.info('Este item pertence a um grupo. Altere o status no grupo.');
+                                              void openSupplyGroupEditorFromForecast(f);
+                                              return;
+                                            }
                                             if (f.status !== 'pending') {
                                               toast.warning('Comprado não pode voltar para a etapa de a comprar.');
                                               return;
@@ -869,6 +1317,11 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                         <StatusCircle
                                           active={f.status === 'ordered'}
                                           onClick={() => {
+                                            if (isGrouped) {
+                                              toast.info('Este item pertence a um grupo. Altere o status no grupo.');
+                                              void openSupplyGroupEditorFromForecast(f);
+                                              return;
+                                            }
                                             if (f.status === 'delivered') {
                                               toast.warning('No Local nao pode voltar para comprado.');
                                               return;
@@ -882,6 +1335,11 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                         <StatusCircle
                                           active={f.status === 'delivered'}
                                           onClick={() => {
+                                            if (isGrouped) {
+                                              toast.info('Este item pertence a um grupo. Altere o status no grupo.');
+                                              void openSupplyGroupEditorFromForecast(f);
+                                              return;
+                                            }
                                             if (f.status === 'pending') {
                                               toast.warning('Para marcar como No Local, primeiro registre como Comprado.');
                                               return;
@@ -903,6 +1361,11 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                       <td className="py-6">
                                         <button 
                                           onClick={() => {
+                                            if (isGrouped) {
+                                              toast.info('Este item pertence a um grupo. Altere o status no grupo.');
+                                              void openSupplyGroupEditorFromForecast(f);
+                                              return;
+                                            }
                                             if (f.status === 'pending') {
                                               setForcePaidConfirm(false);
                                               setConfirmingForecast(f);
@@ -925,6 +1388,11 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                       <td className="py-6">
                                         <button
                                           onClick={() => {
+                                            if (isGrouped) {
+                                              toast.info('Este item pertence a um grupo. Altere o status no grupo.');
+                                              void openSupplyGroupEditorFromForecast(f);
+                                              return;
+                                            }
                                             if (f.isCleared) return;
                                             const linkedExpense = findExpenseForForecast(f);
                                             if (!linkedExpense) {
@@ -941,6 +1409,15 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                     )}
                                     <td className="py-6 text-right pr-6 rounded-r-3xl">
                                       <div className="flex items-center justify-end gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                                        {isGrouped && (
+                                          <button
+                                            onClick={() => void openSupplyGroupEditorFromForecast(f)}
+                                            className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-xl"
+                                            title="Editar grupo"
+                                          >
+                                            <Layers size={18}/>
+                                          </button>
+                                        )}
                                         {f.paymentProof && (
                                           <button onClick={() => handleViewProof(f.paymentProof!)} className="p-2 text-emerald-500 hover:bg-emerald-50 rounded-xl" title="Baixar Comprovante"><Download size={18}/></button>
                                         )}
@@ -996,6 +1473,36 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
             setIsAddingForecast(false);
             setEditingForecast(null);
           }}
+        />
+      )}
+
+      {isAddingSupplyGroup && (
+        <SupplyGroupModal
+          mode="create"
+          suppliers={suppliers}
+          financialCategories={financialCategories}
+          onClose={() => setIsAddingSupplyGroup(false)}
+          onCreate={handleCreateSupplyGroup}
+        />
+      )}
+
+      {isConvertingForecastsToGroup && (
+        <ConvertForecastsToGroupModal
+          suppliers={suppliers}
+          selectedCount={selectedForecastIds.length}
+          onClose={() => setIsConvertingForecastsToGroup(false)}
+          onConvert={handleConvertSelectedForecasts}
+        />
+      )}
+
+      {editingSupplyGroup && (
+        <SupplyGroupModal
+          mode="edit"
+          suppliers={suppliers}
+          financialCategories={financialCategories}
+          group={editingSupplyGroup}
+          onClose={() => setEditingSupplyGroup(null)}
+          onUpdate={(payload) => handleUpdateSupplyGroup(editingSupplyGroup.id, payload)}
         />
       )}
 
@@ -1612,6 +2119,632 @@ const ForecastModal = ({ onClose, onSave, projectId, allWorkItems, suppliers, ex
            >
              <Save size={20} /> {editingItem ? 'Atualizar Registro' : 'Confirmar Inclusão'}
            </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+type SupplyGroupItemDraft = {
+  description: string;
+  unit: string;
+  quantityNeeded: number;
+  unitPrice: number;
+  discountValue: number;
+  discountPercentage: number;
+  categoryId?: string | null;
+};
+
+const SupplyGroupModal = ({
+  mode,
+  suppliers,
+  financialCategories,
+  group,
+  onClose,
+  onCreate,
+  onUpdate,
+}: {
+  mode: 'create' | 'edit';
+  suppliers: Supplier[];
+  financialCategories: ProjectExpense[];
+  group?: SupplyGroup;
+  onClose: () => void;
+  onCreate?: (payload: {
+    title?: string | null;
+    supplierId?: string | null;
+    estimatedDate: string;
+    purchaseDate?: string | null;
+    deliveryDate?: string | null;
+    status: 'pending' | 'ordered' | 'delivered';
+    isPaid: boolean;
+    isCleared: boolean;
+    paymentProof?: string | null;
+    invoiceDoc?: string | null;
+    items: Array<{
+      description: string;
+      unit: string;
+      quantityNeeded: number;
+      unitPrice: number;
+      discountValue?: number;
+      discountPercentage?: number;
+      categoryId?: string | null;
+    }>;
+  }) => Promise<void> | void;
+  onUpdate?: (
+    payload: Partial<Omit<SupplyGroup, 'id' | 'forecasts'>>,
+  ) => Promise<void> | void;
+}) => {
+  const toast = useToast();
+  const [title, setTitle] = useState(group?.title || '');
+  const [supplierId, setSupplierId] = useState(group?.supplierId || '');
+  const [estimatedDate, setEstimatedDate] = useState(
+    (group?.estimatedDate || new Date().toISOString().split('T')[0]).split('T')[0],
+  );
+  const [purchaseDate, setPurchaseDate] = useState((group?.purchaseDate || '').split('T')[0]);
+  const [deliveryDate, setDeliveryDate] = useState((group?.deliveryDate || '').split('T')[0]);
+  const [status, setStatus] = useState<'pending' | 'ordered' | 'delivered'>(group?.status || 'pending');
+  const [isPaid, setIsPaid] = useState(!!group?.isPaid);
+  const [isCleared, setIsCleared] = useState(!!group?.isCleared);
+  const [paymentProof, setPaymentProof] = useState<string | undefined>(group?.paymentProof || undefined);
+  const [invoiceDoc, setInvoiceDoc] = useState<string | undefined>(group?.invoiceDoc || undefined);
+  const [saving, setSaving] = useState(false);
+
+  const [items, setItems] = useState<SupplyGroupItemDraft[]>(() => {
+    if (mode === 'edit' && group?.forecasts?.length) {
+      return group.forecasts.map((forecast) => ({
+        description: forecast.description,
+        unit: forecast.unit || 'un',
+        quantityNeeded: forecast.quantityNeeded || 0,
+        unitPrice: forecast.unitPrice || 0,
+        discountValue: forecast.discountValue || 0,
+        discountPercentage: forecast.discountPercentage || 0,
+        categoryId: forecast.categoryId || '',
+      }));
+    }
+
+    return [
+      {
+        description: '',
+        unit: 'un',
+        quantityNeeded: 1,
+        unitPrice: 0,
+        discountValue: 0,
+        discountPercentage: 0,
+        categoryId: '',
+      },
+    ];
+  });
+
+  const getRowTotal = (item: SupplyGroupItemDraft) => {
+    const gross = financial.round((item.quantityNeeded || 0) * (item.unitPrice || 0));
+    return Math.max(0, financial.round(gross - (item.discountValue || 0)));
+  };
+
+  const totalAmount = useMemo(
+    () => items.reduce((acc, item) => acc + getRowTotal(item), 0),
+    [items],
+  );
+
+  const updateItem = <K extends keyof SupplyGroupItemDraft>(
+    index: number,
+    key: K,
+    value: SupplyGroupItemDraft[K],
+  ) => {
+    setItems((prev) =>
+      prev.map((item, idx) => (idx === index ? { ...item, [key]: value } : item)),
+    );
+  };
+
+  const addItem = () => {
+    setItems((prev) => [
+      ...prev,
+      {
+        description: '',
+        unit: 'un',
+        quantityNeeded: 1,
+        unitPrice: 0,
+        discountValue: 0,
+        discountPercentage: 0,
+        categoryId: '',
+      },
+    ]);
+  };
+
+  const removeItem = (index: number) => {
+    setItems((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
+  const normalizeItemsForSave = () =>
+    items
+      .map((item) => ({
+        description: item.description.trim(),
+        unit: item.unit.trim() || 'un',
+        quantityNeeded: financial.normalizeQuantity(item.quantityNeeded || 0),
+        unitPrice: financial.normalizeMoney(item.unitPrice || 0),
+        discountValue: financial.normalizeMoney(item.discountValue || 0),
+        discountPercentage: financial.normalizePercent(item.discountPercentage || 0),
+        categoryId: item.categoryId || null,
+      }))
+      .filter((item) => item.description.length > 0);
+
+  const handleSave = async () => {
+    if (!estimatedDate) {
+      toast.warning('Informe a data prevista de chegada.');
+      return;
+    }
+
+    if (mode === 'create') {
+      const cleanItems = normalizeItemsForSave();
+      if (cleanItems.length === 0) {
+        toast.warning('Adicione ao menos um item válido ao grupo.');
+        return;
+      }
+
+      if (!onCreate) return;
+      setSaving(true);
+      await onCreate({
+        title: title.trim() || null,
+        supplierId: supplierId || null,
+        estimatedDate,
+        purchaseDate: purchaseDate || null,
+        deliveryDate: deliveryDate || null,
+        status,
+        isPaid,
+        isCleared,
+        paymentProof: paymentProof || null,
+        invoiceDoc: invoiceDoc || null,
+        items: cleanItems,
+      });
+      setSaving(false);
+      return;
+    }
+
+    if (!onUpdate) return;
+    setSaving(true);
+    await onUpdate({
+      title: title.trim() || null,
+      supplierId: supplierId || undefined,
+      estimatedDate,
+      purchaseDate: purchaseDate || null,
+      deliveryDate: deliveryDate || null,
+      status,
+      isPaid,
+      isCleared,
+      paymentProof: paymentProof || null,
+      invoiceDoc: invoiceDoc || null,
+    });
+    setSaving(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[2100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}>
+      <div className="bg-white dark:bg-[#0f111a] w-full max-w-6xl rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden max-h-[92vh] flex flex-col" onClick={(event) => event.stopPropagation()}>
+        <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+              <ReceiptText size={22} />
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                {mode === 'create' ? 'Novo Grupo de Suprimentos' : 'Editar Grupo de Suprimentos'}
+              </h2>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Dados comuns + itens individuais em lote
+              </p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-all">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Título do Grupo</label>
+              <input
+                className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold outline-none focus:border-indigo-500"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="Ex: Compra semanal elétrica"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Fornecedor</label>
+              <select
+                className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold outline-none focus:border-indigo-500"
+                value={supplierId}
+                onChange={(event) => setSupplierId(event.target.value)}
+              >
+                <option value="">Não definido (Spot)</option>
+                {suppliers.map((supplier) => (
+                  <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Previsão de Chegada</label>
+              <input
+                type="date"
+                className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold outline-none focus:border-indigo-500"
+                value={estimatedDate}
+                onChange={(event) => setEstimatedDate(event.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Status do Grupo</label>
+              <select
+                className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold outline-none focus:border-indigo-500"
+                value={status}
+                onChange={(event) => setStatus(event.target.value as 'pending' | 'ordered' | 'delivered')}
+              >
+                <option value="pending">A Comprar</option>
+                <option value="ordered">Pedido Efetuado</option>
+                <option value="delivered">Recebido (Local)</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Data de Compra</label>
+              <input
+                type="date"
+                className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold outline-none focus:border-indigo-500"
+                value={purchaseDate}
+                onChange={(event) => setPurchaseDate(event.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Data de Entrega</label>
+              <input
+                type="date"
+                className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold outline-none focus:border-indigo-500"
+                value={deliveryDate}
+                onChange={(event) => setDeliveryDate(event.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between">
+              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Pago</span>
+              <button
+                type="button"
+                onClick={() => setIsPaid((prev) => !prev)}
+                className={`w-12 h-6 rounded-full relative transition-all ${isPaid ? 'bg-emerald-500' : 'bg-slate-300'}`}
+              >
+                <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${isPaid ? 'translate-x-6' : ''}`} />
+              </button>
+            </div>
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between">
+              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Dar Baixa</span>
+              <button
+                type="button"
+                onClick={() => setIsCleared((prev) => !prev)}
+                className={`w-12 h-6 rounded-full relative transition-all ${isCleared ? 'bg-emerald-500' : 'bg-slate-300'}`}
+              >
+                <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${isCleared ? 'translate-x-6' : ''}`} />
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <ExpenseAttachmentZone
+              label="Comprovante (Grupo)"
+              requiredStatus="PAID"
+              currentFile={paymentProof}
+              onUploadUrl={(url) => setPaymentProof(url)}
+              onRemove={() => setPaymentProof(undefined)}
+            />
+            <ExpenseAttachmentZone
+              label="Nota Fiscal (Grupo)"
+              requiredStatus="DELIVERED"
+              currentFile={invoiceDoc}
+              onUploadUrl={(url) => setInvoiceDoc(url)}
+              onRemove={() => setInvoiceDoc(undefined)}
+            />
+          </div>
+
+          <div className="border border-slate-200 rounded-2xl overflow-hidden">
+            <div className="p-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-600">Itens do Grupo</h3>
+              {mode === 'create' && (
+                <button onClick={addItem} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest">
+                  <Plus size={12} /> Linha
+                </button>
+              )}
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[980px] text-left">
+                <thead>
+                  <tr className="text-[10px] uppercase tracking-widest text-slate-400 bg-white">
+                    <th className="p-3">Descrição</th>
+                    <th className="p-3">Und</th>
+                    <th className="p-3">Qtd</th>
+                    <th className="p-3">Unitário</th>
+                    <th className="p-3">Desc.</th>
+                    <th className="p-3">Grupo Financeiro</th>
+                    <th className="p-3">Total</th>
+                    {mode === 'create' && <th className="p-3" />}
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item, index) => (
+                    <tr key={`supply-group-item-${index}`} className="border-t border-slate-100">
+                      <td className="p-3">
+                        <input
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold outline-none focus:border-indigo-500"
+                          value={item.description}
+                          onChange={(event) => updateItem(index, 'description', event.target.value)}
+                          disabled={mode === 'edit'}
+                        />
+                      </td>
+                      <td className="p-3 w-[90px]">
+                        <input
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold outline-none focus:border-indigo-500"
+                          value={item.unit}
+                          onChange={(event) => updateItem(index, 'unit', event.target.value)}
+                          disabled={mode === 'edit'}
+                        />
+                      </td>
+                      <td className="p-3 w-[110px]">
+                        <input
+                          type="number"
+                          step="any"
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold outline-none focus:border-indigo-500"
+                          value={item.quantityNeeded}
+                          onChange={(event) => updateItem(index, 'quantityNeeded', Number(event.target.value || 0))}
+                          disabled={mode === 'edit'}
+                        />
+                      </td>
+                      <td className="p-3 w-[130px]">
+                        <input
+                          type="number"
+                          step="any"
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold outline-none focus:border-indigo-500"
+                          value={item.unitPrice}
+                          onChange={(event) => updateItem(index, 'unitPrice', Number(event.target.value || 0))}
+                          disabled={mode === 'edit'}
+                        />
+                      </td>
+                      <td className="p-3 w-[120px]">
+                        <input
+                          type="number"
+                          step="any"
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold outline-none focus:border-indigo-500"
+                          value={item.discountValue}
+                          onChange={(event) => updateItem(index, 'discountValue', Number(event.target.value || 0))}
+                          disabled={mode === 'edit'}
+                        />
+                      </td>
+                      <td className="p-3 w-[220px]">
+                        <select
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold outline-none focus:border-indigo-500"
+                          value={item.categoryId || ''}
+                          onChange={(event) => updateItem(index, 'categoryId', event.target.value || '')}
+                          disabled={mode === 'edit'}
+                        >
+                          <option value="">Sem grupo</option>
+                          {financialCategories.map((category) => (
+                            <option key={category.id} value={category.id}>{category.description}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="p-3 w-[140px] text-sm font-black text-indigo-600">
+                        {financial.formatVisual(getRowTotal(item), 'R$')}
+                      </td>
+                      {mode === 'create' && (
+                        <td className="p-3 w-[64px]">
+                          <button
+                            onClick={() => removeItem(index)}
+                            className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg"
+                            title="Remover linha"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-slate-200 bg-slate-50">
+                    <td colSpan={6} className="p-3 text-right text-xs font-black uppercase tracking-widest text-slate-500">
+                      Total do Grupo
+                    </td>
+                    <td className="p-3 text-sm font-black text-indigo-700">
+                      {financial.formatVisual(totalAmount, 'R$')}
+                    </td>
+                    {mode === 'create' && <td className="p-3" />}
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50 flex items-center gap-4">
+          <button onClick={onClose} className="flex-1 py-3 text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-700">
+            Cancelar
+          </button>
+          <button
+            onClick={() => void handleSave()}
+            disabled={saving}
+            className="flex-[2] py-3 rounded-xl bg-indigo-600 text-white text-[11px] font-black uppercase tracking-widest hover:bg-indigo-500 transition-all disabled:opacity-50"
+          >
+            {saving ? 'Salvando...' : mode === 'create' ? 'Criar Grupo' : 'Atualizar Grupo'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ConvertForecastsToGroupModal = ({
+  suppliers,
+  selectedCount,
+  onClose,
+  onConvert,
+}: {
+  suppliers: Supplier[];
+  selectedCount: number;
+  onClose: () => void;
+  onConvert: (payload: {
+    title?: string | null;
+    supplierId?: string | null;
+    estimatedDate: string;
+    purchaseDate?: string | null;
+    deliveryDate?: string | null;
+    status: 'pending' | 'ordered' | 'delivered';
+    isPaid: boolean;
+    isCleared: boolean;
+    paymentProof?: string | null;
+    invoiceDoc?: string | null;
+  }) => Promise<void> | void;
+}) => {
+  const [title, setTitle] = useState('');
+  const [supplierId, setSupplierId] = useState('');
+  const [estimatedDate, setEstimatedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [purchaseDate, setPurchaseDate] = useState('');
+  const [deliveryDate, setDeliveryDate] = useState('');
+  const [status, setStatus] = useState<'pending' | 'ordered' | 'delivered'>('pending');
+  const [isPaid, setIsPaid] = useState(false);
+  const [isCleared, setIsCleared] = useState(false);
+  const [paymentProof, setPaymentProof] = useState<string | undefined>();
+  const [invoiceDoc, setInvoiceDoc] = useState<string | undefined>();
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    await onConvert({
+      title: title.trim() || null,
+      supplierId: supplierId || null,
+      estimatedDate,
+      purchaseDate: purchaseDate || null,
+      deliveryDate: deliveryDate || null,
+      status,
+      isPaid,
+      isCleared,
+      paymentProof: paymentProof || null,
+      invoiceDoc: invoiceDoc || null,
+    });
+    setSaving(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[2200] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}>
+      <div className="bg-white dark:bg-[#0f111a] w-full max-w-2xl rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden" onClick={(event) => event.stopPropagation()}>
+        <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Converter Itens em Grupo</h2>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+              {selectedCount} {selectedCount === 1 ? 'item selecionado' : 'itens selecionados'}
+            </p>
+          </div>
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-all">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Título do Grupo</label>
+              <input
+                className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold outline-none focus:border-indigo-500"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="Ex: Compra semanal"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Fornecedor</label>
+              <select
+                className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold outline-none focus:border-indigo-500"
+                value={supplierId}
+                onChange={(event) => setSupplierId(event.target.value)}
+              >
+                <option value="">Não definido (Spot)</option>
+                {suppliers.map((supplier) => (
+                  <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Previsão</label>
+              <input type="date" className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold outline-none focus:border-indigo-500" value={estimatedDate} onChange={(event) => setEstimatedDate(event.target.value)} />
+            </div>
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Compra</label>
+              <input type="date" className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold outline-none focus:border-indigo-500" value={purchaseDate} onChange={(event) => setPurchaseDate(event.target.value)} />
+            </div>
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Entrega</label>
+              <input type="date" className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold outline-none focus:border-indigo-500" value={deliveryDate} onChange={(event) => setDeliveryDate(event.target.value)} />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Status</label>
+            <select
+              className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold outline-none focus:border-indigo-500"
+              value={status}
+              onChange={(event) => setStatus(event.target.value as 'pending' | 'ordered' | 'delivered')}
+            >
+              <option value="pending">A Comprar</option>
+              <option value="ordered">Pedido Efetuado</option>
+              <option value="delivered">Recebido (Local)</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between">
+              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Pago</span>
+              <button type="button" onClick={() => setIsPaid((prev) => !prev)} className={`w-12 h-6 rounded-full relative transition-all ${isPaid ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+                <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${isPaid ? 'translate-x-6' : ''}`} />
+              </button>
+            </div>
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between">
+              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Dar Baixa</span>
+              <button type="button" onClick={() => setIsCleared((prev) => !prev)} className={`w-12 h-6 rounded-full relative transition-all ${isCleared ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+                <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${isCleared ? 'translate-x-6' : ''}`} />
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <ExpenseAttachmentZone
+              label="Comprovante (Grupo)"
+              requiredStatus="PAID"
+              currentFile={paymentProof}
+              onUploadUrl={(url) => setPaymentProof(url)}
+              onRemove={() => setPaymentProof(undefined)}
+            />
+            <ExpenseAttachmentZone
+              label="Nota Fiscal (Grupo)"
+              requiredStatus="DELIVERED"
+              currentFile={invoiceDoc}
+              onUploadUrl={(url) => setInvoiceDoc(url)}
+              onRemove={() => setInvoiceDoc(undefined)}
+            />
+          </div>
+        </div>
+
+        <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50 flex items-center gap-4">
+          <button onClick={onClose} className="flex-1 py-3 text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-700">
+            Cancelar
+          </button>
+          <button
+            onClick={() => void handleSave()}
+            disabled={saving || selectedCount === 0}
+            className="flex-[2] py-3 rounded-xl bg-emerald-600 text-white text-[11px] font-black uppercase tracking-widest hover:bg-emerald-500 transition-all disabled:opacity-50"
+          >
+            {saving ? 'Convertendo...' : 'Converter Itens'}
+          </button>
         </div>
       </div>
     </div>

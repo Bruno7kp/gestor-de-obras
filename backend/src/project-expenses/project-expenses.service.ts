@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { ExpenseStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { removeLocalUploads } from '../uploads/file.utils';
+import { isLocalUpload, removeLocalUpload } from '../uploads/file.utils';
 import { ensureProjectAccess } from '../common/project-access.util';
 import { NotificationsService } from '../notifications/notifications.service';
 import { JournalService } from '../journal/journal.service';
@@ -69,6 +69,32 @@ export class ProjectExpensesService {
     private readonly notificationsService: NotificationsService,
     private readonly journalService: JournalService,
   ) {}
+
+  private async canRemoveUpload(url?: string | null) {
+    if (!isLocalUpload(url)) return false;
+
+    const [forecastPayment, expensePayment, expenseInvoice, groupPayment, groupInvoice] = await Promise.all([
+      this.prisma.materialForecast.count({ where: { paymentProof: url } }),
+      this.prisma.projectExpense.count({ where: { paymentProof: url } }),
+      this.prisma.projectExpense.count({ where: { invoiceDoc: url } }),
+      this.prisma.supplyGroup.count({ where: { paymentProof: url } }),
+      this.prisma.supplyGroup.count({ where: { invoiceDoc: url } }),
+    ]);
+
+    return (
+      forecastPayment + expensePayment + expenseInvoice + groupPayment + groupInvoice ===
+      0
+    );
+  }
+
+  private async cleanupUploadsIfOrphaned(urls: Array<string | null | undefined>) {
+    const unique = Array.from(new Set(urls.filter(Boolean))) as string[];
+    for (const url of unique) {
+      if (await this.canRemoveUpload(url)) {
+        await removeLocalUpload(url);
+      }
+    }
+  }
 
   private async emitExpenseJournalEntry(
     instanceId: string,
@@ -590,13 +616,16 @@ export class ProjectExpensesService {
       select: { paymentProof: true, invoiceDoc: true },
     });
 
-    await removeLocalUploads(
-      attachments.flatMap((item) => [item.paymentProof, item.invoiceDoc]),
-    );
+    const candidateUploads = attachments.flatMap((item) => [
+      item.paymentProof,
+      item.invoiceDoc,
+    ]);
 
     await this.prisma.projectExpense.deleteMany({
       where: { id: { in: ids } },
     });
+
+    await this.cleanupUploadsIfOrphaned(candidateUploads);
 
     return { deleted: ids.length };
   }

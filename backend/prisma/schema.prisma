@@ -80,6 +80,7 @@ model User {
   roles         UserRole[]
   projectAccess ProjectMember[]
   createdForecasts MaterialForecast[] @relation("UserForecasts")
+  createdSupplyGroups SupplyGroup[] @relation("UserForecastGroups")
   createdLaborPayments LaborPayment[] @relation("UserLaborPayments")
   createdProjectAssets ProjectAsset[] @relation("UserProjectAssets")
   createdJournalEntries JournalEntry[] @relation("UserJournalEntries")
@@ -391,6 +392,7 @@ model ProjectPlanning {
   project   Project @relation(fields: [projectId], references: [id])
   tasks     PlanningTask[]
   forecasts MaterialForecast[]
+  supplyGroups SupplyGroup[]
   milestones Milestone[]
 }
 
@@ -413,6 +415,7 @@ model MaterialForecast {
   unit             String
   quantityNeeded   Float
   unitPrice        Float
+  categoryId       String?
   discountValue    Float?
   discountPercentage Float?
   estimatedDate    String
@@ -423,12 +426,38 @@ model MaterialForecast {
   isCleared        Boolean  @default(false)
   order            Int
   supplierId       String?
+  supplyGroupId    String?
   paymentProof     String?
   createdById       String?
   projectPlanningId String
   projectPlanning  ProjectPlanning @relation(fields: [projectPlanningId], references: [id])
   supplier         Supplier? @relation(fields: [supplierId], references: [id])
+  supplyGroup      SupplyGroup? @relation(fields: [supplyGroupId], references: [id])
   createdBy        User? @relation("UserForecasts", fields: [createdById], references: [id])
+
+  @@index([supplyGroupId])
+}
+
+model SupplyGroup {
+  id               String   @id @default(uuid())
+  title            String?
+  estimatedDate    String
+  purchaseDate     String?
+  deliveryDate     String?
+  status           String
+  isPaid           Boolean  @default(false)
+  isCleared        Boolean  @default(false)
+  supplierId       String?
+  paymentProof     String?
+  invoiceDoc       String?
+  createdById      String?
+  projectPlanningId String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  projectPlanning  ProjectPlanning @relation(fields: [projectPlanningId], references: [id])
+  supplier         Supplier? @relation(fields: [supplierId], references: [id])
+  createdBy        User? @relation("UserForecastGroups", fields: [createdById], references: [id])
+  forecasts        MaterialForecast[]
 }
 
 model Milestone {
@@ -477,6 +506,7 @@ model Supplier {
   instanceId String
   instance   Instance @relation(fields: [instanceId], references: [id])
   forecasts  MaterialForecast[]
+  supplyGroups SupplyGroup[]
 }
 
 model BiddingProcess {

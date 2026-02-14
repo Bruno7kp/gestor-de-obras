@@ -214,10 +214,27 @@ export interface MaterialForecast {
   isCleared: boolean;
   order: number;
   supplierId?: string;
+  supplyGroupId?: string;
   categoryId?: string;
   paymentProof?: string; // URL do comprovante de pagamento
+  supplyGroup?: SupplyGroup;
   createdById?: string;
   createdBy?: Pick<UserAccount, 'id' | 'name' | 'profileImage'> | null;
+}
+
+export interface SupplyGroup {
+  id: string;
+  title?: string | null;
+  estimatedDate: string;
+  purchaseDate?: string | null;
+  deliveryDate?: string | null;
+  status: 'pending' | 'ordered' | 'delivered';
+  isPaid: boolean;
+  isCleared: boolean;
+  supplierId?: string;
+  paymentProof?: string | null;
+  invoiceDoc?: string | null;
+  forecasts?: MaterialForecast[];
 }
 
 export interface Milestone {

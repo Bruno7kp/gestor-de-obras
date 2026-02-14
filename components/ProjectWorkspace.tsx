@@ -714,6 +714,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         if (prev.isCleared !== next.isCleared) patch.isCleared = next.isCleared;
         if (prev.order !== next.order) patch.order = next.order;
         if (prev.supplierId !== next.supplierId) patch.supplierId = next.supplierId;
+        if (prev.supplyGroupId !== next.supplyGroupId) patch.supplyGroupId = next.supplyGroupId;
         if (prev.paymentProof !== next.paymentProof) patch.paymentProof = next.paymentProof;
         return patch;
       },
