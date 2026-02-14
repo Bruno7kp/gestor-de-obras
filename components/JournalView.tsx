@@ -32,7 +32,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
   const journalSortKey = `journal_sort_${project.id}`;
   const [filter, setFilter] = useState<JournalCategory | 'ALL'>(() => {
     const saved = uiPreferences.getString(journalFilterKey);
-    return saved === 'ALL' || saved === 'PROGRESS' || saved === 'FINANCIAL' || saved === 'INCIDENT' || saved === 'WEATHER'
+    return saved === 'ALL' || saved === 'PROGRESS' || saved === 'FINANCIAL' || saved === 'INCIDENT'
       ? (saved as JournalCategory | 'ALL')
       : 'ALL';
   });
@@ -80,7 +80,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
 
   useEffect(() => {
     const saved = uiPreferences.getString(journalFilterKey);
-    if (saved === 'ALL' || saved === 'PROGRESS' || saved === 'FINANCIAL' || saved === 'INCIDENT' || saved === 'WEATHER') {
+    if (saved === 'ALL' || saved === 'PROGRESS' || saved === 'FINANCIAL' || saved === 'INCIDENT') {
       setFilter(saved as JournalCategory | 'ALL');
     } else {
       setFilter('ALL');
@@ -165,7 +165,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
     setEditEntryDraft({
       title: entry.title,
       description: entry.description,
-      category: entry.category === 'FINANCIAL' ? 'PROGRESS' : entry.category,
+      category: entry.category === 'FINANCIAL' || entry.category === 'WEATHER' ? 'PROGRESS' : entry.category,
       progressPercent: entry.progressPercent ?? latestProgressPercent,
       weatherStatus: entry.weatherStatus ?? 'sunny',
       photoUrls: entry.photoUrls ?? [],
@@ -376,7 +376,6 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
                       >
                         <option value="PROGRESS">Progresso</option>
                         <option value="INCIDENT">Ocorrência</option>
-                        <option value="WEATHER">Clima</option>
                       </select>
 
                       {newEntry.category === 'PROGRESS' && (
@@ -397,18 +396,6 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
                         </label>
                       )}
                       
-                      {newEntry.category === 'WEATHER' && (
-                        <select 
-                          className="bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-[10px] font-black uppercase tracking-widest outline-none px-4 py-2"
-                          value={newEntry.weatherStatus}
-                          onChange={e => setNewEntry({...newEntry, weatherStatus: e.target.value as WeatherType})}
-                        >
-                          <option value="sunny">Ensolarado</option>
-                          <option value="cloudy">Nublado</option>
-                          <option value="rainy">Chuvoso</option>
-                          <option value="storm">Tempestade</option>
-                        </select>
-                      )}
                     </div>
 
                     {/* Photo Previews */}
@@ -484,7 +471,6 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
           <FilterBtn active={filter === 'ALL'} onClick={() => setFilter('ALL')} label="Tudo" />
           <FilterBtn active={filter === 'PROGRESS'} onClick={() => setFilter('PROGRESS')} label="Avanço" />
           <FilterBtn active={filter === 'INCIDENT'} onClick={() => setFilter('INCIDENT')} label="Ocorrências" />
-          <FilterBtn active={filter === 'WEATHER'} onClick={() => setFilter('WEATHER')} label="Clima" />
         </div>
         <div className="flex w-full md:w-auto items-center gap-2">
           <div className="flex items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1">
@@ -740,7 +726,6 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
                   >
                     <option value="PROGRESS">Progresso</option>
                     <option value="INCIDENT">Ocorrência</option>
-                    <option value="WEATHER">Clima</option>
                   </select>
 
                   {editEntryDraft.category === 'PROGRESS' && (
@@ -761,18 +746,6 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
                     </label>
                   )}
 
-                  {editEntryDraft.category === 'WEATHER' && (
-                    <select
-                      className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase tracking-widest outline-none px-4 py-3"
-                      value={editEntryDraft.weatherStatus}
-                      onChange={(e) => setEditEntryDraft({ ...editEntryDraft, weatherStatus: e.target.value as WeatherType })}
-                    >
-                      <option value="sunny">Ensolarado</option>
-                      <option value="cloudy">Nublado</option>
-                      <option value="rainy">Chuvoso</option>
-                      <option value="storm">Tempestade</option>
-                    </select>
-                  )}
                 </div>
 
                 <div>
