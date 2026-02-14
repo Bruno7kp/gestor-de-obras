@@ -1154,8 +1154,8 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                         }}
                         className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all ${
                           isBatchSelectionMode
-                            ? 'bg-slate-700 text-white border-slate-700'
-                            : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                            ? 'bg-slate-700 dark:bg-slate-200 text-white dark:text-slate-900 border-slate-700 dark:border-slate-200'
+                            : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
                         }`}
                       >
                         <ListChecks size={12} /> {isBatchSelectionMode ? 'Ocultar Seleção' : 'Selecionar Itens'}
@@ -1451,7 +1451,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                               <td className="py-4 pl-2">
                                 <button
                                   onClick={() => toggleSupplyGroupExpansion(row.groupId)}
-                                  className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-white text-indigo-600 border border-indigo-100"
+                                  className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800/60 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 transition-colors"
                                   title={isExpanded ? 'Recolher grupo' : 'Expandir grupo'}
                                 >
                                   {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -1916,14 +1916,14 @@ const ConfirmSupplyGroupPurchaseModal = ({
             <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest">Data da Compra</label>
             <input
               type="date"
-              className="w-full px-4 py-3 rounded-2xl bg-slate-50 border-2 border-slate-200 text-xs font-bold outline-none focus:border-indigo-600"
+              className="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 text-xs font-bold outline-none focus:border-indigo-600"
               value={purchaseDate}
               onChange={(event) => setPurchaseDate(event.target.value)}
             />
           </div>
 
-          <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-200">
-            <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Marcar como pago agora?</span>
+          <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-700">
+            <span className="text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-widest">Marcar como pago agora?</span>
             <button
               type="button"
               onClick={() => setIsPaid((prev) => !prev)}
@@ -1945,7 +1945,7 @@ const ConfirmSupplyGroupPurchaseModal = ({
         </div>
 
         <div className="flex items-center gap-3 mt-8">
-          <button onClick={onClose} className="flex-1 py-3 text-slate-500 font-black uppercase text-[10px] tracking-widest">Cancelar</button>
+          <button onClick={onClose} className="flex-1 py-3 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 font-black uppercase text-[10px] tracking-widest">Cancelar</button>
           <button
             onClick={() => {
               if (isPaid && !paymentProof) {
@@ -1983,7 +1983,7 @@ const SupplyGroupClearanceModal = ({
     <div className="fixed inset-0 z-[2100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}>
       <div className="bg-white dark:bg-[#0f111a] w-full max-w-xl rounded-[2.5rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl" onClick={e => e.stopPropagation()}>
         <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-3">Dar Baixa no Grupo</h2>
-        <p className="text-sm text-slate-500 mb-5">Anexe a nota fiscal para concluir a baixa do grupo.</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">Anexe a nota fiscal para concluir a baixa do grupo.</p>
 
         <ExpenseAttachmentZone
           label="Nota Fiscal do Grupo"
@@ -1994,7 +1994,7 @@ const SupplyGroupClearanceModal = ({
         />
 
         <div className="flex items-center gap-3 mt-8">
-          <button onClick={onClose} className="flex-1 py-3 text-slate-500 font-black uppercase text-[10px] tracking-widest">Cancelar</button>
+          <button onClick={onClose} className="flex-1 py-3 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 font-black uppercase text-[10px] tracking-widest">Cancelar</button>
           <button
             onClick={() => void onConfirm(invoiceDoc)}
             className="flex-[2] py-3 rounded-2xl bg-emerald-600 text-white font-black uppercase text-[10px] tracking-widest"
@@ -2836,7 +2836,7 @@ const SupplyGroupModal = ({
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-all">
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
             <X size={20} />
           </button>
         </div>
@@ -2846,7 +2846,7 @@ const SupplyGroupModal = ({
             <div>
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Título do Grupo</label>
               <input
-                className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold outline-none focus:border-indigo-500"
+                className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500"
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
                 placeholder="Ex: Compra semanal elétrica"
@@ -2855,7 +2855,7 @@ const SupplyGroupModal = ({
             <div>
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Fornecedor</label>
               <select
-                className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold outline-none focus:border-indigo-500"
+                className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500"
                 value={supplierId}
                 onChange={(event) => setSupplierId(event.target.value)}
               >
@@ -2869,15 +2869,15 @@ const SupplyGroupModal = ({
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Previsão de Chegada</label>
               <input
                 type="date"
-                className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold outline-none focus:border-indigo-500"
+                className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500"
                 value={estimatedDate}
                 onChange={(event) => setEstimatedDate(event.target.value)}
               />
             </div>
           </div>
 
-          <div className="border border-slate-200 rounded-2xl overflow-hidden">
-            <div className="p-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+          <div className="border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/70 flex items-center justify-between">
               <h3 className="text-xs font-black uppercase tracking-widest text-slate-600">Itens do Grupo</h3>
               <button onClick={addItem} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest">
                 <Plus size={12} /> Linha
@@ -2886,7 +2886,7 @@ const SupplyGroupModal = ({
             <div className="overflow-x-auto">
               <table className="w-full min-w-[980px] text-left">
                 <thead>
-                  <tr className="text-[10px] uppercase tracking-widest text-slate-400 bg-white">
+                  <tr className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-950/60">
                     <th className="p-3">Descrição</th>
                     <th className="p-3">Und</th>
                     <th className="p-3">Qtd</th>
@@ -2899,11 +2899,11 @@ const SupplyGroupModal = ({
                 </thead>
                 <tbody>
                   {items.map((item, index) => (
-                    <tr key={item.id ? `supply-group-item-${item.id}` : `supply-group-item-${index}`} className="border-t border-slate-100">
+                    <tr key={item.id ? `supply-group-item-${item.id}` : `supply-group-item-${index}`} className="border-t border-slate-100 dark:border-slate-800">
                       <td className="p-3">
                         <div className="relative">
                           <input
-                            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold outline-none focus:border-indigo-500"
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-semibold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500"
                             value={item.description}
                             onChange={(event) => handleItemDescriptionChange(index, event.target.value)}
                           />
@@ -2911,15 +2911,15 @@ const SupplyGroupModal = ({
                             <Loader2 size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 animate-spin" />
                           )}
                           {(suggestionsByRow[index]?.length || 0) > 0 && (
-                            <div className="absolute z-20 left-0 right-0 mt-1 rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden">
+                            <div className="absolute z-20 left-0 right-0 mt-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl overflow-hidden">
                               {suggestionsByRow[index].map((suggestion) => (
                                 <button
                                   key={`${suggestion.normalizedLabel}-${suggestion.supplierId || 'none'}`}
                                   type="button"
                                   onClick={() => applySuggestionToRow(index, suggestion, true)}
-                                  className="w-full px-3 py-2 text-left hover:bg-slate-50 border-b border-slate-100 last:border-b-0"
+                                  className="w-full px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-800 border-b border-slate-100 dark:border-slate-800 last:border-b-0"
                                 >
-                                  <p className="text-[11px] font-black text-slate-700 uppercase">{suggestion.label}</p>
+                                  <p className="text-[11px] font-black text-slate-700 dark:text-slate-200 uppercase">{suggestion.label}</p>
                                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
                                     {suggestion.unit || 'UN'} • {financial.formatVisual(suggestion.lastUnitPrice || 0, 'R$')} • {suggestion.supplierName || 'Sem fornecedor'}
                                   </p>
@@ -2931,7 +2931,7 @@ const SupplyGroupModal = ({
                       </td>
                       <td className="p-3 w-[90px]">
                         <input
-                          className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold outline-none focus:border-indigo-500"
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-semibold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500"
                           value={item.unit}
                           onChange={(event) => {
                             markManualEdit(index, 'unit');
@@ -2943,7 +2943,7 @@ const SupplyGroupModal = ({
                         <input
                           type="number"
                           step="any"
-                          className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold outline-none focus:border-indigo-500"
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-semibold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500"
                           value={item.quantityNeeded}
                           onChange={(event) => {
                             const quantityNeeded = Number(event.target.value || 0);
@@ -2957,11 +2957,11 @@ const SupplyGroupModal = ({
                       </td>
                       <td className="p-3 w-[130px]">
                         <div className="relative">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-400">R$</span>
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-400 dark:text-slate-500">R$</span>
                           <input
                             type="text"
                             inputMode="decimal"
-                            className="w-full pl-8 pr-2 py-2 rounded-lg border border-slate-200 text-sm font-semibold text-right outline-none focus:border-indigo-500"
+                            className="w-full pl-8 pr-2 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-semibold text-slate-900 dark:text-slate-100 text-right outline-none focus:border-indigo-500"
                             value={financial.formatVisual(item.unitPrice || 0, '').trim()}
                             onChange={(event) => handleItemUnitPriceChange(index, event.target.value)}
                           />
@@ -2973,18 +2973,18 @@ const SupplyGroupModal = ({
                             <input
                               type="text"
                               inputMode="decimal"
-                              className="w-full pl-2 pr-6 py-1.5 rounded-lg border border-slate-200 text-[10px] font-black text-rose-600 outline-none focus:border-rose-500"
+                              className="w-full pl-2 pr-6 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10px] font-black text-rose-600 dark:text-rose-400 outline-none focus:border-rose-500"
                               value={financial.formatVisual(item.discountPercentage || 0, '').trim()}
                               onChange={(event) => handleItemDiscountChange(index, event.target.value, 'percent')}
                             />
-                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-black text-rose-400">%</span>
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-black text-rose-400 dark:text-rose-500">%</span>
                           </div>
                           <div className="relative">
-                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[9px] font-black text-rose-400">R$</span>
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[9px] font-black text-rose-400 dark:text-rose-500">R$</span>
                             <input
                               type="text"
                               inputMode="decimal"
-                              className="w-full pl-7 pr-2 py-1.5 rounded-lg border border-slate-200 text-[10px] font-black text-rose-600 outline-none focus:border-rose-500"
+                              className="w-full pl-7 pr-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10px] font-black text-rose-600 dark:text-rose-400 outline-none focus:border-rose-500"
                               value={financial.formatVisual(item.discountValue || 0, '').trim()}
                               onChange={(event) => handleItemDiscountChange(index, event.target.value, 'value')}
                             />
@@ -2993,7 +2993,7 @@ const SupplyGroupModal = ({
                       </td>
                       <td className="p-3 w-[220px]">
                         <select
-                          className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold outline-none focus:border-indigo-500"
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-semibold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500"
                           value={item.categoryId || ''}
                           onChange={(event) => updateItem(index, 'categoryId', event.target.value || '')}
                         >
@@ -3003,13 +3003,13 @@ const SupplyGroupModal = ({
                           ))}
                         </select>
                       </td>
-                      <td className="p-3 w-[140px] text-sm font-black text-indigo-600">
+                      <td className="p-3 w-[140px] text-sm font-black text-indigo-600 dark:text-indigo-400">
                         {financial.formatVisual(getRowTotal(item), 'R$')}
                       </td>
                       <td className="p-3 w-[64px]">
                         <button
                           onClick={() => requestRemoveItem(index)}
-                          className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg"
+                          className="p-2 text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg"
                           title="Remover linha"
                         >
                           <Trash2 size={16} />
@@ -3019,11 +3019,11 @@ const SupplyGroupModal = ({
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t border-slate-200 bg-slate-50">
-                    <td colSpan={6} className="p-3 text-right text-xs font-black uppercase tracking-widest text-slate-500">
+                  <tr className="border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/70">
+                    <td colSpan={6} className="p-3 text-right text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
                       Total do Grupo
                     </td>
-                    <td className="p-3 text-sm font-black text-indigo-700">
+                    <td className="p-3 text-sm font-black text-indigo-700 dark:text-indigo-300">
                       {financial.formatVisual(totalAmount, 'R$')}
                     </td>
                     <td className="p-3" />
@@ -3034,16 +3034,16 @@ const SupplyGroupModal = ({
           </div>
         </div>
 
-        <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50 flex items-center gap-4">
+        <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 flex items-center gap-4">
           {mode === 'edit' && onDeleteGroup && (
             <button
               onClick={() => void onDeleteGroup()}
-              className="py-3 px-4 rounded-xl text-[11px] font-black uppercase tracking-widest text-rose-600 border border-rose-200 hover:bg-rose-50"
+              className="py-3 px-4 rounded-xl text-[11px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60 hover:bg-rose-50 dark:hover:bg-rose-950/30"
             >
               Remover Grupo
             </button>
           )}
-          <button onClick={onClose} className="flex-1 py-3 text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-700">
+          <button onClick={onClose} className="flex-1 py-3 text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
             Cancelar
           </button>
           <button
@@ -3115,7 +3115,7 @@ const ConvertForecastsToGroupModal = ({
               {selectedCount} {selectedCount === 1 ? 'item selecionado' : 'itens selecionados'}
             </p>
           </div>
-          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-all">
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
             <X size={20} />
           </button>
         </div>
@@ -3125,7 +3125,7 @@ const ConvertForecastsToGroupModal = ({
             <div>
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Título do Grupo</label>
               <input
-                className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold outline-none focus:border-indigo-500"
+                className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500"
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
                 placeholder="Ex: Compra semanal"
@@ -3134,7 +3134,7 @@ const ConvertForecastsToGroupModal = ({
             <div>
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Fornecedor</label>
               <select
-                className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold outline-none focus:border-indigo-500"
+                className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500"
                 value={supplierId}
                 onChange={(event) => setSupplierId(event.target.value)}
               >
@@ -3149,19 +3149,19 @@ const ConvertForecastsToGroupModal = ({
           <div>
             <div>
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Previsão</label>
-              <input type="date" className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold outline-none focus:border-indigo-500" value={estimatedDate} onChange={(event) => setEstimatedDate(event.target.value)} />
+              <input type="date" className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500" value={estimatedDate} onChange={(event) => setEstimatedDate(event.target.value)} />
             </div>
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+          <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
               Status, pagamento e baixa serão controlados na linha do grupo após a criação.
             </p>
           </div>
         </div>
 
-        <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50 flex items-center gap-4">
-          <button onClick={onClose} className="flex-1 py-3 text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-700">
+        <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 flex items-center gap-4">
+          <button onClick={onClose} className="flex-1 py-3 text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
             Cancelar
           </button>
           <button
@@ -3325,18 +3325,18 @@ const TaskModal = ({ task, initialStatus, onClose, onSave }: any) => {
       <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl" onClick={e => e.stopPropagation()}>
         <h2 className="text-xl font-black mb-6 dark:text-white uppercase tracking-tight">{task ? 'Editar Tarefa' : 'Nova Tarefa'}</h2>
         <div className="space-y-4">
-          <textarea autoFocus className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-bold outline-none focus:border-indigo-500 transition-all" value={desc} onChange={e => setDesc(e.target.value)} placeholder="O que precisa ser feito?" />
+          <textarea autoFocus className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-sm font-bold outline-none focus:border-indigo-500 transition-all" value={desc} onChange={e => setDesc(e.target.value)} placeholder="O que precisa ser feito?" />
           <div className="grid grid-cols-2 gap-4">
-            <select className="px-4 py-3 rounded-xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold outline-none" value={status} onChange={e => setStatus(e.target.value as any)}>
+            <select className="px-4 py-3 rounded-xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-xs font-bold outline-none" value={status} onChange={e => setStatus(e.target.value as any)}>
               <option value="todo">Planejado</option>
               <option value="doing">Executando</option>
               <option value="done">Concluído</option>
             </select>
-            <input type="date" className="px-4 py-3 rounded-xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold outline-none" value={date} onChange={e => setDate(e.target.value)} />
+            <input type="date" className="px-4 py-3 rounded-xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-xs font-bold outline-none" value={date} onChange={e => setDate(e.target.value)} />
           </div>
         </div>
         <div className="flex gap-3 mt-8">
-           <button onClick={onClose} className="flex-1 py-4 text-slate-400 font-black uppercase text-[10px]">Cancelar</button>
+           <button onClick={onClose} className="flex-1 py-4 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 font-black uppercase text-[10px]">Cancelar</button>
            <button onClick={() => onSave({ description: desc, status, dueDate: date })} className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase text-[10px] shadow-lg active:scale-95 transition-all">Salvar</button>
         </div>
       </div>
@@ -3353,11 +3353,11 @@ const MilestoneModal = ({ milestone, onClose, onSave }: any) => {
       <div className="bg-white dark:bg-slate-900 w-full max-md rounded-[2.5rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl" onClick={e => e.stopPropagation()}>
         <h2 className="text-xl font-black mb-6 dark:text-white uppercase tracking-tight">{milestone ? 'Editar Meta' : 'Nova Meta'}</h2>
         <div className="space-y-4">
-          <input autoFocus className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-bold outline-none focus:border-indigo-500 transition-all" value={title} onChange={e => setTitle(e.target.value)} placeholder="Título da Meta" />
-          <input type="date" className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-bold outline-none focus:border-indigo-500 transition-all" value={date} onChange={e => setDate(e.target.value)} />
+          <input autoFocus className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-sm font-bold outline-none focus:border-indigo-500 transition-all" value={title} onChange={e => setTitle(e.target.value)} placeholder="Título da Meta" />
+          <input type="date" className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-sm font-bold outline-none focus:border-indigo-500 transition-all" value={date} onChange={e => setDate(e.target.value)} />
         </div>
         <div className="flex gap-3 mt-8">
-           <button onClick={onClose} className="flex-1 py-4 text-slate-400 font-black uppercase text-[10px]">Cancelar</button>
+           <button onClick={onClose} className="flex-1 py-4 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 font-black uppercase text-[10px]">Cancelar</button>
            <button onClick={() => onSave({ title, date })} className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase text-[10px] shadow-lg active:scale-95 transition-all">Salvar</button>
         </div>
       </div>

@@ -26,7 +26,7 @@ export const ProjectMembersBadge: React.FC<ProjectMembersBadgeProps> = ({
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 transition-colors"
+      className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
       title={canEdit ? 'Gerenciar membros do projeto' : 'Ver membros do projeto'}
     >
       <div className="flex items-center -space-x-2">
@@ -50,7 +50,7 @@ export const ProjectMembersBadge: React.FC<ProjectMembersBadgeProps> = ({
         ))}
         {remainingCount > 0 && (
           <div
-            className="w-8 h-8 rounded-full border-2 border-white bg-gray-400 flex items-center justify-center text-white text-xs font-semibold"
+            className="w-8 h-8 rounded-full border-2 border-white dark:border-slate-900 bg-gray-400 dark:bg-slate-600 flex items-center justify-center text-white text-xs font-semibold"
             style={{ zIndex: 0 }}
             title={`+${remainingCount} mais`}
           >
@@ -58,12 +58,12 @@ export const ProjectMembersBadge: React.FC<ProjectMembersBadgeProps> = ({
           </div>
         )}
         {users.length === 0 && (
-          <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center text-gray-400">
+          <div className="w-8 h-8 rounded-full border-2 border-white dark:border-slate-900 bg-gray-200 dark:bg-slate-700 flex items-center justify-center text-gray-400 dark:text-slate-300">
             <Users size={16} />
           </div>
         )}
       </div>
-      <span className="text-sm text-gray-700 font-medium">Ver membros</span>
+      <span className="text-sm text-gray-700 dark:text-slate-200 font-medium">Ver membros</span>
     </button>
   );
 };

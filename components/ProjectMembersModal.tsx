@@ -228,15 +228,15 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col"
+        className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col border border-gray-200 dark:border-slate-800"
         onClick={(event) => event.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-xl font-semibold text-gray-900">Membros do Projeto</h2>
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-slate-800">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Membros do Projeto</h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-gray-700 dark:text-slate-300"
           >
             <X size={20} />
           </button>
@@ -245,7 +245,7 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            <div className="mb-4 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-lg text-red-700 dark:text-red-300 text-sm">
               {error}
             </div>
           )}
@@ -262,21 +262,21 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
                   Adicionar Membro
                 </button>
               ) : (
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <div className="bg-gray-50 dark:bg-slate-800/40 p-4 rounded-lg border border-gray-200 dark:border-slate-700">
                   <div className="flex flex-col gap-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                         E-mail do Usuário
                       </label>
                       <div className="relative">
-                        <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
                         <input
                           type="email"
                           value={emailInput}
                           onChange={(e) => setEmailInput(e.target.value)}
                           placeholder="usuario@exemplo.com"
                           list="project-member-email-suggestions"
-                          className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                         <datalist id="project-member-email-suggestions">
                           {allUsers.map((user) => (
@@ -288,20 +288,20 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
                           ))}
                         </datalist>
                       </div>
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                         Digite o e-mail do usuário. Ele pode pertencer a qualquer instância.
                       </p>
                     </div>
                     {/* Role selector — only for external users */}
                     {!isEmailInternal && (
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                           Cargo no Projeto
                         </label>
                         <select
                           value={selectedRoleId}
                           onChange={(e) => setSelectedRoleId(e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                           <option value="">Selecione um cargo</option>
                           {selectableRoles.map((role) => (
@@ -310,7 +310,7 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
                             </option>
                           ))}
                         </select>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                           Obrigatório para usuários externos.
                         </p>
                       </div>
@@ -337,7 +337,7 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
                           setError(null);
                         }}
                         disabled={loading}
-                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                        className="px-4 py-2 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-200 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors"
                       >
                         Cancelar
                       </button>
@@ -350,19 +350,19 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
 
           {/* Members List */}
           <div>
-            <h3 className="text-sm font-medium text-gray-700 mb-3">
+            <h3 className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">
               {displayRows.length} {displayRows.length === 1 ? 'Usuário' : 'Usuários'}
             </h3>
             <div className="space-y-2">
               {displayRows.length === 0 ? (
-                <p className="text-gray-500 text-sm py-4 text-center">
+                <p className="text-gray-500 dark:text-slate-400 text-sm py-4 text-center">
                   Nenhum membro adicionado ainda
                 </p>
               ) : (
                 displayRows.map((row) => (
                   <div
                     key={row.key}
-                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200"
+                    className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-slate-800/40 rounded-lg border border-gray-200 dark:border-slate-700"
                   >
                     {/* Avatar */}
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-semibold flex-shrink-0 relative">
@@ -376,7 +376,7 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
                         <span>{row.user.name.charAt(0).toUpperCase()}</span>
                       )}
                       {row.isExternal && (
-                        <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center border-2 border-white">
+                        <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900">
                           <Globe size={8} className="text-white" />
                         </div>
                       )}
@@ -384,8 +384,8 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
 
                     {/* User Info */}
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 truncate">{row.user.name}</p>
-                      <p className="text-sm text-gray-500 truncate">{row.user.email}</p>
+                      <p className="font-medium text-gray-900 dark:text-slate-100 truncate">{row.user.name}</p>
+                      <p className="text-sm text-gray-500 dark:text-slate-400 truncate">{row.user.email}</p>
                     </div>
 
                     {/* Role Selector — editable for non-general members */}
@@ -394,7 +394,7 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
                         value={row.roleId}
                         onChange={(e) => handleUpdateRole(row.user.id, e.target.value)}
                         disabled={loading}
-                        className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                        className="px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100"
                       >
                         {selectableRoles.map((role) => (
                           <option key={role.id} value={role.id}>
@@ -403,12 +403,12 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
                         ))}
                       </select>
                     ) : row.isMember ? (
-                      <div className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 rounded-lg text-sm text-blue-700">
+                      <div className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 dark:bg-blue-950/30 rounded-lg text-sm text-blue-700 dark:text-blue-300">
                         <Shield size={14} />
                         <span>{row.isGeneralAccess ? 'Obras gerais' : row.roleName}</span>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-1 px-3 py-1.5 bg-gray-200 rounded-lg text-sm text-gray-700">
+                      <div className="flex items-center gap-1 px-3 py-1.5 bg-gray-200 dark:bg-slate-700 rounded-lg text-sm text-gray-700 dark:text-slate-200">
                         {row.isGeneralAccess ? (
                           <>
                             <Shield size={14} />
@@ -428,7 +428,7 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
                       <button
                         onClick={() => setConfirmRemoveUserId(row.user.id)}
                         disabled={loading}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                        className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors disabled:opacity-50"
                         title="Remover membro"
                       >
                         <Trash2 size={18} />
@@ -442,10 +442,10 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t bg-gray-50">
+        <div className="p-6 border-t border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/40">
           <button
             onClick={onClose}
-            className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+            className="w-full px-4 py-2 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-200 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors font-medium"
           >
             Fechar
           </button>
