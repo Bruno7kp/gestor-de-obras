@@ -602,8 +602,8 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
         <div className="space-y-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-2">
-              <button onClick={() => setExpandedIds(new Set(expenses.map(e => e.id)))} className="px-3 py-1.5 text-[9px] font-black uppercase text-slate-500 border rounded-lg hover:bg-slate-50"><Maximize2 size={12} className="inline mr-1" /> Expandir</button>
-              <button onClick={() => setExpandedIds(new Set())} className="px-3 py-1.5 text-[9px] font-black uppercase text-slate-500 border rounded-lg hover:bg-slate-50"><Minimize2 size={12} className="inline mr-1" /> Recolher</button>
+              <button onClick={() => setExpandedIds(new Set(expenses.map(e => e.id)))} className="px-3 py-1.5 text-[9px] font-black uppercase text-slate-500 dark:text-slate-300 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800"><Maximize2 size={12} className="inline mr-1" /> Expandir</button>
+              <button onClick={() => setExpandedIds(new Set())} className="px-3 py-1.5 text-[9px] font-black uppercase text-slate-500 dark:text-slate-300 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800"><Minimize2 size={12} className="inline mr-1" /> Recolher</button>
               {activeTab === 'other' && (
                 <div className="relative group">
                   <button
@@ -622,7 +622,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
                 <button
                   onClick={importMaterialGroupsFromWbs}
                   disabled={!canEditFinancial}
-                  className={`px-3 py-1.5 text-[9px] font-black uppercase border rounded-lg transition-colors ${canEditFinancial ? 'text-slate-500 hover:bg-slate-50' : 'text-slate-300 cursor-not-allowed'}`}
+                  className={`px-3 py-1.5 text-[9px] font-black uppercase border rounded-lg transition-colors ${canEditFinancial ? 'text-slate-500 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800' : 'text-slate-300 cursor-not-allowed'}`}
                   title="Importar grupos da EAP"
                 >
                   <Layers size={12} className="inline mr-1" /> Importar Grupos
@@ -632,7 +632,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
                 <button
                   onClick={importLaborGroupsFromWbs}
                   disabled={!canEditFinancial}
-                  className={`px-3 py-1.5 text-[9px] font-black uppercase border rounded-lg transition-colors ${canEditFinancial ? 'text-slate-500 hover:bg-slate-50' : 'text-slate-300 cursor-not-allowed'}`}
+                  className={`px-3 py-1.5 text-[9px] font-black uppercase border rounded-lg transition-colors ${canEditFinancial ? 'text-slate-500 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800' : 'text-slate-300 cursor-not-allowed'}`}
                   title="Importar grupos da EAP"
                 >
                   <Layers size={12} className="inline mr-1" /> Importar Grupos
@@ -647,7 +647,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
                   type="date"
                   value={dateStart}
                   onChange={e => setDateStart(e.target.value)}
-                  className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest border rounded-lg text-slate-500 bg-white dark:bg-slate-900"
+                  className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest border rounded-lg text-slate-500 dark:text-slate-300 bg-white dark:bg-slate-900"
                   aria-label="Data inicial"
                 />
                 <span className="text-[10px] font-bold text-slate-400">até</span>
@@ -655,7 +655,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
                   type="date"
                   value={dateEnd}
                   onChange={e => setDateEnd(e.target.value)}
-                  className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest border rounded-lg text-slate-500 bg-white dark:bg-slate-900"
+                  className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest border rounded-lg text-slate-500 dark:text-slate-300 bg-white dark:bg-slate-900"
                   aria-label="Data final"
                 />
               </div>
@@ -862,5 +862,5 @@ const FinancialSummary = ({ stats, currencySymbol }: { stats: any, currencySymbo
 );
 
 const TabTrigger = ({ active, onClick, label, icon }: any) => (
-  <button onClick={onClick} className={`flex items-center gap-2 px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${active ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-md' : 'text-slate-500'}`}>{icon} {label}</button>
+  <button onClick={onClick} className={`flex items-center gap-2 px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${active ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-md' : 'text-slate-500 dark:text-slate-300'}`}>{icon} {label}</button>
 );

@@ -86,7 +86,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const NavItem = ({ active, onClick, icon, label, badge }: any) => (
-    <button onClick={onClick} className={`w-full flex items-center gap-4 p-3.5 rounded-2xl transition-all relative ${active ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+    <button onClick={onClick} className={`w-full flex items-center gap-4 p-3.5 rounded-2xl transition-all relative ${active ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
       <div className="shrink-0">{icon}</div>
       {isOpen && <span className="text-[11px] font-black uppercase tracking-widest truncate">{label}</span>}
       {badge && <div className="absolute right-3 top-3 w-2 h-2 bg-rose-500 rounded-full animate-pulse border-2 border-white dark:border-slate-900" />}
@@ -135,7 +135,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {Object.entries(byInstance).map(([instanceName, projects]) => (
               <div key={instanceName}>
                 {sidebarOpen && (
-                  <p className="px-3 py-1 text-[9px] font-bold text-slate-400 uppercase tracking-wider truncate">
+                    <p className="px-3 py-1 text-[9px] font-bold text-slate-400 dark:text-slate-300 uppercase tracking-wider truncate">
                     {instanceName}
                   </p>
                 )}
@@ -146,14 +146,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${
                       activeId === ep.projectId && location.pathname.startsWith('/app/projects')
                         ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 font-bold'
-                        : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'
+                        : 'text-slate-500 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
                     } ${!sidebarOpen && 'justify-center'}`}
                   >
                     <Globe size={16} className="shrink-0 text-emerald-500" />
                     {sidebarOpen && (
                       <div className="flex flex-col items-start min-w-0">
                         <span className="text-xs truncate w-full text-left">{ep.projectName}</span>
-                        <span className="text-[9px] text-slate-400 truncate w-full text-left">{ep.assignedRole.name}</span>
+                        <span className="text-[9px] text-slate-400 dark:text-slate-300 truncate w-full text-left">{ep.assignedRole.name}</span>
                       </div>
                     )}
                   </button>
@@ -187,7 +187,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             n.has(group.id) ? n.delete(group.id) : n.add(group.id); 
             setExpandedGroups(n); 
           }}
-          className={`w-full flex items-center gap-2 p-2 rounded-xl text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all`}
+          className={`w-full flex items-center gap-2 p-2 rounded-xl text-slate-500 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all`}
           style={{ paddingLeft: `${depth * 12 + 8}px` }}
         >
           <div className="shrink-0 text-slate-400">
@@ -200,7 +200,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <>
             {subGroups.map(sg => <GroupTreeItem key={sg.id} group={sg} depth={depth + 1} />)}
             {groupProjects.map(p => (
-              <button key={p.id} onClick={() => onOpenProject(p.id)} className={`w-full flex items-center gap-2 p-2 rounded-xl transition-all ${activeProjectId === p.id ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 font-bold' : 'text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`} style={{ paddingLeft: `${(depth + 1) * 12 + 18}px` }}>
+              <button key={p.id} onClick={() => onOpenProject(p.id)} className={`w-full flex items-center gap-2 p-2 rounded-xl transition-all ${activeProjectId === p.id ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 font-bold' : 'text-slate-400 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}`} style={{ paddingLeft: `${(depth + 1) * 12 + 18}px` }}>
                 <Briefcase size={12} className="shrink-0" />
                 {isOpen && <span className="text-[11px] truncate">{p.name}</span>}
               </button>
@@ -298,7 +298,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   .slice()
                   .sort(sortByOrder)
                   .map(p => (
-                  <button key={p.id} onClick={() => onOpenProject(p.id)} className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${activeProjectId === p.id && location.pathname.startsWith('/app/projects') ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 font-bold' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'} ${!isOpen && 'justify-center'}`}>
+                  <button key={p.id} onClick={() => onOpenProject(p.id)} className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${activeProjectId === p.id && location.pathname.startsWith('/app/projects') ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 font-bold' : 'text-slate-500 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'} ${!isOpen && 'justify-center'}`}>
                     <Briefcase size={16} className="shrink-0" />
                     {isOpen && <span className="text-xs truncate text-left">{p.name}</span>}
                   </button>
@@ -322,7 +322,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="relative" ref={accountRef}>
             <button
               onClick={() => setAccountOpen((prev) => !prev)}
-              className={`w-full flex items-center gap-3 p-3 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all ${!isOpen && 'justify-center'}`}
+              className={`w-full flex items-center gap-3 p-3 text-slate-500 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all ${!isOpen && 'justify-center'}`}
               aria-haspopup="menu"
               aria-expanded={accountOpen}
             >

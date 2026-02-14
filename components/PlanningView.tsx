@@ -1701,7 +1701,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
               Deseja realmente excluir o suprimento <span className="text-slate-900 dark:text-white font-bold">{isDeletingForecast.description}</span>? Esta ação é irreversível.
             </p>
             <div className="flex items-center gap-6 w-full">
-               <button onClick={() => setIsDeletingForecast(null)} className="flex-1 py-4 text-slate-500 dark:text-slate-500 font-black uppercase text-xs tracking-widest hover:text-slate-800 dark:hover:text-white transition-colors">Voltar</button>
+               <button onClick={() => setIsDeletingForecast(null)} className="flex-1 py-4 text-slate-500 dark:text-slate-300 font-black uppercase text-xs tracking-widest hover:text-slate-800 dark:hover:text-white transition-colors">Voltar</button>
                <button onClick={() => { onUpdatePlanning(planningService.deleteForecast(planning, isDeletingForecast.id)); setIsDeletingForecast(null); }} className="flex-[2] py-5 bg-rose-600 hover:bg-rose-500 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-xl shadow-rose-500/20 active:scale-95 transition-all">Excluir Permanente</button>
             </div>
           </div>
@@ -1879,7 +1879,7 @@ const ClearanceModal = ({ forecast, currentInvoiceDoc, onClose, onConfirm }: any
         </div>
 
         <div className="flex items-center gap-4 w-full">
-          <button onClick={onClose} className="flex-1 py-3 text-slate-500 dark:text-slate-500 font-black uppercase text-xs tracking-widest hover:text-slate-800 dark:hover:text-white transition-colors">Voltar</button>
+          <button onClick={onClose} className="flex-1 py-3 text-slate-500 dark:text-slate-300 font-black uppercase text-xs tracking-widest hover:text-slate-800 dark:hover:text-white transition-colors">Voltar</button>
           <button
             onClick={() => onConfirm(invoiceDoc)}
             className="flex-[2] py-3 rounded-[1.5rem] font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/20 text-white"
@@ -2430,7 +2430,7 @@ const ForecastModal = ({ onClose, onSave, projectId, allWorkItems, suppliers, ex
         <div className="p-10 pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center gap-6 shrink-0 z-10 bg-slate-50 dark:bg-[#0f111a]/80 backdrop-blur-sm">
            <button 
             onClick={onClose} 
-            className="flex-1 py-5 text-slate-500 dark:text-slate-500 font-black uppercase text-xs tracking-widest hover:text-slate-800 dark:hover:text-white transition-colors"
+            className="flex-1 py-5 text-slate-500 dark:text-slate-300 font-black uppercase text-xs tracking-widest hover:text-slate-800 dark:hover:text-white transition-colors"
            >
              Cancelar
            </button>
@@ -3584,7 +3584,7 @@ const ConfirmForecastModal = ({ forecast, onClose, onConfirm, financialCategorie
         </div>
 
           <div className="flex items-center gap-4 w-full">
-            <button onClick={onClose} className="flex-1 py-4 text-slate-500 dark:text-slate-500 font-black uppercase text-xs tracking-widest hover:text-slate-800 dark:hover:text-white transition-colors">Voltar</button>
+            <button onClick={onClose} className="flex-1 py-4 text-slate-500 dark:text-slate-300 font-black uppercase text-xs tracking-widest hover:text-slate-800 dark:hover:text-white transition-colors">Voltar</button>
             <button 
               onClick={() => {
                 if (isPaid && !paymentProof) {

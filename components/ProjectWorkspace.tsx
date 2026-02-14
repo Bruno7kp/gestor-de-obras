@@ -862,9 +862,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     <button
       data-tab={id}
       onClick={() => handleTabClick(id)}
-      className={`flex items-center gap-2.5 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0 select-none cursor-pointer ${active ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'bg-white dark:bg-slate-900 text-slate-500 hover:text-indigo-600 border border-slate-200 dark:border-slate-800'}`}
+      className={`flex items-center gap-2.5 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0 select-none cursor-pointer ${active ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 border border-slate-200 dark:border-slate-800'}`}
     >
-      <span className={active ? 'text-white' : 'text-slate-400'}>{icon}</span>
+      <span className={active ? 'text-white' : 'text-slate-400 dark:text-slate-300'}>{icon}</span>
       <span>{label}</span>
     </button>
   );
@@ -926,7 +926,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
             <div className="flex flex-wrap items-center gap-3 mt-2">
               <div className="relative z-50">
                 <select
-                  className={`pl-8 pr-10 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest appearance-none border-2 outline-none cursor-pointer transition-all ${isHistoryMode ? 'bg-amber-200 border-amber-400 text-amber-900 shadow-sm' : 'bg-slate-100 dark:bg-slate-800 border-transparent text-slate-500 hover:border-indigo-400'}`}
+                  className={`pl-8 pr-10 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest appearance-none border-2 outline-none cursor-pointer transition-all ${isHistoryMode ? 'bg-amber-200 border-amber-400 text-amber-900 shadow-sm' : 'bg-slate-100 dark:bg-slate-800 border-transparent text-slate-500 dark:text-slate-300 hover:border-indigo-400'}`}
                   value={viewingMeasurementId}
                   onChange={(e) => setViewingMeasurementId(e.target.value === 'current' ? 'current' : Number(e.target.value))}
                 >
@@ -1192,7 +1192,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                   </p>
                 </div>
                 <div className="flex items-center gap-6 w-full">
-                  <button onClick={() => setIsClosingModalOpen(false)} className="flex-1 py-4 text-slate-500 dark:text-slate-500 font-black uppercase text-xs tracking-widest hover:text-slate-800 dark:hover:text-white transition-colors">Voltar</button>
+                  <button onClick={() => setIsClosingModalOpen(false)} className="flex-1 py-4 text-slate-500 dark:text-slate-300 font-black uppercase text-xs tracking-widest hover:text-slate-800 dark:hover:text-white transition-colors">Voltar</button>
                   <button
                     onClick={async () => {
                       if (isClosingInProgress) return;
@@ -1233,7 +1233,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                   </p>
                 </div>
                 <div className="flex items-center gap-6 w-full">
-                  <button onClick={() => setIsReopenModalOpen(false)} className="flex-1 py-4 text-slate-500 dark:text-slate-500 font-black uppercase text-xs tracking-widest hover:text-slate-800 dark:hover:text-white transition-colors">Cancelar</button>
+                  <button onClick={() => setIsReopenModalOpen(false)} className="flex-1 py-4 text-slate-500 dark:text-slate-300 font-black uppercase text-xs tracking-widest hover:text-slate-800 dark:hover:text-white transition-colors">Cancelar</button>
                   <button onClick={handleConfirmReopen} className="flex-[2] py-5 bg-rose-600 hover:bg-rose-50 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-[0_10px_30px_-10px_rgba(225,29,72,0.5)] active:scale-95 transition-all">Confirmar Reabertura</button>
                 </div>
               </div>

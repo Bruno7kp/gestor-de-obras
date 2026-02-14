@@ -168,10 +168,10 @@ export const TreeTable: React.FC<TreeTableProps> = ({
     <div className="flex flex-col gap-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print">
         <div className="flex items-center gap-2">
-          <button onClick={onExpandAll} className="flex items-center gap-2 px-3 py-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm">
+          <button onClick={onExpandAll} className="flex items-center gap-2 px-3 py-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-300 hover:text-blue-600 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm">
             <Maximize2 size={12} /> <span className="hidden xs:inline">Expandir</span>
           </button>
-          <button onClick={onCollapseAll} className="flex items-center gap-2 px-3 py-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm">
+          <button onClick={onCollapseAll} className="flex items-center gap-2 px-3 py-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-300 hover:text-blue-600 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm">
             <Minimize2 size={12} /> <span className="hidden xs:inline">Recolher</span>
           </button>
           <button
@@ -186,7 +186,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                 void target.requestFullscreen();
               }
             }}
-            className="flex items-center gap-2 px-3 py-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm"
+            className="flex items-center gap-2 px-3 py-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-300 hover:text-blue-600 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm"
             title={isFullscreen ? 'Sair da Tela Cheia' : 'Tela Cheia'}
             type="button"
           >
@@ -203,7 +203,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
             <button
               key={v}
               onClick={() => setView(v)}
-              className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${view === v ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${view === v ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-500 dark:text-slate-300 hover:text-slate-700 dark:hover:text-slate-100'}`}
             >
               {v === 'full' ? 'Completa' : v === 'contractual' ? 'Contrato' : v === 'measurement' ? 'Medição' : 'Foco'}
             </button>
@@ -543,7 +543,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
 const VisibilityToggle = ({ label, active, onClick }: { label: string, active: boolean, onClick: () => void }) => (
   <button 
     onClick={onClick}
-    className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${active ? 'text-indigo-600 bg-white shadow-sm' : 'text-slate-400 opacity-50 hover:opacity-100'}`}
+    className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${active ? 'text-indigo-600 bg-white dark:bg-slate-700 shadow-sm' : 'text-slate-400 dark:text-slate-300 opacity-70 hover:opacity-100'}`}
   >
     {label}
   </button>
