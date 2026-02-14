@@ -24,6 +24,7 @@ interface CreateJournalEntryBody {
   category: string;
   title: string;
   description: string;
+  progressPercent?: number | null;
   weatherStatus?: string | null;
   photoUrls?: string[];
 }

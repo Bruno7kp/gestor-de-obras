@@ -53,6 +53,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
     title: '',
     description: '',
     category: 'PROGRESS',
+    progressPercent: 0,
     weatherStatus: 'sunny',
     photoUrls: []
   });
@@ -60,6 +61,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
     title: '',
     description: '',
     category: 'PROGRESS',
+    progressPercent: 0,
     weatherStatus: 'sunny',
     photoUrls: []
   });
@@ -119,11 +121,26 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
     return journalService.getPaginatedEntries(sortedEntries, 1, page * PAGE_SIZE);
   }, [sortedEntries, page]);
 
+  const latestProgressEntry = useMemo(() => {
+    return journal.entries
+      .filter((entry) => entry.category === 'PROGRESS' && typeof entry.progressPercent === 'number')
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+  }, [journal.entries]);
+
+  const latestProgressPercent = latestProgressEntry?.progressPercent ?? 0;
+
+  const normalizeProgressPercent = (value: number) => {
+    if (!Number.isFinite(value)) return 0;
+    const clamped = Math.max(0, Math.min(100, value));
+    return Math.round(clamped * 100) / 100;
+  };
+
   const resetComposer = () => {
     setNewEntry({
       title: '',
       description: '',
       category: 'PROGRESS',
+      progressPercent: latestProgressPercent,
       weatherStatus: 'sunny',
       photoUrls: [],
     });
@@ -136,6 +153,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
       title: '',
       description: '',
       category: 'PROGRESS',
+      progressPercent: 0,
       weatherStatus: 'sunny',
       photoUrls: [],
     });
@@ -148,6 +166,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
       title: entry.title,
       description: entry.description,
       category: entry.category === 'FINANCIAL' ? 'PROGRESS' : entry.category,
+      progressPercent: entry.progressPercent ?? latestProgressPercent,
       weatherStatus: entry.weatherStatus ?? 'sunny',
       photoUrls: entry.photoUrls ?? [],
     });
@@ -190,6 +209,9 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
     if (!newEntry.description) return;
 
     const normalizedCategory = (newEntry.category === 'FINANCIAL' ? 'PROGRESS' : (newEntry.category ?? 'PROGRESS')) as JournalCategory;
+    const resolvedProgressPercent = normalizedCategory === 'PROGRESS'
+      ? normalizeProgressPercent(Number(newEntry.progressPercent ?? latestProgressPercent))
+      : undefined;
 
     const entryToSave: JournalEntry = {
       id: crypto.randomUUID(),
@@ -198,6 +220,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
       category: normalizedCategory,
       title: newEntry.title || `Registro de ${new Date().toLocaleDateString('pt-BR')}`,
       description: newEntry.description,
+      progressPercent: resolvedProgressPercent,
       weatherStatus: normalizedCategory === 'WEATHER' ? (newEntry.weatherStatus ?? 'sunny') : undefined,
       photoUrls: newEntry.photoUrls || [],
       createdById: user?.id,
@@ -222,11 +245,21 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
     const normalizedCategory = (editEntryDraft.category === 'FINANCIAL'
       ? 'PROGRESS'
       : (editEntryDraft.category ?? 'PROGRESS')) as JournalCategory;
+    const resolvedProgressPercent = normalizedCategory === 'PROGRESS'
+      ? normalizeProgressPercent(
+          Number(
+            editEntryDraft.progressPercent
+            ?? editingEntry.progressPercent
+            ?? latestProgressPercent,
+          ),
+        )
+      : null;
 
     const updatePayload: Partial<JournalEntry> = {
       title: editEntryDraft.title || editingEntry.title,
       description: editEntryDraft.description,
       category: normalizedCategory,
+      progressPercent: resolvedProgressPercent,
       weatherStatus: normalizedCategory === 'WEATHER' ? (editEntryDraft.weatherStatus ?? 'sunny') : undefined,
       photoUrls: editEntryDraft.photoUrls || [],
     };
@@ -234,6 +267,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
     const optimisticEntry: JournalEntry = {
       ...editingEntry,
       ...updatePayload,
+      progressPercent: resolvedProgressPercent,
       weatherStatus: updatePayload.category === 'WEATHER'
         ? (updatePayload.weatherStatus as WeatherType | undefined)
         : undefined,
@@ -329,12 +363,39 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
                       <select 
                         className="bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-[10px] font-black uppercase tracking-widest outline-none px-4 py-2"
                         value={newEntry.category}
-                        onChange={e => setNewEntry({...newEntry, category: e.target.value as JournalCategory})}
+                        onChange={e => {
+                          const category = e.target.value as JournalCategory;
+                          setNewEntry({
+                            ...newEntry,
+                            category,
+                            progressPercent: category === 'PROGRESS'
+                              ? Number(newEntry.progressPercent ?? latestProgressPercent)
+                              : undefined,
+                          });
+                        }}
                       >
                         <option value="PROGRESS">Progresso</option>
                         <option value="INCIDENT">Ocorrência</option>
                         <option value="WEATHER">Clima</option>
                       </select>
+
+                      {newEntry.category === 'PROGRESS' && (
+                        <label className="bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-[10px] font-black uppercase tracking-widest outline-none px-4 py-2 flex items-center gap-2 text-slate-500">
+                          <span>%</span>
+                          <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            step="0.01"
+                            className="w-full bg-transparent text-[11px] font-black outline-none"
+                            value={newEntry.progressPercent ?? latestProgressPercent}
+                            onChange={(e) => setNewEntry({
+                              ...newEntry,
+                              progressPercent: normalizeProgressPercent(Number(e.target.value || 0)),
+                            })}
+                          />
+                        </label>
+                      )}
                       
                       {newEntry.category === 'WEATHER' && (
                         <select 
@@ -399,6 +460,22 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
             </div>
           </div>
         </form>
+      </div>
+
+      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
+        <div className="flex items-center justify-between gap-4 mb-3">
+          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Último progresso cadastrado</h3>
+          <span className="text-sm font-black text-indigo-600 dark:text-indigo-400">{latestProgressPercent.toFixed(2)}%</span>
+        </div>
+        <div className="w-full h-3 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+          <div
+            className="h-full bg-indigo-600 transition-all duration-300"
+            style={{ width: `${latestProgressPercent}%` }}
+          />
+        </div>
+        {!latestProgressEntry && (
+          <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">Nenhum progresso cadastrado ainda.</p>
+        )}
       </div>
 
       {/* FILTER & SEARCH BAR */}
@@ -469,6 +546,11 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
                   </div>
                   <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-slate-400">
                     <span className="flex items-center gap-1.5"><History size={12}/> {new Date(entry.timestamp).toLocaleString('pt-BR')}</span>
+                    {entry.category === 'PROGRESS' && typeof entry.progressPercent === 'number' && (
+                      <span className="flex items-center gap-1.5 border-l border-slate-200 dark:border-slate-700 pl-3">
+                        <BarChart size={12} /> {entry.progressPercent.toFixed(2)}%
+                      </span>
+                    )}
                     {entry.weatherStatus && (
                       <span className="flex items-center gap-1.5 border-l border-slate-200 dark:border-slate-700 pl-3">
                         <WeatherIcon type={entry.weatherStatus} /> {getWeatherLabel(entry.weatherStatus)}
@@ -513,6 +595,21 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
               <div className="prose prose-sm dark:prose-invert max-w-none">
                 <p className="text-slate-600 dark:text-slate-300 leading-relaxed font-medium whitespace-pre-wrap">{entry.description}</p>
               </div>
+
+              {entry.category === 'PROGRESS' && typeof entry.progressPercent === 'number' && (
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    <span>Progresso do dia</span>
+                    <span>{entry.progressPercent.toFixed(2)}%</span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                    <div
+                      className="h-full bg-indigo-600"
+                      style={{ width: `${entry.progressPercent}%` }}
+                    />
+                  </div>
+                </div>
+              )}
 
               {entry.photoUrls && entry.photoUrls.length > 0 && (
                 <div className="mt-6 flex flex-wrap gap-3">
@@ -630,12 +727,39 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
                   <select
                     className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase tracking-widest outline-none px-4 py-3"
                     value={editEntryDraft.category}
-                    onChange={(e) => setEditEntryDraft({ ...editEntryDraft, category: e.target.value as JournalCategory })}
+                    onChange={(e) => {
+                      const category = e.target.value as JournalCategory;
+                      setEditEntryDraft({
+                        ...editEntryDraft,
+                        category,
+                        progressPercent: category === 'PROGRESS'
+                          ? Number(editEntryDraft.progressPercent ?? editingEntry.progressPercent ?? latestProgressPercent)
+                          : undefined,
+                      });
+                    }}
                   >
                     <option value="PROGRESS">Progresso</option>
                     <option value="INCIDENT">Ocorrência</option>
                     <option value="WEATHER">Clima</option>
                   </select>
+
+                  {editEntryDraft.category === 'PROGRESS' && (
+                    <label className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase tracking-widest outline-none px-4 py-3 flex items-center gap-2 text-slate-500">
+                      <span>%</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step="0.01"
+                        className="w-full bg-transparent text-[11px] font-black outline-none"
+                        value={editEntryDraft.progressPercent ?? editingEntry.progressPercent ?? latestProgressPercent}
+                        onChange={(e) => setEditEntryDraft({
+                          ...editEntryDraft,
+                          progressPercent: normalizeProgressPercent(Number(e.target.value || 0)),
+                        })}
+                      />
+                    </label>
+                  )}
 
                   {editEntryDraft.category === 'WEATHER' && (
                     <select

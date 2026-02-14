@@ -251,6 +251,7 @@ export interface JournalEntry {
   category: JournalCategory;
   title: string;
   description: string;
+  progressPercent?: number | null;
   weatherStatus?: WeatherType;
   photoUrls: string[];
   createdById?: string;

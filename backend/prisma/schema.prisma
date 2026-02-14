@@ -454,6 +454,7 @@ model JournalEntry {
   category        String
   title           String
   description     String
+  progressPercent Float?
   weatherStatus   String?
   photoUrls       String[]
   createdById     String?

@@ -13,6 +13,7 @@ interface CreateJournalEntryInput {
   category: string;
   title: string;
   description: string;
+  progressPercent?: number | null;
   weatherStatus?: string | null;
   photoUrls?: string[];
 }
@@ -68,6 +69,7 @@ export class JournalService {
         category: input.category,
         title: input.title,
         description: input.description,
+        progressPercent: input.progressPercent ?? null,
         weatherStatus: input.weatherStatus ?? null,
         photoUrls: input.photoUrls ?? [],
         createdById: input.userId ?? null,
@@ -107,6 +109,10 @@ export class JournalService {
         category: data.category ?? entry.category,
         title: data.title ?? entry.title,
         description: data.description ?? entry.description,
+        progressPercent:
+          data.progressPercent === undefined
+            ? entry.progressPercent
+            : data.progressPercent,
         weatherStatus: data.weatherStatus ?? entry.weatherStatus,
         photoUrls: data.photoUrls ?? entry.photoUrls,
       },
