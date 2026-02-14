@@ -68,12 +68,14 @@ export class ProjectExpensesController {
     @Query('projectId') projectId: string,
     @Query('q') query: string,
     @Query('limit') limit: string,
+    @Query('supplierId') supplierId: string | undefined,
     @Req() req: AuthenticatedRequest,
   ) {
     return this.projectExpensesService.getMaterialSuggestions({
       projectId,
       query,
       limit: Number(limit) || 8,
+      supplierId,
       instanceId: req.user.instanceId,
       userId: req.user.id,
       permissions: req.user.permissions ?? [],

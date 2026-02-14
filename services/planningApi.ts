@@ -155,6 +155,47 @@ export const planningApi = {
     return response.json();
   },
 
+  async addItemsToSupplyGroup(
+    id: string,
+    items: Array<{
+      id?: string;
+      description: string;
+      unit: string;
+      quantityNeeded: number;
+      unitPrice: number;
+      discountValue?: number;
+      discountPercentage?: number;
+      categoryId?: string | null;
+      order?: number;
+    }>,
+  ) {
+    const response = await fetch(`${API_BASE}/planning/supply-groups/${id}/items`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ items }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Falha ao adicionar itens ao grupo de suprimentos');
+    }
+
+    return response.json();
+  },
+
+  async deleteSupplyGroup(id: string) {
+    const response = await fetch(`${API_BASE}/planning/supply-groups/${id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error('Falha ao remover grupo de suprimentos');
+    }
+  },
+
   async convertForecastsToGroup(
     projectId: string,
     payload: {

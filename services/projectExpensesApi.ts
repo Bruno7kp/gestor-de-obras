@@ -3,12 +3,16 @@ import type { ProjectExpense } from '../types';
 const API_BASE = (import.meta as any).env?.VITE_API_URL ?? '/api';
 
 export const projectExpensesApi = {
-  async getMaterialSuggestions(projectId: string, query: string, limit = 8) {
+  async getMaterialSuggestions(projectId: string, query: string, limit = 8, supplierId?: string) {
     const params = new URLSearchParams({
       projectId,
       q: query,
       limit: String(limit),
     });
+
+    if (supplierId) {
+      params.set('supplierId', supplierId);
+    }
 
     const response = await fetch(`${API_BASE}/project-expenses/material-suggestions?${params.toString()}`, {
       method: 'GET',

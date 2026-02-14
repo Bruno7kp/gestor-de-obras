@@ -215,6 +215,19 @@ export class PlanningController {
     );
   }
 
+  @Delete('supply-groups/:id')
+  @HasPermission('planning.edit')
+  deleteSupplyGroup(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.planningService.deleteSupplyGroup(
+      id,
+      req.user.instanceId,
+      req.user.id,
+    );
+  }
+
   @Post('supply-groups/:id/items')
   @HasPermission('planning.edit')
   addItemsToSupplyGroup(

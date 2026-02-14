@@ -459,6 +459,54 @@ export class PlanningService {
     });
   }
 
+  async deleteSupplyGroup(id: string, instanceId: string, userId?: string) {
+    let group = await this.prisma.supplyGroup.findFirst({
+      where: { id, projectPlanning: { project: { instanceId } } },
+      select: {
+        id: true,
+        paymentProof: true,
+        invoiceDoc: true,
+      },
+    });
+
+    if (!group && userId) {
+      group = await this.prisma.supplyGroup.findFirst({
+        where: {
+          id,
+          projectPlanning: { project: { members: { some: { userId } } } },
+        },
+        select: {
+          id: true,
+          paymentProof: true,
+          invoiceDoc: true,
+        },
+      });
+    }
+
+    if (!group) throw new NotFoundException('Grupo de suprimentos nao encontrado');
+
+    const forecasts = await this.prisma.materialForecast.findMany({
+      where: { supplyGroupId: id },
+      select: { id: true, paymentProof: true },
+    });
+
+    const candidateUploads: Array<string | null | undefined> = [
+      group.paymentProof,
+      group.invoiceDoc,
+      ...forecasts.map((forecast) => forecast.paymentProof),
+    ];
+
+    await this.prisma.materialForecast.deleteMany({
+      where: { supplyGroupId: id },
+    });
+
+    await this.prisma.supplyGroup.delete({ where: { id } });
+
+    await this.cleanupUploadsIfOrphaned(candidateUploads);
+
+    return { deleted: forecasts.length };
+  }
+
   async convertForecastsToGroup(input: ConvertForecastsToGroupInput) {
     await this.ensureProject(input.projectId, input.instanceId, input.userId);
     const planning = await this.ensurePlanning(input.projectId);

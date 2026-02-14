@@ -45,6 +45,7 @@ interface MaterialSuggestionInput {
   projectId: string;
   query: string;
   limit: number;
+  supplierId?: string;
   instanceId: string;
   userId?: string;
   permissions: string[];
@@ -251,6 +252,13 @@ export class ProjectExpensesService {
 
     const projectIds = Array.from(scopedProjectIds);
 
+    const supplierNameFilter = input.supplierId
+      ? (await this.prisma.supplier.findUnique({
+          where: { id: input.supplierId },
+          select: { name: true },
+        }))?.name
+      : undefined;
+
     const [expenses, forecasts] = await Promise.all([
       this.prisma.projectExpense.findMany({
         where: {
@@ -258,6 +266,9 @@ export class ProjectExpensesService {
           type: 'material',
           itemType: 'item',
           description: { contains: query, mode: 'insensitive' },
+          ...(supplierNameFilter
+            ? { entityName: { contains: supplierNameFilter, mode: 'insensitive' } }
+            : {}),
         },
         select: {
           description: true,
@@ -273,6 +284,7 @@ export class ProjectExpensesService {
         where: {
           projectPlanning: { projectId: { in: projectIds } },
           description: { contains: query, mode: 'insensitive' },
+          ...(input.supplierId ? { supplierId: input.supplierId } : {}),
         },
         select: {
           description: true,

@@ -55,6 +55,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   const planningSubTabs: Array<'tasks' | 'forecast' | 'milestones'> = ['tasks', 'forecast', 'milestones'];
   const planningTabKey = `planning_subtab_${project.id}`;
   const suppliesStatusKey = `supplies_status_${project.id}`;
+  const supplyGroupsExpandedKey = `supplies_groups_expanded_${project.id}`;
 
   const [activeSubTab, setActiveSubTab] = useState<'tasks' | 'forecast' | 'milestones'>(() => {
     if (fixedSubTab) return fixedSubTab;
@@ -74,6 +75,24 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   const [isConvertingForecastsToGroup, setIsConvertingForecastsToGroup] = useState(false);
   const [isNewOrderPopoverOpen, setIsNewOrderPopoverOpen] = useState(false);
   const [isBatchSelectionMode, setIsBatchSelectionMode] = useState(false);
+  const [expandedSupplyGroups, setExpandedSupplyGroups] = useState<Record<string, boolean>>(() => {
+    const raw = uiPreferences.getString(supplyGroupsExpandedKey);
+    if (!raw) return {};
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        return parsed as Record<string, boolean>;
+      }
+    } catch {
+      // ignore invalid storage values
+    }
+    return {};
+  });
+  const [supplyGroupsCache, setSupplyGroupsCache] = useState<Record<string, SupplyGroup>>({});
+  const [confirmingGroupPurchase, setConfirmingGroupPurchase] = useState<SupplyGroup | null>(null);
+  const [confirmingGroupDelivery, setConfirmingGroupDelivery] = useState<SupplyGroup | null>(null);
+  const [confirmingGroupClearance, setConfirmingGroupClearance] = useState<SupplyGroup | null>(null);
+  const [confirmingDeleteSupplyGroup, setConfirmingDeleteSupplyGroup] = useState<SupplyGroup | null>(null);
   const [editingForecast, setEditingForecast] = useState<MaterialForecast | null>(null);
   const [editingSupplyGroup, setEditingSupplyGroup] = useState<SupplyGroup | null>(null);
   const [selectedForecastIds, setSelectedForecastIds] = useState<string[]>([]);
@@ -145,6 +164,11 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   }, [forecastStatusFilter, isSuppliesView, suppliesStatusKey]);
 
   useEffect(() => {
+    if (!isSuppliesView) return;
+    uiPreferences.setString(supplyGroupsExpandedKey, JSON.stringify(expandedSupplyGroups));
+  }, [expandedSupplyGroups, isSuppliesView, supplyGroupsExpandedKey]);
+
+  useEffect(() => {
     if (forecastStatusFilter === 'pending') return;
     setIsBatchSelectionMode(false);
     setSelectedForecastIds([]);
@@ -177,6 +201,87 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
         return matchesSearch && matchesStatus;
       });
   }, [planning.forecasts, forecastSearch, forecastStatusFilter]);
+
+  useEffect(() => {
+    const hasMissingGroupRelation = sortedForecasts.some(
+      (forecast) => forecast.supplyGroupId && !forecast.supplyGroup,
+    );
+    if (!hasMissingGroupRelation) return;
+
+    let active = true;
+    void (async () => {
+      try {
+        const groups = await planningApi.listSupplyGroups(project.id);
+        if (!active) return;
+        setSupplyGroupsCache((prev) => {
+          const next = { ...prev };
+          groups.forEach((group) => {
+            next[group.id] = group;
+          });
+          return next;
+        });
+      } catch {
+        // non-blocking: fallback grouping still works with synthetic group data
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [project.id, sortedForecasts]);
+
+  const groupedForecastRows = useMemo(() => {
+    const rows: Array<
+      | { type: 'single'; forecast: MaterialForecast }
+      | { type: 'group'; groupId: string; group: SupplyGroup; forecasts: MaterialForecast[] }
+    > = [];
+
+    const bucket = new Map<string, { group: SupplyGroup; forecasts: MaterialForecast[] }>();
+
+    for (const forecast of sortedForecasts) {
+      if (!forecast.supplyGroupId) {
+        rows.push({ type: 'single', forecast });
+        continue;
+      }
+
+      const existing = bucket.get(forecast.supplyGroupId);
+      if (existing) {
+        existing.forecasts.push(forecast);
+        continue;
+      }
+
+      const resolvedGroup =
+        forecast.supplyGroup ||
+        supplyGroupsCache[forecast.supplyGroupId] ||
+        ({
+          id: forecast.supplyGroupId,
+          title: null,
+          estimatedDate: forecast.estimatedDate,
+          purchaseDate: forecast.purchaseDate || null,
+          deliveryDate: forecast.deliveryDate || null,
+          status: forecast.status,
+          isPaid: forecast.isPaid,
+          isCleared: forecast.isCleared,
+          supplierId: forecast.supplierId,
+          paymentProof: null,
+          invoiceDoc: null,
+          forecasts: [],
+        } as SupplyGroup);
+
+      bucket.set(forecast.supplyGroupId, {
+        group: resolvedGroup,
+        forecasts: [forecast],
+      });
+      rows.push({
+        type: 'group',
+        groupId: forecast.supplyGroupId,
+        group: resolvedGroup,
+        forecasts: bucket.get(forecast.supplyGroupId)!.forecasts,
+      });
+    }
+
+    return rows;
+  }, [sortedForecasts, supplyGroupsCache]);
 
   const selectableForecastIds = useMemo(
     () =>
@@ -424,17 +529,18 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     }
   };
 
-  const openSupplyGroupEditorFromForecast = async (forecast: MaterialForecast) => {
-    if (!forecast.supplyGroupId) return;
-
-    if (forecast.supplyGroup) {
-      setEditingSupplyGroup(forecast.supplyGroup);
-      return;
-    }
-
+  const openSupplyGroupEditorById = async (supplyGroupId: string) => {
     try {
       const groups = await planningApi.listSupplyGroups(project.id);
-      const target = groups.find((group) => group.id === forecast.supplyGroupId);
+      setSupplyGroupsCache((prev) => {
+        const next = { ...prev };
+        groups.forEach((group) => {
+          next[group.id] = group;
+        });
+        return next;
+      });
+
+      const target = groups.find((group) => group.id === supplyGroupId);
       if (!target) {
         toast.warning('Grupo de suprimentos não encontrado.');
         return;
@@ -446,17 +552,15 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     }
   };
 
+  const openSupplyGroupEditorFromForecast = async (forecast: MaterialForecast) => {
+    if (!forecast.supplyGroupId) return;
+    await openSupplyGroupEditorById(forecast.supplyGroupId);
+  };
+
   const handleCreateSupplyGroup = async (payload: {
     title?: string | null;
     supplierId?: string | null;
     estimatedDate: string;
-    purchaseDate?: string | null;
-    deliveryDate?: string | null;
-    status: 'pending' | 'ordered' | 'delivered';
-    isPaid: boolean;
-    isCleared: boolean;
-    paymentProof?: string | null;
-    invoiceDoc?: string | null;
     items: Array<{
       description: string;
       unit: string;
@@ -468,45 +572,16 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     }>;
   }) => {
     try {
-      const createdGroup = await planningApi.createSupplyGroup(project.id, payload);
-
-      if (payload.status !== 'pending') {
-        const supplierName = suppliers.find((supplier) => supplier.id === (payload.supplierId || ''))?.name;
-
-        (createdGroup.forecasts || []).forEach((forecast) => {
-          const expenseData = planningService.prepareExpenseFromForecast(
-            forecast,
-            forecast.categoryId || null,
-            payload.purchaseDate || undefined,
-            payload.isPaid,
-            forecast.id,
-            payload.status,
-            {
-              discountValue: forecast.discountValue,
-              discountPercentage: forecast.discountPercentage,
-            },
-          );
-
-          if (supplierName) {
-            expenseData.entityName = supplierName;
-          }
-
-          if (payload.isPaid && payload.paymentProof) {
-            expenseData.paymentProof = payload.paymentProof;
-          }
-
-          if (payload.status === 'delivered') {
-            expenseData.status = 'DELIVERED';
-            expenseData.deliveryDate = payload.deliveryDate || new Date().toISOString().split('T')[0];
-          }
-
-          if (payload.isCleared && payload.invoiceDoc) {
-            expenseData.invoiceDoc = payload.invoiceDoc;
-          }
-
-          onAddExpense(expenseData as ProjectExpense);
-        });
-      }
+      await planningApi.createSupplyGroup(project.id, {
+        ...payload,
+        purchaseDate: null,
+        deliveryDate: null,
+        status: 'pending',
+        isPaid: false,
+        isCleared: false,
+        paymentProof: null,
+        invoiceDoc: null,
+      });
 
       await refreshForecastsFromApi();
       setSelectedForecastIds([]);
@@ -523,8 +598,13 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     payload: Partial<Omit<SupplyGroup, 'id' | 'forecasts'>>,
   ) => {
     try {
-      await planningApi.updateSupplyGroup(groupId, payload);
-
+      const updatedGroup = await planningApi.updateSupplyGroup(groupId, payload);
+      if (updatedGroup?.id) {
+        setSupplyGroupsCache((prev) => ({
+          ...prev,
+          [updatedGroup.id]: updatedGroup,
+        }));
+      }
       const shouldSyncFinancial =
         payload.status !== undefined ||
         payload.isPaid !== undefined ||
@@ -610,6 +690,57 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     }
   };
 
+  const toggleSupplyGroupExpansion = (groupId: string) => {
+    setExpandedSupplyGroups((prev) => ({
+      ...prev,
+      [groupId]: !prev[groupId],
+    }));
+  };
+
+  const handleFinalizeGroupPurchase = async (
+    group: SupplyGroup,
+    payload: { purchaseDate: string; isPaid: boolean; paymentProof?: string | null },
+  ) => {
+    await handleUpdateSupplyGroup(group.id, {
+      status: 'ordered',
+      purchaseDate: payload.purchaseDate,
+      isPaid: payload.isPaid,
+      paymentProof: payload.paymentProof ?? null,
+    });
+    setConfirmingGroupPurchase(null);
+    setForecastStatusFilter('ordered');
+  };
+
+  const handleFinalizeGroupDelivery = async (group: SupplyGroup) => {
+    await handleUpdateSupplyGroup(group.id, {
+      status: 'delivered',
+      deliveryDate: new Date().toISOString().split('T')[0],
+    });
+    setConfirmingGroupDelivery(null);
+    setForecastStatusFilter('delivered');
+  };
+
+  const handleFinalizeGroupClearance = async (group: SupplyGroup, invoiceDoc?: string) => {
+    await handleUpdateSupplyGroup(group.id, {
+      isCleared: true,
+      invoiceDoc: invoiceDoc || null,
+    });
+    setConfirmingGroupClearance(null);
+  };
+
+  const handleDeleteSupplyGroup = async (groupId: string) => {
+    try {
+      await planningApi.deleteSupplyGroup(groupId);
+      await refreshForecastsFromApi();
+      setEditingSupplyGroup(null);
+      setConfirmingDeleteSupplyGroup(null);
+      toast.success('Grupo removido com sucesso.');
+    } catch (error) {
+      console.error('Erro ao remover grupo de suprimentos:', error);
+      toast.error('Erro ao remover grupo de suprimentos.');
+    }
+  };
+
   const toggleForecastSelection = (forecastId: string) => {
     setSelectedForecastIds((prev) =>
       prev.includes(forecastId)
@@ -630,13 +761,6 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     title?: string | null;
     supplierId?: string | null;
     estimatedDate: string;
-    purchaseDate?: string | null;
-    deliveryDate?: string | null;
-    status: 'pending' | 'ordered' | 'delivered';
-    isPaid: boolean;
-    isCleared: boolean;
-    paymentProof?: string | null;
-    invoiceDoc?: string | null;
   }) => {
     if (selectedForecastIds.length === 0) {
       toast.warning('Selecione ao menos um item para converter.');
@@ -644,74 +768,21 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     }
 
     try {
+      const normalizedPayload = {
+        ...payload,
+        purchaseDate: null,
+        deliveryDate: null,
+        status: 'pending' as const,
+        isPaid: false,
+        isCleared: false,
+        paymentProof: null,
+        invoiceDoc: null,
+      };
+
       await planningApi.convertForecastsToGroup(project.id, {
         forecastIds: selectedForecastIds,
-        ...payload,
+        ...normalizedPayload,
       });
-
-      const shouldSyncFinancial = payload.status !== 'pending';
-      if (shouldSyncFinancial) {
-        const targetForecasts = planning.forecasts.filter((forecast) =>
-          selectedForecastIds.includes(forecast.id),
-        );
-        const supplierName = suppliers.find((supplier) => supplier.id === (payload.supplierId || ''))?.name;
-
-        targetForecasts.forEach((forecast) => {
-          const linkedExpense = findExpenseForForecast(forecast);
-          const expenseData = planningService.prepareExpenseFromForecast(
-            forecast,
-            linkedExpense?.parentId ?? (forecast.categoryId || null),
-            payload.purchaseDate || undefined,
-            payload.isPaid,
-            linkedExpense?.id || forecast.id,
-            payload.status,
-            {
-              discountValue: forecast.discountValue,
-              discountPercentage: forecast.discountPercentage,
-            },
-          );
-
-          if (supplierName) {
-            expenseData.entityName = supplierName;
-          }
-
-          if (payload.isPaid && payload.paymentProof) {
-            expenseData.paymentProof = payload.paymentProof;
-          }
-
-          if (payload.status === 'delivered') {
-            expenseData.status = 'DELIVERED';
-            expenseData.deliveryDate = payload.deliveryDate || new Date().toISOString().split('T')[0];
-          }
-
-          if (payload.isCleared && payload.invoiceDoc) {
-            expenseData.invoiceDoc = payload.invoiceDoc;
-          }
-
-          if (linkedExpense) {
-            onUpdateExpense(linkedExpense.id, {
-              parentId: expenseData.parentId ?? linkedExpense.parentId,
-              date: expenseData.date,
-              description: expenseData.description,
-              entityName: expenseData.entityName,
-              unit: expenseData.unit,
-              quantity: expenseData.quantity,
-              unitPrice: expenseData.unitPrice,
-              discountValue: expenseData.discountValue,
-              discountPercentage: expenseData.discountPercentage,
-              amount: expenseData.amount,
-              isPaid: expenseData.isPaid,
-              status: expenseData.status,
-              paymentDate: expenseData.paymentDate ?? linkedExpense.paymentDate,
-              paymentProof: expenseData.paymentProof ?? linkedExpense.paymentProof,
-              deliveryDate: expenseData.deliveryDate ?? linkedExpense.deliveryDate,
-              invoiceDoc: expenseData.invoiceDoc ?? linkedExpense.invoiceDoc,
-            });
-          } else {
-            onAddExpense(expenseData as ProjectExpense);
-          }
-        });
-      }
 
       await refreshForecastsFromApi();
       setSelectedForecastIds([]);
@@ -1110,332 +1181,401 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                         <th className="pb-2 text-right pr-4">Ações</th>
                       </tr>
                     </thead>
-                    <Droppable droppableId="forecast-list">
-                      {(provided) => (
-                        <tbody ref={provided.innerRef} {...provided.droppableProps} className="text-center">
-                          {sortedForecasts.map((f, index) => {
-                            const supplier = suppliers.find(s => s.id === f.supplierId);
-                            const linkedExpense = findExpenseForForecast(f);
-                            const financialGroupId = f.categoryId || linkedExpense?.parentId || undefined;
-                            const stageName = financialGroupId ? financialGroupNameById.get(financialGroupId) : undefined;
-                            const isGrouped = !!f.supplyGroupId;
-                            
-                            // Lógica refinada de rótulo e valor de data baseada no status e pagamento
-                            let dateLabel = 'Previsto';
-                            let dateValue = f.estimatedDate;
-                            let dateColor = 'text-slate-400';
-                            let statusText = '';
+                    <tbody className="text-center">
+                      {groupedForecastRows.map((row) => {
+                        if (row.type === 'single') {
+                          const f = row.forecast;
+                          const supplier = suppliers.find(s => s.id === f.supplierId);
+                          const linkedExpense = findExpenseForForecast(f);
+                          const financialGroupId = f.categoryId || linkedExpense?.parentId || undefined;
+                          const stageName = financialGroupId ? financialGroupNameById.get(financialGroupId) : undefined;
 
-                            if (f.status === 'pending') {
-                              dateLabel = 'Previsto';
-                              dateValue = f.estimatedDate;
-                              dateColor = 'text-slate-400';
-                            } else if (f.status === 'ordered') {
-                              if (f.isPaid) {
-                                dateLabel = 'Pago';
-                                dateColor = 'text-indigo-500';
-                              } else {
-                                dateLabel = 'Comprado';
-                                dateColor = 'text-amber-500';
-                                statusText = '(A Pagar)';
-                              }
-                              dateValue = f.purchaseDate || f.estimatedDate;
-                            } else if (f.status === 'delivered') {
-                              dateLabel = 'Entregue';
-                              dateValue = f.deliveryDate || f.estimatedDate;
-                              dateColor = 'text-emerald-500';
+                          let dateLabel = 'Previsto';
+                          let dateValue = f.estimatedDate;
+                          let dateColor = 'text-slate-400';
+                          let statusText = '';
+
+                          if (f.status === 'ordered') {
+                            if (f.isPaid) {
+                              dateLabel = 'Pago';
+                              dateColor = 'text-indigo-500';
+                            } else {
+                              dateLabel = 'Comprado';
+                              dateColor = 'text-amber-500';
+                              statusText = '(A Pagar)';
                             }
+                            dateValue = f.purchaseDate || f.estimatedDate;
+                          } else if (f.status === 'delivered') {
+                            dateLabel = 'Entregue';
+                            dateValue = f.deliveryDate || f.estimatedDate;
+                            dateColor = 'text-emerald-500';
+                          }
 
-                            return (
-                              <Draggable key={f.id} draggableId={f.id} index={index}>
-                                {(p, s) => (
-                                  <tr 
-                                    ref={p.innerRef} 
-                                    {...p.draggableProps} 
-                                    className={`group/row border border-slate-100 dark:border-slate-800 rounded-3xl transition-all shadow-sm ${
-                                      forecastStatusFilter === 'ordered' && !f.isPaid
-                                        ? 'bg-amber-50/60 dark:bg-amber-900/10'
-                                        : 'bg-white dark:bg-slate-900'
-                                    } ${s.isDragging ? 'shadow-2xl z-50 ring-2 ring-indigo-500 scale-[1.02]' : 'hover:shadow-md'}`}
-                                  >
-                                    <td className="py-4 pl-2 rounded-l-3xl">
-                                      <div className="flex items-center justify-center gap-0.5">
-                                        {forecastStatusFilter === 'pending' && isBatchSelectionMode && (
-                                          <input
-                                            type="checkbox"
-                                            checked={selectedForecastIds.includes(f.id)}
-                                            onChange={() => toggleForecastSelection(f.id)}
-                                            disabled={isGrouped}
-                                            className="w-4 h-4 rounded border-slate-300"
-                                            title={isGrouped ? 'Item já pertence a um grupo' : 'Selecionar item'}
-                                          />
-                                        )}
-                                        <div className="flex flex-col">
-                                          <button
-                                            type="button"
-                                            onClick={(event) => {
-                                              event.stopPropagation();
-                                              moveForecastInStatus(f.id, 'up');
-                                            }}
-                                            className="p-0.5 rounded text-slate-300 hover:text-indigo-500"
-                                            title="Mover para cima"
-                                          >
-                                            <ChevronUp size={12} />
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={(event) => {
-                                              event.stopPropagation();
-                                              moveForecastInStatus(f.id, 'down');
-                                            }}
-                                            className="p-0.5 rounded text-slate-300 hover:text-indigo-500"
-                                            title="Mover para baixo"
-                                          >
-                                            <ChevronDown size={12} />
-                                          </button>
-                                        </div>
-                                        <div {...p.dragHandleProps} className="p-1 text-slate-200 hover:text-indigo-400 cursor-grab active:cursor-grabbing">
-                                          <GripVertical size={14}/>
-                                        </div>
-                                      </div>
-                                    </td>
-                                    <td className="py-6 px-4 text-left min-w-[250px]">
-                                      <div className="flex flex-col gap-1">
-                                        <div className="flex items-center gap-2">
-                                          {forecastStatusFilter === 'ordered' && !f.isPaid && (
-                                            <span
-                                              className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-100 text-amber-600"
-                                              title="Pagamento pendente"
-                                            >
-                                              <Clock size={12} />
-                                            </span>
-                                          )}
-                                          <span className="text-sm font-black dark:text-white leading-tight uppercase">{f.description}</span>
-                                          {isGrouped && (
-                                            <span className="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 text-[8px] font-black uppercase tracking-widest">
-                                              Grupo
-                                            </span>
-                                          )}
-                                          {linkedExpense?.invoiceDoc && (
-                                            <button
-                                              onClick={() => handleViewProof(linkedExpense.invoiceDoc!)}
-                                              className="p-1.5 text-emerald-400 hover:text-emerald-600 rounded-lg"
-                                              title="Baixar Nota Fiscal"
-                                            >
-                                              <Receipt size={14} />
-                                            </button>
-                                          )}
-                                          {f.paymentProof && (
-                                            <button
-                                              onClick={() => handleViewProof(f.paymentProof!)}
-                                              className="p-1.5 text-blue-400 hover:text-blue-600 rounded-lg"
-                                              title="Baixar Comprovante"
-                                            >
-                                              <Download size={14} />
-                                            </button>
-                                          )}
-                                        </div>
-                                        <div className="flex flex-col gap-0.5">
-                                          <div className="flex items-center gap-1.5 text-[9px] font-bold text-indigo-500 uppercase tracking-widest">
-                                            <Building2 size={10} className="shrink-0" />
-                                            {supplier ? supplier.name : 'Fornecedor não vinculado'}
-                                          </div>
-                                          <div className={`flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest ${dateColor}`}>
-                                            <Calendar size={9} className="shrink-0" />
-                                            {dateLabel}: {financial.formatDate(dateValue)} <span className="ml-1 opacity-70">{statusText}</span>
-                                          </div>
-                                          <div className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-slate-400">
-                                            <Layers size={9} className="shrink-0" />
-                                            ETAPA: {stageName || 'SEM GRUPO'}
-                                          </div>
-                                          {f.createdBy?.name && (
-                                            <div className="flex items-center gap-2 text-[8px] font-black uppercase tracking-widest text-slate-400">
-                                              {f.createdBy.profileImage ? (
-                                                <img
-                                                  src={f.createdBy.profileImage}
-                                                  alt={f.createdBy.name}
-                                                  className="w-5 h-5 rounded-full object-cover border border-slate-200"
-                                                />
-                                              ) : (
-                                                <div className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[9px] font-black">
-                                                  {getInitials(f.createdBy.name)}
-                                                </div>
-                                              )}
-                                              <span>Solicitado por {f.createdBy.name}</span>
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </td>
-                                    <td className="py-6">
-                                      <span className="text-[10px] font-black uppercase text-slate-400">{f.unit}</span>
-                                    </td>
-                                    <td className="py-6">
-                                      <input 
-                                        type="number"
-                                        step="any"
-                                        className="w-16 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg px-2 py-1 text-center text-[11px] font-black outline-none focus:border-indigo-500 transition-all dark:text-slate-200"
-                                        value={f.quantityNeeded}
-                                        onBlur={(e) => onUpdatePlanning(planningService.updateForecast(planning, f.id, { quantityNeeded: financial.normalizeQuantity(parseFloat(e.target.value) || 0) }))}
-                                        onChange={(e) => {
-                                          const val = e.target.value;
-                                          onUpdatePlanning(planningService.updateForecast(planning, f.id, { quantityNeeded: financial.normalizeQuantity(parseFloat(val) || 0) }));
-                                        }}
-                                      />
-                                    </td>
-                                    <td className="py-6">
-                                      <InlineCurrencyInput 
-                                        value={f.unitPrice} 
-                                        onUpdate={(val: number) => onUpdatePlanning(planningService.updateForecast(planning, f.id, { unitPrice: val }))} 
-                                      />
-                                    </td>
-                                    <td className="py-6">
-                                      <span className="text-sm font-black text-indigo-600 dark:text-indigo-400">
-                                        {financial.formatVisual(getForecastNetTotal(f), project.theme?.currencySymbol)}
+                          return (
+                            <tr
+                              key={f.id}
+                              className={`group/row border border-slate-100 dark:border-slate-800 rounded-3xl transition-all shadow-sm ${
+                                forecastStatusFilter === 'ordered' && !f.isPaid
+                                  ? 'bg-amber-50/60 dark:bg-amber-900/10'
+                                  : 'bg-white dark:bg-slate-900'
+                              } hover:shadow-md`}
+                            >
+                              <td className="py-4 pl-2 rounded-l-3xl">
+                                <div className="flex items-center justify-center gap-0.5">
+                                  {forecastStatusFilter === 'pending' && isBatchSelectionMode && (
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedForecastIds.includes(f.id)}
+                                      onChange={() => toggleForecastSelection(f.id)}
+                                      className="w-4 h-4 rounded border-slate-300"
+                                      title="Selecionar item"
+                                    />
+                                  )}
+                                  <div className="flex flex-col">
+                                    <button
+                                      type="button"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        moveForecastInStatus(f.id, 'up');
+                                      }}
+                                      className="p-0.5 rounded text-slate-300 hover:text-indigo-500"
+                                      title="Mover para cima"
+                                    >
+                                      <ChevronUp size={12} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        moveForecastInStatus(f.id, 'down');
+                                      }}
+                                      className="p-0.5 rounded text-slate-300 hover:text-indigo-500"
+                                      title="Mover para baixo"
+                                    >
+                                      <ChevronDown size={12} />
+                                    </button>
+                                  </div>
+                                  <div className="p-1 text-slate-200">
+                                    <GripVertical size={14}/>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-6 px-4 text-left min-w-[250px]">
+                                <div className="flex flex-col gap-1">
+                                  <div className="flex items-center gap-2">
+                                    {forecastStatusFilter === 'ordered' && !f.isPaid && (
+                                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-100 text-amber-600" title="Pagamento pendente">
+                                        <Clock size={12} />
                                       </span>
-                                    </td>
-                                    <td className="py-6">
-                                      <div className="flex gap-2 justify-center">
-                                        <StatusCircle
-                                          active={f.status === 'pending'}
-                                          onClick={() => {
-                                            if (isGrouped) {
-                                              toast.info('Este item pertence a um grupo. Altere o status no grupo.');
-                                              void openSupplyGroupEditorFromForecast(f);
-                                              return;
-                                            }
-                                            if (f.status !== 'pending') {
-                                              toast.warning('Comprado não pode voltar para a etapa de a comprar.');
-                                              return;
-                                            }
-                                            onUpdatePlanning(planningService.updateForecast(planning, f.id, { status: 'pending' }));
-                                          }}
-                                          icon={<AlertCircle size={12}/>}
-                                          color="amber"
-                                          label="Pendente"
-                                        />
-                                        <StatusCircle
-                                          active={f.status === 'ordered'}
-                                          onClick={() => {
-                                            if (isGrouped) {
-                                              toast.info('Este item pertence a um grupo. Altere o status no grupo.');
-                                              void openSupplyGroupEditorFromForecast(f);
-                                              return;
-                                            }
-                                            if (f.status === 'delivered') {
-                                              toast.warning('No Local nao pode voltar para comprado.');
-                                              return;
-                                            }
-                                            setConfirmingForecast(f);
-                                          }}
-                                          icon={<ShoppingCart size={12}/>}
-                                          color="blue"
-                                          label="Comprado"
-                                        />
-                                        <StatusCircle
-                                          active={f.status === 'delivered'}
-                                          onClick={() => {
-                                            if (isGrouped) {
-                                              toast.info('Este item pertence a um grupo. Altere o status no grupo.');
-                                              void openSupplyGroupEditorFromForecast(f);
-                                              return;
-                                            }
-                                            if (f.status === 'pending') {
-                                              toast.warning('Para marcar como No Local, primeiro registre como Comprado.');
-                                              return;
-                                            }
-                                            if (!f.isPaid) {
-                                              toast.warning('Para marcar como No Local, primeiro confirme o pagamento.');
-                                              return;
-                                            }
-                                            if (f.status === 'delivered') return;
-                                            setConfirmingDeliveryForecast(f);
-                                          }}
-                                          icon={<Truck size={12}/>}
-                                          color="emerald"
-                                          label="No Local"
-                                        />
-                                      </div>
-                                    </td>
-                                    {forecastStatusFilter === 'ordered' && (
-                                      <td className="py-6">
-                                        <button 
-                                          onClick={() => {
-                                            if (isGrouped) {
-                                              toast.info('Este item pertence a um grupo. Altere o status no grupo.');
-                                              void openSupplyGroupEditorFromForecast(f);
-                                              return;
-                                            }
-                                            if (f.status === 'pending') {
-                                              setForcePaidConfirm(false);
-                                              setConfirmingForecast(f);
-                                              return;
-                                            }
-                                            if (!f.isPaid) {
-                                              setForcePaidConfirm(true);
-                                              setConfirmingForecast(f);
-                                              return;
-                                            }
-                                            onUpdatePlanning(planningService.updateForecast(planning, f.id, { isPaid: false }));
-                                          }}
-                                          className={`p-2.5 rounded-full transition-all ${f.isPaid ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 shadow-sm' : 'text-slate-200 hover:text-rose-400 bg-slate-50 dark:bg-slate-800'}`}
-                                        >
-                                          {f.isPaid ? <CheckCircle2 size={20}/> : <Circle size={20}/>}
-                                        </button>
-                                      </td>
                                     )}
-                                    {forecastStatusFilter === 'delivered' && (
-                                      <td className="py-6">
-                                        <button
-                                          onClick={() => {
-                                            if (isGrouped) {
-                                              toast.info('Este item pertence a um grupo. Altere o status no grupo.');
-                                              void openSupplyGroupEditorFromForecast(f);
-                                              return;
-                                            }
-                                            if (f.isCleared) return;
-                                            const linkedExpense = findExpenseForForecast(f);
-                                            if (!linkedExpense) {
-                                              toast.warning('Nao foi encontrado o item financeiro vinculado.');
-                                              return;
-                                            }
-                                            setConfirmingClearanceForecast(f);
-                                          }}
-                                          className={`p-2.5 rounded-full transition-all ${f.isCleared ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 shadow-sm' : 'text-slate-200 hover:text-emerald-400 bg-slate-50 dark:bg-slate-800'}`}
-                                        >
-                                          {f.isCleared ? <CheckCircle2 size={20}/> : <Circle size={20}/>}
-                                        </button>
-                                      </td>
+                                    <span className="text-sm font-black dark:text-white leading-tight uppercase">{f.description}</span>
+                                    {linkedExpense?.invoiceDoc && (
+                                      <button onClick={() => handleViewProof(linkedExpense.invoiceDoc!)} className="p-1.5 text-emerald-400 hover:text-emerald-600 rounded-lg" title="Baixar Nota Fiscal">
+                                        <Receipt size={14} />
+                                      </button>
                                     )}
-                                    <td className="py-6 text-right pr-6 rounded-r-3xl">
-                                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity">
-                                        {isGrouped && (
-                                          <button
-                                            onClick={() => void openSupplyGroupEditorFromForecast(f)}
-                                            className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-xl"
-                                            title="Editar grupo"
-                                          >
-                                            <Layers size={18}/>
-                                          </button>
-                                        )}
-                                        {f.paymentProof && (
-                                          <button onClick={() => handleViewProof(f.paymentProof!)} className="p-2 text-emerald-500 hover:bg-emerald-50 rounded-xl" title="Baixar Comprovante"><Download size={18}/></button>
-                                        )}
-                                        <button onClick={() => setEditingForecast(f)} className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-xl" title="Editar"><Edit2 size={18}/></button>
-                                        <button onClick={() => setIsDeletingForecast(f)} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl" title="Excluir"><Trash2 size={18}/></button>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                )}
-                              </Draggable>
-                            );
-                          })}
-                          {provided.placeholder}
-                        </tbody>
-                      )}
-                    </Droppable>
+                                    {f.paymentProof && (
+                                      <button onClick={() => handleViewProof(f.paymentProof!)} className="p-1.5 text-blue-400 hover:text-blue-600 rounded-lg" title="Baixar Comprovante">
+                                        <Download size={14} />
+                                      </button>
+                                    )}
+                                  </div>
+                                  <div className="flex flex-col gap-0.5">
+                                    <div className="flex items-center gap-1.5 text-[9px] font-bold text-indigo-500 uppercase tracking-widest">
+                                      <Building2 size={10} className="shrink-0" />
+                                      {supplier ? supplier.name : 'Fornecedor não vinculado'}
+                                    </div>
+                                    <div className={`flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest ${dateColor}`}>
+                                      <Calendar size={9} className="shrink-0" />
+                                      {dateLabel}: {financial.formatDate(dateValue)} <span className="ml-1 opacity-70">{statusText}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-slate-400">
+                                      <Layers size={9} className="shrink-0" />
+                                      ETAPA: {stageName || 'SEM GRUPO'}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-6"><span className="text-[10px] font-black uppercase text-slate-400">{f.unit}</span></td>
+                              <td className="py-6">
+                                <input
+                                  type="number"
+                                  step="any"
+                                  className="w-16 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg px-2 py-1 text-center text-[11px] font-black outline-none focus:border-indigo-500 transition-all dark:text-slate-200"
+                                  value={f.quantityNeeded}
+                                  onBlur={(e) => onUpdatePlanning(planningService.updateForecast(planning, f.id, { quantityNeeded: financial.normalizeQuantity(parseFloat(e.target.value) || 0) }))}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    onUpdatePlanning(planningService.updateForecast(planning, f.id, { quantityNeeded: financial.normalizeQuantity(parseFloat(val) || 0) }));
+                                  }}
+                                />
+                              </td>
+                              <td className="py-6">
+                                <InlineCurrencyInput value={f.unitPrice} onUpdate={(val: number) => onUpdatePlanning(planningService.updateForecast(planning, f.id, { unitPrice: val }))} />
+                              </td>
+                              <td className="py-6">
+                                <span className="text-sm font-black text-indigo-600 dark:text-indigo-400">
+                                  {financial.formatVisual(getForecastNetTotal(f), project.theme?.currencySymbol)}
+                                </span>
+                              </td>
+                              <td className="py-6">
+                                <div className="flex gap-2 justify-center">
+                                  <StatusCircle
+                                    active={f.status === 'pending'}
+                                    onClick={() => {
+                                      if (f.status !== 'pending') {
+                                        toast.warning('Comprado não pode voltar para a etapa de a comprar.');
+                                        return;
+                                      }
+                                      onUpdatePlanning(planningService.updateForecast(planning, f.id, { status: 'pending' }));
+                                    }}
+                                    icon={<AlertCircle size={12}/>}
+                                    color="amber"
+                                    label="Pendente"
+                                  />
+                                  <StatusCircle
+                                    active={f.status === 'ordered'}
+                                    onClick={() => {
+                                      if (f.status === 'delivered') {
+                                        toast.warning('No Local nao pode voltar para comprado.');
+                                        return;
+                                      }
+                                      setConfirmingForecast(f);
+                                    }}
+                                    icon={<ShoppingCart size={12}/>}
+                                    color="blue"
+                                    label="Comprado"
+                                  />
+                                  <StatusCircle
+                                    active={f.status === 'delivered'}
+                                    onClick={() => {
+                                      if (f.status === 'pending') {
+                                        toast.warning('Para marcar como No Local, primeiro registre como Comprado.');
+                                        return;
+                                      }
+                                      if (!f.isPaid) {
+                                        toast.warning('Para marcar como No Local, primeiro confirme o pagamento.');
+                                        return;
+                                      }
+                                      if (f.status === 'delivered') return;
+                                      setConfirmingDeliveryForecast(f);
+                                    }}
+                                    icon={<Truck size={12}/>}
+                                    color="emerald"
+                                    label="No Local"
+                                  />
+                                </div>
+                              </td>
+                              {forecastStatusFilter === 'ordered' && (
+                                <td className="py-6">
+                                  <button
+                                    onClick={() => {
+                                      if (f.status === 'pending') {
+                                        setForcePaidConfirm(false);
+                                        setConfirmingForecast(f);
+                                        return;
+                                      }
+                                      if (!f.isPaid) {
+                                        setForcePaidConfirm(true);
+                                        setConfirmingForecast(f);
+                                        return;
+                                      }
+                                      onUpdatePlanning(planningService.updateForecast(planning, f.id, { isPaid: false }));
+                                    }}
+                                    className={`p-2.5 rounded-full transition-all ${f.isPaid ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 shadow-sm' : 'text-slate-200 hover:text-rose-400 bg-slate-50 dark:bg-slate-800'}`}
+                                  >
+                                    {f.isPaid ? <CheckCircle2 size={20}/> : <Circle size={20}/>}
+                                  </button>
+                                </td>
+                              )}
+                              {forecastStatusFilter === 'delivered' && (
+                                <td className="py-6">
+                                  <button
+                                    onClick={() => {
+                                      if (f.isCleared) return;
+                                      const linkedExpense = findExpenseForForecast(f);
+                                      if (!linkedExpense) {
+                                        toast.warning('Nao foi encontrado o item financeiro vinculado.');
+                                        return;
+                                      }
+                                      setConfirmingClearanceForecast(f);
+                                    }}
+                                    className={`p-2.5 rounded-full transition-all ${f.isCleared ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 shadow-sm' : 'text-slate-200 hover:text-emerald-400 bg-slate-50 dark:bg-slate-800'}`}
+                                  >
+                                    {f.isCleared ? <CheckCircle2 size={20}/> : <Circle size={20}/>}
+                                  </button>
+                                </td>
+                              )}
+                              <td className="py-6 text-right pr-6 rounded-r-3xl">
+                                <div className="flex items-center justify-end gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                                  {f.paymentProof && (
+                                    <button onClick={() => handleViewProof(f.paymentProof!)} className="p-2 text-emerald-500 hover:bg-emerald-50 rounded-xl" title="Baixar Comprovante"><Download size={18}/></button>
+                                  )}
+                                  <button onClick={() => setEditingForecast(f)} className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-xl" title="Editar"><Edit2 size={18}/></button>
+                                  <button onClick={() => setIsDeletingForecast(f)} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl" title="Excluir"><Trash2 size={18}/></button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        const group = row.group;
+                        const groupSupplier = suppliers.find((s) => s.id === group.supplierId);
+                        const isExpanded = !!expandedSupplyGroups[row.groupId];
+                        const groupTotal = row.forecasts.reduce((acc, item) => acc + getForecastNetTotal(item), 0);
+
+                        return (
+                          <React.Fragment key={`group-${row.groupId}`}>
+                            <tr className="group/row border border-indigo-100 dark:border-indigo-900/40 transition-all shadow-sm bg-indigo-50/50 dark:bg-indigo-950/10 hover:shadow-md">
+                              <td className="py-4 pl-2">
+                                <button
+                                  onClick={() => toggleSupplyGroupExpansion(row.groupId)}
+                                  className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-white text-indigo-600 border border-indigo-100"
+                                  title={isExpanded ? 'Recolher grupo' : 'Expandir grupo'}
+                                >
+                                  {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                </button>
+                              </td>
+                              <td className="py-6 px-4 text-left min-w-[250px]">
+                                <div className="flex flex-col gap-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-black text-indigo-700 dark:text-indigo-300 uppercase leading-tight">
+                                      {group.title?.trim() || `Grupo com ${row.forecasts.length} itens`}
+                                    </span>
+                                    <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[8px] font-black uppercase tracking-widest">
+                                      Lote ({row.forecasts.length})
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 text-[9px] font-bold text-indigo-500 uppercase tracking-widest">
+                                    <Building2 size={10} className="shrink-0" />
+                                    {groupSupplier ? groupSupplier.name : 'Fornecedor não vinculado'}
+                                  </div>
+                                  <div className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-slate-400">
+                                    <Calendar size={9} className="shrink-0" />
+                                    Previsão: {financial.formatDate(group.estimatedDate)}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-6"><span className="text-[10px] font-black uppercase text-slate-400">-</span></td>
+                              <td className="py-6"><span className="text-[10px] font-black uppercase text-slate-400">{row.forecasts.length} itens</span></td>
+                              <td className="py-6"><span className="text-[10px] font-black uppercase text-slate-400">-</span></td>
+                              <td className="py-6">
+                                <span className="text-sm font-black text-indigo-700 dark:text-indigo-300">
+                                  {financial.formatVisual(groupTotal, project.theme?.currencySymbol)}
+                                </span>
+                              </td>
+                              <td className="py-6">
+                                <div className="flex gap-2 justify-center">
+                                  <StatusCircle
+                                    active={group.status === 'pending'}
+                                    onClick={() => {
+                                      if (group.status !== 'pending') {
+                                        toast.warning('Comprado não pode voltar para a etapa de a comprar.');
+                                      }
+                                    }}
+                                    icon={<AlertCircle size={12}/>}
+                                    color="amber"
+                                    label="Pendente"
+                                  />
+                                  <StatusCircle
+                                    active={group.status === 'ordered'}
+                                    onClick={() => {
+                                      if (group.status === 'delivered') {
+                                        toast.warning('No Local nao pode voltar para comprado.');
+                                        return;
+                                      }
+                                      if (group.status === 'pending') {
+                                        setConfirmingGroupPurchase(group);
+                                      }
+                                    }}
+                                    icon={<ShoppingCart size={12}/>}
+                                    color="blue"
+                                    label="Comprado"
+                                  />
+                                  <StatusCircle
+                                    active={group.status === 'delivered'}
+                                    onClick={() => {
+                                      if (group.status === 'pending') {
+                                        toast.warning('Para marcar como No Local, primeiro registre como Comprado.');
+                                        return;
+                                      }
+                                      if (!group.isPaid) {
+                                        toast.warning('Para marcar como No Local, primeiro confirme o pagamento.');
+                                        return;
+                                      }
+                                      if (group.status === 'delivered') return;
+                                      setConfirmingGroupDelivery(group);
+                                    }}
+                                    icon={<Truck size={12}/>}
+                                    color="emerald"
+                                    label="No Local"
+                                  />
+                                </div>
+                              </td>
+                              {forecastStatusFilter === 'ordered' && (
+                                <td className="py-6">
+                                  <button
+                                    onClick={() => setConfirmingGroupPurchase(group)}
+                                    className={`p-2.5 rounded-full transition-all ${group.isPaid ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 shadow-sm' : 'text-slate-200 hover:text-emerald-400 bg-slate-50 dark:bg-slate-800'}`}
+                                  >
+                                    {group.isPaid ? <CheckCircle2 size={20}/> : <Circle size={20}/>}
+                                  </button>
+                                </td>
+                              )}
+                              {forecastStatusFilter === 'delivered' && (
+                                <td className="py-6">
+                                  <button
+                                    onClick={() => {
+                                      if (group.isCleared) return;
+                                      setConfirmingGroupClearance(group);
+                                    }}
+                                    className={`p-2.5 rounded-full transition-all ${group.isCleared ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 shadow-sm' : 'text-slate-200 hover:text-emerald-400 bg-slate-50 dark:bg-slate-800'}`}
+                                  >
+                                    {group.isCleared ? <CheckCircle2 size={20}/> : <Circle size={20}/>}
+                                  </button>
+                                </td>
+                              )}
+                              <td className="py-6 text-right pr-6">
+                                <div className="flex items-center justify-end gap-1 opacity-100 transition-opacity">
+                                  <button
+                                    onClick={() => void openSupplyGroupEditorById(group.id)}
+                                    className="p-2 text-indigo-500 hover:bg-indigo-100 rounded-xl"
+                                    title="Editar grupo"
+                                  >
+                                    <Layers size={18}/>
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+
+                            {isExpanded && row.forecasts.map((item) => {
+                              const supplier = suppliers.find(s => s.id === item.supplierId);
+                              return (
+                                <tr key={item.id} className="border border-slate-100 dark:border-slate-800 transition-all shadow-sm bg-white dark:bg-slate-900/80">
+                                  <td className="py-4 pl-2" />
+                                  <td className="py-4 px-4 text-left min-w-[250px]">
+                                    <div className="flex flex-col gap-1">
+                                      <span className="text-xs font-black dark:text-white uppercase">{item.description}</span>
+                                      <span className="text-[9px] font-bold text-indigo-500 uppercase tracking-widest">{supplier ? supplier.name : 'Fornecedor não vinculado'}</span>
+                                    </div>
+                                  </td>
+                                  <td className="py-4"><span className="text-[10px] font-black uppercase text-slate-400">{item.unit}</span></td>
+                                  <td className="py-4"><span className="text-[11px] font-black text-slate-600">{item.quantityNeeded}</span></td>
+                                  <td className="py-4"><span className="text-[11px] font-black text-slate-600">{financial.formatVisual(item.unitPrice, project.theme?.currencySymbol)}</span></td>
+                                  <td className="py-4"><span className="text-xs font-black text-indigo-600">{financial.formatVisual(getForecastNetTotal(item), project.theme?.currencySymbol)}</span></td>
+                                  <td className="py-4"><span className="text-[9px] font-black uppercase text-slate-400">No grupo</span></td>
+                                  {forecastStatusFilter === 'ordered' && <td className="py-4" />}
+                                  {forecastStatusFilter === 'delivered' && <td className="py-4" />}
+                                  <td className="py-4 text-right pr-6" />
+                                </tr>
+                              );
+                            })}
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
                   </table>
-                  {sortedForecasts.length === 0 && (
+                  {groupedForecastRows.length === 0 && (
                     <div className="py-24 flex flex-col items-center justify-center text-slate-300 opacity-40">
                       <Boxes size={64} className="mb-4" />
                       <p className="text-xs font-black uppercase tracking-[0.2em]">Sem suprimentos neste estágio</p>
@@ -1479,7 +1619,10 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
       {isAddingSupplyGroup && (
         <SupplyGroupModal
           mode="create"
+          projectId={project.id}
           suppliers={suppliers}
+          expenses={project.expenses}
+          forecasts={planning.forecasts}
           financialCategories={financialCategories}
           onClose={() => setIsAddingSupplyGroup(false)}
           onCreate={handleCreateSupplyGroup}
@@ -1498,13 +1641,28 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
       {editingSupplyGroup && (
         <SupplyGroupModal
           mode="edit"
+          projectId={project.id}
           suppliers={suppliers}
+          expenses={project.expenses}
+          forecasts={planning.forecasts}
           financialCategories={financialCategories}
           group={editingSupplyGroup}
           onClose={() => setEditingSupplyGroup(null)}
           onUpdate={(payload) => handleUpdateSupplyGroup(editingSupplyGroup.id, payload)}
+          onDeleteGroup={() => setConfirmingDeleteSupplyGroup(editingSupplyGroup)}
         />
       )}
+
+      <ConfirmModal
+        isOpen={!!confirmingDeleteSupplyGroup}
+        title="Remover Grupo"
+        message="Deseja remover este grupo e todos os itens vinculados? Esta ação é irreversível."
+        confirmLabel="Remover"
+        cancelLabel="Cancelar"
+        variant="danger"
+        onConfirm={() => confirmingDeleteSupplyGroup && handleDeleteSupplyGroup(confirmingDeleteSupplyGroup.id)}
+        onCancel={() => setConfirmingDeleteSupplyGroup(null)}
+      />
 
       {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO */}
       {isDeletingForecast && (
@@ -1522,7 +1680,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
             </p>
             <div className="flex items-center gap-6 w-full">
                <button onClick={() => setIsDeletingForecast(null)} className="flex-1 py-4 text-slate-500 dark:text-slate-500 font-black uppercase text-xs tracking-widest hover:text-slate-800 dark:hover:text-white transition-colors">Voltar</button>
-               <button onClick={() => { onUpdatePlanning(planningService.deleteForecast(planning, isDeletingForecast.id)); setIsDeletingForecast(null); }} className="flex-[2] py-5 bg-rose-600 hover:bg-rose-50 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-xl shadow-rose-500/20 active:scale-95 transition-all">Excluir Permanente</button>
+               <button onClick={() => { onUpdatePlanning(planningService.deleteForecast(planning, isDeletingForecast.id)); setIsDeletingForecast(null); }} className="flex-[2] py-5 bg-rose-600 hover:bg-rose-500 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-xl shadow-rose-500/20 active:scale-95 transition-all">Excluir Permanente</button>
             </div>
           </div>
         </div>
@@ -1638,6 +1796,33 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
           onConfirm={(invoiceDoc?: string) => handleFinalizeClearance(confirmingClearanceForecast, invoiceDoc)}
         />
       )}
+
+      {confirmingGroupPurchase && (
+        <ConfirmSupplyGroupPurchaseModal
+          group={confirmingGroupPurchase}
+          onClose={() => setConfirmingGroupPurchase(null)}
+          onConfirm={(payload) => handleFinalizeGroupPurchase(confirmingGroupPurchase, payload)}
+        />
+      )}
+
+      <ConfirmModal
+        isOpen={!!confirmingGroupDelivery}
+        title="Confirmar entrega do grupo"
+        message="Ao marcar o grupo como No Local, o status não poderá voltar para Comprado. Deseja continuar?"
+        confirmLabel="Confirmar"
+        cancelLabel="Cancelar"
+        variant="warning"
+        onConfirm={() => confirmingGroupDelivery && handleFinalizeGroupDelivery(confirmingGroupDelivery)}
+        onCancel={() => setConfirmingGroupDelivery(null)}
+      />
+
+      {confirmingGroupClearance && (
+        <SupplyGroupClearanceModal
+          group={confirmingGroupClearance}
+          onClose={() => setConfirmingGroupClearance(null)}
+          onConfirm={(invoiceDoc?: string) => handleFinalizeGroupClearance(confirmingGroupClearance, invoiceDoc)}
+        />
+      )}
     </div>
   );
 };
@@ -1676,6 +1861,121 @@ const ClearanceModal = ({ forecast, currentInvoiceDoc, onClose, onConfirm }: any
           <button
             onClick={() => onConfirm(invoiceDoc)}
             className="flex-[2] py-3 rounded-[1.5rem] font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/20 text-white"
+          >
+            Confirmar Baixa
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ConfirmSupplyGroupPurchaseModal = ({
+  group,
+  onClose,
+  onConfirm,
+}: {
+  group: SupplyGroup;
+  onClose: () => void;
+  onConfirm: (payload: { purchaseDate: string; isPaid: boolean; paymentProof?: string | null }) => Promise<void> | void;
+}) => {
+  const toast = useToast();
+  const [purchaseDate, setPurchaseDate] = useState(group.purchaseDate?.split('T')[0] || new Date().toISOString().split('T')[0]);
+  const [isPaid, setIsPaid] = useState(!!group.isPaid);
+  const [paymentProof, setPaymentProof] = useState<string | undefined>(group.paymentProof || undefined);
+
+  return (
+    <div className="fixed inset-0 z-[2100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}>
+      <div className="bg-white dark:bg-[#0f111a] w-full max-w-xl rounded-[2.5rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl" onClick={e => e.stopPropagation()}>
+        <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-6">Efetivar Compra do Grupo</h2>
+
+        <div className="space-y-4">
+          <div>
+            <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest">Data da Compra</label>
+            <input
+              type="date"
+              className="w-full px-4 py-3 rounded-2xl bg-slate-50 border-2 border-slate-200 text-xs font-bold outline-none focus:border-indigo-600"
+              value={purchaseDate}
+              onChange={(event) => setPurchaseDate(event.target.value)}
+            />
+          </div>
+
+          <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-200">
+            <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Marcar como pago agora?</span>
+            <button
+              type="button"
+              onClick={() => setIsPaid((prev) => !prev)}
+              className={`w-12 h-6 rounded-full relative transition-all ${isPaid ? 'bg-emerald-500' : 'bg-slate-300'}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${isPaid ? 'translate-x-6' : ''}`} />
+            </button>
+          </div>
+
+          {isPaid && (
+            <ExpenseAttachmentZone
+              label="Comprovante de Pagamento (Grupo)"
+              requiredStatus="PAID"
+              currentFile={paymentProof}
+              onUploadUrl={(url) => setPaymentProof(url)}
+              onRemove={() => setPaymentProof(undefined)}
+            />
+          )}
+        </div>
+
+        <div className="flex items-center gap-3 mt-8">
+          <button onClick={onClose} className="flex-1 py-3 text-slate-500 font-black uppercase text-[10px] tracking-widest">Cancelar</button>
+          <button
+            onClick={() => {
+              if (isPaid && !paymentProof) {
+                toast.warning('Anexe o comprovante para confirmar como pago.');
+                return;
+              }
+              void onConfirm({
+                purchaseDate,
+                isPaid,
+                paymentProof: paymentProof || null,
+              });
+            }}
+            className="flex-[2] py-3 rounded-2xl bg-indigo-600 text-white font-black uppercase text-[10px] tracking-widest"
+          >
+            Confirmar Pedido
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const SupplyGroupClearanceModal = ({
+  group,
+  onClose,
+  onConfirm,
+}: {
+  group: SupplyGroup;
+  onClose: () => void;
+  onConfirm: (invoiceDoc?: string) => Promise<void> | void;
+}) => {
+  const [invoiceDoc, setInvoiceDoc] = useState<string | undefined>(group.invoiceDoc || undefined);
+
+  return (
+    <div className="fixed inset-0 z-[2100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}>
+      <div className="bg-white dark:bg-[#0f111a] w-full max-w-xl rounded-[2.5rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl" onClick={e => e.stopPropagation()}>
+        <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-3">Dar Baixa no Grupo</h2>
+        <p className="text-sm text-slate-500 mb-5">Anexe a nota fiscal para concluir a baixa do grupo.</p>
+
+        <ExpenseAttachmentZone
+          label="Nota Fiscal do Grupo"
+          requiredStatus="DELIVERED"
+          currentFile={invoiceDoc}
+          onUploadUrl={(url) => setInvoiceDoc(url)}
+          onRemove={() => setInvoiceDoc(undefined)}
+        />
+
+        <div className="flex items-center gap-3 mt-8">
+          <button onClick={onClose} className="flex-1 py-3 text-slate-500 font-black uppercase text-[10px] tracking-widest">Cancelar</button>
+          <button
+            onClick={() => void onConfirm(invoiceDoc)}
+            className="flex-[2] py-3 rounded-2xl bg-emerald-600 text-white font-black uppercase text-[10px] tracking-widest"
           >
             Confirmar Baixa
           </button>
@@ -2126,6 +2426,7 @@ const ForecastModal = ({ onClose, onSave, projectId, allWorkItems, suppliers, ex
 };
 
 type SupplyGroupItemDraft = {
+  id?: string;
   description: string;
   unit: string;
   quantityNeeded: number;
@@ -2137,15 +2438,22 @@ type SupplyGroupItemDraft = {
 
 const SupplyGroupModal = ({
   mode,
+  projectId,
   suppliers,
+  expenses,
+  forecasts,
   financialCategories,
   group,
   onClose,
   onCreate,
   onUpdate,
+  onDeleteGroup,
 }: {
   mode: 'create' | 'edit';
+  projectId: string;
   suppliers: Supplier[];
+  expenses: ProjectExpense[];
+  forecasts: MaterialForecast[];
   financialCategories: ProjectExpense[];
   group?: SupplyGroup;
   onClose: () => void;
@@ -2153,13 +2461,6 @@ const SupplyGroupModal = ({
     title?: string | null;
     supplierId?: string | null;
     estimatedDate: string;
-    purchaseDate?: string | null;
-    deliveryDate?: string | null;
-    status: 'pending' | 'ordered' | 'delivered';
-    isPaid: boolean;
-    isCleared: boolean;
-    paymentProof?: string | null;
-    invoiceDoc?: string | null;
     items: Array<{
       description: string;
       unit: string;
@@ -2173,6 +2474,7 @@ const SupplyGroupModal = ({
   onUpdate?: (
     payload: Partial<Omit<SupplyGroup, 'id' | 'forecasts'>>,
   ) => Promise<void> | void;
+  onDeleteGroup?: () => Promise<void> | void;
 }) => {
   const toast = useToast();
   const [title, setTitle] = useState(group?.title || '');
@@ -2180,18 +2482,32 @@ const SupplyGroupModal = ({
   const [estimatedDate, setEstimatedDate] = useState(
     (group?.estimatedDate || new Date().toISOString().split('T')[0]).split('T')[0],
   );
-  const [purchaseDate, setPurchaseDate] = useState((group?.purchaseDate || '').split('T')[0]);
-  const [deliveryDate, setDeliveryDate] = useState((group?.deliveryDate || '').split('T')[0]);
-  const [status, setStatus] = useState<'pending' | 'ordered' | 'delivered'>(group?.status || 'pending');
-  const [isPaid, setIsPaid] = useState(!!group?.isPaid);
-  const [isCleared, setIsCleared] = useState(!!group?.isCleared);
-  const [paymentProof, setPaymentProof] = useState<string | undefined>(group?.paymentProof || undefined);
-  const [invoiceDoc, setInvoiceDoc] = useState<string | undefined>(group?.invoiceDoc || undefined);
   const [saving, setSaving] = useState(false);
+  const [confirmingRemoveItemIndex, setConfirmingRemoveItemIndex] = useState<number | null>(null);
+  const [suggestionsByRow, setSuggestionsByRow] = useState<Record<number, MaterialSuggestion[]>>({});
+  const [loadingSuggestionRow, setLoadingSuggestionRow] = useState<number | null>(null);
+  const [manualEditedRows, setManualEditedRows] = useState<Record<number, { unit: boolean; unitPrice: boolean; supplierId: boolean }>>({});
+  const suggestionTimersRef = useRef<Record<number, number>>({});
+
+  const autocompleteProvider = useMemo(() => {
+    const localProvider = createLocalMaterialAutocompleteProvider({
+      forecasts,
+      expenses,
+      suppliers,
+    });
+
+    const remoteProvider = createRemoteMaterialAutocompleteProvider({
+      searchMaterialSuggestions: (query: string, limit = 8) =>
+        projectExpensesApi.getMaterialSuggestions(projectId, query, limit, supplierId || undefined),
+    });
+
+    return createFallbackMaterialAutocompleteProvider(remoteProvider, localProvider);
+  }, [forecasts, expenses, suppliers, projectId, supplierId]);
 
   const [items, setItems] = useState<SupplyGroupItemDraft[]>(() => {
     if (mode === 'edit' && group?.forecasts?.length) {
       return group.forecasts.map((forecast) => ({
+        id: forecast.id,
         description: forecast.description,
         unit: forecast.unit || 'un',
         quantityNeeded: forecast.quantityNeeded || 0,
@@ -2204,6 +2520,7 @@ const SupplyGroupModal = ({
 
     return [
       {
+        id: undefined,
         description: '',
         unit: 'un',
         quantityNeeded: 1,
@@ -2235,10 +2552,122 @@ const SupplyGroupModal = ({
     );
   };
 
+  const markManualEdit = (
+    index: number,
+    key: 'unit' | 'unitPrice' | 'supplierId',
+  ) => {
+    setManualEditedRows((prev) => ({
+      ...prev,
+      [index]: {
+        unit: prev[index]?.unit ?? false,
+        unitPrice: prev[index]?.unitPrice ?? false,
+        supplierId: prev[index]?.supplierId ?? false,
+        [key]: true,
+      },
+    }));
+  };
+
+  const applySuggestionToRow = (index: number, suggestion: MaterialSuggestion, force = false) => {
+    const manualEdited = manualEditedRows[index];
+    setItems((prev) => prev.map((item, idx) => {
+      if (idx !== index) return item;
+      return {
+        ...item,
+        description: force ? suggestion.label : (item.description || suggestion.label),
+        unit: force || !manualEdited?.unit ? (suggestion.unit || item.unit) : item.unit,
+        unitPrice: force || !manualEdited?.unitPrice
+          ? financial.normalizeMoney(suggestion.lastUnitPrice || item.unitPrice || 0)
+          : item.unitPrice,
+      };
+    }));
+    setSuggestionsByRow((prev) => ({ ...prev, [index]: [] }));
+    setLoadingSuggestionRow((prev) => (prev === index ? null : prev));
+  };
+
+  const handleItemDescriptionChange = (index: number, value: string) => {
+    updateItem(index, 'description', value);
+
+    const timer = suggestionTimersRef.current[index];
+    if (timer) {
+      window.clearTimeout(timer);
+    }
+
+    const query = value.trim();
+    if (query.length < 2) {
+      setSuggestionsByRow((prev) => ({ ...prev, [index]: [] }));
+      setLoadingSuggestionRow((prev) => (prev === index ? null : prev));
+      return;
+    }
+
+    setLoadingSuggestionRow(index);
+    suggestionTimersRef.current[index] = window.setTimeout(async () => {
+      try {
+        const result = await autocompleteProvider.search(query, 6);
+        const filtered = supplierId
+          ? result.filter((suggestion) => !suggestion.supplierId || suggestion.supplierId === supplierId)
+          : result;
+        setSuggestionsByRow((prev) => ({ ...prev, [index]: filtered.slice(0, 5) }));
+      } finally {
+        setLoadingSuggestionRow((prev) => (prev === index ? null : prev));
+      }
+    }, 220);
+  };
+
+  const handleItemUnitPriceChange = (index: number, inputValue: string) => {
+    markManualEdit(index, 'unitPrice');
+    const masked = financial.maskCurrency(inputValue);
+    const parsed = financial.normalizeMoney(financial.parseLocaleNumber(masked));
+
+    setItems((prev) => prev.map((item, idx) => {
+      if (idx !== index) return item;
+      const subtotal = financial.round((item.quantityNeeded || 0) * parsed);
+      const discountPercentage = financial.normalizePercent(item.discountPercentage || 0);
+      const discountValue = financial.round(subtotal * (discountPercentage / 100));
+      return {
+        ...item,
+        unitPrice: parsed,
+        discountValue: financial.normalizeMoney(discountValue),
+        discountPercentage,
+      };
+    }));
+  };
+
+  const handleItemDiscountChange = (index: number, inputValue: string, field: 'value' | 'percent') => {
+    const masked = financial.maskCurrency(inputValue);
+    const parsed = financial.parseLocaleNumber(masked);
+
+    setItems((prev) => prev.map((item, idx) => {
+      if (idx !== index) return item;
+      const subtotal = financial.round((item.quantityNeeded || 0) * (item.unitPrice || 0));
+
+      if (field === 'percent') {
+        const discountPercentage = financial.normalizePercent(parsed);
+        const discountValue = financial.normalizeMoney(financial.round(subtotal * (discountPercentage / 100)));
+        return {
+          ...item,
+          discountPercentage,
+          discountValue,
+        };
+      }
+
+      const discountValue = financial.normalizeMoney(parsed);
+      const discountPercentage = subtotal > 0
+        ? financial.normalizePercent(financial.round((discountValue / subtotal) * 100))
+        : 0;
+
+      return {
+        ...item,
+        discountValue,
+        discountPercentage,
+      };
+    }));
+  };
+
   const addItem = () => {
     setItems((prev) => [
       ...prev,
       {
+        id: undefined,
         description: '',
         unit: 'un',
         quantityNeeded: 1,
@@ -2254,9 +2683,14 @@ const SupplyGroupModal = ({
     setItems((prev) => prev.filter((_, idx) => idx !== index));
   };
 
+  const requestRemoveItem = (index: number) => {
+    setConfirmingRemoveItemIndex(index);
+  };
+
   const normalizeItemsForSave = () =>
     items
       .map((item) => ({
+        id: item.id,
         description: item.description.trim(),
         unit: item.unit.trim() || 'un',
         quantityNeeded: financial.normalizeQuantity(item.quantityNeeded || 0),
@@ -2286,13 +2720,6 @@ const SupplyGroupModal = ({
         title: title.trim() || null,
         supplierId: supplierId || null,
         estimatedDate,
-        purchaseDate: purchaseDate || null,
-        deliveryDate: deliveryDate || null,
-        status,
-        isPaid,
-        isCleared,
-        paymentProof: paymentProof || null,
-        invoiceDoc: invoiceDoc || null,
         items: cleanItems,
       });
       setSaving(false);
@@ -2301,22 +2728,65 @@ const SupplyGroupModal = ({
 
     if (!onUpdate) return;
     setSaving(true);
+    const cleanItems = normalizeItemsForSave();
+
+    if (!group?.id) {
+      setSaving(false);
+      return;
+    }
+
     await onUpdate({
       title: title.trim() || null,
       supplierId: supplierId || undefined,
       estimatedDate,
-      purchaseDate: purchaseDate || null,
-      deliveryDate: deliveryDate || null,
-      status,
-      isPaid,
-      isCleared,
-      paymentProof: paymentProof || null,
-      invoiceDoc: invoiceDoc || null,
     });
+
+    const originalIds = new Set((group.forecasts || []).map((forecast) => forecast.id));
+    const keepIds = new Set(cleanItems.map((item) => item.id).filter(Boolean) as string[]);
+    const removedIds = Array.from(originalIds).filter((id) => !keepIds.has(id));
+
+    for (const removedId of removedIds) {
+      await planningApi.deleteForecast(removedId);
+    }
+
+    for (const item of cleanItems) {
+      if (item.id) {
+        await planningApi.updateForecast(item.id, {
+          description: item.description,
+          unit: item.unit,
+          quantityNeeded: item.quantityNeeded,
+          unitPrice: item.unitPrice,
+          discountValue: item.discountValue,
+          discountPercentage: item.discountPercentage,
+          categoryId: item.categoryId || undefined,
+          supplierId: supplierId || undefined,
+          estimatedDate,
+        });
+        continue;
+      }
+
+      await planningApi.addItemsToSupplyGroup(group.id, [
+        {
+          description: item.description,
+          unit: item.unit,
+          quantityNeeded: item.quantityNeeded,
+          unitPrice: item.unitPrice,
+          discountValue: item.discountValue,
+          discountPercentage: item.discountPercentage,
+          categoryId: item.categoryId || null,
+        },
+      ]);
+    }
+
     setSaving(false);
   };
 
+  const itemPendingRemoval = confirmingRemoveItemIndex !== null
+    ? items[confirmingRemoveItemIndex]
+    : null;
+
   return (
+    <>
     <div className="fixed inset-0 z-[2100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}>
       <div className="bg-white dark:bg-[#0f111a] w-full max-w-6xl rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden max-h-[92vh] flex flex-col" onClick={(event) => event.stopPropagation()}>
         <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
@@ -2329,7 +2799,7 @@ const SupplyGroupModal = ({
                 {mode === 'create' ? 'Novo Grupo de Suprimentos' : 'Editar Grupo de Suprimentos'}
               </h2>
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                Dados comuns + itens individuais em lote
+                Mesmo fluxo do pedido individual: cadastro inicial e evolução por etapa
               </p>
             </div>
           </div>
@@ -2373,87 +2843,12 @@ const SupplyGroupModal = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Status do Grupo</label>
-              <select
-                className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold outline-none focus:border-indigo-500"
-                value={status}
-                onChange={(event) => setStatus(event.target.value as 'pending' | 'ordered' | 'delivered')}
-              >
-                <option value="pending">A Comprar</option>
-                <option value="ordered">Pedido Efetuado</option>
-                <option value="delivered">Recebido (Local)</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Data de Compra</label>
-              <input
-                type="date"
-                className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold outline-none focus:border-indigo-500"
-                value={purchaseDate}
-                onChange={(event) => setPurchaseDate(event.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Data de Entrega</label>
-              <input
-                type="date"
-                className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold outline-none focus:border-indigo-500"
-                value={deliveryDate}
-                onChange={(event) => setDeliveryDate(event.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Pago</span>
-              <button
-                type="button"
-                onClick={() => setIsPaid((prev) => !prev)}
-                className={`w-12 h-6 rounded-full relative transition-all ${isPaid ? 'bg-emerald-500' : 'bg-slate-300'}`}
-              >
-                <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${isPaid ? 'translate-x-6' : ''}`} />
-              </button>
-            </div>
-            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Dar Baixa</span>
-              <button
-                type="button"
-                onClick={() => setIsCleared((prev) => !prev)}
-                className={`w-12 h-6 rounded-full relative transition-all ${isCleared ? 'bg-emerald-500' : 'bg-slate-300'}`}
-              >
-                <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${isCleared ? 'translate-x-6' : ''}`} />
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <ExpenseAttachmentZone
-              label="Comprovante (Grupo)"
-              requiredStatus="PAID"
-              currentFile={paymentProof}
-              onUploadUrl={(url) => setPaymentProof(url)}
-              onRemove={() => setPaymentProof(undefined)}
-            />
-            <ExpenseAttachmentZone
-              label="Nota Fiscal (Grupo)"
-              requiredStatus="DELIVERED"
-              currentFile={invoiceDoc}
-              onUploadUrl={(url) => setInvoiceDoc(url)}
-              onRemove={() => setInvoiceDoc(undefined)}
-            />
-          </div>
-
           <div className="border border-slate-200 rounded-2xl overflow-hidden">
             <div className="p-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
               <h3 className="text-xs font-black uppercase tracking-widest text-slate-600">Itens do Grupo</h3>
-              {mode === 'create' && (
-                <button onClick={addItem} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest">
-                  <Plus size={12} /> Linha
-                </button>
-              )}
+              <button onClick={addItem} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest">
+                <Plus size={12} /> Linha
+              </button>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[980px] text-left">
@@ -2463,29 +2858,52 @@ const SupplyGroupModal = ({
                     <th className="p-3">Und</th>
                     <th className="p-3">Qtd</th>
                     <th className="p-3">Unitário</th>
-                    <th className="p-3">Desc.</th>
+                    <th className="p-3">Desconto</th>
                     <th className="p-3">Grupo Financeiro</th>
                     <th className="p-3">Total</th>
-                    {mode === 'create' && <th className="p-3" />}
+                    <th className="p-3" />
                   </tr>
                 </thead>
                 <tbody>
                   {items.map((item, index) => (
-                    <tr key={`supply-group-item-${index}`} className="border-t border-slate-100">
+                    <tr key={item.id ? `supply-group-item-${item.id}` : `supply-group-item-${index}`} className="border-t border-slate-100">
                       <td className="p-3">
-                        <input
-                          className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold outline-none focus:border-indigo-500"
-                          value={item.description}
-                          onChange={(event) => updateItem(index, 'description', event.target.value)}
-                          disabled={mode === 'edit'}
-                        />
+                        <div className="relative">
+                          <input
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold outline-none focus:border-indigo-500"
+                            value={item.description}
+                            onChange={(event) => handleItemDescriptionChange(index, event.target.value)}
+                          />
+                          {loadingSuggestionRow === index && (
+                            <Loader2 size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 animate-spin" />
+                          )}
+                          {(suggestionsByRow[index]?.length || 0) > 0 && (
+                            <div className="absolute z-20 left-0 right-0 mt-1 rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden">
+                              {suggestionsByRow[index].map((suggestion) => (
+                                <button
+                                  key={`${suggestion.normalizedLabel}-${suggestion.supplierId || 'none'}`}
+                                  type="button"
+                                  onClick={() => applySuggestionToRow(index, suggestion, true)}
+                                  className="w-full px-3 py-2 text-left hover:bg-slate-50 border-b border-slate-100 last:border-b-0"
+                                >
+                                  <p className="text-[11px] font-black text-slate-700 uppercase">{suggestion.label}</p>
+                                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                                    {suggestion.unit || 'UN'} • {financial.formatVisual(suggestion.lastUnitPrice || 0, 'R$')} • {suggestion.supplierName || 'Sem fornecedor'}
+                                  </p>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="p-3 w-[90px]">
                         <input
                           className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold outline-none focus:border-indigo-500"
                           value={item.unit}
-                          onChange={(event) => updateItem(index, 'unit', event.target.value)}
-                          disabled={mode === 'edit'}
+                          onChange={(event) => {
+                            markManualEdit(index, 'unit');
+                            updateItem(index, 'unit', event.target.value);
+                          }}
                         />
                       </td>
                       <td className="p-3 w-[110px]">
@@ -2494,36 +2912,57 @@ const SupplyGroupModal = ({
                           step="any"
                           className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold outline-none focus:border-indigo-500"
                           value={item.quantityNeeded}
-                          onChange={(event) => updateItem(index, 'quantityNeeded', Number(event.target.value || 0))}
-                          disabled={mode === 'edit'}
+                          onChange={(event) => {
+                            const quantityNeeded = Number(event.target.value || 0);
+                            updateItem(index, 'quantityNeeded', quantityNeeded);
+                            const subtotal = financial.round(quantityNeeded * (item.unitPrice || 0));
+                            const discountPercentage = financial.normalizePercent(item.discountPercentage || 0);
+                            const discountValue = financial.round(subtotal * (discountPercentage / 100));
+                            updateItem(index, 'discountValue', financial.normalizeMoney(discountValue));
+                          }}
                         />
                       </td>
                       <td className="p-3 w-[130px]">
-                        <input
-                          type="number"
-                          step="any"
-                          className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold outline-none focus:border-indigo-500"
-                          value={item.unitPrice}
-                          onChange={(event) => updateItem(index, 'unitPrice', Number(event.target.value || 0))}
-                          disabled={mode === 'edit'}
-                        />
+                        <div className="relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-400">R$</span>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            className="w-full pl-8 pr-2 py-2 rounded-lg border border-slate-200 text-sm font-semibold text-right outline-none focus:border-indigo-500"
+                            value={financial.formatVisual(item.unitPrice || 0, '').trim()}
+                            onChange={(event) => handleItemUnitPriceChange(index, event.target.value)}
+                          />
+                        </div>
                       </td>
                       <td className="p-3 w-[120px]">
-                        <input
-                          type="number"
-                          step="any"
-                          className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold outline-none focus:border-indigo-500"
-                          value={item.discountValue}
-                          onChange={(event) => updateItem(index, 'discountValue', Number(event.target.value || 0))}
-                          disabled={mode === 'edit'}
-                        />
+                        <div className="space-y-2">
+                          <div className="relative">
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              className="w-full pl-2 pr-6 py-1.5 rounded-lg border border-slate-200 text-[10px] font-black text-rose-600 outline-none focus:border-rose-500"
+                              value={financial.formatVisual(item.discountPercentage || 0, '').trim()}
+                              onChange={(event) => handleItemDiscountChange(index, event.target.value, 'percent')}
+                            />
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-black text-rose-400">%</span>
+                          </div>
+                          <div className="relative">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[9px] font-black text-rose-400">R$</span>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              className="w-full pl-7 pr-2 py-1.5 rounded-lg border border-slate-200 text-[10px] font-black text-rose-600 outline-none focus:border-rose-500"
+                              value={financial.formatVisual(item.discountValue || 0, '').trim()}
+                              onChange={(event) => handleItemDiscountChange(index, event.target.value, 'value')}
+                            />
+                          </div>
+                        </div>
                       </td>
                       <td className="p-3 w-[220px]">
                         <select
                           className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold outline-none focus:border-indigo-500"
                           value={item.categoryId || ''}
                           onChange={(event) => updateItem(index, 'categoryId', event.target.value || '')}
-                          disabled={mode === 'edit'}
                         >
                           <option value="">Sem grupo</option>
                           {financialCategories.map((category) => (
@@ -2534,17 +2973,15 @@ const SupplyGroupModal = ({
                       <td className="p-3 w-[140px] text-sm font-black text-indigo-600">
                         {financial.formatVisual(getRowTotal(item), 'R$')}
                       </td>
-                      {mode === 'create' && (
-                        <td className="p-3 w-[64px]">
-                          <button
-                            onClick={() => removeItem(index)}
-                            className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg"
-                            title="Remover linha"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </td>
-                      )}
+                      <td className="p-3 w-[64px]">
+                        <button
+                          onClick={() => requestRemoveItem(index)}
+                          className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg"
+                          title="Remover linha"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -2556,7 +2993,7 @@ const SupplyGroupModal = ({
                     <td className="p-3 text-sm font-black text-indigo-700">
                       {financial.formatVisual(totalAmount, 'R$')}
                     </td>
-                    {mode === 'create' && <td className="p-3" />}
+                    <td className="p-3" />
                   </tr>
                 </tfoot>
               </table>
@@ -2565,6 +3002,14 @@ const SupplyGroupModal = ({
         </div>
 
         <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50 flex items-center gap-4">
+          {mode === 'edit' && onDeleteGroup && (
+            <button
+              onClick={() => void onDeleteGroup()}
+              className="py-3 px-4 rounded-xl text-[11px] font-black uppercase tracking-widest text-rose-600 border border-rose-200 hover:bg-rose-50"
+            >
+              Remover Grupo
+            </button>
+          )}
           <button onClick={onClose} className="flex-1 py-3 text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-700">
             Cancelar
           </button>
@@ -2578,6 +3023,22 @@ const SupplyGroupModal = ({
         </div>
       </div>
     </div>
+    <ConfirmModal
+      isOpen={confirmingRemoveItemIndex !== null}
+      title="Remover item do grupo"
+      message={`Deseja remover ${itemPendingRemoval?.description?.trim() ? `"${itemPendingRemoval.description.trim()}"` : 'este item'}? A remoção só será aplicada ao salvar o grupo.`}
+      confirmLabel="Remover"
+      cancelLabel="Cancelar"
+      variant="warning"
+      onConfirm={() => {
+        if (confirmingRemoveItemIndex !== null) {
+          removeItem(confirmingRemoveItemIndex);
+        }
+        setConfirmingRemoveItemIndex(null);
+      }}
+      onCancel={() => setConfirmingRemoveItemIndex(null)}
+    />
+    </>
   );
 };
 
@@ -2594,25 +3055,11 @@ const ConvertForecastsToGroupModal = ({
     title?: string | null;
     supplierId?: string | null;
     estimatedDate: string;
-    purchaseDate?: string | null;
-    deliveryDate?: string | null;
-    status: 'pending' | 'ordered' | 'delivered';
-    isPaid: boolean;
-    isCleared: boolean;
-    paymentProof?: string | null;
-    invoiceDoc?: string | null;
   }) => Promise<void> | void;
 }) => {
   const [title, setTitle] = useState('');
   const [supplierId, setSupplierId] = useState('');
   const [estimatedDate, setEstimatedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [purchaseDate, setPurchaseDate] = useState('');
-  const [deliveryDate, setDeliveryDate] = useState('');
-  const [status, setStatus] = useState<'pending' | 'ordered' | 'delivered'>('pending');
-  const [isPaid, setIsPaid] = useState(false);
-  const [isCleared, setIsCleared] = useState(false);
-  const [paymentProof, setPaymentProof] = useState<string | undefined>();
-  const [invoiceDoc, setInvoiceDoc] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
@@ -2621,13 +3068,6 @@ const ConvertForecastsToGroupModal = ({
       title: title.trim() || null,
       supplierId: supplierId || null,
       estimatedDate,
-      purchaseDate: purchaseDate || null,
-      deliveryDate: deliveryDate || null,
-      status,
-      isPaid,
-      isCleared,
-      paymentProof: paymentProof || null,
-      invoiceDoc: invoiceDoc || null,
     });
     setSaving(false);
   };
@@ -2673,64 +3113,17 @@ const ConvertForecastsToGroupModal = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
             <div>
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Previsão</label>
               <input type="date" className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold outline-none focus:border-indigo-500" value={estimatedDate} onChange={(event) => setEstimatedDate(event.target.value)} />
             </div>
-            <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Compra</label>
-              <input type="date" className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold outline-none focus:border-indigo-500" value={purchaseDate} onChange={(event) => setPurchaseDate(event.target.value)} />
-            </div>
-            <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Entrega</label>
-              <input type="date" className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold outline-none focus:border-indigo-500" value={deliveryDate} onChange={(event) => setDeliveryDate(event.target.value)} />
-            </div>
           </div>
 
-          <div>
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Status</label>
-            <select
-              className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold outline-none focus:border-indigo-500"
-              value={status}
-              onChange={(event) => setStatus(event.target.value as 'pending' | 'ordered' | 'delivered')}
-            >
-              <option value="pending">A Comprar</option>
-              <option value="ordered">Pedido Efetuado</option>
-              <option value="delivered">Recebido (Local)</option>
-            </select>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Pago</span>
-              <button type="button" onClick={() => setIsPaid((prev) => !prev)} className={`w-12 h-6 rounded-full relative transition-all ${isPaid ? 'bg-emerald-500' : 'bg-slate-300'}`}>
-                <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${isPaid ? 'translate-x-6' : ''}`} />
-              </button>
-            </div>
-            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Dar Baixa</span>
-              <button type="button" onClick={() => setIsCleared((prev) => !prev)} className={`w-12 h-6 rounded-full relative transition-all ${isCleared ? 'bg-emerald-500' : 'bg-slate-300'}`}>
-                <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${isCleared ? 'translate-x-6' : ''}`} />
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <ExpenseAttachmentZone
-              label="Comprovante (Grupo)"
-              requiredStatus="PAID"
-              currentFile={paymentProof}
-              onUploadUrl={(url) => setPaymentProof(url)}
-              onRemove={() => setPaymentProof(undefined)}
-            />
-            <ExpenseAttachmentZone
-              label="Nota Fiscal (Grupo)"
-              requiredStatus="DELIVERED"
-              currentFile={invoiceDoc}
-              onUploadUrl={(url) => setInvoiceDoc(url)}
-              onRemove={() => setInvoiceDoc(undefined)}
-            />
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+              Status, pagamento e baixa serão controlados na linha do grupo após a criação.
+            </p>
           </div>
         </div>
 
