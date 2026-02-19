@@ -129,36 +129,57 @@ export class NotificationsService {
   }
 
   private async resolveCandidateUsers(input: EmitNotificationInput) {
-    const userIds = new Set<string>();
+    const explicitUserIds = new Set<string>();
 
     if (Array.isArray(input.specificUserIds)) {
       input.specificUserIds.forEach((id) => {
-        if (id) userIds.add(id);
+        if (id) explicitUserIds.add(id);
       });
     }
+
+    let scopedUserIds: Set<string> | null = null;
 
     if (input.permissionCodes && input.permissionCodes.length > 0) {
       const byPermission = await this.prisma.user.findMany({
         where: {
           instanceId: input.instanceId,
           status: 'ACTIVE',
-          roles: {
-            some: {
-              role: {
-                permissions: {
-                  some: {
-                    permission: {
-                      code: { in: input.permissionCodes },
+          OR: [
+            {
+              roles: {
+                some: {
+                  role: {
+                    permissions: {
+                      some: {
+                        permission: {
+                          code: { in: input.permissionCodes },
+                        },
+                      },
                     },
                   },
                 },
               },
             },
-          },
+            {
+              projectAccess: {
+                some: {
+                  assignedRole: {
+                    permissions: {
+                      some: {
+                        permission: {
+                          code: { in: input.permissionCodes },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          ],
         },
         select: { id: true },
       });
-      byPermission.forEach((user) => userIds.add(user.id));
+      scopedUserIds = new Set(byPermission.map((user) => user.id));
     }
 
     if (input.includeProjectMembers && input.projectId) {
@@ -166,7 +187,61 @@ export class NotificationsService {
         where: { projectId: input.projectId },
         select: { userId: true },
       });
-      members.forEach((member) => userIds.add(member.userId));
+
+      const privilegedUsers = await this.prisma.user.findMany({
+        where: {
+          instanceId: input.instanceId,
+          status: 'ACTIVE',
+          OR: [
+            {
+              roles: {
+                some: {
+                  role: {
+                    name: { in: ['ADMIN', 'SUPER_ADMIN'] },
+                  },
+                },
+              },
+            },
+            {
+              roles: {
+                some: {
+                  role: {
+                    permissions: {
+                      some: {
+                        permission: {
+                          code: {
+                            in: [
+                              'projects_general.view',
+                              'projects_general.edit',
+                            ],
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+        select: { id: true },
+      });
+
+      const memberIds = new Set(members.map((member) => member.userId));
+      if (scopedUserIds) {
+        scopedUserIds = new Set(
+          Array.from(scopedUserIds).filter((userId) => memberIds.has(userId)),
+        );
+      } else {
+        scopedUserIds = memberIds;
+      }
+
+      privilegedUsers.forEach((user) => scopedUserIds?.add(user.id));
+    }
+
+    const userIds = new Set<string>(explicitUserIds);
+    if (scopedUserIds) {
+      scopedUserIds.forEach((id) => userIds.add(id));
     }
 
     if (userIds.size === 0) return [];
@@ -398,6 +473,7 @@ export class NotificationsService {
     projectId?: string,
     unreadOnly?: boolean,
     limit = 50,
+    permissions: string[] = [],
   ) {
     const rows = await this.prisma.notificationRecipient.findMany({
       where: {
@@ -429,7 +505,117 @@ export class NotificationsService {
       },
     });
 
-    return rows.map((row) => ({
+    const globalPermissions = new Set(permissions);
+    const adminRoleCount = await this.prisma.userRole.count({
+      where: {
+        userId,
+        role: {
+          instanceId,
+          name: { in: ['ADMIN', 'SUPER_ADMIN'] },
+        },
+      },
+    });
+    const hasPrincipalAccess =
+      adminRoleCount > 0 ||
+      globalPermissions.has('projects_general.view') ||
+      globalPermissions.has('projects_general.edit');
+    const relevantProjectIds = Array.from(
+      new Set(
+        rows
+          .filter(
+            (row) =>
+              (row.notification.eventType === 'LABOR_CONTRACT_CREATED' ||
+                row.notification.eventType ===
+                  'LABOR_CONTRACT_STATUS_CHANGED' ||
+                row.notification.eventType === 'LABOR_PAYMENT_RECORDED' ||
+                row.notification.category === 'WORKFORCE' ||
+                row.notification.eventType === 'EXPENSE_PAID' ||
+                row.notification.eventType === 'EXPENSE_DELIVERED' ||
+                row.notification.eventType === 'MATERIAL_ON_SITE_CONFIRMED' ||
+                row.notification.category === 'SUPPLIES' ||
+                row.notification.category === 'FINANCIAL') &&
+              !!row.notification.projectId,
+          )
+          .map((row) => row.notification.projectId as string),
+      ),
+    );
+
+    const projectMemberships = relevantProjectIds.length
+      ? await this.prisma.projectMember.findMany({
+          where: {
+            userId,
+            projectId: { in: relevantProjectIds },
+          },
+          include: {
+            assignedRole: {
+              include: {
+                permissions: {
+                  include: {
+                    permission: { select: { code: true } },
+                  },
+                },
+              },
+            },
+          },
+        })
+      : [];
+
+    const projectPermissions = new Map<string, Set<string>>();
+    for (const member of projectMemberships) {
+      projectPermissions.set(
+        member.projectId,
+        new Set(
+          member.assignedRole.permissions.map((rp) => rp.permission.code),
+        ),
+      );
+    }
+
+    const hasAnyPermission = (
+      rowProjectId: string | null,
+      requiredCodes: string[],
+    ) => {
+      if (hasPrincipalAccess) {
+        return true;
+      }
+      if (requiredCodes.some((code) => globalPermissions.has(code))) {
+        return true;
+      }
+      if (!rowProjectId) return false;
+      const memberPermissions = projectPermissions.get(rowProjectId);
+      if (!memberPermissions) return false;
+      return requiredCodes.some((code) => memberPermissions.has(code));
+    };
+
+    const scopedRows = rows.filter((row) => {
+      if (
+        row.notification.eventType === 'LABOR_CONTRACT_CREATED' ||
+        row.notification.eventType === 'LABOR_CONTRACT_STATUS_CHANGED' ||
+        row.notification.eventType === 'LABOR_PAYMENT_RECORDED' ||
+        row.notification.category === 'WORKFORCE'
+      ) {
+        return hasAnyPermission(row.notification.projectId, [
+          'workforce.view',
+          'workforce.edit',
+        ]);
+      }
+
+      if (
+        row.notification.eventType === 'EXPENSE_PAID' ||
+        row.notification.eventType === 'EXPENSE_DELIVERED' ||
+        row.notification.eventType === 'MATERIAL_ON_SITE_CONFIRMED' ||
+        row.notification.category === 'SUPPLIES' ||
+        row.notification.category === 'FINANCIAL'
+      ) {
+        return hasAnyPermission(row.notification.projectId, [
+          'supplies.view',
+          'supplies.edit',
+        ]);
+      }
+
+      return true;
+    });
+
+    return scopedRows.map((row) => ({
       id: row.notification.id,
       recipientId: row.id,
       projectId: row.notification.projectId,

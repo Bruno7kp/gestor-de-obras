@@ -141,7 +141,7 @@ export class ProjectExpensesService {
         title: 'Liquidação Financeira',
         body: `Pagamento confirmado para ${expense.description}. Valor: R$ ${expense.amount.toFixed(2)}. Credor: ${expense.entityName || 'Não informado'}.`,
         dedupeKey: `expense:${expense.id}:PAID`,
-        permissionCodes: ['financial_flow.view', 'financial_flow.edit'],
+        permissionCodes: ['supplies.view', 'supplies.edit'],
         includeProjectMembers: true,
         metadata: {
           expenseId: expense.id,
@@ -161,7 +161,7 @@ export class ProjectExpensesService {
         title: 'Recebimento de Material',
         body: `Entrega confirmada no canteiro: ${expense.description}.`,
         dedupeKey: `expense:${expense.id}:DELIVERED`,
-        permissionCodes: ['supplies.view', 'supplies.edit', 'financial_flow.view', 'financial_flow.edit'],
+        permissionCodes: ['supplies.view', 'supplies.edit'],
         includeProjectMembers: true,
         metadata: {
           expenseId: expense.id,

@@ -63,7 +63,7 @@ export class LaborContractsService {
       title: 'Contrato de Mão de Obra Criado',
       body: `Novo contrato registrado: ${contract.descricao}. Valor total: R$ ${contract.valorTotal.toFixed(2)}.`,
       dedupeKey: `labor-contract:${contract.id}:CREATED`,
-      permissionCodes: ['workforce.view', 'workforce.edit', 'financial_flow.view', 'financial_flow.edit'],
+      permissionCodes: ['workforce.view', 'workforce.edit'],
       includeProjectMembers: true,
       metadata: {
         contractId: contract.id,
@@ -95,7 +95,7 @@ export class LaborContractsService {
       title: 'Atualização de Contrato de Mão de Obra',
       body: `Contrato ${contract.descricao} alterado de ${previousStatus} para ${contract.status}. Pago: R$ ${contract.valorPago.toFixed(2)} de R$ ${contract.valorTotal.toFixed(2)}.`,
       dedupeKey: `labor-contract:${contract.id}:STATUS:${contract.status}`,
-      permissionCodes: ['workforce.view', 'workforce.edit', 'financial_flow.view', 'financial_flow.edit'],
+      permissionCodes: ['workforce.view', 'workforce.edit'],
       includeProjectMembers: true,
       metadata: {
         contractId: contract.id,
@@ -128,7 +128,7 @@ export class LaborContractsService {
       title: 'Pagamento de Mão de Obra Registrado',
       body: `Pagamento registrado para ${contract.descricao}: R$ ${payment.valor.toFixed(2)} em ${payment.data}.`,
       dedupeKey: `labor-payment:${payment.id}:RECORDED`,
-      permissionCodes: ['workforce.view', 'workforce.edit', 'financial_flow.view', 'financial_flow.edit'],
+      permissionCodes: ['workforce.view', 'workforce.edit'],
       includeProjectMembers: true,
       metadata: {
         contractId: contract.id,

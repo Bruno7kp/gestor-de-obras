@@ -47,6 +47,7 @@ export class NotificationsController {
       projectId,
       unreadOnly === 'true',
       Number(limit) || 50,
+      req.user.permissions ?? [],
     );
   }
 
