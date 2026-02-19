@@ -647,6 +647,16 @@ const FolderCard = ({ group, onOpen, onRename, onDelete, onMove, provided, canRe
   </div>
 );
 
+const ProjectIconBadge = ({ unreadCount }: { unreadCount: number }) => {
+  if (unreadCount <= 0) return null;
+
+  return (
+    <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[9px] font-black leading-none flex items-center justify-center border-2 border-white dark:border-slate-900">
+      {unreadCount > 99 ? '99+' : unreadCount}
+    </span>
+  );
+};
+
 const ProjectCard = ({ project, unreadCount, onOpen, onRename, onDelete, onMove, provided, canRename }: {
   project: Project,
   unreadCount: number,
@@ -669,7 +679,10 @@ const ProjectCard = ({ project, unreadCount, onOpen, onRename, onDelete, onMove,
       className="group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2rem] p-6 shadow-sm hover:shadow-xl transition-all cursor-pointer relative overflow-hidden h-full"
     >
       <div className="flex justify-between items-start mb-8">
-        <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-500 rounded-2xl group-hover:scale-110 transition-transform"><Briefcase size={24}/></div>
+        <div className="relative">
+          <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-500 rounded-2xl group-hover:scale-110 transition-transform"><Briefcase size={24}/></div>
+          <ProjectIconBadge unreadCount={unreadCount} />
+        </div>
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
           <button title="Mover" onClick={e => { e.stopPropagation(); onMove(); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><FolderInput size={16}/></button>
           {canRename && (
@@ -679,11 +692,6 @@ const ProjectCard = ({ project, unreadCount, onOpen, onRename, onDelete, onMove,
         </div>
       </div>
       <h3 className="text-sm font-black text-slate-800 dark:text-white truncate uppercase tracking-tight">{project.name}</h3>
-      {unreadCount > 0 && (
-        <div className="mt-2 inline-flex items-center px-2 py-1 rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-600 text-[9px] font-black uppercase tracking-widest">
-          {unreadCount > 99 ? '99+' : unreadCount} notificações
-        </div>
-      )}
       <div className="mt-6 space-y-2">
         <div className="flex justify-between items-end text-[8px] font-black uppercase tracking-widest text-slate-400">
            <span>Avanço Físico</span>
@@ -754,17 +762,15 @@ const ProjectRow = ({ project, unreadCount, onOpen, onRename, onDelete, onMove, 
       className="group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center justify-between"
     >
       <div className="flex items-center gap-4 min-w-0">
-        <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-500 rounded-xl">
-          <Briefcase size={18} />
+        <div className="relative">
+          <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-500 rounded-xl">
+            <Briefcase size={18} />
+          </div>
+          <ProjectIconBadge unreadCount={unreadCount} />
         </div>
         <div className="min-w-0">
           <p className="text-[10px] font-black uppercase text-slate-400">Obra</p>
           <h3 className="text-sm font-black text-slate-800 dark:text-white truncate">{project.name}</h3>
-          {unreadCount > 0 && (
-            <p className="text-[9px] font-black uppercase tracking-widest text-rose-600 mt-1">
-              {unreadCount > 99 ? '99+' : unreadCount} notificações
-            </p>
-          )}
         </div>
       </div>
       <div className="flex items-center gap-4">
@@ -844,19 +850,17 @@ const ExternalProjectCard = ({ project, unreadCount, onOpen }: {
     className="group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2rem] p-6 shadow-sm hover:shadow-xl transition-all cursor-pointer relative overflow-hidden h-full"
   >
     <div className="flex justify-between items-start mb-6">
-      <div className="p-4 bg-teal-50 dark:bg-teal-900/20 text-teal-600 rounded-2xl group-hover:scale-110 transition-transform">
-        <Share2 size={24} />
+      <div className="relative">
+        <div className="p-4 bg-teal-50 dark:bg-teal-900/20 text-teal-600 rounded-2xl group-hover:scale-110 transition-transform">
+          <Share2 size={24} />
+        </div>
+        <ProjectIconBadge unreadCount={unreadCount} />
       </div>
       <span className="text-[9px] font-black uppercase tracking-widest text-teal-600 bg-teal-50 dark:bg-teal-900/20 px-2 py-1 rounded-full">
         Compartilhado
       </span>
     </div>
     <h3 className="text-sm font-black text-slate-800 dark:text-white truncate uppercase tracking-tight">{project.projectName}</h3>
-    {unreadCount > 0 && (
-      <div className="mt-2 inline-flex items-center px-2 py-1 rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-600 text-[9px] font-black uppercase tracking-widest">
-        {unreadCount > 99 ? '99+' : unreadCount} notificações
-      </div>
-    )}
     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">{project.companyName}</p>
     <p className="text-[9px] font-bold text-slate-400 mt-4">{project.instanceName}</p>
   </div>
@@ -872,18 +876,16 @@ const ExternalProjectRow = ({ project, unreadCount, onOpen }: {
     className="group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center justify-between"
   >
     <div className="flex items-center gap-4 min-w-0">
-      <div className="p-2.5 bg-teal-50 dark:bg-teal-900/20 text-teal-600 rounded-xl">
-        <Share2 size={18} />
+      <div className="relative">
+        <div className="p-2.5 bg-teal-50 dark:bg-teal-900/20 text-teal-600 rounded-xl">
+          <Share2 size={18} />
+        </div>
+        <ProjectIconBadge unreadCount={unreadCount} />
       </div>
       <div className="min-w-0">
         <p className="text-[10px] font-black uppercase text-slate-400">Compartilhado</p>
         <h3 className="text-sm font-black text-slate-800 dark:text-white truncate">{project.projectName}</h3>
         <p className="text-[9px] font-bold text-slate-400 truncate">{project.instanceName}</p>
-        {unreadCount > 0 && (
-          <p className="text-[9px] font-black uppercase tracking-widest text-rose-600 mt-1">
-            {unreadCount > 99 ? '99+' : unreadCount} notificações
-          </p>
-        )}
       </div>
     </div>
     <div className="text-[9px] font-black uppercase tracking-widest text-teal-600 bg-teal-50 dark:bg-teal-900/20 px-2 py-1 rounded-full">

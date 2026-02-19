@@ -131,6 +131,44 @@ export class ProjectExpensesService {
       entityName: string;
     },
   ) {
+    const forecastById = await this.prisma.materialForecast.findFirst({
+      where: {
+        id: expense.id,
+        projectPlanning: { projectId: expense.projectId },
+      },
+      select: {
+        id: true,
+        supplyGroupId: true,
+        supplyGroup: { select: { id: true, title: true } },
+      },
+    });
+
+    const materialDescription = this.extractExpenseMaterialDescription(
+      expense.description,
+    );
+
+    const forecastByDescription = forecastById
+      ? null
+      : await this.prisma.materialForecast.findFirst({
+          where: {
+            projectPlanning: { projectId: expense.projectId },
+            description: { equals: materialDescription, mode: 'insensitive' },
+          },
+          select: {
+            id: true,
+            supplyGroupId: true,
+            supplyGroup: { select: { id: true, title: true } },
+          },
+          orderBy: [{ supplyGroupId: 'desc' }, { order: 'asc' }],
+        });
+
+    const forecastContext = forecastById ?? forecastByDescription;
+
+    const supplyGroupId = forecastContext?.supplyGroupId ?? null;
+    const supplyGroupLabel =
+      forecastContext?.supplyGroup?.title?.trim() ||
+      (supplyGroupId ? `Lote ${supplyGroupId.slice(0, 8)}` : null);
+
     if (expense.status === 'PAID') {
       await this.notificationsService.emit({
         instanceId,
@@ -138,14 +176,19 @@ export class ProjectExpensesService {
         category: 'FINANCIAL',
         eventType: 'EXPENSE_PAID',
         priority: 'high',
-        title: 'Liquidação Financeira',
-        body: `Pagamento confirmado para ${expense.description}. Valor: R$ ${expense.amount.toFixed(2)}. Credor: ${expense.entityName || 'Não informado'}.`,
-        dedupeKey: `expense:${expense.id}:PAID`,
+        title: supplyGroupId ? 'Liquidação Financeira do Lote' : 'Liquidação Financeira',
+        body: supplyGroupId
+          ? `Pagamento confirmado para ${supplyGroupLabel}. Valor total deste item: R$ ${expense.amount.toFixed(2)}. Credor: ${expense.entityName || 'Não informado'}.`
+          : `Pagamento confirmado para ${expense.description}. Valor: R$ ${expense.amount.toFixed(2)}. Credor: ${expense.entityName || 'Não informado'}.`,
+        dedupeKey: supplyGroupId
+          ? `supply-group:${supplyGroupId}:PAID`
+          : `expense:${expense.id}:PAID`,
         permissionCodes: ['supplies.view', 'supplies.edit'],
         includeProjectMembers: true,
         metadata: {
           expenseId: expense.id,
           status: expense.status,
+          supplyGroupId,
         },
       });
       return;
@@ -158,14 +201,19 @@ export class ProjectExpensesService {
         category: 'SUPPLIES',
         eventType: 'EXPENSE_DELIVERED',
         priority: 'normal',
-        title: 'Recebimento de Material',
-        body: `Entrega confirmada no canteiro: ${expense.description}.`,
-        dedupeKey: `expense:${expense.id}:DELIVERED`,
+        title: supplyGroupId ? 'Recebimento de Lote de Material' : 'Recebimento de Material',
+        body: supplyGroupId
+          ? `Entrega do ${supplyGroupLabel} confirmada no canteiro.`
+          : `Entrega confirmada no canteiro: ${expense.description}.`,
+        dedupeKey: supplyGroupId
+          ? `supply-group:${supplyGroupId}:DELIVERED`
+          : `expense:${expense.id}:DELIVERED`,
         permissionCodes: ['supplies.view', 'supplies.edit'],
         includeProjectMembers: true,
         metadata: {
           expenseId: expense.id,
           status: expense.status,
+          supplyGroupId,
         },
       });
     }

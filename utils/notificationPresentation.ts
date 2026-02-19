@@ -7,6 +7,7 @@ export type NotificationTypeKey =
 
 export type NotificationSubtypeKey =
   | 'COMPRA'
+  | 'PAGAMENTO'
   | 'ENTREGA'
   | 'NO_LOCAL'
   | 'CONTRATO_CRIADO'
@@ -44,14 +45,15 @@ export const getNotificationType = (notification: UserNotification): Notificatio
 };
 
 export const getNotificationSubtype = (notification: UserNotification): NotificationSubtypeKey => {
-  if (notification.eventType === 'EXPENSE_PAID') return 'COMPRA';
+  if (notification.eventType === 'SUPPLY_ORDERED') return 'COMPRA';
+  if (notification.eventType === 'EXPENSE_PAID') return 'PAGAMENTO';
   if (notification.eventType === 'EXPENSE_DELIVERED') return 'ENTREGA';
   if (notification.eventType === 'MATERIAL_ON_SITE_CONFIRMED') return 'NO_LOCAL';
   if (notification.eventType === 'LABOR_CONTRACT_CREATED') return 'CONTRATO_CRIADO';
   if (notification.eventType === 'LABOR_CONTRACT_STATUS_CHANGED') return 'STATUS_CONTRATO';
   if (notification.eventType === 'LABOR_PAYMENT_RECORDED') return 'PAGAMENTO_MO';
 
-  if (notification.category === 'FINANCIAL') return 'COMPRA';
+  if (notification.category === 'FINANCIAL') return 'PAGAMENTO';
   if (notification.category === 'SUPPLIES') return 'ENTREGA';
   if (notification.category === 'WORKFORCE') return 'STATUS_CONTRATO';
 
@@ -66,6 +68,7 @@ export const getNotificationTypeLabel = (type: NotificationTypeKey) => {
 
 export const getNotificationSubtypeLabel = (subtype: NotificationSubtypeKey) => {
   if (subtype === 'COMPRA') return 'Compra';
+  if (subtype === 'PAGAMENTO') return 'Pagamento';
   if (subtype === 'ENTREGA') return 'Entrega';
   if (subtype === 'NO_LOCAL') return 'No local';
   if (subtype === 'CONTRATO_CRIADO') return 'Contrato criado';
@@ -100,6 +103,13 @@ export const getNotificationSubtypeClasses = (subtype: NotificationSubtypeKey) =
     return {
       badge: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
       border: 'border-l-rose-500',
+    };
+  }
+
+  if (subtype === 'PAGAMENTO') {
+    return {
+      badge: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+      border: 'border-l-orange-500',
     };
   }
 

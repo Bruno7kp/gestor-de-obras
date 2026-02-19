@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { isLocalUpload, removeLocalUpload } from '../uploads/file.utils';
 import { ensureProjectAccess } from '../common/project-access.util';
+import { NotificationsService } from '../notifications/notifications.service';
 
 interface CreateTaskInput {
   id?: string;
@@ -106,7 +107,76 @@ interface CreateMilestoneInput {
 
 @Injectable()
 export class PlanningService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
+
+  private async emitSupplyOrderedNotification(input: {
+    instanceId: string;
+    projectId: string;
+    supplyGroupId?: string | null;
+    label: string;
+    referenceId: string;
+  }) {
+    const dedupeKey = input.supplyGroupId
+      ? `supply-group:${input.supplyGroupId}:ORDERED`
+      : `supply:${input.referenceId}:ORDERED`;
+
+    await this.notificationsService.emit({
+      instanceId: input.instanceId,
+      projectId: input.projectId,
+      category: 'SUPPLIES',
+      eventType: 'SUPPLY_ORDERED',
+      priority: 'normal',
+      title: input.supplyGroupId
+        ? 'Compra de Lote Registrada'
+        : 'Compra de Suprimento Registrada',
+      body: input.supplyGroupId
+        ? `O lote ${input.label} foi marcado como comprado.`
+        : `${input.label} foi marcado como comprado.`,
+      dedupeKey,
+      permissionCodes: ['supplies.view', 'supplies.edit'],
+      includeProjectMembers: true,
+      metadata: {
+        supplyGroupId: input.supplyGroupId ?? null,
+        referenceId: input.referenceId,
+      },
+    });
+  }
+
+  private async emitSupplyPaymentNotification(input: {
+    instanceId: string;
+    projectId: string;
+    supplyGroupId?: string | null;
+    label: string;
+    referenceId: string;
+  }) {
+    const dedupeKey = input.supplyGroupId
+      ? `supply-group:${input.supplyGroupId}:PAID`
+      : `expense:${input.referenceId}:PAID`;
+
+    await this.notificationsService.emit({
+      instanceId: input.instanceId,
+      projectId: input.projectId,
+      category: 'FINANCIAL',
+      eventType: 'EXPENSE_PAID',
+      priority: 'high',
+      title: input.supplyGroupId
+        ? 'Pagamento de Lote Registrado'
+        : 'Pagamento de Suprimento Registrado',
+      body: input.supplyGroupId
+        ? `O lote ${input.label} foi marcado como pago.`
+        : `${input.label} foi marcado como pago.`,
+      dedupeKey,
+      permissionCodes: ['supplies.view', 'supplies.edit'],
+      includeProjectMembers: true,
+      metadata: {
+        supplyGroupId: input.supplyGroupId ?? null,
+        referenceId: input.referenceId,
+      },
+    });
+  }
 
   private async canRemoveUpload(url?: string | null) {
     if (!isLocalUpload(url)) return false;
@@ -330,6 +400,26 @@ export class PlanningService {
       })),
     });
 
+    if (group.status === 'ordered') {
+      void this.emitSupplyOrderedNotification({
+        instanceId: input.instanceId,
+        projectId: input.projectId,
+        supplyGroupId: group.id,
+        label: group.title?.trim() || `Lote ${group.id.slice(0, 8)}`,
+        referenceId: group.id,
+      }).catch(() => undefined);
+    }
+
+    if (group.isPaid) {
+      void this.emitSupplyPaymentNotification({
+        instanceId: input.instanceId,
+        projectId: input.projectId,
+        supplyGroupId: group.id,
+        label: group.title?.trim() || `Lote ${group.id.slice(0, 8)}`,
+        referenceId: group.id,
+      }).catch(() => undefined);
+    }
+
     return this.prisma.supplyGroup.findUnique({
       where: { id: group.id },
       include: {
@@ -389,6 +479,31 @@ export class PlanningService {
         paymentProof: updated.paymentProof,
       },
     });
+
+    const planning = await this.prisma.projectPlanning.findUnique({
+      where: { id: updated.projectPlanningId },
+      select: { projectId: true },
+    });
+
+    if (planning && group.status !== 'ordered' && updated.status === 'ordered') {
+      void this.emitSupplyOrderedNotification({
+        instanceId,
+        projectId: planning.projectId,
+        supplyGroupId: updated.id,
+        label: updated.title?.trim() || `Lote ${updated.id.slice(0, 8)}`,
+        referenceId: updated.id,
+      }).catch(() => undefined);
+    }
+
+    if (planning && !group.isPaid && updated.isPaid) {
+      void this.emitSupplyPaymentNotification({
+        instanceId,
+        projectId: planning.projectId,
+        supplyGroupId: updated.id,
+        label: updated.title?.trim() || `Lote ${updated.id.slice(0, 8)}`,
+        referenceId: updated.id,
+      }).catch(() => undefined);
+    }
 
     return this.prisma.supplyGroup.findUnique({
       where: { id },
@@ -578,7 +693,7 @@ export class PlanningService {
     await this.ensureProject(input.projectId, input.instanceId, input.userId);
     const planning = await this.ensurePlanning(input.projectId);
 
-    return this.prisma.materialForecast.create({
+    const created = await this.prisma.materialForecast.create({
       data: {
         id: input.id,
         projectPlanningId: planning.id,
@@ -603,6 +718,38 @@ export class PlanningService {
         createdById: input.userId ?? input.createdById ?? null,
       },
     });
+
+    const supplyGroupLabel =
+      created.supplyGroupId
+        ? (
+            await this.prisma.supplyGroup.findUnique({
+              where: { id: created.supplyGroupId },
+              select: { title: true },
+            })
+          )?.title?.trim() || `Lote ${created.supplyGroupId.slice(0, 8)}`
+        : created.description;
+
+    if (created.status === 'ordered') {
+      void this.emitSupplyOrderedNotification({
+        instanceId: input.instanceId,
+        projectId: input.projectId,
+        supplyGroupId: created.supplyGroupId,
+        label: supplyGroupLabel,
+        referenceId: created.id,
+      }).catch(() => undefined);
+    }
+
+    if (created.isPaid) {
+      void this.emitSupplyPaymentNotification({
+        instanceId: input.instanceId,
+        projectId: input.projectId,
+        supplyGroupId: created.supplyGroupId,
+        label: supplyGroupLabel,
+        referenceId: created.id,
+      }).catch(() => undefined);
+    }
+
+    return created;
   }
 
   async updateForecast(
@@ -634,7 +781,7 @@ export class PlanningService {
       throw new BadRequestException('Nao e possivel voltar para pendente apos pagamento.');
     }
 
-    return this.prisma.materialForecast.update({
+    const updated = await this.prisma.materialForecast.update({
       where: { id },
       data: {
         categoryId:
@@ -663,6 +810,45 @@ export class PlanningService {
         paymentProof: data.paymentProof ?? forecast.paymentProof,
       },
     });
+
+    const planning = await this.prisma.projectPlanning.findUnique({
+      where: { id: updated.projectPlanningId },
+      select: { projectId: true },
+    });
+
+    if (planning) {
+      const supplyGroupLabel =
+        updated.supplyGroupId
+          ? (
+              await this.prisma.supplyGroup.findUnique({
+                where: { id: updated.supplyGroupId },
+                select: { title: true },
+              })
+            )?.title?.trim() || `Lote ${updated.supplyGroupId.slice(0, 8)}`
+          : updated.description;
+
+      if (forecast.status !== 'ordered' && updated.status === 'ordered') {
+        void this.emitSupplyOrderedNotification({
+          instanceId,
+          projectId: planning.projectId,
+          supplyGroupId: updated.supplyGroupId,
+          label: supplyGroupLabel,
+          referenceId: updated.id,
+        }).catch(() => undefined);
+      }
+
+      if (!forecast.isPaid && updated.isPaid) {
+        void this.emitSupplyPaymentNotification({
+          instanceId,
+          projectId: planning.projectId,
+          supplyGroupId: updated.supplyGroupId,
+          label: supplyGroupLabel,
+          referenceId: updated.id,
+        }).catch(() => undefined);
+      }
+    }
+
+    return updated;
   }
 
   async deleteForecast(id: string, instanceId: string, userId?: string) {
