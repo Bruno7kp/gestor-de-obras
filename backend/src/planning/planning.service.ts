@@ -25,6 +25,7 @@ interface CreateForecastInput {
   createdById?: string | null;
   categoryId?: string | null;
   description: string;
+  calculationMemory?: string | null;
   unit: string;
   quantityNeeded: number;
   unitPrice: number;
@@ -45,6 +46,7 @@ interface CreateForecastInput {
 interface SupplyGroupItemInput {
   id?: string;
   description: string;
+  calculationMemory?: string | null;
   unit: string;
   quantityNeeded: number;
   unitPrice: number;
@@ -308,6 +310,7 @@ export class PlanningService {
         id: item.id,
         projectPlanningId: planning.id,
         description: item.description,
+        calculationMemory: item.calculationMemory ?? null,
         unit: item.unit,
         quantityNeeded: item.quantityNeeded,
         unitPrice: item.unitPrice,
@@ -431,6 +434,7 @@ export class PlanningService {
         id: item.id,
         projectPlanningId: group.projectPlanningId,
         description: item.description,
+        calculationMemory: item.calculationMemory ?? null,
         unit: item.unit,
         quantityNeeded: item.quantityNeeded,
         unitPrice: item.unitPrice,
@@ -582,6 +586,7 @@ export class PlanningService {
         projectPlanningId: planning.id,
         categoryId: input.categoryId ?? null,
         description: input.description,
+        calculationMemory: input.calculationMemory ?? null,
         unit: input.unit,
         quantityNeeded: input.quantityNeeded,
         unitPrice: input.unitPrice,
@@ -639,6 +644,10 @@ export class PlanningService {
             ? (data.categoryId ?? null)
             : forecast.categoryId,
         description: data.description ?? forecast.description,
+        calculationMemory:
+          Object.prototype.hasOwnProperty.call(data, 'calculationMemory')
+            ? (data.calculationMemory ?? null)
+            : forecast.calculationMemory,
         unit: data.unit ?? forecast.unit,
         quantityNeeded: data.quantityNeeded ?? forecast.quantityNeeded,
         unitPrice: data.unitPrice ?? forecast.unitPrice,
@@ -799,6 +808,7 @@ export class PlanningService {
       id: f.id,
       projectPlanningId: planning.id,
       description: f.description,
+      calculationMemory: f.calculationMemory ?? null,
       unit: f.unit,
       quantityNeeded: f.quantityNeeded,
       unitPrice: f.unitPrice,

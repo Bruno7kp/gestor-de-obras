@@ -3,6 +3,7 @@ import type { MaterialForecast, ProjectExpense, Supplier } from '../types';
 export interface MaterialSuggestion {
   label: string;
   normalizedLabel: string;
+  calculationMemory?: string;
   unit?: string;
   lastUnitPrice?: number;
   supplierId?: string;
@@ -83,6 +84,9 @@ const mergeSuggestions = (
       ...(useNext ? current : suggestion),
       ...(useNext ? suggestion : current),
       normalizedLabel,
+      calculationMemory:
+        (useNext ? suggestion.calculationMemory : current.calculationMemory) ||
+        (useNext ? current.calculationMemory : suggestion.calculationMemory),
       usageCount: (current.usageCount || 0) + (suggestion.usageCount || 0),
       lastDate: useNext ? suggestion.lastDate : current.lastDate,
     });
@@ -117,6 +121,7 @@ export const createLocalMaterialAutocompleteProvider = (
           bucket.set(normalizedLabel, {
             label,
             normalizedLabel,
+            calculationMemory: forecast.calculationMemory || undefined,
             unit: forecast.unit || undefined,
             lastUnitPrice: forecast.unitPrice || 0,
             supplierId: forecast.supplierId || undefined,
@@ -133,6 +138,10 @@ export const createLocalMaterialAutocompleteProvider = (
         bucket.set(normalizedLabel, {
           ...prev,
           usageCount: prev.usageCount + 1,
+          calculationMemory:
+            nextDate >= prevDate
+              ? (forecast.calculationMemory || prev.calculationMemory)
+              : (prev.calculationMemory || forecast.calculationMemory || undefined),
           unit: prev.unit || forecast.unit || undefined,
           lastUnitPrice: nextDate >= prevDate ? forecast.unitPrice : prev.lastUnitPrice,
           supplierId: prev.supplierId || forecast.supplierId || undefined,

@@ -638,6 +638,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     estimatedDate: string;
     items: Array<{
       description: string;
+      calculationMemory?: string | null;
       unit: string;
       quantityNeeded: number;
       unitPrice: number;
@@ -2164,6 +2165,7 @@ const deriveUnitPriceFromNetTotal = (
 const ForecastModal = ({ onClose, onSave, projectId, allWorkItems, suppliers, expenses, forecasts, editingItem }: any) => {
   const [data, setData] = useState({
     description: editingItem?.description || '',
+    calculationMemory: editingItem?.calculationMemory || '',
     quantityNeeded: editingItem?.quantityNeeded || 1,
     unitPrice: editingItem?.unitPrice || 0,
     discountValue: editingItem?.discountValue || 0,
@@ -2332,6 +2334,10 @@ const ForecastModal = ({ onClose, onSave, projectId, allWorkItems, suppliers, ex
     setData((prev: any) => ({
       ...prev,
       description: force ? suggestion.label : (prev.description || suggestion.label),
+      calculationMemory:
+        force || !(prev.calculationMemory || '').trim()
+          ? (suggestion.calculationMemory ?? prev.calculationMemory)
+          : prev.calculationMemory,
       unit: force || !manualEdited.unit ? suggestion.unit || prev.unit : prev.unit,
       supplierId:
         force || !manualEdited.supplierId
@@ -2890,6 +2896,16 @@ const ForecastModal = ({ onClose, onSave, projectId, allWorkItems, suppliers, ex
              </div>
            </div>
 
+           <div>
+             <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest block mb-2 ml-1">Memória de Cálculo</label>
+             <textarea
+               className="w-full px-4 py-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 text-xs font-semibold outline-none focus:border-indigo-500 transition-all min-h-[96px] resize-y"
+               value={data.calculationMemory}
+               onChange={(e) => setData({ ...data, calculationMemory: e.target.value })}
+               placeholder="Detalhe a memória de cálculo deste suprimento"
+             />
+           </div>
+
         </div>
 
         <div className="p-10 pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center gap-6 shrink-0 z-10 bg-slate-50 dark:bg-[#0f111a]/80 backdrop-blur-sm">
@@ -2915,6 +2931,7 @@ const ForecastModal = ({ onClose, onSave, projectId, allWorkItems, suppliers, ex
 type SupplyGroupItemDraft = {
   id?: string;
   description: string;
+  calculationMemory: string;
   unit: string;
   quantityNeeded: number;
   unitPrice: number;
@@ -2954,6 +2971,7 @@ const SupplyGroupModal = ({
     estimatedDate: string;
     items: Array<{
       description: string;
+      calculationMemory?: string | null;
       unit: string;
       quantityNeeded: number;
       unitPrice: number;
@@ -2980,6 +2998,7 @@ const SupplyGroupModal = ({
   );
   const [saving, setSaving] = useState(false);
   const [draftTotalNetByRow, setDraftTotalNetByRow] = useState<Record<number, string>>({});
+  const [expandedMemoryRows, setExpandedMemoryRows] = useState<Record<number, boolean>>({});
   const [confirmingRemoveItemIndex, setConfirmingRemoveItemIndex] = useState<number | null>(null);
   const [suggestionsByRow, setSuggestionsByRow] = useState<Record<number, MaterialSuggestion[]>>({});
   const [loadingSuggestionRow, setLoadingSuggestionRow] = useState<number | null>(null);
@@ -3006,6 +3025,7 @@ const SupplyGroupModal = ({
       return group.forecasts.map((forecast) => ({
         id: forecast.id,
         description: forecast.description,
+        calculationMemory: forecast.calculationMemory || '',
         unit: forecast.unit || 'un',
         quantityNeeded: forecast.quantityNeeded || 0,
         unitPrice: forecast.unitPrice || 0,
@@ -3022,6 +3042,7 @@ const SupplyGroupModal = ({
       {
         id: undefined,
         description: '',
+        calculationMemory: '',
         unit: 'un',
         quantityNeeded: 1,
         unitPrice: 0,
@@ -3090,6 +3111,10 @@ const SupplyGroupModal = ({
       return {
         ...item,
         description: force ? suggestion.label : (item.description || suggestion.label),
+        calculationMemory:
+          force || !(item.calculationMemory || '').trim()
+            ? (suggestion.calculationMemory ?? item.calculationMemory)
+            : item.calculationMemory,
         unit: force || !manualEdited?.unit ? (suggestion.unit || item.unit) : item.unit,
         unitPrice: nextUnitPrice,
         discountValue: nextDiscount.discountValue,
@@ -3269,6 +3294,7 @@ const SupplyGroupModal = ({
       {
         id: undefined,
         description: '',
+        calculationMemory: '',
         unit: 'un',
         quantityNeeded: 1,
         unitPrice: 0,
@@ -3280,10 +3306,21 @@ const SupplyGroupModal = ({
         isEditingTotalNet: false,
       },
     ]);
+    setExpandedMemoryRows((prev) => ({ ...prev, [items.length]: false }));
   };
 
   const removeItem = (index: number) => {
     setItems((prev) => prev.filter((_, idx) => idx !== index));
+    setExpandedMemoryRows((prev) => {
+      const next: Record<number, boolean> = {};
+      Object.entries(prev).forEach(([key, value]) => {
+        const numeric = Number(key);
+        if (!Number.isFinite(numeric)) return;
+        if (numeric < index) next[numeric] = value;
+        if (numeric > index) next[numeric - 1] = value;
+      });
+      return next;
+    });
   };
 
   const requestRemoveItem = (index: number) => {
@@ -3295,6 +3332,7 @@ const SupplyGroupModal = ({
       .map((item) => ({
         id: item.id,
         description: item.description.trim(),
+        calculationMemory: (item.calculationMemory || '').trim() || null,
         unit: item.unit.trim() || 'un',
         quantityNeeded: financial.normalizeQuantity(item.quantityNeeded || 0),
         unitPrice: normalizeUnitPriceByScale(
@@ -3359,6 +3397,7 @@ const SupplyGroupModal = ({
       if (item.id) {
         await planningApi.updateForecast(item.id, {
           description: item.description,
+          calculationMemory: item.calculationMemory,
           unit: item.unit,
           quantityNeeded: item.quantityNeeded,
           unitPrice: item.unitPrice,
@@ -3379,6 +3418,7 @@ const SupplyGroupModal = ({
       await planningApi.addItemsToSupplyGroup(group.id, [
         {
           description: item.description,
+          calculationMemory: item.calculationMemory,
           unit: item.unit,
           quantityNeeded: item.quantityNeeded,
           unitPrice: item.unitPrice,
@@ -3477,7 +3517,8 @@ const SupplyGroupModal = ({
                 </thead>
                 <tbody>
                   {items.map((item, index) => (
-                    <tr key={item.id ? `supply-group-item-${item.id}` : `supply-group-item-${index}`} className="border-t border-slate-100 dark:border-slate-800">
+                    <React.Fragment key={item.id ? `supply-group-item-${item.id}` : `supply-group-item-${index}`}>
+                    <tr className="border-t border-slate-100 dark:border-slate-800">
                       <td className="p-3">
                         <div className="relative">
                           <input
@@ -3676,15 +3717,45 @@ const SupplyGroupModal = ({
                         </div>
                       </td>
                       <td className="p-3 w-[64px]">
-                        <button
-                          onClick={() => requestRemoveItem(index)}
-                          className="p-2 text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg"
-                          title="Remover linha"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setExpandedMemoryRows((prev) => ({ ...prev, [index]: !prev[index] }))}
+                            className={`p-2 rounded-lg border transition-colors ${
+                              expandedMemoryRows[index]
+                                ? 'text-indigo-600 border-indigo-200 bg-indigo-50 dark:border-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-300'
+                                : 'text-slate-400 border-slate-200 dark:border-slate-700 hover:text-indigo-500'
+                            }`}
+                            title="Memória de cálculo"
+                          >
+                            <FileText size={14} />
+                          </button>
+                          <button
+                            onClick={() => requestRemoveItem(index)}
+                            className="p-2 text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg"
+                            title="Remover linha"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
+                    {expandedMemoryRows[index] && (
+                      <tr className="border-t border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/40">
+                        <td className="p-3" colSpan={8}>
+                          <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest block mb-2">
+                            Memória de Cálculo
+                          </label>
+                          <textarea
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500 min-h-[84px] resize-y"
+                            value={item.calculationMemory}
+                            onChange={(event) => updateItem(index, 'calculationMemory', event.target.value)}
+                            placeholder="Detalhe a memória de cálculo deste item"
+                          />
+                        </td>
+                      </tr>
+                    )}
+                    </React.Fragment>
                   ))}
                 </tbody>
                 <tfoot>

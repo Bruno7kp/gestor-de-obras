@@ -35,6 +35,7 @@ interface CreateForecastBody {
   projectId: string;
   categoryId?: string | null;
   description: string;
+  calculationMemory?: string | null;
   unit: string;
   quantityNeeded: number;
   unitPrice: number;
@@ -58,6 +59,7 @@ type UpdateForecastBody = Partial<CreateForecastBody>;
 interface SupplyGroupItemBody {
   id?: string;
   description: string;
+  calculationMemory?: string | null;
   unit: string;
   quantityNeeded: number;
   unitPrice: number;

@@ -109,6 +109,7 @@ export const planningApi = {
       items: Array<{
         id?: string;
         description: string;
+        calculationMemory?: string | null;
         unit: string;
         quantityNeeded: number;
         unitPrice: number;
@@ -160,6 +161,7 @@ export const planningApi = {
     items: Array<{
       id?: string;
       description: string;
+      calculationMemory?: string | null;
       unit: string;
       quantityNeeded: number;
       unitPrice: number;

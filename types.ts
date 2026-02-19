@@ -201,6 +201,7 @@ export interface PlanningTask {
 export interface MaterialForecast {
   id: string;
   description: string;
+  calculationMemory?: string;
   unit: string;
   quantityNeeded: number;
   unitPrice: number;

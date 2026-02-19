@@ -412,6 +412,7 @@ model PlanningTask {
 model MaterialForecast {
   id               String   @id @default(uuid())
   description      String
+  calculationMemory String?
   unit             String
   quantityNeeded   Float
   unitPrice        Float

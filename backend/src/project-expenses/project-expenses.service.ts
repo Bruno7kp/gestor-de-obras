@@ -54,6 +54,7 @@ interface MaterialSuggestionInput {
 type MaterialSuggestion = {
   label: string;
   normalizedLabel: string;
+  calculationMemory?: string;
   unit?: string;
   lastUnitPrice?: number;
   supplierId?: string;
@@ -288,6 +289,7 @@ export class ProjectExpensesService {
         },
         select: {
           description: true,
+          calculationMemory: true,
           unit: true,
           unitPrice: true,
           supplierId: true,
@@ -317,6 +319,7 @@ export class ProjectExpensesService {
         bucket.set(normalizedLabel, {
           label,
           normalizedLabel,
+          calculationMemory: forecast.calculationMemory || undefined,
           unit: forecast.unit || undefined,
           lastUnitPrice: forecast.unitPrice || 0,
           supplierId: forecast.supplierId || undefined,
@@ -333,6 +336,10 @@ export class ProjectExpensesService {
       bucket.set(normalizedLabel, {
         ...existing,
         usageCount: existing.usageCount + 1,
+        calculationMemory:
+          nextDate >= existingDate
+            ? (forecast.calculationMemory || existing.calculationMemory)
+            : (existing.calculationMemory || forecast.calculationMemory || undefined),
         unit: existing.unit || forecast.unit || undefined,
         lastUnitPrice: nextDate >= existingDate ? forecast.unitPrice : existing.lastUnitPrice,
         supplierId: existing.supplierId || forecast.supplierId || undefined,

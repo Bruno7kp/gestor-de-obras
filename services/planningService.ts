@@ -149,6 +149,7 @@ export const planningService = {
       forecasts: [...updatedForecasts, {
         id: crypto.randomUUID(),
         description: data.description || 'Insumo Previsto',
+        calculationMemory: data.calculationMemory || undefined,
         quantityNeeded: data.quantityNeeded || 0,
         unitPrice: data.unitPrice || 0,
         discountValue: data.discountValue || 0,
