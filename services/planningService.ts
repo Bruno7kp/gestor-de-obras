@@ -1,5 +1,6 @@
 
 import { ProjectPlanning, PlanningTask, MaterialForecast, Milestone, WorkItem, ProjectExpense, TaskStatus } from '../types';
+import { financial } from '../utils/math';
 
 const getExpensePrefix = (status?: MaterialForecast['status'], isPaid?: boolean) => {
   if (status === 'delivered') return 'Pedido Entregue';
@@ -68,9 +69,9 @@ export const planningService = {
     }
   ): Partial<ProjectExpense> => {
     const totalAmount = (forecast.quantityNeeded || 0) * (forecast.unitPrice || 0);
-    const discountValue = discounts?.discountValue ?? forecast.discountValue ?? 0;
+    const discountValue = financial.normalizeMoney(discounts?.discountValue ?? forecast.discountValue ?? 0);
     const discountPercentage = discounts?.discountPercentage ?? forecast.discountPercentage ?? 0;
-    const netAmount = Math.max(0, totalAmount - discountValue);
+    const netAmount = Math.max(0, financial.normalizeMoney(totalAmount - discountValue));
     const prefix = getExpensePrefix(forecastStatus ?? forecast.status, isPaid);
     const effectiveDate = purchaseDate || new Date().toISOString().split('T')[0];
     return {

@@ -1,10 +1,27 @@
 
 export const financial = {
+  roundTo: (value: number, decimals: number): number => {
+    const safeDecimals = Math.min(Math.max(Math.trunc(decimals || 0), 0), 10);
+    const factor = 10 ** safeDecimals;
+    return Math.round((value + Number.EPSILON) * factor) / factor;
+  },
+
+  truncateTo: (value: number, decimals: number): number => {
+    const safeDecimals = Math.min(Math.max(Math.trunc(decimals || 0), 0), 10);
+    const factor = 10 ** safeDecimals;
+    return Math.floor((value + 0.0000000001) * factor) / factor;
+  },
+
+  clampDecimals: (value: number, min = 2, max = 6): number => {
+    const normalized = Number.isFinite(value) ? Math.trunc(value) : min;
+    return Math.min(Math.max(normalized, min), max);
+  },
+
   /**
    * Arredondamento financeiro padrão (2 casas decimais).
    */
   round: (value: number): number => {
-    return Math.round((value + Number.EPSILON) * 100) / 100;
+    return financial.roundTo(value, 2);
   },
 
   /**
@@ -13,9 +30,7 @@ export const financial = {
    * antes de realizar o corte das casas decimais.
    */
   truncate: (value: number): number => {
-    const factor = 100;
-    // O 0.0000000001 (1e-10) serve para garantir que 5.9999999999 seja 6.00 antes do trunc
-    return Math.floor((value + 0.0000000001) * factor) / factor;
+    return financial.truncateTo(value, 2);
   },
   
   /**
@@ -42,6 +57,22 @@ export const financial = {
     return symbol ? `${symbol} ${formatted}` : formatted;
   },
 
+  formatVisualPrecision: (
+    value: number,
+    symbol: string = 'R$',
+    minFractionDigits = 2,
+    maxFractionDigits = 6,
+  ): string => {
+    const min = financial.clampDecimals(minFractionDigits, 0, 10);
+    const max = Math.max(min, financial.clampDecimals(maxFractionDigits, min, 10));
+    const num = value || 0;
+    const formatted = new Intl.NumberFormat('pt-BR', {
+      minimumFractionDigits: min,
+      maximumFractionDigits: max,
+    }).format(num);
+    return symbol ? `${symbol} ${formatted}` : formatted;
+  },
+
   /**
    * Formata quantidade com ate 2 casas decimais.
    */
@@ -61,6 +92,11 @@ export const financial = {
    */
   normalizeMoney: (value: number): number => {
     return financial.truncate(value || 0);
+  },
+
+  normalizeMoneyPrecision: (value: number, decimals = 2): number => {
+    const safeDecimals = financial.clampDecimals(decimals, 0, 10);
+    return financial.truncateTo(value || 0, safeDecimals);
   },
 
   /**
