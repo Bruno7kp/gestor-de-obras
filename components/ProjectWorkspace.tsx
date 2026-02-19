@@ -91,10 +91,15 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const brandingDebounceRef = useRef<number | null>(null);
   const pendingBrandingRef = useRef<Partial<Project>>({});
   const expensesRef = useRef<ProjectExpense[]>(project.expenses);
+  const planningRef = useRef<ProjectPlanning>(project.planning);
 
   useEffect(() => {
     expensesRef.current = project.expenses;
   }, [project.expenses]);
+
+  useEffect(() => {
+    planningRef.current = project.planning;
+  }, [project.planning]);
 
   const applyExpenses = useCallback((nextExpenses: ProjectExpense[]) => {
     expensesRef.current = nextExpenses;
@@ -651,12 +656,86 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
       expense.id === id ? { ...expense, ...data } : expense,
     );
     applyExpenses(updatedExpenses);
+
+    const updatedExpense = updatedExpenses.find((expense) => expense.id === id);
+    if (updatedExpense && updatedExpense.type === 'material' && updatedExpense.itemType === 'item') {
+      const currentPlanning = planningRef.current;
+      const extractDescription = (rawDescription: string) => {
+        const match = rawDescription.match(/^[^:]+:\s*(.+)$/);
+        return (match?.[1] || rawDescription || '').trim();
+      };
+
+      const linkedForecast = currentPlanning.forecasts.find((forecast) => {
+        if (forecast.id === updatedExpense.id) return true;
+        const suffix = `: ${forecast.description}`;
+        return updatedExpense.description.endsWith(suffix);
+      });
+
+      if (linkedForecast) {
+        const forecastPatch: Partial<MaterialForecast> = {};
+        const nextDescription = extractDescription(updatedExpense.description || linkedForecast.description);
+        if (nextDescription && nextDescription !== linkedForecast.description) {
+          forecastPatch.description = nextDescription;
+        }
+        if ((updatedExpense.unit || '') !== (linkedForecast.unit || '')) {
+          forecastPatch.unit = updatedExpense.unit || linkedForecast.unit;
+        }
+        if ((updatedExpense.quantity ?? linkedForecast.quantityNeeded) !== linkedForecast.quantityNeeded) {
+          forecastPatch.quantityNeeded = updatedExpense.quantity ?? linkedForecast.quantityNeeded;
+        }
+        if ((updatedExpense.unitPrice ?? linkedForecast.unitPrice) !== linkedForecast.unitPrice) {
+          forecastPatch.unitPrice = updatedExpense.unitPrice ?? linkedForecast.unitPrice;
+        }
+        if ((updatedExpense.discountValue ?? linkedForecast.discountValue ?? 0) !== (linkedForecast.discountValue ?? 0)) {
+          forecastPatch.discountValue = updatedExpense.discountValue ?? linkedForecast.discountValue ?? 0;
+        }
+        if ((updatedExpense.discountPercentage ?? linkedForecast.discountPercentage ?? 0) !== (linkedForecast.discountPercentage ?? 0)) {
+          forecastPatch.discountPercentage = updatedExpense.discountPercentage ?? linkedForecast.discountPercentage ?? 0;
+        }
+        if (updatedExpense.date && updatedExpense.date !== linkedForecast.purchaseDate) {
+          forecastPatch.purchaseDate = updatedExpense.date;
+        }
+        if ((updatedExpense.paymentProof ?? linkedForecast.paymentProof) !== linkedForecast.paymentProof) {
+          forecastPatch.paymentProof = updatedExpense.paymentProof;
+        }
+
+        if (updatedExpense.status === 'DELIVERED' && linkedForecast.status !== 'delivered') {
+          forecastPatch.status = 'delivered';
+          if (updatedExpense.deliveryDate) {
+            forecastPatch.deliveryDate = updatedExpense.deliveryDate;
+          }
+        } else if ((updatedExpense.status === 'PENDING' || updatedExpense.status === 'PAID') && linkedForecast.status === 'pending') {
+          forecastPatch.status = 'ordered';
+        }
+
+        if ((updatedExpense.isPaid ?? linkedForecast.isPaid) !== linkedForecast.isPaid) {
+          forecastPatch.isPaid = updatedExpense.isPaid ?? linkedForecast.isPaid;
+        }
+
+        if (Object.keys(forecastPatch).length > 0) {
+          const nextPlanning = {
+            ...currentPlanning,
+            forecasts: currentPlanning.forecasts.map((forecast) =>
+              forecast.id === linkedForecast.id ? { ...forecast, ...forecastPatch } : forecast,
+            ),
+          };
+          planningRef.current = nextPlanning;
+          onUpdateProject({ planning: nextPlanning });
+          try {
+            await planningApi.updateForecast(linkedForecast.id, forecastPatch);
+          } catch (forecastSyncError) {
+            console.error('Erro ao sincronizar suprimento a partir de edição financeira:', forecastSyncError);
+          }
+        }
+      }
+    }
+
     try {
       await projectExpensesApi.update(id, data);
     } catch (error) {
       console.error('Erro ao atualizar despesa:', error);
     }
-  }, [applyExpenses]);
+  }, [applyExpenses, onUpdateProject]);
 
   const handleExpenseDelete = useCallback(async (id: string) => {
     const updatedExpenses = expensesRef.current.filter((expense) => expense.id !== id && expense.parentId !== id);

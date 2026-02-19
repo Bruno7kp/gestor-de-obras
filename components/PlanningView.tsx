@@ -519,6 +519,56 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     return project.expenses.find(expense => isExpenseForForecast(expense, forecast));
   };
 
+  const syncExpenseWithForecast = (forecast: MaterialForecast) => {
+    const linkedExpense = findExpenseForForecast(forecast);
+    if (!linkedExpense) return;
+
+    const supplierName = suppliers.find((supplier) => supplier.id === forecast.supplierId)?.name;
+    const expenseData = planningService.prepareExpenseFromForecast(
+      forecast,
+      linkedExpense.parentId ?? (forecast.categoryId || null),
+      forecast.purchaseDate || linkedExpense.date,
+      forecast.isPaid,
+      linkedExpense.id,
+      forecast.status,
+      {
+        discountValue: forecast.discountValue,
+        discountPercentage: forecast.discountPercentage,
+      },
+    );
+
+    const nextStatus = forecast.status === 'delivered'
+      ? 'DELIVERED'
+      : (linkedExpense.status === 'DELIVERED' ? 'DELIVERED' : expenseData.status);
+
+    onUpdateExpense(linkedExpense.id, {
+      parentId: expenseData.parentId ?? linkedExpense.parentId,
+      date: expenseData.date,
+      description: expenseData.description,
+      entityName: supplierName || expenseData.entityName || linkedExpense.entityName,
+      unit: expenseData.unit,
+      quantity: expenseData.quantity,
+      unitPrice: expenseData.unitPrice,
+      discountValue: expenseData.discountValue,
+      discountPercentage: expenseData.discountPercentage,
+      amount: expenseData.amount,
+      isPaid: expenseData.isPaid,
+      status: nextStatus,
+      paymentDate: expenseData.paymentDate ?? linkedExpense.paymentDate,
+      paymentProof: expenseData.paymentProof ?? linkedExpense.paymentProof,
+      deliveryDate:
+        forecast.status === 'delivered'
+          ? (forecast.deliveryDate || linkedExpense.deliveryDate || new Date().toISOString().split('T')[0])
+          : linkedExpense.deliveryDate,
+    });
+  };
+
+  const syncExpensesWithForecasts = (forecastsToSync: MaterialForecast[]) => {
+    forecastsToSync.forEach((forecast) => {
+      syncExpenseWithForecast(forecast);
+    });
+  };
+
   const syncItemFinancialGroup = (
     forecastId: string,
     categoryId: string | null,
@@ -543,6 +593,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   const refreshForecastsFromApi = async () => {
     try {
       const latestForecasts = await planningApi.listForecasts(project.id);
+      syncExpensesWithForecasts(latestForecasts);
       onUpdatePlanning({
         ...planning,
         forecasts: latestForecasts,
@@ -1623,7 +1674,9 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
           editingItem={editingForecast}
           onSave={(data: any) => {
             if (editingForecast) {
+              const nextForecast = { ...editingForecast, ...data };
               onUpdatePlanning(planningService.updateForecast(planning, editingForecast.id, data));
+              syncExpenseWithForecast(nextForecast);
             } else {
               const createdBy = user?.id && user?.name
                 ? { id: user.id, name: user.name, profileImage: user.profileImage ?? null }
