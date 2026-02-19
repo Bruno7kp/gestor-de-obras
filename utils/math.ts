@@ -127,6 +127,28 @@ export const financial = {
   },
 
   /**
+   * Máscara decimal com escala configurável (digitação por deslocamento à esquerda).
+   * Ex.: scale=2 e entrada "1000" -> "10,00"
+   */
+  maskDecimal: (value: string, fractionDigits = 2): string => {
+    const scale = financial.clampDecimals(fractionDigits, 0, 10);
+    const digits = value.replace(/\D/g, '');
+    if (!digits) {
+      return new Intl.NumberFormat('pt-BR', {
+        minimumFractionDigits: scale,
+        maximumFractionDigits: scale,
+      }).format(0);
+    }
+
+    const divisor = scale > 0 ? 10 ** scale : 1;
+    const numberValue = parseInt(digits, 10) / divisor;
+    return new Intl.NumberFormat('pt-BR', {
+      minimumFractionDigits: scale,
+      maximumFractionDigits: scale,
+    }).format(numberValue);
+  },
+
+  /**
    * Converte uma string formatada de volta para número.
    */
   parseLocaleNumber: (value: string): number => {

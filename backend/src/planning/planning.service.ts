@@ -307,10 +307,9 @@ export class PlanningService {
 
     await this.prisma.materialForecast.createMany({
       data: input.items.map((item, index) => ({
-        id: item.id,
+        ...(item.id ? { id: item.id } : {}),
         projectPlanningId: planning.id,
         description: item.description,
-        calculationMemory: item.calculationMemory ?? null,
         unit: item.unit,
         quantityNeeded: item.quantityNeeded,
         unitPrice: item.unitPrice,
@@ -431,10 +430,9 @@ export class PlanningService {
 
     await this.prisma.materialForecast.createMany({
       data: items.map((item, index) => ({
-        id: item.id,
+        ...(item.id ? { id: item.id } : {}),
         projectPlanningId: group.projectPlanningId,
         description: item.description,
-        calculationMemory: item.calculationMemory ?? null,
         unit: item.unit,
         quantityNeeded: item.quantityNeeded,
         unitPrice: item.unitPrice,
@@ -793,7 +791,7 @@ export class PlanningService {
     ];
 
     const taskData = tasks.map((t) => ({
-      id: t.id,
+      ...(t.id ? { id: t.id } : {}),
       projectPlanningId: planning.id,
       categoryId: t.categoryId ?? null,
       description: t.description,
@@ -805,10 +803,9 @@ export class PlanningService {
     }));
 
     const forecastData = forecasts.map((f) => ({
-      id: f.id,
+      ...(f.id ? { id: f.id } : {}),
       projectPlanningId: planning.id,
       description: f.description,
-      calculationMemory: f.calculationMemory ?? null,
       unit: f.unit,
       quantityNeeded: f.quantityNeeded,
       unitPrice: f.unitPrice,
@@ -828,7 +825,7 @@ export class PlanningService {
     }));
 
     const milestoneData = milestones.map((m) => ({
-      id: m.id,
+      ...(m.id ? { id: m.id } : {}),
       projectPlanningId: planning.id,
       title: m.title,
       date: m.date,

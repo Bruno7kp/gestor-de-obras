@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { removeLocalUploads } from '../uploads/file.utils';
 import { ensureProjectAccess } from '../common/project-access.util';
+import { NotificationsService } from '../notifications/notifications.service';
 
 interface LaborPaymentInput {
   id?: string;
@@ -32,12 +33,110 @@ interface CreateLaborContractInput {
 
 interface UpdateLaborContractInput extends Partial<CreateLaborContractInput> {
   id: string;
+  instanceId: string;
   userId?: string;
 }
 
 @Injectable()
 export class LaborContractsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
+
+  private async emitLaborContractCreatedNotification(
+    instanceId: string,
+    contract: {
+      id: string;
+      projectId: string;
+      descricao: string;
+      valorTotal: number;
+      associadoId: string;
+    },
+  ) {
+    await this.notificationsService.emit({
+      instanceId,
+      projectId: contract.projectId,
+      category: 'WORKFORCE',
+      eventType: 'LABOR_CONTRACT_CREATED',
+      priority: 'normal',
+      title: 'Contrato de Mão de Obra Criado',
+      body: `Novo contrato registrado: ${contract.descricao}. Valor total: R$ ${contract.valorTotal.toFixed(2)}.`,
+      dedupeKey: `labor-contract:${contract.id}:CREATED`,
+      permissionCodes: ['workforce.view', 'workforce.edit', 'financial_flow.view', 'financial_flow.edit'],
+      includeProjectMembers: true,
+      metadata: {
+        contractId: contract.id,
+        associadoId: contract.associadoId,
+      },
+    });
+  }
+
+  private async emitLaborContractStatusChangedNotification(
+    instanceId: string,
+    contract: {
+      id: string;
+      projectId: string;
+      descricao: string;
+      status: string;
+      valorPago: number;
+      valorTotal: number;
+    },
+    previousStatus: string,
+  ) {
+    if (previousStatus === contract.status) return;
+
+    await this.notificationsService.emit({
+      instanceId,
+      projectId: contract.projectId,
+      category: 'WORKFORCE',
+      eventType: 'LABOR_CONTRACT_STATUS_CHANGED',
+      priority: contract.status === 'pago' ? 'high' : 'normal',
+      title: 'Atualização de Contrato de Mão de Obra',
+      body: `Contrato ${contract.descricao} alterado de ${previousStatus} para ${contract.status}. Pago: R$ ${contract.valorPago.toFixed(2)} de R$ ${contract.valorTotal.toFixed(2)}.`,
+      dedupeKey: `labor-contract:${contract.id}:STATUS:${contract.status}`,
+      permissionCodes: ['workforce.view', 'workforce.edit', 'financial_flow.view', 'financial_flow.edit'],
+      includeProjectMembers: true,
+      metadata: {
+        contractId: contract.id,
+        previousStatus,
+        status: contract.status,
+        valorPago: contract.valorPago,
+      },
+    });
+  }
+
+  private async emitLaborPaymentRecordedNotification(
+    instanceId: string,
+    contract: {
+      id: string;
+      projectId: string;
+      descricao: string;
+    },
+    payment: {
+      id: string;
+      valor: number;
+      data: string;
+    },
+  ) {
+    await this.notificationsService.emit({
+      instanceId,
+      projectId: contract.projectId,
+      category: 'WORKFORCE',
+      eventType: 'LABOR_PAYMENT_RECORDED',
+      priority: 'high',
+      title: 'Pagamento de Mão de Obra Registrado',
+      body: `Pagamento registrado para ${contract.descricao}: R$ ${payment.valor.toFixed(2)} em ${payment.data}.`,
+      dedupeKey: `labor-payment:${payment.id}:RECORDED`,
+      permissionCodes: ['workforce.view', 'workforce.edit', 'financial_flow.view', 'financial_flow.edit'],
+      includeProjectMembers: true,
+      metadata: {
+        contractId: contract.id,
+        paymentId: payment.id,
+        paymentDate: payment.data,
+      },
+    });
+  }
 
   private normalizeOrder(value?: number) {
     if (!Number.isFinite(value)) return 0;
@@ -127,7 +226,7 @@ export class LaborContractsService {
     const totals = this.getPaymentTotals(pagamentos, input.valorTotal);
     const normalizedOrder = this.normalizeOrder(input.ordem);
 
-    return this.prisma.$transaction(async prisma => {
+    const created = await this.prisma.$transaction(async prisma => {
       const contract = await prisma.laborContract.create({
         data: {
           projectId: input.projectId,
@@ -180,6 +279,18 @@ export class LaborContractsService {
         },
       });
     });
+
+    if (created) {
+      await this.emitLaborContractCreatedNotification(input.instanceId, {
+        id: created.id,
+        projectId: created.projectId,
+        descricao: created.descricao,
+        valorTotal: created.valorTotal,
+        associadoId: created.associadoId,
+      });
+    }
+
+    return created;
   }
 
   async update(input: UpdateLaborContractInput) {
@@ -211,7 +322,9 @@ export class LaborContractsService {
       ? linkedWorkItemIds[0] || null
       : existing.linkedWorkItemId;
 
-    return this.prisma.$transaction(async prisma => {
+    const previousStatus = existing.status;
+
+    const updated = await this.prisma.$transaction(async prisma => {
       const updated = await prisma.laborContract.update({
         where: { id: existing.id },
         data: {
@@ -286,6 +399,23 @@ export class LaborContractsService {
         },
       });
     });
+
+    if (updated) {
+      await this.emitLaborContractStatusChangedNotification(
+        input.instanceId,
+        {
+          id: updated.id,
+          projectId: updated.projectId,
+          descricao: updated.descricao,
+          status: updated.status,
+          valorPago: updated.valorPago,
+          valorTotal: updated.valorTotal,
+        },
+        previousStatus,
+      );
+    }
+
+    return updated;
   }
 
   async upsertPayment(
@@ -339,6 +469,8 @@ export class LaborContractsService {
     });
     const totals = this.getPaymentTotals(allPayments, existing.valorTotal);
 
+    const previousStatus = existing.status;
+
     await this.prisma.laborContract.update({
       where: { id: existing.id },
       data: {
@@ -347,7 +479,7 @@ export class LaborContractsService {
       },
     });
 
-    return this.prisma.laborContract.findUnique({
+    const updated = await this.prisma.laborContract.findUnique({
       where: { id: existing.id },
       include: {
         pagamentos: {
@@ -357,6 +489,37 @@ export class LaborContractsService {
         linkedWorkItems: { select: { workItemId: true } },
       },
     });
+
+    if (updated) {
+      await this.emitLaborPaymentRecordedNotification(
+        instanceId,
+        {
+          id: updated.id,
+          projectId: updated.projectId,
+          descricao: updated.descricao,
+        },
+        {
+          id: paymentId,
+          valor: payment.valor,
+          data: payment.data,
+        },
+      );
+
+      await this.emitLaborContractStatusChangedNotification(
+        instanceId,
+        {
+          id: updated.id,
+          projectId: updated.projectId,
+          descricao: updated.descricao,
+          status: updated.status,
+          valorPago: updated.valorPago,
+          valorTotal: updated.valorTotal,
+        },
+        previousStatus,
+      );
+    }
+
+    return updated;
   }
 
   async remove(id: string, instanceId: string, userId?: string) {

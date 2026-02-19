@@ -1,10 +1,10 @@
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Project, GlobalSettings, WorkItem, Supplier, ProjectAsset, ProjectExpense, ProjectPlanning, PlanningTask, MaterialForecast, Milestone } from '../types';
+import { Project, GlobalSettings, WorkItem, Supplier, ProjectAsset, ProjectExpense, ProjectPlanning, PlanningTask, MaterialForecast, Milestone, UserNotification } from '../types';
 import {
   Layers, BarChart3, Coins, Users, HardHat, BookOpen, FileText, Sliders, Boxes,
   CheckCircle2, History, Calendar, Lock, ChevronDown,
-  ArrowRight, Clock, Undo2, Redo2, RotateCcw, AlertTriangle, X, Target, Info, RefreshCw, Briefcase, Edit2, Check
+  ArrowRight, Clock, Undo2, Redo2, RotateCcw, AlertTriangle, X, Target, Info, RefreshCw, Briefcase, Edit2, Check, Bell
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
@@ -22,6 +22,7 @@ import { BrandingView } from './BrandingView';
 import { WorkItemModal } from './WorkItemModal';
 import { ProjectMembersBadge } from './ProjectMembersBadge';
 import { ProjectMembersModal } from './ProjectMembersModal';
+import { ProjectNotificationsDrawer } from './ProjectNotificationsDrawer';
 import { PrintReport } from './PrintReport';
 import { PrintExpenseReport } from './PrintExpenseReport';
 import { PrintPlanningReport } from './PrintPlanningReport';
@@ -53,13 +54,21 @@ interface ProjectWorkspaceProps {
   onRedo: () => void;
   activeTab: TabID;
   onTabChange: (tab: TabID) => void;
+  notifications: UserNotification[];
+  notificationsLoading: boolean;
+  unreadNotificationsCount: number;
+  onRefreshNotifications: () => Promise<void> | void;
+  onMarkNotificationRead: (id: string) => Promise<void> | void;
+  onMarkAllNotificationsRead: () => Promise<void> | void;
 }
 
 export type TabID = 'wbs' | 'stats' | 'expenses' | 'supplies' | 'workforce' | 'labor-contracts' | 'planning' | 'schedule' | 'journal' | 'documents' | 'branding';
 
 export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   project, globalSettings, suppliers, isExternalProject: isExternalProjectProp = false, onUpdateProject, onCloseMeasurement,
-  canUndo, canRedo, onUndo, onRedo, activeTab, onTabChange
+  canUndo, canRedo, onUndo, onRedo, activeTab, onTabChange,
+  notifications, notificationsLoading, unreadNotificationsCount,
+  onRefreshNotifications, onMarkNotificationRead, onMarkAllNotificationsRead,
 }) => {
   const { user } = useAuth();
   const { canView: canViewGlobal, getLevel: getLevelGlobal, loading: permissionsLoading } = usePermissions();
@@ -78,6 +87,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const [externalSuppliers, setExternalSuppliers] = useState<Supplier[]>([]);
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(project.name);
+  const [showNotificationsDrawer, setShowNotificationsDrawer] = useState(false);
 
   const tabsNavRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef<{ x: number; scrollLeft: number; moved: boolean } | null>(null);
@@ -1033,6 +1043,22 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
             canEdit={canEditMembers}
           />
 
+          <button
+            onClick={() => {
+              setShowNotificationsDrawer(true);
+              void onRefreshNotifications();
+            }}
+            className="relative p-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-200 hover:text-indigo-600 hover:border-indigo-300 transition-all"
+            title="Notificações"
+          >
+            <Bell size={16} />
+            {unreadNotificationsCount > 0 && (
+              <span className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full bg-rose-500 text-white text-[9px] font-black min-w-5 text-center">
+                {unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}
+              </span>
+            )}
+          </button>
+
           {!isHistoryMode && (
             <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl mr-2 border border-slate-200 dark:border-slate-700 shadow-inner">
               <button
@@ -1096,6 +1122,19 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
       ) : (
         <>
           {/* 2. SUB-NAVEGAÇÃO */}
+
+      <ProjectNotificationsDrawer
+        isOpen={showNotificationsDrawer}
+        onClose={() => setShowNotificationsDrawer(false)}
+        notifications={notifications}
+        loading={notificationsLoading}
+        onMarkRead={(id) => {
+          void onMarkNotificationRead(id);
+        }}
+        onMarkAllRead={() => {
+          void onMarkAllNotificationsRead();
+        }}
+      />
           <nav className="no-print bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 shrink-0 sticky top-0 z-20 overflow-hidden">
             <div
               ref={tabsNavRef}

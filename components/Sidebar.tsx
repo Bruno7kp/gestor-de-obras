@@ -23,11 +23,13 @@ interface SidebarProps {
   isDarkMode: boolean;
   toggleDarkMode: () => void;
   certificates: CompanyCertificate[];
+  unreadNotificationsByProject: Record<string, number>;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   isOpen, setIsOpen, mobileOpen, setMobileOpen,
   projects, groups, activeProjectId, isActiveExternal, externalProjects, onOpenProject, onCreateProject, onBackToDashboard, isDarkMode, toggleDarkMode, certificates
+  , unreadNotificationsByProject
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -93,6 +95,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </button>
   );
 
+  const ProjectNotificationBadge = ({ projectId }: { projectId: string }) => {
+    const count = unreadNotificationsByProject[projectId] ?? 0;
+    if (count <= 0) return null;
+    return (
+      <span className="ml-auto px-2 py-0.5 rounded-full bg-rose-500 text-white text-[9px] font-black min-w-5 text-center">
+        {count > 99 ? '99+' : count}
+      </span>
+    );
+  };
+
   const ExternalProjectsSection: React.FC<{
     isOpen: boolean;
     externalProjects: ExternalProject[];
@@ -151,11 +163,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   >
                     <Globe size={16} className="shrink-0 text-emerald-500" />
                     {sidebarOpen && (
-                      <div className="flex flex-col items-start min-w-0">
-                        <span className="text-xs truncate w-full text-left">{ep.projectName}</span>
-                        <span className="text-[9px] text-slate-400 dark:text-slate-300 truncate w-full text-left">{ep.assignedRole.name}</span>
+                      <div className="flex items-start min-w-0 w-full gap-2">
+                        <div className="flex flex-col items-start min-w-0 flex-1">
+                          <span className="text-xs truncate w-full text-left">{ep.projectName}</span>
+                          <span className="text-[9px] text-slate-400 dark:text-slate-300 truncate w-full text-left">{ep.assignedRole.name}</span>
+                        </div>
+                        <ProjectNotificationBadge projectId={ep.projectId} />
                       </div>
                     )}
+                    {!sidebarOpen && <ProjectNotificationBadge projectId={ep.projectId} />}
                   </button>
                 ))}
               </div>
@@ -203,6 +219,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button key={p.id} onClick={() => onOpenProject(p.id)} className={`w-full flex items-center gap-2 p-2 rounded-xl transition-all ${activeProjectId === p.id ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 font-bold' : 'text-slate-400 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}`} style={{ paddingLeft: `${(depth + 1) * 12 + 18}px` }}>
                 <Briefcase size={12} className="shrink-0" />
                 {isOpen && <span className="text-[11px] truncate">{p.name}</span>}
+                <ProjectNotificationBadge projectId={p.id} />
               </button>
             ))}
           </>
@@ -301,6 +318,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <button key={p.id} onClick={() => onOpenProject(p.id)} className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${activeProjectId === p.id && location.pathname.startsWith('/app/projects') ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 font-bold' : 'text-slate-500 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'} ${!isOpen && 'justify-center'}`}>
                     <Briefcase size={16} className="shrink-0" />
                     {isOpen && <span className="text-xs truncate text-left">{p.name}</span>}
+                    <ProjectNotificationBadge projectId={p.id} />
                   </button>
                 ))}
               </div>

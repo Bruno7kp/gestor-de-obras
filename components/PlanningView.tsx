@@ -2148,6 +2148,7 @@ const ProcurementStep = ({ active, onClick, label, count, icon, color }: any) =>
 
 const MIN_UNIT_PRICE_DECIMALS = 2;
 const MAX_UNIT_PRICE_DECIMALS = 6;
+const QUANTITY_DECIMALS = 2;
 type DiscountDriver = 'percent' | 'value';
 
 const countDecimalPlaces = (value: number) => {
@@ -2171,6 +2172,16 @@ const formatUnitPriceByScale = (value: number, scale: number) =>
       '',
       financial.clampDecimals(scale, MIN_UNIT_PRICE_DECIMALS, MAX_UNIT_PRICE_DECIMALS),
       financial.clampDecimals(scale, MIN_UNIT_PRICE_DECIMALS, MAX_UNIT_PRICE_DECIMALS),
+    )
+    .trim();
+
+const formatQuantityByScale = (value: number, scale = QUANTITY_DECIMALS) =>
+  financial
+    .formatVisualPrecision(
+      value || 0,
+      '',
+      financial.clampDecimals(scale, 0, 10),
+      financial.clampDecimals(scale, 0, 10),
     )
     .trim();
 
@@ -2543,10 +2554,11 @@ const ForecastModal = ({ onClose, onSave, projectId, allWorkItems, suppliers, ex
     const subtotal = (data.quantityNeeded || 0) * (data.unitPrice || 0);
 
     if (field === 'percent') {
+      const masked = financial.maskDecimal(value, 2);
       setDiscountDriver('percent');
-      const discountPercentage = financial.normalizePercent(financial.parseLocaleNumber(value));
+      const discountPercentage = financial.normalizePercent(financial.parseLocaleNumber(masked));
       const discountValue = financial.normalizeMoney(subtotal * (discountPercentage / 100));
-      setStrDiscountPercent(value);
+      setStrDiscountPercent(masked);
       setStrDiscountValue(financial.formatVisual(discountValue, '').trim());
 
       if (isEditingTotalNet) {
@@ -2559,7 +2571,7 @@ const ForecastModal = ({ onClose, onSave, projectId, allWorkItems, suppliers, ex
           {
             keepRawDiscountInput: {
               field: 'percent',
-              value,
+              value: masked,
             },
           },
         );
@@ -2577,12 +2589,13 @@ const ForecastModal = ({ onClose, onSave, projectId, allWorkItems, suppliers, ex
       return;
     }
 
-    const discountValue = financial.normalizeMoney(financial.parseLocaleNumber(value));
+    const masked = financial.maskCurrency(value);
+    const discountValue = financial.normalizeMoney(financial.parseLocaleNumber(masked));
     const discountPercentage = subtotal > 0
       ? financial.normalizePercent((discountValue / subtotal) * 100)
       : 0;
     setDiscountDriver('value');
-    setStrDiscountValue(value);
+    setStrDiscountValue(masked);
     setStrDiscountPercent(financial.formatVisual(discountPercentage, '').trim());
 
     if (isEditingTotalNet) {
@@ -2595,7 +2608,7 @@ const ForecastModal = ({ onClose, onSave, projectId, allWorkItems, suppliers, ex
         {
           keepRawDiscountInput: {
             field: 'value',
-            value,
+            value: masked,
           },
         },
       );
@@ -2741,12 +2754,15 @@ const ForecastModal = ({ onClose, onSave, projectId, allWorkItems, suppliers, ex
               <div>
                 <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest block mb-3 text-center">Quantidade</label>
                 <input 
-                  type="number" 
-                  step="any"
+                  type="text"
+                  inputMode="decimal"
                   className="w-full px-4 py-5 rounded-3xl bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-white text-sm font-black text-center outline-none focus:border-indigo-600" 
-                  value={data.quantityNeeded} 
+                  value={formatQuantityByScale(data.quantityNeeded || 0)}
                   onChange={e => {
-                    const nextQuantity = financial.normalizeQuantity(parseFloat(e.target.value) || 0);
+                    const masked = financial.maskDecimal(e.target.value, QUANTITY_DECIMALS);
+                    const nextQuantity = financial.normalizeQuantity(
+                      financial.parseLocaleNumber(masked),
+                    );
 
                     if (isEditingTotalNet) {
                       const synchronized = applyTargetNetTotal(
@@ -2813,8 +2829,9 @@ const ForecastModal = ({ onClose, onSave, projectId, allWorkItems, suppliers, ex
                     disabled={isEditingTotalNet}
                     onChange={e => {
                       setManualEdited((prev) => ({ ...prev, unitPrice: true }));
+                      const masked = financial.maskDecimal(e.target.value, unitPriceDecimals);
                       const parsedPrice = normalizeUnitPriceByScale(
-                        financial.parseLocaleNumber(e.target.value),
+                        financial.parseLocaleNumber(masked),
                         unitPriceDecimals,
                       );
                       const nextDiscount = resolveDiscountFromDriver(
@@ -2823,7 +2840,7 @@ const ForecastModal = ({ onClose, onSave, projectId, allWorkItems, suppliers, ex
                         data.discountValue || 0,
                         data.discountPercentage || 0,
                       );
-                      setStrUnitPrice(e.target.value);
+                      setStrUnitPrice(masked);
                       setStrDiscountValue(financial.formatVisual(nextDiscount.discountValue, '').trim());
                       setStrDiscountPercent(financial.formatVisual(nextDiscount.discountPercentage, '').trim());
                       syncTotalDisplay(
@@ -2874,7 +2891,7 @@ const ForecastModal = ({ onClose, onSave, projectId, allWorkItems, suppliers, ex
                className="w-full px-4 py-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-indigo-600 dark:text-indigo-400 text-xs font-bold outline-none focus:border-indigo-500 transition-all disabled:opacity-70"
                value={strTotalNet}
                onChange={(e) => {
-                 const nextRaw = e.target.value;
+                 const nextRaw = financial.maskCurrency(e.target.value);
                  setStrTotalNet(nextRaw);
 
                  if (!isEditingTotalNet) return;
@@ -3057,6 +3074,8 @@ const SupplyGroupModal = ({
   );
   const [saving, setSaving] = useState(false);
   const [draftTotalNetByRow, setDraftTotalNetByRow] = useState<Record<number, string>>({});
+  const [draftDiscountPercentByRow, setDraftDiscountPercentByRow] = useState<Record<number, string>>({});
+  const [draftDiscountValueByRow, setDraftDiscountValueByRow] = useState<Record<number, string>>({});
   const [expandedMemoryRows, setExpandedMemoryRows] = useState<Record<number, boolean>>({});
   const [confirmingRemoveItemIndex, setConfirmingRemoveItemIndex] = useState<number | null>(null);
   const [suggestionsByRow, setSuggestionsByRow] = useState<Record<number, MaterialSuggestion[]>>({});
@@ -3276,9 +3295,11 @@ const SupplyGroupModal = ({
 
     setItems((prev) => prev.map((item, idx) => {
       if (idx !== index) return item;
+      const decimals = item.unitPriceDecimals || MIN_UNIT_PRICE_DECIMALS;
+      const masked = financial.maskDecimal(inputValue, decimals);
       const parsed = normalizeUnitPriceByScale(
-        financial.parseLocaleNumber(inputValue),
-        item.unitPriceDecimals || MIN_UNIT_PRICE_DECIMALS,
+        financial.parseLocaleNumber(masked),
+        decimals,
       );
       const subtotal = (item.quantityNeeded || 0) * parsed;
       const nextDiscount = resolveRowDiscountFromDriver(
@@ -3297,7 +3318,26 @@ const SupplyGroupModal = ({
   };
 
   const handleItemDiscountChange = (index: number, inputValue: string, field: 'value' | 'percent') => {
-    const parsed = financial.parseLocaleNumber(inputValue);
+    const masked = field === 'percent'
+      ? financial.maskDecimal(inputValue, 2)
+      : financial.maskCurrency(inputValue);
+    const parsed = financial.parseLocaleNumber(masked);
+
+    if (field === 'percent') {
+      setDraftDiscountPercentByRow((prev) => ({ ...prev, [index]: masked }));
+      setDraftDiscountValueByRow((prev) => {
+        const next = { ...prev };
+        delete next[index];
+        return next;
+      });
+    } else {
+      setDraftDiscountValueByRow((prev) => ({ ...prev, [index]: masked }));
+      setDraftDiscountPercentByRow((prev) => {
+        const next = { ...prev };
+        delete next[index];
+        return next;
+      });
+    }
 
     setItems((prev) => prev.map((item, idx) => {
       if (idx !== index) return item;
@@ -3338,8 +3378,9 @@ const SupplyGroupModal = ({
   };
 
   const handleItemTotalNetChange = (index: number, inputValue: string) => {
-    setDraftTotalNetByRow((prev) => ({ ...prev, [index]: inputValue }));
-    const target = financial.normalizeMoney(financial.parseLocaleNumber(inputValue));
+    const masked = financial.maskCurrency(inputValue);
+    setDraftTotalNetByRow((prev) => ({ ...prev, [index]: masked }));
+    const target = financial.normalizeMoney(financial.parseLocaleNumber(masked));
     setItems((prev) => prev.map((item, idx) => {
       if (idx !== index) return item;
       if (!item.isEditingTotalNet) return item;
@@ -3619,12 +3660,15 @@ const SupplyGroupModal = ({
                       </td>
                       <td className="p-3 w-[110px]">
                         <input
-                          type="number"
-                          step="any"
+                          type="text"
+                          inputMode="decimal"
                           className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-semibold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500"
-                          value={item.quantityNeeded}
+                          value={formatQuantityByScale(item.quantityNeeded || 0)}
                           onChange={(event) => {
-                            const quantityNeeded = Number(event.target.value || 0);
+                            const masked = financial.maskDecimal(event.target.value, QUANTITY_DECIMALS);
+                            const quantityNeeded = financial.normalizeQuantity(
+                              financial.parseLocaleNumber(masked),
+                            );
                             const currentTotal = getRowTotal(item);
                             const nextDiscount = resolveRowDiscountFromDriver(
                               quantityNeeded * (item.unitPrice || 0),
@@ -3688,8 +3732,15 @@ const SupplyGroupModal = ({
                               type="text"
                               inputMode="decimal"
                               className="w-full pl-6 pr-12 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10px] font-black text-rose-600 dark:text-rose-400 outline-none focus:border-rose-500"
-                              value={financial.formatVisual(item.discountPercentage || 0, '').trim()}
+                              value={draftDiscountPercentByRow[index] ?? financial.formatVisual(item.discountPercentage || 0, '').trim()}
                               onChange={(event) => handleItemDiscountChange(index, event.target.value, 'percent')}
+                              onBlur={() => {
+                                setDraftDiscountPercentByRow((prev) => {
+                                  const next = { ...prev };
+                                  delete next[index];
+                                  return next;
+                                });
+                              }}
                             />
                             <button
                               type="button"
@@ -3710,8 +3761,15 @@ const SupplyGroupModal = ({
                               type="text"
                               inputMode="decimal"
                               className="w-full pl-7 pr-8 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10px] font-black text-rose-600 dark:text-rose-400 outline-none focus:border-rose-500"
-                              value={financial.formatVisual(item.discountValue || 0, '').trim()}
+                              value={draftDiscountValueByRow[index] ?? financial.formatVisual(item.discountValue || 0, '').trim()}
                               onChange={(event) => handleItemDiscountChange(index, event.target.value, 'value')}
+                              onBlur={() => {
+                                setDraftDiscountValueByRow((prev) => {
+                                  const next = { ...prev };
+                                  delete next[index];
+                                  return next;
+                                });
+                              }}
                             />
                             <button
                               type="button"

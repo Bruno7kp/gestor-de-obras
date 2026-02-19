@@ -23,6 +23,7 @@ interface DashboardViewProps {
   onUpdateGroups: (g: ProjectGroup[]) => void;
   onBulkUpdate: (updates: { projects?: Project[], groups?: ProjectGroup[] }) => void;
   externalProjects: ExternalProject[];
+  unreadNotificationsByProject: Record<string, number>;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = (props) => {
@@ -479,6 +480,7 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
                             <ProjectCard 
                               provided={pr} 
                               project={p} 
+                              unreadCount={props.unreadNotificationsByProject[p.id] ?? 0}
                               onOpen={() => props.onOpenProject(p.id)} 
                               onRename={() => { setEditingProject(p); setNewName(p.name); }} 
                               onDelete={() => setIsDeleting({ type: 'project', id: p.id })} 
@@ -489,6 +491,7 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
                             <ProjectRow
                               provided={pr}
                               project={p}
+                              unreadCount={props.unreadNotificationsByProject[p.id] ?? 0}
                               onOpen={() => props.onOpenProject(p.id)}
                               onRename={() => { setEditingProject(p); setNewName(p.name); }}
                               onDelete={() => setIsDeleting({ type: 'project', id: p.id })}
@@ -541,6 +544,7 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
                               <ProjectCard 
                                 provided={pr} 
                                 project={p} 
+                                unreadCount={props.unreadNotificationsByProject[p.id] ?? 0}
                                 onOpen={() => props.onOpenProject(p.id)} 
                                 onRename={() => { setEditingProject(p); setNewName(p.name); }} 
                                 onDelete={() => setIsDeleting({ type: 'project', id: p.id })} 
@@ -551,6 +555,7 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
                               <ProjectRow
                                 provided={pr}
                                 project={p}
+                                unreadCount={props.unreadNotificationsByProject[p.id] ?? 0}
                                 onOpen={() => props.onOpenProject(p.id)}
                                 onRename={() => { setEditingProject(p); setNewName(p.name); }} 
                                 onDelete={() => setIsDeleting({ type: 'project', id: p.id })}
@@ -576,6 +581,7 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
             projects={filteredExternalProjects}
             viewMode={viewMode}
             onOpenProject={props.onOpenProject}
+            unreadNotificationsByProject={props.unreadNotificationsByProject}
           />
         )}
       </div>
@@ -641,8 +647,9 @@ const FolderCard = ({ group, onOpen, onRename, onDelete, onMove, provided, canRe
   </div>
 );
 
-const ProjectCard = ({ project, onOpen, onRename, onDelete, onMove, provided, canRename }: {
+const ProjectCard = ({ project, unreadCount, onOpen, onRename, onDelete, onMove, provided, canRename }: {
   project: Project,
+  unreadCount: number,
   onOpen: () => void,
   onRename: () => void,
   onDelete: () => void,
@@ -672,6 +679,11 @@ const ProjectCard = ({ project, onOpen, onRename, onDelete, onMove, provided, ca
         </div>
       </div>
       <h3 className="text-sm font-black text-slate-800 dark:text-white truncate uppercase tracking-tight">{project.name}</h3>
+      {unreadCount > 0 && (
+        <div className="mt-2 inline-flex items-center px-2 py-1 rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-600 text-[9px] font-black uppercase tracking-widest">
+          {unreadCount > 99 ? '99+' : unreadCount} notificações
+        </div>
+      )}
       <div className="mt-6 space-y-2">
         <div className="flex justify-between items-end text-[8px] font-black uppercase tracking-widest text-slate-400">
            <span>Avanço Físico</span>
@@ -720,8 +732,9 @@ const FolderRow = ({ group, onOpen, onRename, onDelete, onMove, provided, canRen
   </div>
 );
 
-const ProjectRow = ({ project, onOpen, onRename, onDelete, onMove, provided, canRename }: {
+const ProjectRow = ({ project, unreadCount, onOpen, onRename, onDelete, onMove, provided, canRename }: {
   project: Project,
+  unreadCount: number,
   onOpen: () => void,
   onRename: () => void,
   onDelete: () => void,
@@ -747,6 +760,11 @@ const ProjectRow = ({ project, onOpen, onRename, onDelete, onMove, provided, can
         <div className="min-w-0">
           <p className="text-[10px] font-black uppercase text-slate-400">Obra</p>
           <h3 className="text-sm font-black text-slate-800 dark:text-white truncate">{project.name}</h3>
+          {unreadCount > 0 && (
+            <p className="text-[9px] font-black uppercase tracking-widest text-rose-600 mt-1">
+              {unreadCount > 99 ? '99+' : unreadCount} notificações
+            </p>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-4">
@@ -773,10 +791,12 @@ const ExternalProjectsSection = ({
   projects,
   viewMode,
   onOpenProject,
+  unreadNotificationsByProject,
 }: {
   projects: ExternalProject[];
   viewMode: 'grid' | 'list';
   onOpenProject: (id: string) => void;
+  unreadNotificationsByProject: Record<string, number>;
 }) => (
   <div className="mt-8 space-y-4">
     <div className="flex items-center gap-3">
@@ -797,6 +817,7 @@ const ExternalProjectsSection = ({
             <ExternalProjectCard
               key={project.projectId}
               project={project}
+              unreadCount={unreadNotificationsByProject[project.projectId] ?? 0}
               onOpen={() => onOpenProject(project.projectId)}
             />
           )
@@ -804,6 +825,7 @@ const ExternalProjectsSection = ({
             <ExternalProjectRow
               key={project.projectId}
               project={project}
+              unreadCount={unreadNotificationsByProject[project.projectId] ?? 0}
               onOpen={() => onOpenProject(project.projectId)}
             />
           )
@@ -812,8 +834,9 @@ const ExternalProjectsSection = ({
   </div>
 );
 
-const ExternalProjectCard = ({ project, onOpen }: {
+const ExternalProjectCard = ({ project, unreadCount, onOpen }: {
   project: ExternalProject;
+  unreadCount: number;
   onOpen: () => void;
 }) => (
   <div
@@ -829,13 +852,19 @@ const ExternalProjectCard = ({ project, onOpen }: {
       </span>
     </div>
     <h3 className="text-sm font-black text-slate-800 dark:text-white truncate uppercase tracking-tight">{project.projectName}</h3>
+    {unreadCount > 0 && (
+      <div className="mt-2 inline-flex items-center px-2 py-1 rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-600 text-[9px] font-black uppercase tracking-widest">
+        {unreadCount > 99 ? '99+' : unreadCount} notificações
+      </div>
+    )}
     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">{project.companyName}</p>
     <p className="text-[9px] font-bold text-slate-400 mt-4">{project.instanceName}</p>
   </div>
 );
 
-const ExternalProjectRow = ({ project, onOpen }: {
+const ExternalProjectRow = ({ project, unreadCount, onOpen }: {
   project: ExternalProject;
+  unreadCount: number;
   onOpen: () => void;
 }) => (
   <div
@@ -850,6 +879,11 @@ const ExternalProjectRow = ({ project, onOpen }: {
         <p className="text-[10px] font-black uppercase text-slate-400">Compartilhado</p>
         <h3 className="text-sm font-black text-slate-800 dark:text-white truncate">{project.projectName}</h3>
         <p className="text-[9px] font-bold text-slate-400 truncate">{project.instanceName}</p>
+        {unreadCount > 0 && (
+          <p className="text-[9px] font-black uppercase tracking-widest text-rose-600 mt-1">
+            {unreadCount > 99 ? '99+' : unreadCount} notificações
+          </p>
+        )}
       </div>
     </div>
     <div className="text-[9px] font-black uppercase tracking-widest text-teal-600 bg-teal-50 dark:bg-teal-900/20 px-2 py-1 rounded-full">

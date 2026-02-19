@@ -1,0 +1,145 @@
+import { UserNotification } from '../types';
+
+export type NotificationTypeKey =
+  | 'SUPRIMENTO'
+  | 'MAO_DE_OBRA'
+  | 'OUTROS';
+
+export type NotificationSubtypeKey =
+  | 'COMPRA'
+  | 'ENTREGA'
+  | 'NO_LOCAL'
+  | 'CONTRATO_CRIADO'
+  | 'STATUS_CONTRATO'
+  | 'PAGAMENTO_MO'
+  | 'OUTROS';
+
+export const NOTIFICATION_FILTERS: Array<{ key: NotificationTypeKey | 'TODOS'; label: string }> = [
+  { key: 'TODOS', label: 'Todos' },
+  { key: 'SUPRIMENTO', label: 'Suprimentos' },
+  { key: 'MAO_DE_OBRA', label: 'M.O.' },
+];
+
+export const getNotificationType = (notification: UserNotification): NotificationTypeKey => {
+  if (
+    notification.eventType === 'LABOR_CONTRACT_CREATED' ||
+    notification.eventType === 'LABOR_CONTRACT_STATUS_CHANGED' ||
+    notification.eventType === 'LABOR_PAYMENT_RECORDED' ||
+    notification.category === 'WORKFORCE'
+  ) {
+    return 'MAO_DE_OBRA';
+  }
+
+  if (
+    notification.eventType === 'EXPENSE_PAID' ||
+    notification.eventType === 'EXPENSE_DELIVERED' ||
+    notification.eventType === 'MATERIAL_ON_SITE_CONFIRMED' ||
+    notification.category === 'FINANCIAL' ||
+    notification.category === 'SUPPLIES'
+  ) {
+    return 'SUPRIMENTO';
+  }
+
+  return 'OUTROS';
+};
+
+export const getNotificationSubtype = (notification: UserNotification): NotificationSubtypeKey => {
+  if (notification.eventType === 'EXPENSE_PAID') return 'COMPRA';
+  if (notification.eventType === 'EXPENSE_DELIVERED') return 'ENTREGA';
+  if (notification.eventType === 'MATERIAL_ON_SITE_CONFIRMED') return 'NO_LOCAL';
+  if (notification.eventType === 'LABOR_CONTRACT_CREATED') return 'CONTRATO_CRIADO';
+  if (notification.eventType === 'LABOR_CONTRACT_STATUS_CHANGED') return 'STATUS_CONTRATO';
+  if (notification.eventType === 'LABOR_PAYMENT_RECORDED') return 'PAGAMENTO_MO';
+
+  if (notification.category === 'FINANCIAL') return 'COMPRA';
+  if (notification.category === 'SUPPLIES') return 'ENTREGA';
+  if (notification.category === 'WORKFORCE') return 'STATUS_CONTRATO';
+
+  return 'OUTROS';
+};
+
+export const getNotificationTypeLabel = (type: NotificationTypeKey) => {
+  if (type === 'SUPRIMENTO') return 'Suprimentos';
+  if (type === 'MAO_DE_OBRA') return 'M.O.';
+  return 'Outros';
+};
+
+export const getNotificationSubtypeLabel = (subtype: NotificationSubtypeKey) => {
+  if (subtype === 'COMPRA') return 'Compra';
+  if (subtype === 'ENTREGA') return 'Entrega';
+  if (subtype === 'NO_LOCAL') return 'No local';
+  if (subtype === 'CONTRATO_CRIADO') return 'Contrato criado';
+  if (subtype === 'STATUS_CONTRATO') return 'Status do contrato';
+  if (subtype === 'PAGAMENTO_MO') return 'Pagamento';
+  return 'Ação';
+};
+
+export const getNotificationTypeClasses = (type: NotificationTypeKey) => {
+  if (type === 'SUPRIMENTO') {
+    return {
+      badge: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
+      border: 'border-l-amber-500',
+    };
+  }
+
+  if (type === 'MAO_DE_OBRA') {
+    return {
+      badge: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
+      border: 'border-l-indigo-500',
+    };
+  }
+
+  return {
+    badge: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
+    border: 'border-l-slate-400',
+  };
+};
+
+export const getNotificationSubtypeClasses = (subtype: NotificationSubtypeKey) => {
+  if (subtype === 'COMPRA') {
+    return {
+      badge: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
+      border: 'border-l-rose-500',
+    };
+  }
+
+  if (subtype === 'ENTREGA') {
+    return {
+      badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+      border: 'border-l-emerald-500',
+    };
+  }
+
+  if (subtype === 'NO_LOCAL') {
+    return {
+      badge: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',
+      border: 'border-l-teal-500',
+    };
+  }
+
+  if (subtype === 'CONTRATO_CRIADO') {
+    return {
+      badge: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
+      border: 'border-l-indigo-500',
+    };
+  }
+
+  if (subtype === 'STATUS_CONTRATO') {
+    return {
+      badge: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300',
+      border: 'border-l-violet-500',
+    };
+  }
+
+  if (subtype === 'PAGAMENTO_MO') {
+    return {
+      badge: 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/30 dark:text-fuchsia-300',
+      border: 'border-l-fuchsia-500',
+    };
+  }
+
+  return {
+    badge: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
+    border: 'border-l-slate-400',
+  };
+};

@@ -5,9 +5,10 @@ import { useProjectState } from './hooks/useProjectState';
 import { projectService } from './services/projectService';
 import { biddingService } from './services/biddingService';
 import { projectsApi } from './services/projectsApi';
+import { notificationsApi } from './services/notificationsApi';
 import { workItemsApi } from './services/workItemsApi';
 import { measurementSnapshotsApi } from './services/measurementSnapshotsApi';
-import type { GlobalSettings, Project, Supplier } from './types';
+import type { GlobalSettings, Project, Supplier, UserNotification } from './types';
 
 import { Sidebar } from './components/Sidebar';
 import { DashboardView } from './components/DashboardView';
@@ -58,6 +59,12 @@ type ProjectRouteProps = {
   canRedo: boolean;
   undo: () => void;
   redo: () => void;
+  notifications: UserNotification[];
+  notificationsLoading: boolean;
+  unreadNotificationsCount: number;
+  onRefreshNotifications: () => Promise<void>;
+  onMarkNotificationRead: (id: string) => Promise<void>;
+  onMarkAllNotificationsRead: () => Promise<void>;
 };
 
 const ProjectRoute: React.FC<ProjectRouteProps> = ({
@@ -73,6 +80,12 @@ const ProjectRoute: React.FC<ProjectRouteProps> = ({
   canRedo,
   undo,
   redo,
+  notifications,
+  notificationsLoading,
+  unreadNotificationsCount,
+  onRefreshNotifications,
+  onMarkNotificationRead,
+  onMarkAllNotificationsRead,
 }) => {
   const { projectId, tab } = useParams();
   const navigate = useNavigate();
@@ -121,6 +134,12 @@ const ProjectRoute: React.FC<ProjectRouteProps> = ({
       onRedo={redo}
       activeTab={resolvedTab}
       onTabChange={(nextTab) => navigate(`/app/projects/${projectId}/${nextTab}`)}
+      notifications={notifications}
+      notificationsLoading={notificationsLoading}
+      unreadNotificationsCount={unreadNotificationsCount}
+      onRefreshNotifications={onRefreshNotifications}
+      onMarkNotificationRead={onMarkNotificationRead}
+      onMarkAllNotificationsRead={onMarkAllNotificationsRead}
     />
   );
 };
@@ -162,6 +181,14 @@ const App: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isClosingMeasurement, setIsClosingMeasurement] = useState(false);
+  const [unreadNotificationsByProject, setUnreadNotificationsByProject] = useState<Record<string, number>>({});
+  const [projectNotifications, setProjectNotifications] = useState<UserNotification[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+
+  const allVisibleProjectIds = useMemo(
+    () => Array.from(new Set([...ownProjects.map((project) => project.id), ...externalProjects.map((project) => project.projectId)])),
+    [ownProjects, externalProjects],
+  );
 
   useEffect(() => {
     const tabFromPath = getTabFromPath(location.pathname);
@@ -186,6 +213,87 @@ const App: React.FC = () => {
     setActiveProjectId(null);
     navigate('/app/dashboard');
   }, [setActiveProjectId, navigate]);
+
+  const refreshUnreadCounts = useCallback(async () => {
+    if (allVisibleProjectIds.length === 0) {
+      setUnreadNotificationsByProject({});
+      return;
+    }
+
+    try {
+      const entries = await Promise.all(
+        allVisibleProjectIds.map(async (projectId) => {
+          const unread = await notificationsApi.list({ projectId, unreadOnly: true, limit: 200 });
+          return [projectId, unread.length] as const;
+        }),
+      );
+      setUnreadNotificationsByProject(Object.fromEntries(entries));
+    } catch {
+      setUnreadNotificationsByProject({});
+    }
+  }, [allVisibleProjectIds]);
+
+  const refreshActiveProjectNotifications = useCallback(async () => {
+    if (!activeProjectId) {
+      setProjectNotifications([]);
+      return;
+    }
+
+    setNotificationsLoading(true);
+    try {
+      const data = await notificationsApi.list({ projectId: activeProjectId, limit: 200 });
+      setProjectNotifications(data);
+      setUnreadNotificationsByProject((prev) => ({
+        ...prev,
+        [activeProjectId]: data.filter((notification) => !notification.isRead).length,
+      }));
+    } catch {
+      setProjectNotifications([]);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }, [activeProjectId]);
+
+  const handleMarkNotificationRead = useCallback(async (id: string) => {
+    await notificationsApi.markRead(id);
+    setProjectNotifications((prev) => {
+      const current = prev.find((notification) => notification.id === id);
+      const next = prev.map((notification) =>
+        notification.id === id ? { ...notification, isRead: true, readAt: new Date().toISOString() } : notification,
+      );
+
+      if (activeProjectId && current && !current.isRead) {
+        setUnreadNotificationsByProject((counts) => ({
+          ...counts,
+          [activeProjectId]: Math.max(0, (counts[activeProjectId] ?? 0) - 1),
+        }));
+      }
+
+      return next;
+    });
+  }, [activeProjectId]);
+
+  const handleMarkAllNotificationsRead = useCallback(async () => {
+    if (!activeProjectId) return;
+    await notificationsApi.markAllRead(activeProjectId);
+    setProjectNotifications((prev) => prev.map((notification) => ({
+      ...notification,
+      isRead: true,
+      readAt: notification.readAt ?? new Date().toISOString(),
+    })));
+    setUnreadNotificationsByProject((prev) => ({
+      ...prev,
+      [activeProjectId]: 0,
+    }));
+  }, [activeProjectId]);
+
+  useEffect(() => {
+    void refreshUnreadCounts();
+  }, [refreshUnreadCounts]);
+
+  useEffect(() => {
+    void refreshActiveProjectNotifications();
+  }, [refreshActiveProjectNotifications]);
 
   const handleCloseMeasurement = useCallback(async () => {
     if (!activeProject || isClosingMeasurement) return;
@@ -286,6 +394,7 @@ const App: React.FC = () => {
         onBackToDashboard={handleBackToDashboard}
         isDarkMode={isDarkMode} toggleDarkMode={() => setIsDarkMode(!isDarkMode)}
         certificates={safeGlobalSettings.certificates}
+        unreadNotificationsByProject={unreadNotificationsByProject}
       />
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
@@ -309,6 +418,7 @@ const App: React.FC = () => {
                 onUpdateProject={updateProjects}
                 onUpdateGroups={updateGroups}
                 onBulkUpdate={bulkUpdate}
+                unreadNotificationsByProject={unreadNotificationsByProject}
               />
             }
           />
@@ -348,6 +458,12 @@ const App: React.FC = () => {
                 canRedo={canRedo}
                 undo={undo}
                 redo={redo}
+                notifications={projectNotifications}
+                notificationsLoading={notificationsLoading}
+                unreadNotificationsCount={activeProjectId ? (unreadNotificationsByProject[activeProjectId] ?? 0) : 0}
+                onRefreshNotifications={refreshActiveProjectNotifications}
+                onMarkNotificationRead={handleMarkNotificationRead}
+                onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
               />
             }
           />
