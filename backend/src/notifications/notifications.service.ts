@@ -674,6 +674,31 @@ export class NotificationsService {
     return { updated: result.count };
   }
 
+  async removeForUser(
+    notificationId: string,
+    userId: string,
+    instanceId: string,
+  ) {
+    const target = await this.prisma.notificationRecipient.findFirst({
+      where: {
+        userId,
+        notificationId,
+        notification: { instanceId },
+      },
+      select: { id: true },
+    });
+
+    if (!target) {
+      throw new NotFoundException('Notificacao nao encontrada');
+    }
+
+    await this.prisma.notificationRecipient.delete({
+      where: { id: target.id },
+    });
+
+    return { deleted: 1 };
+  }
+
   async listPreferences(
     userId: string,
     instanceId: string,

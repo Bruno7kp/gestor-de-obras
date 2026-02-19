@@ -76,6 +76,19 @@ export const notificationsApi = {
     return response.json();
   },
 
+  async remove(id: string) {
+    const response = await fetch(`${API_BASE}/notifications/${id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error('Falha ao remover notificacao');
+    }
+
+    return response.json();
+  },
+
   async listPreferences(projectId?: string): Promise<NotificationPreference[]> {
     const query = new URLSearchParams();
     if (projectId) query.set('projectId', projectId);

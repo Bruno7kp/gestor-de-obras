@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Bell, CheckCheck, Filter, X } from 'lucide-react';
+import { Bell, CheckCheck, Filter, Trash2, X } from 'lucide-react';
 import { UserNotification } from '../types';
 import {
   getNotificationSubtype,
@@ -19,6 +19,8 @@ interface ProjectNotificationsDrawerProps {
   loading: boolean;
   onMarkRead: (id: string) => void;
   onMarkAllRead: () => void;
+  onDelete: (id: string) => void;
+  deletingId?: string | null;
 }
 
 export const ProjectNotificationsDrawer: React.FC<ProjectNotificationsDrawerProps> = ({
@@ -28,6 +30,8 @@ export const ProjectNotificationsDrawer: React.FC<ProjectNotificationsDrawerProp
   loading,
   onMarkRead,
   onMarkAllRead,
+  onDelete,
+  deletingId,
 }) => {
   const [filter, setFilter] = useState<NotificationTypeKey | 'TODOS'>('TODOS');
 
@@ -139,14 +143,24 @@ export const ProjectNotificationsDrawer: React.FC<ProjectNotificationsDrawerProp
                         {notification.title}
                       </h4>
                     </div>
-                    {!notification.isRead && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      {!notification.isRead && (
+                        <button
+                          onClick={() => onMarkRead(notification.id)}
+                          className="text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-700"
+                        >
+                          Marcar lida
+                        </button>
+                      )}
                       <button
-                        onClick={() => onMarkRead(notification.id)}
-                        className="text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-700"
+                        onClick={() => onDelete(notification.id)}
+                        disabled={deletingId === notification.id}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Remover notificação"
                       >
-                        Marcar lida
+                        <Trash2 size={14} />
                       </button>
-                    )}
+                    </div>
                   </div>
                   <p className="mt-2 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{notification.body}</p>
                   <p className="mt-3 text-[10px] text-slate-400 font-semibold">

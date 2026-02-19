@@ -65,6 +65,7 @@ type ProjectRouteProps = {
   onRefreshNotifications: () => Promise<void>;
   onMarkNotificationRead: (id: string) => Promise<void>;
   onMarkAllNotificationsRead: () => Promise<void>;
+  onDeleteNotification: (id: string) => Promise<void>;
 };
 
 const ProjectRoute: React.FC<ProjectRouteProps> = ({
@@ -86,6 +87,7 @@ const ProjectRoute: React.FC<ProjectRouteProps> = ({
   onRefreshNotifications,
   onMarkNotificationRead,
   onMarkAllNotificationsRead,
+  onDeleteNotification,
 }) => {
   const { projectId, tab } = useParams();
   const navigate = useNavigate();
@@ -140,6 +142,7 @@ const ProjectRoute: React.FC<ProjectRouteProps> = ({
       onRefreshNotifications={onRefreshNotifications}
       onMarkNotificationRead={onMarkNotificationRead}
       onMarkAllNotificationsRead={onMarkAllNotificationsRead}
+      onDeleteNotification={onDeleteNotification}
     />
   );
 };
@@ -285,6 +288,23 @@ const App: React.FC = () => {
       ...prev,
       [activeProjectId]: 0,
     }));
+  }, [activeProjectId]);
+
+  const handleDeleteNotification = useCallback(async (id: string) => {
+    await notificationsApi.remove(id);
+    setProjectNotifications((prev) => {
+      const target = prev.find((notification) => notification.id === id);
+      const next = prev.filter((notification) => notification.id !== id);
+
+      if (activeProjectId && target && !target.isRead) {
+        setUnreadNotificationsByProject((counts) => ({
+          ...counts,
+          [activeProjectId]: Math.max(0, (counts[activeProjectId] ?? 0) - 1),
+        }));
+      }
+
+      return next;
+    });
   }, [activeProjectId]);
 
   useEffect(() => {
@@ -464,6 +484,7 @@ const App: React.FC = () => {
                 onRefreshNotifications={refreshActiveProjectNotifications}
                 onMarkNotificationRead={handleMarkNotificationRead}
                 onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
+                onDeleteNotification={handleDeleteNotification}
               />
             }
           />

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -71,6 +72,19 @@ export class NotificationsController {
       req.user.id,
       req.user.instanceId,
       body.projectId,
+    );
+  }
+
+  @Delete(':id')
+  @HasPermission('notifications.view', 'notifications.edit')
+  async remove(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ deleted: number }> {
+    return await this.notificationsService.removeForUser(
+      id,
+      req.user.id,
+      req.user.instanceId,
     );
   }
 

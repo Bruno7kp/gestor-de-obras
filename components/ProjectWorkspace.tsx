@@ -60,6 +60,7 @@ interface ProjectWorkspaceProps {
   onRefreshNotifications: () => Promise<void> | void;
   onMarkNotificationRead: (id: string) => Promise<void> | void;
   onMarkAllNotificationsRead: () => Promise<void> | void;
+  onDeleteNotification: (id: string) => Promise<void> | void;
 }
 
 export type TabID = 'wbs' | 'stats' | 'expenses' | 'supplies' | 'workforce' | 'labor-contracts' | 'planning' | 'schedule' | 'journal' | 'documents' | 'branding';
@@ -68,7 +69,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   project, globalSettings, suppliers, isExternalProject: isExternalProjectProp = false, onUpdateProject, onCloseMeasurement,
   canUndo, canRedo, onUndo, onRedo, activeTab, onTabChange,
   notifications, notificationsLoading, unreadNotificationsCount,
-  onRefreshNotifications, onMarkNotificationRead, onMarkAllNotificationsRead,
+  onRefreshNotifications, onMarkNotificationRead, onMarkAllNotificationsRead, onDeleteNotification,
 }) => {
   const { user } = useAuth();
   const { canView: canViewGlobal, getLevel: getLevelGlobal, loading: permissionsLoading } = usePermissions();
@@ -88,6 +89,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(project.name);
   const [showNotificationsDrawer, setShowNotificationsDrawer] = useState(false);
+  const [deletingNotificationId, setDeletingNotificationId] = useState<string | null>(null);
 
   const tabsNavRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef<{ x: number; scrollLeft: number; moved: boolean } | null>(null);
@@ -1134,6 +1136,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         onMarkAllRead={() => {
           void onMarkAllNotificationsRead();
         }}
+        onDelete={(id) => {
+          setDeletingNotificationId(id);
+          void Promise.resolve(onDeleteNotification(id)).finally(() => {
+            setDeletingNotificationId((current) => (current === id ? null : current));
+          });
+        }}
+        deletingId={deletingNotificationId}
       />
           <nav className="no-print bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 shrink-0 sticky top-0 z-20 overflow-hidden">
             <div
