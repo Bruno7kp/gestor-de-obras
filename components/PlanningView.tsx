@@ -316,6 +316,46 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     );
   };
 
+  const buildForecastWithRecalculatedDiscount = (
+    forecast: MaterialForecast,
+    updates: Partial<MaterialForecast>,
+  ): MaterialForecast => {
+    const nextQuantity = updates.quantityNeeded ?? forecast.quantityNeeded ?? 0;
+    const nextUnitPrice = updates.unitPrice ?? forecast.unitPrice ?? 0;
+    const hasDiscountPercentage =
+      forecast.discountPercentage !== undefined && forecast.discountPercentage !== null;
+
+    if (!hasDiscountPercentage) {
+      return {
+        ...forecast,
+        ...updates,
+      };
+    }
+
+    const discountPercentage = financial.normalizePercent(forecast.discountPercentage || 0);
+    const gross = (nextQuantity || 0) * (nextUnitPrice || 0);
+    const discountValue = financial.normalizeMoney(gross * (discountPercentage / 100));
+
+    return {
+      ...forecast,
+      ...updates,
+      discountPercentage,
+      discountValue,
+    };
+  };
+
+  const applyInlineForecastUpdate = (
+    forecast: MaterialForecast,
+    updates: Partial<MaterialForecast>,
+    syncFinancial = false,
+  ) => {
+    const nextForecast = buildForecastWithRecalculatedDiscount(forecast, updates);
+    onUpdatePlanning(planningService.updateForecast(planning, forecast.id, nextForecast));
+    if (syncFinancial) {
+      syncExpenseWithForecast(nextForecast);
+    }
+  };
+
   const forecastStats = useMemo(() => {
     const list = planning.forecasts || [];
     const totalList = isSuppliesView
@@ -1379,15 +1419,34 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                   step="any"
                                   className="w-16 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg px-2 py-1 text-center text-[11px] font-black outline-none focus:border-indigo-500 transition-all dark:text-slate-200"
                                   value={f.quantityNeeded}
-                                  onBlur={(e) => onUpdatePlanning(planningService.updateForecast(planning, f.id, { quantityNeeded: financial.normalizeQuantity(parseFloat(e.target.value) || 0) }))}
+                                  onBlur={(e) => {
+                                    applyInlineForecastUpdate(
+                                      f,
+                                      {
+                                        quantityNeeded: financial.normalizeQuantity(parseFloat(e.target.value) || 0),
+                                      },
+                                      true,
+                                    );
+                                  }}
                                   onChange={(e) => {
                                     const val = e.target.value;
-                                    onUpdatePlanning(planningService.updateForecast(planning, f.id, { quantityNeeded: financial.normalizeQuantity(parseFloat(val) || 0) }));
+                                    applyInlineForecastUpdate(f, {
+                                      quantityNeeded: financial.normalizeQuantity(parseFloat(val) || 0),
+                                    }, true);
                                   }}
                                 />
                               </td>
                               <td className="py-6">
-                                <InlineCurrencyInput value={f.unitPrice} onUpdate={(val: number) => onUpdatePlanning(planningService.updateForecast(planning, f.id, { unitPrice: val }))} />
+                                <InlineCurrencyInput
+                                  value={f.unitPrice}
+                                  onUpdate={(val: number) => {
+                                    applyInlineForecastUpdate(
+                                      f,
+                                      { unitPrice: val },
+                                      true,
+                                    );
+                                  }}
+                                />
                               </td>
                               <td className="py-6">
                                 <span className="text-sm font-black text-indigo-600 dark:text-indigo-400">
