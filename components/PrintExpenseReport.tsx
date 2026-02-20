@@ -1,20 +1,35 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Project, ProjectExpense, DEFAULT_THEME } from '../types';
 import { financial } from '../utils/math';
+import { expenseService } from '../services/expenseService';
 import { Landmark, TrendingDown, TrendingUp, Coins } from 'lucide-react';
 
 interface PrintExpenseReportProps {
   project: Project;
   expenses: ProjectExpense[];
   stats: any;
+  printMode?: 'complete' | 'material' | 'labor';
 }
 
-export const PrintExpenseReport: React.FC<PrintExpenseReportProps> = ({ project, expenses, stats }) => {
+export const PrintExpenseReport: React.FC<PrintExpenseReportProps> = ({ project, expenses, stats, printMode = 'complete' }) => {
   const theme = {
     ...DEFAULT_THEME,
     ...project.theme
   };
+
+  const reportItems = useMemo(() => {
+    const onlyItems = expenses.filter((expense) => expense.itemType === 'item');
+    if (printMode === 'material') {
+      return onlyItems.filter((expense) => expense.type === 'material');
+    }
+    if (printMode === 'labor') {
+      return onlyItems.filter((expense) => expense.type === 'labor');
+    }
+    return onlyItems;
+  }, [expenses, printMode]);
+
+  const reportStats = useMemo(() => expenseService.getExpenseStats(reportItems), [reportItems]);
 
   const currencySymbol = theme.currencySymbol || 'R$';
 
@@ -134,20 +149,20 @@ export const PrintExpenseReport: React.FC<PrintExpenseReportProps> = ({ project,
         <div className="kpi-grid grid grid-cols-4 gap-4 mb-6">
           <div className="kpi-card p-3 border border-slate-100 rounded-lg">
             <p className="text-[5pt] font-black text-slate-400 uppercase tracking-widest">Total Recebido</p>
-            <p className="text-[10pt] font-black text-emerald-600">{financial.formatVisual(stats.revenue, currencySymbol)}</p>
+            <p className="text-[10pt] font-black text-emerald-600">{financial.formatVisual(reportStats.revenue, currencySymbol)}</p>
           </div>
           <div className="kpi-card p-3 border border-slate-100 rounded-lg">
             <p className="text-[5pt] font-black text-slate-400 uppercase tracking-widest">Mão de Obra</p>
-            <p className="text-[10pt] font-black text-blue-600">{financial.formatVisual(stats.labor, currencySymbol)}</p>
+            <p className="text-[10pt] font-black text-blue-600">{financial.formatVisual(reportStats.labor, currencySymbol)}</p>
           </div>
           <div className="kpi-card p-3 border border-slate-100 rounded-lg">
             <p className="text-[5pt] font-black text-slate-400 uppercase tracking-widest">Materiais</p>
-            <p className="text-[10pt] font-black text-indigo-600">{financial.formatVisual(stats.material, currencySymbol)}</p>
+            <p className="text-[10pt] font-black text-indigo-600">{financial.formatVisual(reportStats.material, currencySymbol)}</p>
           </div>
           <div className="kpi-card p-3 border border-slate-200 bg-slate-50 rounded-lg">
             <p className="text-[5pt] font-black text-slate-400 uppercase tracking-widest">Saldo Período</p>
-            <p className={`text-[10pt] font-black ${stats.profit >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
-              {financial.formatVisual(stats.profit, currencySymbol)}
+            <p className={`text-[10pt] font-black ${reportStats.profit >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
+              {financial.formatVisual(reportStats.profit, currencySymbol)}
             </p>
           </div>
         </div>
@@ -166,7 +181,7 @@ export const PrintExpenseReport: React.FC<PrintExpenseReportProps> = ({ project,
             </tr>
           </thead>
           <tbody>
-            {expenses.filter(e => e.itemType === 'item').map(e => (
+            {reportItems.map(e => (
               <tr
                 key={e.id}
                 className={e.type === 'revenue'

@@ -64,6 +64,7 @@ interface ProjectWorkspaceProps {
 }
 
 export type TabID = 'wbs' | 'stats' | 'expenses' | 'supplies' | 'workforce' | 'labor-contracts' | 'planning' | 'schedule' | 'journal' | 'documents' | 'branding';
+type ExpensePrintMode = 'complete' | 'material' | 'labor';
 
 export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   project, globalSettings, suppliers, isExternalProject: isExternalProjectProp = false, onUpdateProject, onCloseMeasurement,
@@ -90,6 +91,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const [nameDraft, setNameDraft] = useState(project.name);
   const [showNotificationsDrawer, setShowNotificationsDrawer] = useState(false);
   const [deletingNotificationId, setDeletingNotificationId] = useState<string | null>(null);
+  const [isExpensePrintModalOpen, setIsExpensePrintModalOpen] = useState(false);
+  const [expensePrintMode, setExpensePrintMode] = useState<ExpensePrintMode>('complete');
 
   const tabsNavRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef<{ x: number; scrollLeft: number; moved: boolean } | null>(null);
@@ -117,6 +120,18 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     expensesRef.current = nextExpenses;
     onUpdateProject({ expenses: nextExpenses });
   }, [onUpdateProject]);
+
+  const handleRequestExpensePrint = useCallback(() => {
+    setIsExpensePrintModalOpen(true);
+  }, []);
+
+  const handleConfirmExpensePrintMode = useCallback((mode: ExpensePrintMode) => {
+    setExpensePrintMode(mode);
+    setIsExpensePrintModalOpen(false);
+    window.setTimeout(() => {
+      window.print();
+    }, 80);
+  }, []);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!tabsNavRef.current) return;
@@ -1228,6 +1243,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     measuredValue={treeService.calculateBasicStats(displayData.items, project.bdi).current}
                     onUpdateExpenses={handleExpensesReplace}
                     isReadOnly={displayData.isReadOnly}
+                    onRequestPrintReport={handleRequestExpensePrint}
                   />
                 )}
                 {tab === 'supplies' && (
@@ -1305,6 +1321,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                 project={project}
                 expenses={project.expenses}
                 stats={expenseStats}
+                printMode={expensePrintMode}
               />
             )}
             {(tab === 'planning' || tab === 'supplies' || tab === 'schedule') && (
@@ -1315,6 +1332,51 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           </div>
 
           <WorkItemModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSaveWorkItem} editingItem={editingItem} type={modalType} initialParentId={targetParentId} categories={treeService.flattenTree(treeService.buildTree(displayData.items.filter(i => i.type === 'category')), new Set(displayData.items.map(i => i.id)))} projectBdi={project.bdi} />
+
+          {isExpensePrintModalOpen && (
+            <div
+              className="fixed inset-0 z-[2500] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4"
+              onClick={() => setIsExpensePrintModalOpen(false)}
+            >
+              <div
+                className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <h3 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">Exportar PDF do Fluxo Financeiro</h3>
+                <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">Escolha o formato do relatório</p>
+
+                <div className="mt-5 space-y-2">
+                  <button
+                    onClick={() => handleConfirmExpensePrintMode('complete')}
+                    className="w-full text-left px-4 py-3 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-300 font-black text-[11px] uppercase tracking-widest"
+                  >
+                    Completo (padrão)
+                  </button>
+                  <button
+                    onClick={() => handleConfirmExpensePrintMode('material')}
+                    className="w-full text-left px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 font-black text-[11px] uppercase tracking-widest text-slate-700 dark:text-slate-200"
+                  >
+                    Só materiais
+                  </button>
+                  <button
+                    onClick={() => handleConfirmExpensePrintMode('labor')}
+                    className="w-full text-left px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 font-black text-[11px] uppercase tracking-widest text-slate-700 dark:text-slate-200"
+                  >
+                    Só mão de obra
+                  </button>
+                </div>
+
+                <div className="mt-5 flex justify-end">
+                  <button
+                    onClick={() => setIsExpensePrintModalOpen(false)}
+                    className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {isClosingModalOpen && (
             <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setIsClosingModalOpen(false)}>

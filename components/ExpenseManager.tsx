@@ -31,10 +31,11 @@ interface ExpenseManagerProps {
   measuredValue: number;
   onUpdateExpenses: (expenses: ProjectExpense[]) => void;
   isReadOnly?: boolean;
+  onRequestPrintReport?: () => void;
 }
 
 export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
-  project, suppliers, expenses, onAdd, onAddMany, onUpdate, onDelete, workItems, measuredValue, onUpdateExpenses, isReadOnly
+  project, suppliers, expenses, onAdd, onAddMany, onUpdate, onDelete, workItems, measuredValue, onUpdateExpenses, isReadOnly, onRequestPrintReport
 }) => {
   const { canEdit, getLevel } = usePermissions();
   const toast = useToast();
@@ -585,7 +586,13 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
           <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1" />
 
           <button
-            onClick={() => window.print()}
+            onClick={() => {
+              if (onRequestPrintReport) {
+                onRequestPrintReport();
+                return;
+              }
+              window.print();
+            }}
             className="flex items-center gap-2 px-5 py-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-[9px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700 shadow-sm hover:bg-slate-50 transition-all"
           >
             <Printer size={16} />

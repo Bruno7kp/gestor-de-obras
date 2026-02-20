@@ -2,13 +2,18 @@
 import React from 'react';
 import { Project, DEFAULT_THEME } from '../types';
 import { financial } from '../utils/math';
-import { HardHat } from 'lucide-react';
 
 interface PrintPlanningReportProps {
   project: Project;
 }
 
 export const PrintPlanningReport: React.FC<PrintPlanningReportProps> = ({ project }) => {
+  const forecastStatusLabel: Record<'pending' | 'ordered' | 'delivered', string> = {
+    pending: 'Pendente',
+    ordered: 'Comprado',
+    delivered: 'No Local',
+  };
+
   const theme = {
     ...DEFAULT_THEME,
     ...project.theme
@@ -60,28 +65,6 @@ export const PrintPlanningReport: React.FC<PrintPlanningReportProps> = ({ projec
           </div>
         </div>
 
-        <section className="mb-8">
-          <h3 className="text-[10pt] font-black uppercase border-b mb-3">Metas e Milestones (Cronograma)</h3>
-          <table className="planning-table">
-            <thead>
-              <tr className="bg-header">
-                <th style={{ width: '15%' }}>Data</th>
-                <th style={{ width: '70%' }}>Título da Meta / Evento Crítico</th>
-                <th style={{ width: '15%' }}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {project.planning.milestones.map(m => (
-                <tr key={m.id}>
-                  <td>{financial.formatDate(m.date)}</td>
-                  <td className="font-bold">{m.title}</td>
-                  <td>{m.isCompleted ? 'CONCLUÍDO' : 'PENDENTE'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-
         <section>
           <h3 className="text-[10pt] font-black uppercase border-b mb-3">Previsão de Suprimentos (Insumos)</h3>
           <table className="planning-table">
@@ -102,7 +85,7 @@ export const PrintPlanningReport: React.FC<PrintPlanningReportProps> = ({ projec
                   <td className="text-center">{financial.formatQuantity(f.quantityNeeded)} {f.unit}</td>
                   <td className="text-right">{financial.formatVisual(f.unitPrice, theme.currencySymbol)}</td>
                   <td className="text-right">{financial.formatVisual(f.quantityNeeded * f.unitPrice, theme.currencySymbol)}</td>
-                  <td className="text-center">{f.status.toUpperCase()}</td>
+                  <td className="text-center">{forecastStatusLabel[f.status]}</td>
                   <td className="text-center">{f.isPaid ? 'SIM' : 'NÃO'}</td>
                 </tr>
               ))}
