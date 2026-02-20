@@ -339,9 +339,23 @@ export class NotificationsService {
   }
 
   async emit(input: EmitNotificationInput) {
+    let effectiveInstanceId = input.instanceId;
+    if (input.projectId) {
+      const project = await this.prisma.project.findUnique({
+        where: { id: input.projectId },
+        select: { instanceId: true },
+      });
+      if (project?.instanceId) {
+        effectiveInstanceId = project.instanceId;
+      }
+    }
+
     const priority = this.normalizePriority(input.priority);
     const projectId = input.projectId ?? null;
-    const candidateUsers = await this.resolveCandidateUsers(input);
+    const candidateUsers = await this.resolveCandidateUsers({
+      ...input,
+      instanceId: effectiveInstanceId,
+    });
 
     if (candidateUsers.length === 0) {
       return null;
@@ -349,7 +363,7 @@ export class NotificationsService {
 
     const preferences = await this.resolvePreferences(
       candidateUsers.map((user) => user.id),
-      input.instanceId,
+      effectiveInstanceId,
       projectId,
       input.category,
       input.eventType,
@@ -377,7 +391,7 @@ export class NotificationsService {
       const dedupeSince = new Date(Date.now() - 10 * 60 * 1000);
       const existing = await this.prisma.notification.findFirst({
         where: {
-          instanceId: input.instanceId,
+          instanceId: effectiveInstanceId,
           dedupeKey: input.dedupeKey,
           createdAt: { gte: dedupeSince },
         },
@@ -390,7 +404,7 @@ export class NotificationsService {
     if (!notificationId) {
       const created = await this.prisma.notification.create({
         data: {
-          instanceId: input.instanceId,
+          instanceId: effectiveInstanceId,
           projectId,
           category: input.category,
           eventType: input.eventType,
