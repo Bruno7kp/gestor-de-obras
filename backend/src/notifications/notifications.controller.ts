@@ -55,11 +55,7 @@ export class NotificationsController {
   @Patch(':id/read')
   @HasPermission('notifications.view', 'notifications.edit')
   markRead(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    return this.notificationsService.markRead(
-      id,
-      req.user.id,
-      req.user.instanceId,
-    );
+    return this.notificationsService.markRead(id, req.user.id);
   }
 
   @Patch('read-all')
@@ -68,11 +64,7 @@ export class NotificationsController {
     @Body() body: { projectId?: string },
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.notificationsService.markAllRead(
-      req.user.id,
-      req.user.instanceId,
-      body.projectId,
-    );
+    return this.notificationsService.markAllRead(req.user.id, body.projectId);
   }
 
   @Delete(':id')
@@ -81,11 +73,7 @@ export class NotificationsController {
     @Param('id') id: string,
     @Req() req: AuthenticatedRequest,
   ): Promise<{ deleted: number }> {
-    return await this.notificationsService.removeForUser(
-      id,
-      req.user.id,
-      req.user.instanceId,
-    );
+    return await this.notificationsService.removeForUser(id, req.user.id);
   }
 
   @Get('preferences')

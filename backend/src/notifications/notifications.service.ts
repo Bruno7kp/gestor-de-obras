@@ -140,46 +140,50 @@ export class NotificationsService {
     let scopedUserIds: Set<string> | null = null;
 
     if (input.permissionCodes && input.permissionCodes.length > 0) {
-      const byPermission = await this.prisma.user.findMany({
+      const byGlobalPermission = await this.prisma.user.findMany({
         where: {
           instanceId: input.instanceId,
           status: 'ACTIVE',
-          OR: [
-            {
-              roles: {
-                some: {
-                  role: {
-                    permissions: {
-                      some: {
-                        permission: {
-                          code: { in: input.permissionCodes },
-                        },
-                      },
+          roles: {
+            some: {
+              role: {
+                permissions: {
+                  some: {
+                    permission: {
+                      code: { in: input.permissionCodes },
                     },
                   },
                 },
               },
             },
-            {
-              projectAccess: {
-                some: {
-                  assignedRole: {
-                    permissions: {
-                      some: {
-                        permission: {
-                          code: { in: input.permissionCodes },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          ],
+          },
         },
         select: { id: true },
       });
-      scopedUserIds = new Set(byPermission.map((user) => user.id));
+
+      const byProjectMembershipPermission = input.projectId
+        ? await this.prisma.projectMember.findMany({
+            where: {
+              projectId: input.projectId,
+              user: { status: 'ACTIVE' },
+              assignedRole: {
+                permissions: {
+                  some: {
+                    permission: {
+                      code: { in: input.permissionCodes },
+                    },
+                  },
+                },
+              },
+            },
+            select: { userId: true },
+          })
+        : [];
+
+      scopedUserIds = new Set([
+        ...byGlobalPermission.map((user) => user.id),
+        ...byProjectMembershipPermission.map((member) => member.userId),
+      ]);
     }
 
     if (input.includeProjectMembers && input.projectId) {
@@ -249,7 +253,7 @@ export class NotificationsService {
     const users = await this.prisma.user.findMany({
       where: {
         id: { in: Array.from(userIds) },
-        instanceId: input.instanceId,
+        status: 'ACTIVE',
       },
       select: { id: true, email: true, name: true },
     });
@@ -481,7 +485,6 @@ export class NotificationsService {
         channelInApp: true,
         ...(unreadOnly ? { isRead: false } : {}),
         notification: {
-          instanceId,
           ...(projectId ? { projectId } : {}),
         },
       },
@@ -632,12 +635,11 @@ export class NotificationsService {
     }));
   }
 
-  async markRead(notificationId: string, userId: string, instanceId: string) {
+  async markRead(notificationId: string, userId: string) {
     const target = await this.prisma.notificationRecipient.findFirst({
       where: {
         userId,
         notificationId,
-        notification: { instanceId },
       },
       select: { id: true },
     });
@@ -654,14 +656,13 @@ export class NotificationsService {
     return { updated: 1 };
   }
 
-  async markAllRead(userId: string, instanceId: string, projectId?: string) {
+  async markAllRead(userId: string, projectId?: string) {
     const result = await this.prisma.notificationRecipient.updateMany({
       where: {
         userId,
         isRead: false,
         channelInApp: true,
         notification: {
-          instanceId,
           ...(projectId ? { projectId } : {}),
         },
       },
@@ -674,16 +675,11 @@ export class NotificationsService {
     return { updated: result.count };
   }
 
-  async removeForUser(
-    notificationId: string,
-    userId: string,
-    instanceId: string,
-  ) {
+  async removeForUser(notificationId: string, userId: string) {
     const target = await this.prisma.notificationRecipient.findFirst({
       where: {
         userId,
         notificationId,
-        notification: { instanceId },
       },
       select: { id: true },
     });
