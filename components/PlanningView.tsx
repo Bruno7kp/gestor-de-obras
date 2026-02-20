@@ -644,7 +644,38 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     }
   };
 
+  const buildFallbackSupplyGroup = (supplyGroupId: string): SupplyGroup | null => {
+    const groupedForecasts = planning.forecasts.filter(
+      (forecast) => forecast.supplyGroupId === supplyGroupId,
+    );
+
+    if (groupedForecasts.length === 0) return null;
+
+    const primary = groupedForecasts[0];
+    const cached = supplyGroupsCache[supplyGroupId];
+
+    return {
+      id: supplyGroupId,
+      title: cached?.title ?? primary.supplyGroup?.title ?? null,
+      estimatedDate: cached?.estimatedDate ?? primary.estimatedDate,
+      purchaseDate: cached?.purchaseDate ?? primary.purchaseDate ?? null,
+      deliveryDate: cached?.deliveryDate ?? primary.deliveryDate ?? null,
+      status: cached?.status ?? primary.status,
+      isPaid: cached?.isPaid ?? primary.isPaid,
+      isCleared: cached?.isCleared ?? primary.isCleared,
+      supplierId: cached?.supplierId ?? primary.supplierId,
+      paymentProof: cached?.paymentProof ?? primary.paymentProof ?? null,
+      invoiceDoc: cached?.invoiceDoc ?? null,
+      forecasts: groupedForecasts,
+    };
+  };
+
   const openSupplyGroupEditorById = async (supplyGroupId: string) => {
+    const fallback = buildFallbackSupplyGroup(supplyGroupId);
+    if (fallback) {
+      setEditingSupplyGroup(fallback);
+    }
+
     try {
       const groups = await planningApi.listSupplyGroups(project.id);
       setSupplyGroupsCache((prev) => {
@@ -657,13 +688,17 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
 
       const target = groups.find((group) => group.id === supplyGroupId);
       if (!target) {
-        toast.warning('Grupo de suprimentos não encontrado.');
+        if (!fallback) {
+          toast.warning('Grupo de suprimentos não encontrado.');
+        }
         return;
       }
       setEditingSupplyGroup(target);
     } catch (error) {
       console.error('Erro ao carregar grupo de suprimentos:', error);
-      toast.error('Erro ao abrir grupo de suprimentos.');
+      if (!fallback) {
+        toast.error('Erro ao abrir grupo de suprimentos.');
+      }
     }
   };
 
