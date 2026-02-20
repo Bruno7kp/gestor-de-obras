@@ -2,7 +2,10 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import type { ExpenseStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { isLocalUpload, removeLocalUpload } from '../uploads/file.utils';
-import { ensureProjectAccess } from '../common/project-access.util';
+import {
+  ensureProjectAccess,
+  ensureProjectWritable,
+} from '../common/project-access.util';
 import { NotificationsService } from '../notifications/notifications.service';
 import { JournalService } from '../journal/journal.service';
 
@@ -243,8 +246,12 @@ export class ProjectExpensesService {
     projectId: string,
     instanceId: string,
     userId?: string,
+    writable = false,
   ) {
-    return ensureProjectAccess(this.prisma, projectId, instanceId, userId);
+    await ensureProjectAccess(this.prisma, projectId, instanceId, userId);
+    if (writable) {
+      await ensureProjectWritable(this.prisma, projectId);
+    }
   }
 
   async findAll(projectId: string, instanceId: string, userId?: string) {
@@ -443,7 +450,7 @@ export class ProjectExpensesService {
   }
 
   async create(input: CreateExpenseInput) {
-    await this.ensureProject(input.projectId, input.instanceId, input.userId);
+    await this.ensureProject(input.projectId, input.instanceId, input.userId, true);
     const fallbackStatus: ExpenseStatus = input.isPaid ? 'PAID' : 'PENDING';
 
     const created = await this.prisma.projectExpense.create({
@@ -518,6 +525,8 @@ export class ProjectExpensesService {
     }
 
     if (!existing) throw new NotFoundException('Despesa nao encontrada');
+
+    await ensureProjectWritable(this.prisma, existing.projectId);
 
     const nextStatus = input.status ?? existing.status;
 
@@ -602,7 +611,7 @@ export class ProjectExpensesService {
     instanceId: string,
     userId?: string,
   ): Promise<{ created: number }> {
-    await this.ensureProject(projectId, instanceId, userId);
+    await this.ensureProject(projectId, instanceId, userId, true);
 
     const createData = expenses.map((e) => ({
       id: e.id,
@@ -670,6 +679,8 @@ export class ProjectExpensesService {
     }
 
     if (!target) throw new NotFoundException('Despesa nao encontrada');
+
+    await ensureProjectWritable(this.prisma, target.projectId);
 
     const allItems = await this.prisma.projectExpense.findMany({
       where: { projectId: target.projectId },

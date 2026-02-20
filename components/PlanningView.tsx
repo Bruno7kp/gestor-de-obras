@@ -53,6 +53,15 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   const toast = useToast();
   const isSuppliesView = viewMode === 'supplies';
   const canEditPlanning = (isSuppliesView ? canEdit('supplies') : canEdit('planning')) && !isReadOnly;
+  const showReadOnlyWarning = () => {
+    toast.warning('Obra arquivada: edição, cadastro e remoção estão bloqueados.');
+  };
+
+  const ensureCanEditPlanning = () => {
+    if (canEditPlanning) return true;
+    showReadOnlyWarning();
+    return false;
+  };
 
   const planningSubTabs: Array<'tasks' | 'forecast' | 'milestones'> = ['tasks', 'forecast', 'milestones'];
   const planningTabKey = `planning_subtab_${project.id}`;
@@ -474,12 +483,14 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   };
 
   const handleAddTask = (data: Partial<PlanningTask>) => {
+    if (!ensureCanEditPlanning()) return;
     const updated = planningService.addTask(planning, data);
     onUpdatePlanning(updated);
     setIsAddingTask(null);
   };
 
   const handleUpdateTask = (id: string, data: Partial<PlanningTask>) => {
+    if (!ensureCanEditPlanning()) return;
     const updated = planningService.updateTask(planning, id, data);
     onUpdatePlanning(updated);
   };
@@ -672,6 +683,8 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   };
 
   const openSupplyGroupEditorById = async (supplyGroupId: string) => {
+    if (!ensureCanEditPlanning()) return;
+
     const fallback = buildFallbackSupplyGroup(supplyGroupId);
     if (fallback) {
       setEditingSupplyGroup(fallback);
@@ -723,6 +736,8 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
       categoryId?: string | null;
     }>;
   }) => {
+    if (!ensureCanEditPlanning()) return;
+
     try {
       await planningApi.createSupplyGroup(project.id, {
         ...payload,
@@ -749,6 +764,8 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     groupId: string,
     payload: Partial<Omit<SupplyGroup, 'id' | 'forecasts'>>,
   ) => {
+    if (!ensureCanEditPlanning()) return;
+
     try {
       const updatedGroup = await planningApi.updateSupplyGroup(groupId, payload);
       if (updatedGroup?.id) {
@@ -881,6 +898,8 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   };
 
   const handleDeleteSupplyGroup = async (groupId: string) => {
+    if (!ensureCanEditPlanning()) return;
+
     try {
       await planningApi.deleteSupplyGroup(groupId);
       await refreshForecastsFromApi();
@@ -914,6 +933,8 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     supplierId?: string | null;
     estimatedDate: string;
   }) => {
+    if (!ensureCanEditPlanning()) return;
+
     if (selectedForecastIds.length === 0) {
       toast.warning('Selecione ao menos um item para converter.');
       return;
@@ -993,6 +1014,11 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   const [isImportingPlan, setIsImportingPlan] = useState(false);
 
   const handleImportPlanning = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!ensureCanEditPlanning()) {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
     const file = e.target.files?.[0];
     if (!file) return;
     setIsImportingPlan(true);
@@ -1109,7 +1135,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                       <span className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300">{col.label}</span>
                       <span className="bg-white dark:bg-slate-800 text-[10px] font-black px-2 py-0.5 rounded-lg border border-slate-200 dark:border-slate-700">{planning.tasks.filter(t => (t.status || (t.isCompleted ? 'done' : 'todo')) === col.id).length}</span>
                     </div>
-                    <button onClick={() => setIsAddingTask(col.id)} className="p-2 bg-white dark:bg-slate-800 rounded-xl text-slate-400 hover:text-indigo-600 shadow-sm transition-all"><Plus size={16}/></button>
+                    <button onClick={() => { if (!ensureCanEditPlanning()) return; setIsAddingTask(col.id); }} className="p-2 bg-white dark:bg-slate-800 rounded-xl text-slate-400 hover:text-indigo-600 shadow-sm transition-all"><Plus size={16}/></button>
                   </div>
 
                   <Droppable droppableId={col.id}>
@@ -1127,12 +1153,12 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                 <div 
                                   ref={p.innerRef} 
                                   {...p.draggableProps}
-                                  onClick={() => setEditingTask(task)}
+                                  onClick={() => { if (!ensureCanEditPlanning()) return; setEditingTask(task); }}
                                   className={`group bg-white dark:bg-slate-900 p-5 rounded-3xl border transition-all cursor-pointer select-none hover:shadow-xl hover:-translate-y-1 ${s.isDragging ? 'shadow-2xl ring-2 ring-indigo-500 z-50' : 'border-slate-100 dark:border-slate-800 shadow-sm'}`}
                                 >
                                   <div className="flex items-start justify-between gap-3 mb-3">
                                     <div {...p.dragHandleProps} className="p-1 text-slate-300 hover:text-indigo-500"><GripVertical size={14}/></div>
-                                    <button onClick={(e) => { e.stopPropagation(); onUpdatePlanning(planningService.deleteTask(planning, task.id)); }} className="opacity-0 group-hover:opacity-100 p-1 text-slate-300 hover:text-rose-500 transition-all"><Trash2 size={14}/></button>
+                                    <button onClick={(e) => { e.stopPropagation(); if (!ensureCanEditPlanning()) return; onUpdatePlanning(planningService.deleteTask(planning, task.id)); }} className="opacity-0 group-hover:opacity-100 p-1 text-slate-300 hover:text-rose-500 transition-all"><Trash2 size={14}/></button>
                                   </div>
                                   <h4 className={`text-sm font-bold leading-relaxed whitespace-normal break-words ${task.isCompleted ? 'text-slate-400 line-through' : 'text-slate-800 dark:text-white'}`}>
                                     {task.description}
@@ -1229,7 +1255,10 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                       {forecastStatusFilter === 'pending' && (
                         <div className="relative" ref={newOrderPopoverRef}>
                           <button
-                            onClick={() => setIsNewOrderPopoverOpen((prev) => !prev)}
+                            onClick={() => {
+                              if (!ensureCanEditPlanning()) return;
+                              setIsNewOrderPopoverOpen((prev) => !prev);
+                            }}
                             className="inline-flex items-center gap-2 whitespace-nowrap px-5 py-3 bg-indigo-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg hover:scale-105 transition-transform"
                           >
                             <Plus size={16} /> Novo Pedido <ChevronDown size={14} />
@@ -1238,6 +1267,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                             <div className="absolute right-0 mt-2 z-30 w-56 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl p-2">
                               <button
                                 onClick={() => {
+                                  if (!ensureCanEditPlanning()) return;
                                   setIsAddingSupplyGroup(true);
                                   setIsNewOrderPopoverOpen(false);
                                 }}
@@ -1247,6 +1277,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                               </button>
                               <button
                                 onClick={() => {
+                                  if (!ensureCanEditPlanning()) return;
                                   setIsAddingForecast(true);
                                   setIsNewOrderPopoverOpen(false);
                                 }}
@@ -1274,6 +1305,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                     <div className="mb-4 flex items-center justify-start gap-2">
                       <button
                         onClick={() => {
+                          if (!ensureCanEditPlanning()) return;
                           setIsBatchSelectionMode((prev) => {
                             const next = !prev;
                             if (!next) {
@@ -1294,7 +1326,10 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
 
                       {isBatchSelectionMode && (
                         <button
-                          onClick={() => setIsConvertingForecastsToGroup(true)}
+                          onClick={() => {
+                            if (!ensureCanEditPlanning()) return;
+                            setIsConvertingForecastsToGroup(true);
+                          }}
                           disabled={selectedForecastIds.length === 0}
                           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest bg-emerald-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                         >
@@ -1582,8 +1617,8 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                   {f.paymentProof && (
                                     <button onClick={() => handleViewProof(f.paymentProof!)} className="p-2 text-emerald-500 hover:bg-emerald-50 rounded-xl" title="Baixar Comprovante"><Download size={18}/></button>
                                   )}
-                                  <button onClick={() => setEditingForecast(f)} className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-xl" title="Editar"><Edit2 size={18}/></button>
-                                  <button onClick={() => setIsDeletingForecast(f)} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl" title="Excluir"><Trash2 size={18}/></button>
+                                  <button onClick={() => { if (!ensureCanEditPlanning()) return; setEditingForecast(f); }} className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-xl" title="Editar"><Edit2 size={18}/></button>
+                                  <button onClick={() => { if (!ensureCanEditPlanning()) return; setIsDeletingForecast(f); }} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl" title="Excluir"><Trash2 size={18}/></button>
                                 </div>
                               </td>
                             </tr>
@@ -1867,7 +1902,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                  <button onClick={() => setMilestoneView('list')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${milestoneView === 'list' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400'}`}><List size={14}/> Lista</button>
                  <button onClick={() => setMilestoneView('calendar')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${milestoneView === 'calendar' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400'}`}><CalendarDays size={14}/> Calendário</button>
               </div>
-              <button onClick={() => setIsAddingMilestone(true)} className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-indigo-500/20 hover:scale-105 active:scale-95 transition-all">
+              <button onClick={() => { if (!ensureCanEditPlanning()) return; setIsAddingMilestone(true); }} className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-indigo-500/20 hover:scale-105 active:scale-95 transition-all">
                 <Plus size={16} /> Nova Meta
               </button>
            </div>
@@ -1888,11 +1923,11 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                            </p>
                         </div>
                         <div className="flex items-center gap-4">
-                          <button onClick={() => onUpdatePlanning(planningService.updateMilestone(planning, m.id, { isCompleted: !m.isCompleted }))} className={`text-[10px] font-black uppercase px-5 py-2 rounded-full border transition-all ${m.isCompleted ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-white dark:bg-slate-700 text-slate-400 border-slate-200 dark:border-slate-600'}`}>
+                          <button onClick={() => { if (!ensureCanEditPlanning()) return; onUpdatePlanning(planningService.updateMilestone(planning, m.id, { isCompleted: !m.isCompleted })); }} className={`text-[10px] font-black uppercase px-5 py-2 rounded-full border transition-all ${m.isCompleted ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-white dark:bg-slate-700 text-slate-400 border-slate-200 dark:border-slate-600'}`}>
                             {m.isCompleted ? 'Finalizada' : 'Em Aberto'}
                           </button>
-                          <button onClick={() => setEditingMilestone(m)} className="p-2 text-slate-300 hover:text-indigo-500 hover:bg-white rounded-lg transition-all"><Edit2 size={18}/></button>
-                          <button onClick={() => onUpdatePlanning(planningService.deleteMilestone(planning, m.id))} className="p-2 text-slate-300 hover:text-rose-500 hover:bg-white rounded-lg transition-all"><Trash2 size={18}/></button>
+                          <button onClick={() => { if (!ensureCanEditPlanning()) return; setEditingMilestone(m); }} className="p-2 text-slate-300 hover:text-indigo-500 hover:bg-white rounded-lg transition-all"><Edit2 size={18}/></button>
+                          <button onClick={() => { if (!ensureCanEditPlanning()) return; onUpdatePlanning(planningService.deleteMilestone(planning, m.id)); }} className="p-2 text-slate-300 hover:text-rose-500 hover:bg-white rounded-lg transition-all"><Trash2 size={18}/></button>
                         </div>
                       </div>
                     </div>
@@ -1912,6 +1947,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
           initialStatus={isAddingTask}
           onClose={() => { setEditingTask(null); setIsAddingTask(null); }} 
           onSave={(data: Partial<PlanningTask>) => {
+            if (!ensureCanEditPlanning()) return;
             if (editingTask) handleUpdateTask(editingTask.id, data);
             else handleAddTask(data);
             setEditingTask(null);
@@ -1925,6 +1961,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
           milestone={editingMilestone}
           onClose={() => { setEditingMilestone(null); setIsAddingMilestone(false); }}
           onSave={(data: Partial<Milestone>) => {
+            if (!ensureCanEditPlanning()) return;
             if (editingMilestone) onUpdatePlanning(planningService.updateMilestone(planning, editingMilestone.id, data));
             else onUpdatePlanning(planningService.addMilestone(planning, data));
             setEditingMilestone(null);
@@ -4243,7 +4280,7 @@ const MilestoneModal = ({ milestone, onClose, onSave }: any) => {
 
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-900 w-full max-md rounded-[2.5rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl" onClick={e => e.stopPropagation()}>
         <h2 className="text-xl font-black mb-6 dark:text-white uppercase tracking-tight">{milestone ? 'Editar Meta' : 'Nova Meta'}</h2>
         <div className="space-y-4">
           <input autoFocus className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-sm font-bold outline-none focus:border-indigo-500 transition-all" value={title} onChange={e => setTitle(e.target.value)} placeholder="Título da Meta" />

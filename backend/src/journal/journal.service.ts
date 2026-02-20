@@ -1,7 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { removeLocalUploads } from '../uploads/file.utils';
-import { ensureProjectAccess } from '../common/project-access.util';
+import {
+  ensureProjectAccess,
+  ensureProjectWritable,
+} from '../common/project-access.util';
 
 interface CreateJournalEntryInput {
   id?: string;
@@ -28,16 +31,22 @@ export class JournalService {
     projectId: string,
     instanceId: string,
     userId?: string,
+    writable = false,
   ) {
-    return ensureProjectAccess(this.prisma, projectId, instanceId, userId);
+    await ensureProjectAccess(this.prisma, projectId, instanceId, userId);
+    if (writable) {
+      await ensureProjectWritable(this.prisma, projectId);
+    }
   }
 
-  private async ensureJournal(projectId: string) {
+  private async ensureJournal(projectId: string, createIfMissing = true) {
     const existing = await this.prisma.projectJournal.findFirst({
       where: { projectId },
     });
 
     if (existing) return existing;
+
+    if (!createIfMissing) return null;
 
     return this.prisma.projectJournal.create({
       data: { projectId },
@@ -46,7 +55,8 @@ export class JournalService {
 
   async listEntries(projectId: string, instanceId: string, userId?: string) {
     await this.ensureProject(projectId, instanceId, userId);
-    const journal = await this.ensureJournal(projectId);
+    const journal = await this.ensureJournal(projectId, false);
+    if (!journal) return [];
     return this.prisma.journalEntry.findMany({
       where: { projectJournalId: journal.id },
       orderBy: { timestamp: 'desc' },
@@ -59,7 +69,7 @@ export class JournalService {
   }
 
   async createEntry(input: CreateJournalEntryInput) {
-    await this.ensureProject(input.projectId, input.instanceId, input.userId);
+    await this.ensureProject(input.projectId, input.instanceId, input.userId, true);
     const journal = await this.ensureJournal(input.projectId);
 
     return this.prisma.journalEntry.create({
@@ -94,6 +104,20 @@ export class JournalService {
   ) {
     let entry = await this.prisma.journalEntry.findFirst({
       where: { id, projectJournal: { project: { instanceId } } },
+      select: {
+        id: true,
+        projectJournal: { select: { projectId: true } },
+        timestamp: true,
+        type: true,
+        category: true,
+        title: true,
+        description: true,
+        progressPercent: true,
+        progressStage: true,
+        progressItem: true,
+        weatherStatus: true,
+        photoUrls: true,
+      },
     });
     if (!entry && userId) {
       entry = await this.prisma.journalEntry.findFirst({
@@ -101,9 +125,25 @@ export class JournalService {
           id,
           projectJournal: { project: { members: { some: { userId } } } },
         },
+        select: {
+          id: true,
+          projectJournal: { select: { projectId: true } },
+          timestamp: true,
+          type: true,
+          category: true,
+          title: true,
+          description: true,
+          progressPercent: true,
+          progressStage: true,
+          progressItem: true,
+          weatherStatus: true,
+          photoUrls: true,
+        },
       });
     }
     if (!entry) throw new NotFoundException('Registro nao encontrado');
+
+    await ensureProjectWritable(this.prisma, entry.projectJournal.projectId);
 
     return this.prisma.journalEntry.update({
       where: { id },
@@ -139,7 +179,11 @@ export class JournalService {
   async deleteEntry(id: string, instanceId: string, userId?: string) {
     let entry = await this.prisma.journalEntry.findFirst({
       where: { id, projectJournal: { project: { instanceId } } },
-      select: { id: true, photoUrls: true },
+      select: {
+        id: true,
+        photoUrls: true,
+        projectJournal: { select: { projectId: true } },
+      },
     });
     if (!entry && userId) {
       entry = await this.prisma.journalEntry.findFirst({
@@ -147,10 +191,16 @@ export class JournalService {
           id,
           projectJournal: { project: { members: { some: { userId } } } },
         },
-        select: { id: true, photoUrls: true },
+        select: {
+          id: true,
+          photoUrls: true,
+          projectJournal: { select: { projectId: true } },
+        },
       });
     }
     if (!entry) throw new NotFoundException('Registro nao encontrado');
+
+    await ensureProjectWritable(this.prisma, entry.projectJournal.projectId);
 
     await removeLocalUploads(entry.photoUrls ?? []);
     await this.prisma.journalEntry.delete({ where: { id } });

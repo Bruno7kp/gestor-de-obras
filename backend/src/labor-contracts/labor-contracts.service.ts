@@ -2,7 +2,10 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { removeLocalUploads } from '../uploads/file.utils';
-import { ensureProjectAccess } from '../common/project-access.util';
+import {
+  ensureProjectAccess,
+  ensureProjectWritable,
+} from '../common/project-access.util';
 import { NotificationsService } from '../notifications/notifications.service';
 
 interface LaborPaymentInput {
@@ -148,8 +151,16 @@ export class LaborContractsService {
     return normalized;
   }
 
-  private async ensureProject(projectId: string, instanceId: string, userId?: string) {
-    return ensureProjectAccess(this.prisma, projectId, instanceId, userId);
+  private async ensureProject(
+    projectId: string,
+    instanceId: string,
+    userId?: string,
+    writable = false,
+  ) {
+    await ensureProjectAccess(this.prisma, projectId, instanceId, userId);
+    if (writable) {
+      await ensureProjectWritable(this.prisma, projectId);
+    }
   }
 
   private async ensureWorkforceMember(id: string, projectId: string) {
@@ -212,7 +223,7 @@ export class LaborContractsService {
   }
 
   async create(input: CreateLaborContractInput) {
-    await this.ensureProject(input.projectId, input.instanceId, input.userId);
+    await this.ensureProject(input.projectId, input.instanceId, input.userId, true);
     await this.ensureWorkforceMember(input.associadoId, input.projectId);
     const linkedWorkItemIds = this.normalizeLinkedWorkItemIds(
       input.linkedWorkItemIds,
@@ -304,6 +315,8 @@ export class LaborContractsService {
     }
 
     if (!existing) throw new NotFoundException('Contrato nao encontrado');
+
+    await ensureProjectWritable(this.prisma, existing.projectId);
 
     if (input.associadoId) {
       await this.ensureWorkforceMember(input.associadoId, existing.projectId);
@@ -434,6 +447,8 @@ export class LaborContractsService {
     }
     if (!existing) throw new NotFoundException('Contrato nao encontrado');
 
+    await ensureProjectWritable(this.prisma, existing.projectId);
+
     const paymentId = payment.id ?? randomUUID();
     const currentPayment = await this.prisma.laborPayment.findFirst({
       where: { id: paymentId, laborContractId: existing.id },
@@ -533,6 +548,8 @@ export class LaborContractsService {
     }
 
     if (!existing) throw new NotFoundException('Contrato nao encontrado');
+
+    await ensureProjectWritable(this.prisma, existing.projectId);
 
     const payments = await this.prisma.laborPayment.findMany({
       where: { laborContractId: existing.id },

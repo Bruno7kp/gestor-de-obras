@@ -1,7 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { removeLocalUpload } from '../uploads/file.utils';
-import { ensureProjectAccess } from '../common/project-access.util';
+import {
+  ensureProjectAccess,
+  ensureProjectWritable,
+} from '../common/project-access.util';
 
 interface CreateAssetInput {
   id?: string;
@@ -30,8 +33,12 @@ export class ProjectAssetsService {
     projectId: string,
     instanceId: string,
     userId?: string,
+    writable = false,
   ) {
-    return ensureProjectAccess(this.prisma, projectId, instanceId, userId);
+    await ensureProjectAccess(this.prisma, projectId, instanceId, userId);
+    if (writable) {
+      await ensureProjectWritable(this.prisma, projectId);
+    }
   }
 
   async findAll(projectId: string, instanceId: string, userId?: string) {
@@ -48,7 +55,7 @@ export class ProjectAssetsService {
   }
 
   async create(input: CreateAssetInput) {
-    await this.ensureProject(input.projectId, input.instanceId, input.userId);
+    await this.ensureProject(input.projectId, input.instanceId, input.userId, true);
     return this.prisma.projectAsset.create({
       data: {
         id: input.id,
@@ -87,6 +94,8 @@ export class ProjectAssetsService {
 
     if (!existing) throw new NotFoundException('Arquivo nao encontrado');
 
+    await ensureProjectWritable(this.prisma, existing.projectId);
+
     return this.prisma.projectAsset.update({
       where: { id: input.id },
       data: {
@@ -116,6 +125,8 @@ export class ProjectAssetsService {
     }
 
     if (!existing) throw new NotFoundException('Arquivo nao encontrado');
+
+    await ensureProjectWritable(this.prisma, existing.projectId);
 
     await removeLocalUpload(existing.data);
     await this.prisma.projectAsset.delete({ where: { id } });

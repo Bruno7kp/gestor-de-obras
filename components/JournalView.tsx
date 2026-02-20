@@ -341,6 +341,10 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
 
   const handlePost = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canEditJournal) {
+      toast.warning('Obra arquivada: edição, cadastro e remoção estão bloqueados.');
+      return;
+    }
     if (!newEntry.description) return;
 
     const normalizedCategory = (newEntry.category === 'FINANCIAL' ? 'PROGRESS' : (newEntry.category ?? 'PROGRESS')) as JournalCategory;
@@ -369,7 +373,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
       onUpdateJournal({ entries: [created, ...journal.entries] });
     } catch (error) {
       console.error('Erro ao criar registro do diario:', error);
-      onUpdateJournal({ entries: [entryToSave, ...journal.entries] });
+      toast.error('Erro ao criar registro do diário.');
     }
 
     resetComposer();
@@ -377,6 +381,10 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
 
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canEditJournal) {
+      toast.warning('Obra arquivada: edição, cadastro e remoção estão bloqueados.');
+      return;
+    }
     if (!editingEntry || !editEntryDraft.description) return;
 
     const normalizedCategory = (editEntryDraft.category === 'FINANCIAL'
@@ -442,6 +450,10 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
   };
 
   const handleDelete = async (id: string) => {
+    if (!canEditJournal) {
+      toast.warning('Obra arquivada: edição, cadastro e remoção estão bloqueados.');
+      return;
+    }
     setConfirmDeleteId(null);
     const previous = journal.entries;
     onUpdateJournal({ entries: previous.filter((entry) => entry.id !== id) });

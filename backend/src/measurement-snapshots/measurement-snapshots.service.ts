@@ -1,7 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { ensureProjectAccess } from '../common/project-access.util';
+import {
+  ensureProjectAccess,
+  ensureProjectWritable,
+} from '../common/project-access.util';
 
 interface CreateSnapshotInput {
   projectId: string;
@@ -26,8 +29,12 @@ export class MeasurementSnapshotsService {
     projectId: string,
     instanceId: string,
     userId?: string,
+    writable = false,
   ) {
-    return ensureProjectAccess(this.prisma, projectId, instanceId, userId);
+    await ensureProjectAccess(this.prisma, projectId, instanceId, userId);
+    if (writable) {
+      await ensureProjectWritable(this.prisma, projectId);
+    }
   }
 
   async findAll(projectId: string, instanceId: string, userId?: string) {
@@ -39,7 +46,7 @@ export class MeasurementSnapshotsService {
   }
 
   async create(input: CreateSnapshotInput) {
-    await this.ensureProject(input.projectId, input.instanceId, input.userId);
+    await this.ensureProject(input.projectId, input.instanceId, input.userId, true);
 
     const existing = await this.prisma.measurementSnapshot.findFirst({
       where: {
@@ -78,6 +85,8 @@ export class MeasurementSnapshotsService {
 
     if (!existing) throw new NotFoundException('Snapshot nao encontrado');
 
+    await ensureProjectWritable(this.prisma, existing.projectId);
+
     return this.prisma.measurementSnapshot.update({
       where: { id: input.id },
       data: {
@@ -102,6 +111,8 @@ export class MeasurementSnapshotsService {
     }
 
     if (!existing) throw new NotFoundException('Snapshot nao encontrado');
+
+    await ensureProjectWritable(this.prisma, existing.projectId);
 
     await this.prisma.measurementSnapshot.delete({ where: { id } });
     return { deleted: 1 };

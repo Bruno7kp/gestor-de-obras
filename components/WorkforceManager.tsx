@@ -71,6 +71,11 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onU
   };
 
   const handleSave = async (member: WorkforceMember) => {
+    if (!canEditWorkforce) {
+      toast.warning('Obra arquivada: edição, cadastro e remoção estão bloqueados.');
+      return;
+    }
+
     const previous = workforce;
     const exists = workforce.some(m => m.id === member.id);
     const optimistic = exists
@@ -148,6 +153,11 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onU
   };
 
   const removeMember = async (id: string) => {
+    if (!canEditWorkforce) {
+      toast.warning('Obra arquivada: edição, cadastro e remoção estão bloqueados.');
+      return;
+    }
+
     setConfirmDeleteId(null);
     const previous = workforce;
     onUpdateProject({ workforce: workforce.filter(m => m.id !== id) });
@@ -174,8 +184,13 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onU
             {stats.total} Colaboradores
           </span>
           <button 
-            onClick={() => { setEditingMember(null); setIsModalOpen(true); }}
-            className="flex items-center gap-2 px-8 py-3.5 bg-indigo-600 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-xl hover:scale-105 transition-all"
+            onClick={() => { if (canEditWorkforce) { setEditingMember(null); setIsModalOpen(true); } }}
+            disabled={!canEditWorkforce}
+            className={`flex items-center gap-2 px-8 py-3.5 font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-xl transition-all ${
+              canEditWorkforce
+                ? 'bg-indigo-600 text-white hover:scale-105'
+                : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+            }`}
           >
             <Plus size={18} /> Adicionar Colaborador
           </button>
@@ -208,8 +223,8 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onU
                </div>
 
                <div className="flex gap-2">
-                  <button onClick={() => { setEditingMember(member); setIsModalOpen(true); }} className="p-3 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-indigo-600 rounded-xl transition-all"><Edit2 size={16}/></button>
-                  <button onClick={() => setConfirmDeleteId(member.id)} className="p-3 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-rose-500 rounded-xl transition-all"><Trash2 size={16}/></button>
+                  <button disabled={!canEditWorkforce} onClick={() => { if (canEditWorkforce) { setEditingMember(member); setIsModalOpen(true); } }} className={`p-3 rounded-xl transition-all ${canEditWorkforce ? 'bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-indigo-600' : 'bg-slate-100 dark:bg-slate-900 text-slate-300 cursor-not-allowed'}`}><Edit2 size={16}/></button>
+                  <button disabled={!canEditWorkforce} onClick={() => { if (canEditWorkforce) setConfirmDeleteId(member.id); }} className={`p-3 rounded-xl transition-all ${canEditWorkforce ? 'bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-rose-500' : 'bg-slate-100 dark:bg-slate-900 text-slate-300 cursor-not-allowed'}`}><Trash2 size={16}/></button>
                </div>
             </div>
           ))}
@@ -225,7 +240,7 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onU
       )}
 
       <ConfirmModal
-        isOpen={!!confirmDeleteId}
+        isOpen={!!confirmDeleteId && canEditWorkforce}
         title="Excluir funcionário"
         message="Deseja realmente excluir este funcionário do quadro permanente? Esta ação não pode ser desfeita."
         confirmLabel="Excluir"

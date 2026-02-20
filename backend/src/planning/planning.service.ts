@@ -1,7 +1,10 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { isLocalUpload, removeLocalUpload } from '../uploads/file.utils';
-import { ensureProjectAccess } from '../common/project-access.util';
+import {
+  ensureProjectAccess,
+  ensureProjectWritable,
+} from '../common/project-access.util';
 import { NotificationsService } from '../notifications/notifications.service';
 
 interface CreateTaskInput {
@@ -208,8 +211,25 @@ export class PlanningService {
     projectId: string,
     instanceId: string,
     userId?: string,
+    writable = false,
   ) {
-    return ensureProjectAccess(this.prisma, projectId, instanceId, userId);
+    await ensureProjectAccess(this.prisma, projectId, instanceId, userId);
+    if (writable) {
+      await ensureProjectWritable(this.prisma, projectId);
+    }
+  }
+
+  private async ensurePlanningWritable(projectPlanningId: string) {
+    const planning = await this.prisma.projectPlanning.findUnique({
+      where: { id: projectPlanningId },
+      select: { projectId: true },
+    });
+
+    if (!planning) {
+      throw new NotFoundException('Planejamento nao encontrado');
+    }
+
+    await ensureProjectWritable(this.prisma, planning.projectId);
   }
 
   private async ensurePlanning(projectId: string) {
@@ -237,7 +257,7 @@ export class PlanningService {
   }
 
   async createTask(input: CreateTaskInput) {
-    await this.ensureProject(input.projectId, input.instanceId, input.userId);
+    await this.ensureProject(input.projectId, input.instanceId, input.userId, true);
     const planning = await this.ensurePlanning(input.projectId);
 
     return this.prisma.planningTask.create({
@@ -274,6 +294,8 @@ export class PlanningService {
     }
     if (!task) throw new NotFoundException('Tarefa nao encontrada');
 
+    await this.ensurePlanningWritable(task.projectPlanningId);
+
     return this.prisma.planningTask.update({
       where: { id },
       data: {
@@ -291,7 +313,7 @@ export class PlanningService {
   async deleteTask(id: string, instanceId: string, userId?: string) {
     let task = await this.prisma.planningTask.findFirst({
       where: { id, projectPlanning: { project: { instanceId } } },
-      select: { id: true },
+      select: { id: true, projectPlanningId: true },
     });
     if (!task && userId) {
       task = await this.prisma.planningTask.findFirst({
@@ -299,10 +321,12 @@ export class PlanningService {
           id,
           projectPlanning: { project: { members: { some: { userId } } } },
         },
-        select: { id: true },
+        select: { id: true, projectPlanningId: true },
       });
     }
     if (!task) throw new NotFoundException('Tarefa nao encontrada');
+
+    await this.ensurePlanningWritable(task.projectPlanningId);
 
     await this.prisma.planningTask.delete({ where: { id } });
     return { deleted: 1 };
@@ -351,7 +375,7 @@ export class PlanningService {
   }
 
   async createSupplyGroup(input: CreateSupplyGroupInput) {
-    await this.ensureProject(input.projectId, input.instanceId, input.userId);
+    await this.ensureProject(input.projectId, input.instanceId, input.userId, true);
     const planning = await this.ensurePlanning(input.projectId);
 
     if (!Array.isArray(input.items) || input.items.length === 0) {
@@ -450,6 +474,8 @@ export class PlanningService {
 
     if (!group) throw new NotFoundException('Grupo de suprimentos nao encontrado');
 
+    await this.ensurePlanningWritable(group.projectPlanningId);
+
     const updated = await this.prisma.supplyGroup.update({
       where: { id },
       data: {
@@ -539,6 +565,8 @@ export class PlanningService {
 
     if (!group) throw new NotFoundException('Grupo de suprimentos nao encontrado');
 
+    await this.ensurePlanningWritable(group.projectPlanningId);
+
     const count = await this.prisma.materialForecast.count({
       where: { supplyGroupId: groupId },
     });
@@ -582,6 +610,7 @@ export class PlanningService {
       where: { id, projectPlanning: { project: { instanceId } } },
       select: {
         id: true,
+        projectPlanningId: true,
         paymentProof: true,
         invoiceDoc: true,
       },
@@ -595,6 +624,7 @@ export class PlanningService {
         },
         select: {
           id: true,
+          projectPlanningId: true,
           paymentProof: true,
           invoiceDoc: true,
         },
@@ -602,6 +632,8 @@ export class PlanningService {
     }
 
     if (!group) throw new NotFoundException('Grupo de suprimentos nao encontrado');
+
+  await this.ensurePlanningWritable(group.projectPlanningId);
 
     const forecasts = await this.prisma.materialForecast.findMany({
       where: { supplyGroupId: id },
@@ -626,7 +658,7 @@ export class PlanningService {
   }
 
   async convertForecastsToGroup(input: ConvertForecastsToGroupInput) {
-    await this.ensureProject(input.projectId, input.instanceId, input.userId);
+    await this.ensureProject(input.projectId, input.instanceId, input.userId, true);
     const planning = await this.ensurePlanning(input.projectId);
 
     if (!Array.isArray(input.forecastIds) || input.forecastIds.length === 0) {
@@ -690,7 +722,7 @@ export class PlanningService {
   }
 
   async createForecast(input: CreateForecastInput) {
-    await this.ensureProject(input.projectId, input.instanceId, input.userId);
+    await this.ensureProject(input.projectId, input.instanceId, input.userId, true);
     const planning = await this.ensurePlanning(input.projectId);
 
     const created = await this.prisma.materialForecast.create({
@@ -770,6 +802,8 @@ export class PlanningService {
       });
     }
     if (!forecast) throw new NotFoundException('Previsao nao encontrada');
+
+    await this.ensurePlanningWritable(forecast.projectPlanningId);
 
     const nextStatus = data.status ?? forecast.status;
     const nextIsPaid = data.isPaid ?? forecast.isPaid;
@@ -854,7 +888,12 @@ export class PlanningService {
   async deleteForecast(id: string, instanceId: string, userId?: string) {
     let forecast = await this.prisma.materialForecast.findFirst({
       where: { id, projectPlanning: { project: { instanceId } } },
-      select: { id: true, paymentProof: true, supplyGroupId: true },
+      select: {
+        id: true,
+        paymentProof: true,
+        supplyGroupId: true,
+        projectPlanningId: true,
+      },
     });
     if (!forecast && userId) {
       forecast = await this.prisma.materialForecast.findFirst({
@@ -862,10 +901,17 @@ export class PlanningService {
           id,
           projectPlanning: { project: { members: { some: { userId } } } },
         },
-        select: { id: true, paymentProof: true, supplyGroupId: true },
+        select: {
+          id: true,
+          paymentProof: true,
+          supplyGroupId: true,
+          projectPlanningId: true,
+        },
       });
     }
     if (!forecast) throw new NotFoundException('Previsao nao encontrada');
+
+    await this.ensurePlanningWritable(forecast.projectPlanningId);
 
     const candidateUploads: Array<string | null | undefined> = [forecast.paymentProof];
 
@@ -902,7 +948,7 @@ export class PlanningService {
   }
 
   async createMilestone(input: CreateMilestoneInput) {
-    await this.ensureProject(input.projectId, input.instanceId, input.userId);
+    await this.ensureProject(input.projectId, input.instanceId, input.userId, true);
     const planning = await this.ensurePlanning(input.projectId);
 
     return this.prisma.milestone.create({
@@ -935,6 +981,8 @@ export class PlanningService {
     }
     if (!milestone) throw new NotFoundException('Marco nao encontrado');
 
+    await this.ensurePlanningWritable(milestone.projectPlanningId);
+
     return this.prisma.milestone.update({
       where: { id },
       data: {
@@ -953,7 +1001,7 @@ export class PlanningService {
     instanceId: string,
     userId?: string,
   ): Promise<{ replaced: number }> {
-    await this.ensureProject(projectId, instanceId, userId);
+    await this.ensureProject(projectId, instanceId, userId, true);
     const planning = await this.ensurePlanning(projectId);
 
     const [existingForecastAttachments, existingGroupAttachments] =
@@ -1052,7 +1100,7 @@ export class PlanningService {
   async deleteMilestone(id: string, instanceId: string, userId?: string) {
     let milestone = await this.prisma.milestone.findFirst({
       where: { id, projectPlanning: { project: { instanceId } } },
-      select: { id: true },
+      select: { id: true, projectPlanningId: true },
     });
     if (!milestone && userId) {
       milestone = await this.prisma.milestone.findFirst({
@@ -1060,10 +1108,12 @@ export class PlanningService {
           id,
           projectPlanning: { project: { members: { some: { userId } } } },
         },
-        select: { id: true },
+        select: { id: true, projectPlanningId: true },
       });
     }
     if (!milestone) throw new NotFoundException('Marco nao encontrado');
+
+    await this.ensurePlanningWritable(milestone.projectPlanningId);
 
     await this.prisma.milestone.delete({ where: { id } });
     return { deleted: 1 };

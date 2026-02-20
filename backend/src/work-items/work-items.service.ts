@@ -1,6 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { ensureProjectAccess } from '../common/project-access.util';
+import {
+  ensureProjectAccess,
+  ensureProjectWritable,
+} from '../common/project-access.util';
 import { NotificationsService } from '../notifications/notifications.service';
 import { JournalService } from '../journal/journal.service';
 
@@ -74,8 +77,12 @@ export class WorkItemsService {
     projectId: string,
     instanceId: string,
     userId?: string,
+    writable = false,
   ) {
-    return ensureProjectAccess(this.prisma, projectId, instanceId, userId);
+    await ensureProjectAccess(this.prisma, projectId, instanceId, userId);
+    if (writable) {
+      await ensureProjectWritable(this.prisma, projectId);
+    }
   }
 
   async findAll(projectId: string, instanceId: string, userId?: string) {
@@ -87,7 +94,7 @@ export class WorkItemsService {
   }
 
   async create(input: CreateWorkItemInput) {
-    await this.ensureProject(input.projectId, input.instanceId, input.userId);
+    await this.ensureProject(input.projectId, input.instanceId, input.userId, true);
     return this.prisma.workItem.create({
       data: {
         id: input.id,
@@ -124,7 +131,7 @@ export class WorkItemsService {
     instanceId: string,
     userId?: string,
   ): Promise<{ created: number }> {
-    await this.ensureProject(projectId, instanceId, userId);
+    await this.ensureProject(projectId, instanceId, userId, true);
 
     // Prepare data for bulk insert
     const createData = items.map((i) => ({
@@ -185,7 +192,7 @@ export class WorkItemsService {
     instanceId: string,
     userId?: string,
   ): Promise<{ created: number }> {
-    await this.ensureProject(projectId, instanceId, userId);
+    await this.ensureProject(projectId, instanceId, userId, true);
 
     const createData = items.map((i) => ({
       id: i.id,
@@ -268,6 +275,8 @@ export class WorkItemsService {
     }
 
     if (!existing) throw new NotFoundException('Item nao encontrado');
+
+    await ensureProjectWritable(this.prisma, existing.projectId);
 
     const nextAccumulatedPercentage =
       input.accumulatedPercentage ?? existing.accumulatedPercentage;
@@ -379,6 +388,8 @@ export class WorkItemsService {
     }
 
     if (!target) throw new NotFoundException('Item nao encontrado');
+
+    await ensureProjectWritable(this.prisma, target.projectId);
 
     const allItems = await this.prisma.workItem.findMany({
       where: { projectId: target.projectId },

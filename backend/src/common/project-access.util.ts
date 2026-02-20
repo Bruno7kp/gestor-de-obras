@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 /**
@@ -31,6 +31,30 @@ export async function ensureProjectAccess(
   }
 
   throw new NotFoundException('Projeto nao encontrado');
+}
+
+/**
+ * Ensures the project is writable (not archived).
+ *
+ * @throws NotFoundException if project does not exist
+ * @throws ForbiddenException if project is archived
+ */
+export async function ensureProjectWritable(
+  prisma: PrismaService,
+  projectId: string,
+): Promise<void> {
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { id: true, isArchived: true },
+  });
+
+  if (!project) {
+    throw new NotFoundException('Projeto nao encontrado');
+  }
+
+  if (project.isArchived) {
+    throw new ForbiddenException('Projeto arquivado. Reative a obra para editar.');
+  }
 }
 
 /**

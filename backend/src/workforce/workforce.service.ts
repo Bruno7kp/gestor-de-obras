@@ -1,7 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { removeLocalUpload, removeLocalUploads } from '../uploads/file.utils';
-import { ensureProjectAccess } from '../common/project-access.util';
+import {
+  ensureProjectAccess,
+  ensureProjectWritable,
+} from '../common/project-access.util';
 
 interface CreateWorkforceInput {
   projectId: string;
@@ -35,11 +38,20 @@ export class WorkforceService {
     projectId: string,
     instanceId: string,
     userId?: string,
+    writable = false,
   ) {
-    return ensureProjectAccess(this.prisma, projectId, instanceId, userId);
+    await ensureProjectAccess(this.prisma, projectId, instanceId, userId);
+    if (writable) {
+      await ensureProjectWritable(this.prisma, projectId);
+    }
   }
 
-  private async ensureMember(id: string, instanceId: string, userId?: string) {
+  private async ensureMember(
+    id: string,
+    instanceId: string,
+    userId?: string,
+    writable = false,
+  ) {
     let member = await this.prisma.workforceMember.findFirst({
       where: { id, project: { instanceId } },
     });
@@ -49,6 +61,9 @@ export class WorkforceService {
       });
     }
     if (!member) throw new NotFoundException('Membro nao encontrado');
+    if (writable) {
+      await ensureProjectWritable(this.prisma, member.projectId);
+    }
     return member;
   }
 
@@ -65,7 +80,7 @@ export class WorkforceService {
   }
 
   async create(input: CreateWorkforceInput) {
-    await this.ensureProject(input.projectId, input.instanceId, input.userId);
+    await this.ensureProject(input.projectId, input.instanceId, input.userId, true);
 
     const member = await this.prisma.workforceMember.create({
       data: {
@@ -111,6 +126,7 @@ export class WorkforceService {
       input.id,
       input.instanceId,
       input.userId,
+      true,
     );
 
     return this.prisma.workforceMember.update({
@@ -137,7 +153,7 @@ export class WorkforceService {
     },
     userId?: string,
   ) {
-    await this.ensureMember(id, instanceId, userId);
+    await this.ensureMember(id, instanceId, userId, true);
     return this.prisma.staffDocument.create({
       data: {
         workforceMemberId: id,
@@ -155,7 +171,7 @@ export class WorkforceService {
     instanceId: string,
     userId?: string,
   ) {
-    await this.ensureMember(id, instanceId, userId);
+    await this.ensureMember(id, instanceId, userId, true);
 
     let doc = await this.prisma.staffDocument.findFirst({
       where: {
@@ -187,7 +203,7 @@ export class WorkforceService {
     instanceId: string,
     userId?: string,
   ) {
-    await this.ensureMember(id, instanceId, userId);
+    await this.ensureMember(id, instanceId, userId, true);
     return this.prisma.workItemResponsibility.create({
       data: {
         workforceMemberId: id,
@@ -202,7 +218,7 @@ export class WorkforceService {
     instanceId: string,
     userId?: string,
   ) {
-    await this.ensureMember(id, instanceId, userId);
+    await this.ensureMember(id, instanceId, userId, true);
     await this.prisma.workItemResponsibility.deleteMany({
       where: {
         workforceMemberId: id,
@@ -225,6 +241,8 @@ export class WorkforceService {
     }
 
     if (!member) throw new NotFoundException('Membro nao encontrado');
+
+    await ensureProjectWritable(this.prisma, member.projectId);
 
     await removeLocalUpload(member.foto);
     await removeLocalUploads(member.documentos.map((doc) => doc.arquivoUrl));
