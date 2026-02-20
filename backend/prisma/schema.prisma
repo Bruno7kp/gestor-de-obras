@@ -63,6 +63,7 @@ model CompanyCertificate {
   issuer           String
   expirationDate   DateTime
   status           String
+  attachmentUrls   String[]       @default([])
   globalSettingsId String
   globalSettings   GlobalSettings @relation(fields: [globalSettingsId], references: [id])
 }

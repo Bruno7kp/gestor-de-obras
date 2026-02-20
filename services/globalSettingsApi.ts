@@ -2,6 +2,30 @@ import type { CompanyCertificate, GlobalSettings } from '../types';
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL ?? '/api';
 
+const normalizeAttachmentUrls = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === 'string' && item.length > 0);
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    if (value.startsWith('{') && value.endsWith('}')) {
+      return value
+        .slice(1, -1)
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+    return [value.trim()];
+  }
+
+  return [];
+};
+
+const normalizeCertificate = (cert: any): CompanyCertificate => ({
+  ...cert,
+  attachmentUrls: normalizeAttachmentUrls(cert?.attachmentUrls),
+});
+
 export const globalSettingsApi = {
   async get(): Promise<GlobalSettings> {
     const response = await fetch(`${API_BASE}/global-settings`, {
@@ -20,7 +44,7 @@ export const globalSettingsApi = {
       userName: data.userName ?? 'Administrador',
       language: data.language ?? 'pt-BR',
       currencySymbol: data.currencySymbol ?? 'R$',
-      certificates: data.certificates ?? [],
+      certificates: (data.certificates ?? []).map(normalizeCertificate),
     };
   },
 
@@ -45,7 +69,7 @@ export const globalSettingsApi = {
       userName: data.userName ?? 'Administrador',
       language: data.language ?? 'pt-BR',
       currencySymbol: data.currencySymbol ?? 'R$',
-      certificates: data.certificates ?? [],
+      certificates: (data.certificates ?? []).map(normalizeCertificate),
     };
   },
 
@@ -63,7 +87,7 @@ export const globalSettingsApi = {
       throw new Error('Falha ao criar certidao');
     }
 
-    return response.json();
+    return normalizeCertificate(await response.json());
   },
 
   async removeCertificate(id: string): Promise<void> {
@@ -91,6 +115,6 @@ export const globalSettingsApi = {
       throw new Error('Falha ao atualizar certidao');
     }
 
-    return response.json();
+    return normalizeCertificate(await response.json());
   },
 };

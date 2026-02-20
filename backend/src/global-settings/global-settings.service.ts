@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { removeLocalUploads } from '../uploads/file.utils';
 
 interface UpdateGlobalSettingsInput {
   instanceId: string;
@@ -16,11 +17,79 @@ interface CreateCertificateInput {
   issuer: string;
   expirationDate: string;
   status: string;
+  attachmentUrls?: unknown;
 }
 
 @Injectable()
 export class GlobalSettingsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private normalizeAttachmentUrls(value: unknown): string[] {
+    if (Array.isArray(value)) {
+      return value
+        .filter((item): item is string => typeof item === 'string')
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) return [];
+
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return parsed
+            .filter((item): item is string => typeof item === 'string')
+            .map((item) => item.trim())
+            .filter(Boolean);
+        }
+      } catch {
+        // ignore and continue with fallback parsing
+      }
+
+      if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+        return trimmed
+          .slice(1, -1)
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean);
+      }
+
+      return [trimmed];
+    }
+
+    if (value && typeof value === 'object') {
+      const values = Object.values(value as Record<string, unknown>);
+      return values
+        .filter((item): item is string => typeof item === 'string')
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+
+    return [];
+  }
+
+  private async cleanupCertificateUploadsIfOrphaned(
+    urls: Array<string | null | undefined>,
+  ) {
+    const unique = Array.from(new Set(urls.filter(Boolean))) as string[];
+    if (unique.length === 0) return;
+
+    const orphaned: string[] = [];
+    for (const url of unique) {
+      const count = await this.prisma.companyCertificate.count({
+        where: { attachmentUrls: { has: url } },
+      });
+      if (count === 0) {
+        orphaned.push(url);
+      }
+    }
+
+    if (orphaned.length > 0) {
+      await removeLocalUploads(orphaned);
+    }
+  }
 
   async getSettings(instanceId: string) {
     const settings = await this.prisma.globalSettings.findFirst({
@@ -71,15 +140,24 @@ export class GlobalSettingsService {
 
     if (!settings) throw new NotFoundException('Settings nao encontrados');
 
-    return this.prisma.companyCertificate.create({
+    const attachmentUrls = this.normalizeAttachmentUrls(input.attachmentUrls);
+
+    const created = await this.prisma.companyCertificate.create({
       data: {
         globalSettingsId: settings.id,
         name: input.name,
         issuer: input.issuer,
         expirationDate: new Date(input.expirationDate),
         status: input.status,
+        attachmentUrls,
       },
     });
+
+    const refreshed = await this.prisma.companyCertificate.findUnique({
+      where: { id: created.id },
+    });
+
+    return refreshed ?? created;
   }
 
   async updateCertificate(
@@ -90,6 +168,7 @@ export class GlobalSettingsService {
       issuer?: string;
       expirationDate?: string;
       status?: string;
+      attachmentUrls?: unknown;
     },
   ) {
     const settings = await this.prisma.globalSettings.findFirst({
@@ -101,7 +180,18 @@ export class GlobalSettingsService {
       throw new NotFoundException('Certificado nao encontrado');
     }
 
-    return this.prisma.companyCertificate.update({
+    const existingCertificate = settings.certificates[0];
+    const normalizedInputAttachmentUrls =
+      input.attachmentUrls !== undefined
+        ? this.normalizeAttachmentUrls(input.attachmentUrls)
+        : undefined;
+    const nextAttachmentUrls =
+      normalizedInputAttachmentUrls ?? existingCertificate.attachmentUrls;
+    const removedUrls = (existingCertificate.attachmentUrls ?? []).filter(
+      (url) => !nextAttachmentUrls.includes(url),
+    );
+
+    const updated = await this.prisma.companyCertificate.update({
       where: { id },
       data: {
         ...(input.name !== undefined && { name: input.name }),
@@ -110,8 +200,18 @@ export class GlobalSettingsService {
           expirationDate: new Date(input.expirationDate),
         }),
         ...(input.status !== undefined && { status: input.status }),
+        ...(normalizedInputAttachmentUrls !== undefined && {
+          attachmentUrls: normalizedInputAttachmentUrls,
+        }),
       },
     });
+
+    const refreshed = await this.prisma.companyCertificate.findUnique({
+      where: { id },
+    });
+
+    await this.cleanupCertificateUploadsIfOrphaned(removedUrls);
+    return refreshed ?? updated;
   }
 
   async removeCertificate(id: string, instanceId: string) {
@@ -124,7 +224,10 @@ export class GlobalSettingsService {
       throw new NotFoundException('Certificado nao encontrado');
     }
 
+    const attachmentUrls = settings.certificates[0].attachmentUrls ?? [];
+
     await this.prisma.companyCertificate.delete({ where: { id } });
+    await this.cleanupCertificateUploadsIfOrphaned(attachmentUrls);
     return { deleted: 1 };
   }
 }

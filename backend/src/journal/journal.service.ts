@@ -71,6 +71,9 @@ export class JournalService {
   async createEntry(input: CreateJournalEntryInput) {
     await this.ensureProject(input.projectId, input.instanceId, input.userId, true);
     const journal = await this.ensureJournal(input.projectId);
+    if (!journal) {
+      throw new NotFoundException('Diario da obra nao encontrado');
+    }
 
     return this.prisma.journalEntry.create({
       data: {

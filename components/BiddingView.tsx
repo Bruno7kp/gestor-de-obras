@@ -203,8 +203,16 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
           issuer: data.issuer,
           expirationDate: data.expirationDate,
           status: data.status,
+          attachmentUrls: data.attachmentUrls,
         });
-        onUpdateCertificates(updatedList.map(c => c.id === editingCert.id ? { ...c, ...updated } : c));
+        onUpdateCertificates(updatedList.map(c => {
+          if (c.id !== editingCert.id) return c;
+          return {
+            ...c,
+            ...updated,
+            attachmentUrls: updated.attachmentUrls ?? [],
+          };
+        }));
       } catch (error) {
         console.error('Erro ao atualizar certidao:', error);
         onUpdateCertificates(previous);
@@ -218,6 +226,7 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
         issuer: data.issuer || '',
         expirationDate: data.expirationDate || new Date().toISOString().split('T')[0],
         status: (data.status as CompanyCertificate['status']) || 'valid',
+        attachmentUrls: data.attachmentUrls ?? [],
       };
       onUpdateCertificates([...certificates, newCert]);
       try {
@@ -226,8 +235,13 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
           issuer: newCert.issuer,
           expirationDate: newCert.expirationDate,
           status: newCert.status,
+          attachmentUrls: newCert.attachmentUrls,
         });
-        onUpdateCertificates([...previous, created]);
+        const mergedCreated: CompanyCertificate = {
+          ...created,
+          attachmentUrls: created.attachmentUrls ?? [],
+        };
+        onUpdateCertificates([...previous, mergedCreated]);
       } catch (error) {
         console.error('Erro ao criar certidao:', error);
         onUpdateCertificates(previous);

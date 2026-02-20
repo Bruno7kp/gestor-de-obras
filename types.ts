@@ -354,6 +354,7 @@ export interface CompanyCertificate {
   issuer: string;
   expirationDate: string;
   status: 'valid' | 'warning' | 'expired';
+  attachmentUrls?: string[];
 }
 
 export interface GlobalSettings {
