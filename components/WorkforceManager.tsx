@@ -15,11 +15,12 @@ import {
 interface WorkforceManagerProps {
   project: Project;
   onUpdateProject: (data: Partial<Project>) => void;
+  isReadOnly?: boolean;
 }
 
-export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onUpdateProject }) => {
+export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onUpdateProject, isReadOnly = false }) => {
   const { canEdit, getLevel } = usePermissions();
-  const canEditWorkforce = canEdit('workforce');
+  const canEditWorkforce = canEdit('workforce') && !isReadOnly;
   const toast = useToast();
 
   const [search, setSearch] = useState('');

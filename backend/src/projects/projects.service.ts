@@ -54,9 +54,51 @@ interface UpdateProjectInput {
   };
 }
 
+interface UpdateProjectLifecycleInput {
+  id: string;
+  instanceId: string;
+  userId: string;
+  permissions: string[];
+  action: 'archive' | 'reactivate';
+  projectNameConfirmation: string;
+}
+
 @Injectable()
 export class ProjectsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private async canManageProjectLifecycle(
+    projectId: string,
+    userId: string,
+    permissions: string[],
+  ) {
+    if (permissions.includes('project_settings.edit')) return true;
+
+    const membership = await this.prisma.projectMember.findUnique({
+      where: {
+        userId_projectId: {
+          userId,
+          projectId,
+        },
+      },
+      include: {
+        assignedRole: {
+          include: {
+            permissions: {
+              include: { permission: { select: { code: true } } },
+            },
+          },
+        },
+      },
+    });
+
+    if (!membership) return false;
+
+    const roleCodes = membership.assignedRole.permissions.map(
+      (rp) => rp.permission.code,
+    );
+    return roleCodes.includes('project_settings.edit');
+  }
 
   async findAll(
     instanceId: string,
@@ -431,6 +473,12 @@ export class ProjectsService {
 
     if (!existing) throw new NotFoundException('Projeto nao encontrado');
 
+    if (existing.isArchived) {
+      throw new ForbiddenException(
+        'Projeto arquivado. Reative a obra para permitir edicoes.',
+      );
+    }
+
     const themeInput = input.theme;
     if (themeInput) {
       const fallbackTheme = {
@@ -535,6 +583,12 @@ export class ProjectsService {
     });
 
     if (!existing) throw new NotFoundException('Projeto nao encontrado');
+
+    if (existing.isArchived) {
+      throw new ForbiddenException(
+        'Projeto arquivado. Reative a obra para permitir remocao.',
+      );
+    }
 
     const [assets, expenses, forecasts, journalEntries, workforce, payments] =
       await Promise.all([
@@ -685,6 +739,7 @@ export class ProjectsService {
           select: {
             id: true,
             name: true,
+            isArchived: true,
             instanceId: true,
             instance: { select: { id: true, name: true } },
           },
@@ -706,6 +761,7 @@ export class ProjectsService {
       .map((m) => ({
         projectId: m.project.id,
         projectName: m.project.name,
+        isArchived: m.project.isArchived,
         companyName: m.project.instance?.name ?? m.project.instanceId,
         instanceId: m.project.instanceId,
         instanceName: m.project.instance?.name ?? m.project.instanceId,
@@ -715,6 +771,54 @@ export class ProjectsService {
           permissions: m.assignedRole.permissions.map((p) => p.permission.code),
         },
       }));
+  }
+
+  async updateLifecycle(input: UpdateProjectLifecycleInput) {
+    const canManageLifecycle = await this.canManageProjectLifecycle(
+      input.id,
+      input.userId,
+      input.permissions,
+    );
+
+    if (!canManageLifecycle) {
+      throw new ForbiddenException(
+        'Sem permissao para alterar o ciclo de vida da obra',
+      );
+    }
+
+    let project = await this.prisma.project.findFirst({
+      where: { id: input.id, instanceId: input.instanceId },
+    });
+
+    if (!project) {
+      project = await this.prisma.project.findFirst({
+        where: { id: input.id, members: { some: { userId: input.userId } } },
+      });
+    }
+
+    if (!project) {
+      throw new NotFoundException('Projeto nao encontrado');
+    }
+
+    const providedName = (input.projectNameConfirmation ?? '').trim();
+    if (!providedName || providedName !== project.name.trim()) {
+      throw new ForbiddenException(
+        'Confirmacao invalida. Digite exatamente o nome da obra.',
+      );
+    }
+
+    const shouldArchive = input.action === 'archive';
+
+    if (shouldArchive && project.isArchived) return project;
+    if (!shouldArchive && !project.isArchived) return project;
+
+    return this.prisma.project.update({
+      where: { id: project.id },
+      data: {
+        isArchived: shouldArchive,
+        archivedAt: shouldArchive ? new Date() : null,
+      },
+    });
   }
 
   /**

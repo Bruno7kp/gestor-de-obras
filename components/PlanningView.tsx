@@ -42,16 +42,17 @@ interface PlanningViewProps {
   viewMode?: 'planning' | 'supplies';
   fixedSubTab?: 'tasks' | 'forecast' | 'milestones';
   showSubTabs?: boolean;
+  isReadOnly?: boolean;
 }
 
 export const PlanningView: React.FC<PlanningViewProps> = ({ 
-  project, suppliers, onUpdatePlanning, onAddExpense, onUpdateExpense, categories, allWorkItems, viewMode = 'planning', fixedSubTab, showSubTabs = true
+  project, suppliers, onUpdatePlanning, onAddExpense, onUpdateExpense, categories, allWorkItems, viewMode = 'planning', fixedSubTab, showSubTabs = true, isReadOnly = false
 }) => {
   const { user } = useAuth();
   const { canEdit, getLevel } = usePermissions();
   const toast = useToast();
   const isSuppliesView = viewMode === 'supplies';
-  const canEditPlanning = isSuppliesView ? canEdit('supplies') : canEdit('planning');
+  const canEditPlanning = (isSuppliesView ? canEdit('supplies') : canEdit('planning')) && !isReadOnly;
 
   const planningSubTabs: Array<'tasks' | 'forecast' | 'milestones'> = ['tasks', 'forecast', 'milestones'];
   const planningTabKey = `planning_subtab_${project.id}`;
@@ -1390,7 +1391,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                         moveForecastInStatus(f.id, 'up');
                                       }}
                                       className="p-0.5 rounded text-slate-300 hover:text-indigo-500"
-                                      title="Mover para cima"
+                                      title="Mover para fora"
                                     >
                                       <ChevronUp size={12} />
                                     </button>

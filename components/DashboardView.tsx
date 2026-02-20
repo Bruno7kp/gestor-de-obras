@@ -26,10 +26,23 @@ interface DashboardViewProps {
   unreadNotificationsByProject: Record<string, number>;
 }
 
+type SortMode = 'custom' | 'name' | 'created';
+
+type ArchivedProjectMeta = {
+  groupId: string | null;
+  order: number;
+};
+
 export const DashboardView: React.FC<DashboardViewProps> = (props) => {
   const { getLevel } = usePermissions();
   const dashboardViewKey = 'promeasure_dashboard_view_v1';
-  const [currentGroupId, setCurrentGroupId] = useState<string | null>(null);
+  const dashboardLifecycleFilterKey = 'promeasure_dashboard_lifecycle_filter_v1';
+  const dashboardOriginFilterKey = 'promeasure_dashboard_origin_filter_v1';
+  const dashboardSortModeKey = 'promeasure_dashboard_sort_mode_v1';
+  const archivedGroupsKey = 'promeasure_archived_groups_v1';
+  const archivedProjectMetaKey = 'promeasure_archived_project_meta_v1';
+  const [currentGroupIdActive, setCurrentGroupIdActive] = useState<string | null>(null);
+  const [currentGroupIdArchived, setCurrentGroupIdArchived] = useState<string | null>(null);
   const [editingGroup, setEditingGroup] = useState<ProjectGroup | null>(null);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [movingItem, setMovingItem] = useState<{ type: 'group' | 'project', id: string } | null>(null);
@@ -40,6 +53,38 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
     const saved = localStorage.getItem(dashboardViewKey);
     return saved === 'list' ? 'list' : 'grid';
   });
+  const [lifecycleFilter, setLifecycleFilter] = useState<'active' | 'archived'>(() => {
+    const saved = localStorage.getItem(dashboardLifecycleFilterKey);
+    return saved === 'archived' ? 'archived' : 'active';
+  });
+  const [originFilter, setOriginFilter] = useState<'all' | 'local' | 'shared'>(() => {
+    const saved = localStorage.getItem(dashboardOriginFilterKey);
+    return saved === 'local' || saved === 'shared' ? saved : 'all';
+  });
+  const [sortMode, setSortMode] = useState<SortMode>(() => {
+    const saved = localStorage.getItem(dashboardSortModeKey);
+    return saved === 'name' || saved === 'created' ? saved : 'custom';
+  });
+  const [archivedGroups, setArchivedGroups] = useState<ProjectGroup[]>(() => {
+    const raw = localStorage.getItem(archivedGroupsKey);
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
+  const [archivedProjectMeta, setArchivedProjectMeta] = useState<Record<string, ArchivedProjectMeta>>(() => {
+    const raw = localStorage.getItem(archivedProjectMetaKey);
+    if (!raw) return {};
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return {};
+    }
+  });
   const toast = useToast();
   const canRenameProjects = getLevel('projects_general') === 'edit';
 
@@ -47,60 +92,171 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
     localStorage.setItem(dashboardViewKey, viewMode);
   }, [dashboardViewKey, viewMode]);
 
+  useEffect(() => {
+    localStorage.setItem(dashboardLifecycleFilterKey, lifecycleFilter);
+  }, [dashboardLifecycleFilterKey, lifecycleFilter]);
+
+  useEffect(() => {
+    localStorage.setItem(dashboardOriginFilterKey, originFilter);
+  }, [dashboardOriginFilterKey, originFilter]);
+
+  useEffect(() => {
+    localStorage.setItem(dashboardSortModeKey, sortMode);
+  }, [dashboardSortModeKey, sortMode]);
+
+  useEffect(() => {
+    localStorage.setItem(archivedGroupsKey, JSON.stringify(archivedGroups));
+  }, [archivedGroups, archivedGroupsKey]);
+
+  useEffect(() => {
+    localStorage.setItem(archivedProjectMetaKey, JSON.stringify(archivedProjectMeta));
+  }, [archivedProjectMeta, archivedProjectMetaKey]);
+
+  const currentGroupId = lifecycleFilter === 'archived' ? currentGroupIdArchived : currentGroupIdActive;
+  const setCurrentGroupId = (value: string | null) => {
+    if (lifecycleFilter === 'archived') {
+      setCurrentGroupIdArchived(value);
+      return;
+    }
+    setCurrentGroupIdActive(value);
+  };
+
+  const activeGroups = props.groups;
+  const lifecycleGroups = lifecycleFilter === 'archived' ? archivedGroups : activeGroups;
+  const isCustomSort = sortMode === 'custom';
+
   const sortByOrder = (a: { order?: number; name?: string }, b: { order?: number; name?: string }) => {
     const orderDiff = (a.order ?? 0) - (b.order ?? 0);
     if (orderDiff !== 0) return orderDiff;
     return (a.name ?? '').localeCompare(b.name ?? '');
   };
 
+  const sortByName = (a: { name?: string }, b: { name?: string }) =>
+    (a.name ?? '').localeCompare(b.name ?? '');
+
+  const sortByCreated = (a: { createdAt?: string }, b: { createdAt?: string }) => {
+    const aTs = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const bTs = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return bTs - aTs;
+  };
+
+  const sortItems = <T extends { order?: number; name?: string; createdAt?: string }>(items: T[]) => {
+    const cloned = [...items];
+    if (sortMode === 'name') return cloned.sort(sortByName);
+    if (sortMode === 'created') return cloned.sort(sortByCreated);
+    return cloned.sort(sortByOrder);
+  };
+
   const getNextGroupOrder = (parentId: string | null) => {
-    const siblings = props.groups.filter(g => g.parentId === parentId);
+    const siblings = lifecycleGroups.filter(g => g.parentId === parentId);
     if (siblings.length === 0) return 0;
     return Math.max(...siblings.map(g => g.order ?? 0)) + 1;
   };
 
-  const getNextProjectOrder = (groupId: string | null) => {
-    const siblings = props.projects.filter(p => p.groupId === groupId);
-    if (siblings.length === 0) return 0;
-    return Math.max(...siblings.map(p => p.order ?? 0)) + 1;
+  const getArchivedProjectMeta = (project: Project): ArchivedProjectMeta => {
+    return archivedProjectMeta[project.id] ?? { groupId: null, order: project.order ?? 0 };
   };
 
+  const getProjectGroupId = (project: Project) =>
+    lifecycleFilter === 'archived'
+      ? getArchivedProjectMeta(project).groupId
+      : (project.groupId ?? null);
+
+  const getProjectOrder = (project: Project) =>
+    lifecycleFilter === 'archived'
+      ? getArchivedProjectMeta(project).order
+      : (project.order ?? 0);
+
+  const getNextProjectOrder = (groupId: string | null) => {
+    const siblings = filteredLocalProjects.filter((project) => getProjectGroupId(project) === groupId);
+    if (siblings.length === 0) return 0;
+    return Math.max(...siblings.map((project) => getProjectOrder(project))) + 1;
+  };
+
+  const filteredLocalProjects = useMemo(
+    () =>
+      props.projects.filter((project) =>
+        lifecycleFilter === 'archived'
+          ? Boolean(project.isArchived)
+          : !project.isArchived,
+      ),
+    [props.projects, lifecycleFilter],
+  );
+
   const currentGroups = useMemo(() =>
-    props.groups
+    lifecycleGroups
       .filter(g => g.parentId === currentGroupId)
-      .slice()
-      .sort(sortByOrder),
-    [props.groups, currentGroupId]
+      .slice(),
+    [lifecycleGroups, currentGroupId]
   );
   
   const currentProjects = useMemo(() =>
-    props.projects
-      .filter(p => p.groupId === currentGroupId)
-      .slice()
-      .sort(sortByOrder),
-    [props.projects, currentGroupId]
+    filteredLocalProjects
+      .filter((project) => getProjectGroupId(project) === currentGroupId)
+      .map((project) => ({
+        ...project,
+        order: getProjectOrder(project),
+      })),
+    [filteredLocalProjects, currentGroupId, lifecycleFilter, archivedProjectMeta]
   );
+
+  const sortedCurrentGroups = useMemo(() => sortItems(currentGroups), [currentGroups, sortMode]);
+  const sortedCurrentProjects = useMemo(() => sortItems(currentProjects), [currentProjects, sortMode]);
 
   const dashboardItems = useMemo(() => (
     [
       ...(currentGroupId ? [{ type: 'placeholder' as const, id: 'target-back' }] : []),
-      ...currentGroups.map((g) => ({ type: 'group' as const, id: g.id })),
-      ...currentProjects.map((p) => ({ type: 'project' as const, id: p.id })),
+      ...sortedCurrentGroups.map((g) => ({ type: 'group' as const, id: g.id })),
+      ...sortedCurrentProjects.map((p) => ({ type: 'project' as const, id: p.id })),
     ]
-  ), [currentGroupId, currentGroups, currentProjects]);
+  ), [currentGroupId, sortedCurrentGroups, sortedCurrentProjects]);
 
   const breadcrumbs = useMemo(() => {
     const list: ProjectGroup[] = [];
     let currentId = currentGroupId;
     while (currentId) {
-      const g = props.groups.find(x => x.id === currentId);
+      const g = lifecycleGroups.find(x => x.id === currentId);
       if (g) {
         list.unshift(g);
         currentId = g.parentId;
       } else break;
     }
     return list;
-  }, [currentGroupId, props.groups]);
+  }, [currentGroupId, lifecycleGroups]);
+
+  useEffect(() => {
+    if (lifecycleFilter !== 'archived') return;
+
+    setArchivedProjectMeta((prev) => {
+      const next = { ...prev };
+      let changed = false;
+
+      filteredLocalProjects.forEach((project, index) => {
+        if (!next[project.id]) {
+          next[project.id] = {
+            groupId: null,
+            order: index,
+          };
+          changed = true;
+        }
+      });
+
+      Object.keys(next).forEach((projectId) => {
+        if (!filteredLocalProjects.some((project) => project.id === projectId)) {
+          delete next[projectId];
+          changed = true;
+        }
+      });
+
+      return changed ? next : prev;
+    });
+  }, [lifecycleFilter, filteredLocalProjects]);
+
+  useEffect(() => {
+    if (!currentGroupId) return;
+    if (lifecycleGroups.some((group) => group.id === currentGroupId)) return;
+    setCurrentGroupId(null);
+  }, [currentGroupId, lifecycleGroups]);
 
   const refreshLists = async () => {
     const [projects, groups] = await Promise.all([
@@ -111,6 +267,8 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
   };
 
   const handleDragEnd = async (result: DropResult) => {
+    if (!isCustomSort) return;
+
     const sourceId = result.draggableId;
     const cleanSourceId = sourceId.replace('grp-', '').replace('prj-', '');
     const type = sourceId.startsWith('grp-') ? 'group' : 'project';
@@ -132,6 +290,25 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
       if (cleanSourceId === targetGroupId) return;
 
       try {
+        if (lifecycleFilter === 'archived') {
+          if (type === 'project') {
+            setArchivedProjectMeta((prev) => ({
+              ...prev,
+              [cleanSourceId]: {
+                groupId: targetGroupId,
+                order: getNextProjectOrder(targetGroupId),
+              },
+            }));
+          } else {
+            setArchivedGroups((prev) => prev.map((group) =>
+              group.id === cleanSourceId
+                ? { ...group, parentId: targetGroupId, order: getNextGroupOrder(targetGroupId) }
+                : group,
+            ));
+          }
+          return;
+        }
+
         if (type === 'project') {
           const order = getNextProjectOrder(targetGroupId);
           await projectsApi.update(cleanSourceId, { groupId: targetGroupId, order });
@@ -152,6 +329,25 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
         : result.destination.droppableId.replace('breadcrumb-', '');
 
       try {
+        if (lifecycleFilter === 'archived') {
+          if (type === 'project') {
+            setArchivedProjectMeta((prev) => ({
+              ...prev,
+              [cleanSourceId]: {
+                groupId: targetGroupId,
+                order: getNextProjectOrder(targetGroupId),
+              },
+            }));
+          } else {
+            setArchivedGroups((prev) => prev.map((group) =>
+              group.id === cleanSourceId
+                ? { ...group, parentId: targetGroupId, order: getNextGroupOrder(targetGroupId) }
+                : group,
+            ));
+          }
+          return;
+        }
+
         if (type === 'project') {
           const order = getNextProjectOrder(targetGroupId);
           await projectsApi.update(cleanSourceId, { groupId: targetGroupId, order });
@@ -194,23 +390,11 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
         orderIndex += 1;
       });
 
-      const updatedGroups = props.groups.map((group) => {
-        const nextOrder = groupOrderMap.get(group.id);
-        if (nextOrder === undefined) return group;
-        return group.order === nextOrder ? group : { ...group, order: nextOrder };
-      });
-
-      const updatedProjects = props.projects.map((project) => {
-        const nextOrder = projectOrderMap.get(project.id);
-        if (nextOrder === undefined) return project;
-        return project.order === nextOrder ? project : { ...project, order: nextOrder };
-      });
-
-      props.onBulkUpdate({ projects: updatedProjects, groups: updatedGroups });
-
       const groupUpdates = Array.from(groupOrderMap.entries())
         .map(([id, order]) => {
-          const existing = props.groups.find((group) => group.id === id);
+          const existing = lifecycleFilter === 'archived'
+            ? archivedGroups.find((group) => group.id === id)
+            : props.groups.find((group) => group.id === id);
           if (!existing || existing.order === order) return null;
           return { id, order };
         })
@@ -218,11 +402,68 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
 
       const projectUpdates = Array.from(projectOrderMap.entries())
         .map(([id, order]) => {
-          const existing = props.projects.find((project) => project.id === id);
-          if (!existing || existing.order === order) return null;
+          const existing = lifecycleFilter === 'archived'
+            ? filteredLocalProjects.find((project) => project.id === id)
+            : props.projects.find((project) => project.id === id);
+          if (!existing) return null;
+          const existingOrder = lifecycleFilter === 'archived'
+            ? getProjectOrder(existing)
+            : (existing.order ?? 0);
+          if (existingOrder === order) return null;
           return { id, order };
         })
         .filter((item): item is { id: string; order: number } => Boolean(item));
+
+      const updatedGroups = lifecycleFilter === 'archived'
+        ? archivedGroups.map((group) => {
+            const nextOrder = groupOrderMap.get(group.id);
+            if (nextOrder === undefined) return group;
+            return group.order === nextOrder ? group : { ...group, order: nextOrder };
+          })
+        : props.groups.map((group) => {
+            const nextOrder = groupOrderMap.get(group.id);
+            if (nextOrder === undefined) return group;
+            return group.order === nextOrder ? group : { ...group, order: nextOrder };
+          });
+
+      const updatedProjects = lifecycleFilter === 'archived'
+        ? filteredLocalProjects.map((project) => {
+            const nextOrder = projectOrderMap.get(project.id);
+            if (nextOrder === undefined) return project;
+            return getProjectOrder(project) === nextOrder ? project : { ...project, order: nextOrder };
+          })
+        : props.projects.map((project) => {
+            const nextOrder = projectOrderMap.get(project.id);
+            if (nextOrder === undefined) return project;
+            return project.order === nextOrder ? project : { ...project, order: nextOrder };
+          });
+
+      if (lifecycleFilter === 'archived') {
+        setArchivedGroups(updatedGroups);
+        setArchivedProjectMeta((prev) => {
+          const next = { ...prev };
+          projectUpdates.forEach((project) => {
+            const previous = next[project.id] ?? { groupId: null, order: 0 };
+            next[project.id] = { ...previous, order: project.order };
+          });
+          return next;
+        });
+        return;
+      }
+
+      const updatedGroupsFromProps = props.groups.map((group) => {
+        const nextOrder = groupOrderMap.get(group.id);
+        if (nextOrder === undefined) return group;
+        return group.order === nextOrder ? group : { ...group, order: nextOrder };
+      });
+
+      const updatedProjectsFromProps = props.projects.map((project) => {
+        const nextOrder = projectOrderMap.get(project.id);
+        if (nextOrder === undefined) return project;
+        return project.order === nextOrder ? project : { ...project, order: nextOrder };
+      });
+
+      props.onBulkUpdate({ projects: updatedProjectsFromProps, groups: updatedGroupsFromProps });
 
       try {
         await Promise.all([
@@ -244,6 +485,25 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
   const handleConfirmMove = async (targetGroupId: string | null) => {
     if (!movingItem) return;
     try {
+      if (lifecycleFilter === 'archived') {
+        if (movingItem.type === 'project') {
+          setArchivedProjectMeta((prev) => ({
+            ...prev,
+            [movingItem.id]: {
+              groupId: targetGroupId,
+              order: getNextProjectOrder(targetGroupId),
+            },
+          }));
+        } else {
+          setArchivedGroups((prev) => prev.map((group) =>
+            group.id === movingItem.id
+              ? { ...group, parentId: targetGroupId, order: getNextGroupOrder(targetGroupId) }
+              : group,
+          ));
+        }
+        return;
+      }
+
       if (movingItem.type === 'project') {
         const order = getNextProjectOrder(targetGroupId);
         await projectsApi.update(movingItem.id, { groupId: targetGroupId, order });
@@ -261,6 +521,18 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
 
   const handleCreateFolder = async () => {
     try {
+      if (lifecycleFilter === 'archived') {
+        const newGroup: ProjectGroup = {
+          id: crypto.randomUUID(),
+          name: 'Nova Pasta',
+          parentId: currentGroupId,
+          order: getNextGroupOrder(currentGroupId),
+          createdAt: new Date().toISOString(),
+        };
+        setArchivedGroups((prev) => [...prev, newGroup]);
+        return;
+      }
+
       const newGroup = await projectGroupsApi.create({
         name: 'Nova Pasta',
         parentId: currentGroupId,
@@ -276,10 +548,24 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
     if (!newName.trim()) return;
     try {
       if (editingGroup) {
+        if (lifecycleFilter === 'archived') {
+          setArchivedGroups((prev) => prev.map((group) =>
+            group.id === editingGroup.id ? { ...group, name: newName.trim() } : group,
+          ));
+          setEditingGroup(null);
+          return;
+        }
+
         const updatedGroup = await projectGroupsApi.update(editingGroup.id, { name: newName.trim() });
         props.onUpdateGroups(props.groups.map(g => g.id === editingGroup.id ? updatedGroup : g));
         setEditingGroup(null);
       } else if (editingProject) {
+        if (lifecycleFilter === 'archived') {
+          toast.warning('Obras arquivadas são somente leitura. Reative para editar.');
+          setEditingProject(null);
+          return;
+        }
+
         const updatedProject = await projectsApi.update(editingProject.id, { name: newName.trim() });
         props.onUpdateProject(props.projects.map(p => p.id === editingProject.id ? { ...p, ...updatedProject } : p));
         setEditingProject(null);
@@ -293,10 +579,35 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
     if (!isDeleting) return;
     try {
       if (isDeleting.type === 'group') {
+        if (lifecycleFilter === 'archived') {
+          const deletingId = isDeleting.id;
+          setArchivedGroups((prev) => prev
+            .filter((group) => group.id !== deletingId)
+            .map((group) =>
+              group.parentId === deletingId ? { ...group, parentId: null } : group,
+            ));
+          setArchivedProjectMeta((prev) => {
+            const next = { ...prev };
+            Object.keys(next).forEach((projectId) => {
+              if (next[projectId]?.groupId === deletingId) {
+                next[projectId] = { ...next[projectId], groupId: null };
+              }
+            });
+            return next;
+          });
+          if (currentGroupId === deletingId) setCurrentGroupId(null);
+          return;
+        }
+
         await projectGroupsApi.remove(isDeleting.id);
         await refreshLists();
         if (currentGroupId === isDeleting.id) setCurrentGroupId(null);
       } else {
+        if (lifecycleFilter === 'archived') {
+          toast.warning('Obras arquivadas são somente leitura. Reative para remover.');
+          return;
+        }
+
         await projectsApi.remove(isDeleting.id);
         const updatedList = props.projects.filter(p => p.id !== isDeleting.id);
         props.onUpdateProject(updatedList);
@@ -314,14 +625,13 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
   };
 
   const filteredGroups = searchQuery 
-    ? props.groups
+    ? lifecycleGroups
         .filter(g => g.name.toLowerCase().includes(searchQuery.toLowerCase()))
-        .slice()
-        .sort(sortByOrder)
+      .slice()
     : [];
     
   const filteredProjects = searchQuery
-    ? props.projects
+    ? filteredLocalProjects
         .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
         .slice()
         .sort(sortByOrder)
@@ -330,17 +640,111 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
   const filteredExternalProjects = searchQuery
     ? props.externalProjects
         .filter((p) => p.projectName.toLowerCase().includes(searchQuery.toLowerCase()))
-    : props.externalProjects;
+        .filter((project) =>
+          lifecycleFilter === 'archived'
+            ? Boolean(project.isArchived)
+            : !project.isArchived,
+        )
+    : props.externalProjects.filter((project) =>
+        lifecycleFilter === 'archived'
+          ? Boolean(project.isArchived)
+          : !project.isArchived,
+      );
+
+  const showLocalArea = originFilter === 'all' || originFilter === 'local';
+  const showSharedArea = originFilter === 'all' || originFilter === 'shared';
+  const sortedFilteredGroups = useMemo(() => sortItems(filteredGroups), [filteredGroups, sortMode]);
+  const sortedFilteredProjects = useMemo(() => sortItems(filteredProjects), [filteredProjects, sortMode]);
 
   return (
     <div className="flex-1 overflow-y-auto p-6 sm:p-12 animate-in fade-in duration-500 bg-slate-50 dark:bg-slate-950 custom-scrollbar">
       <div className="max-w-6xl mx-auto space-y-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <header>
-            <h1 className="text-3xl font-black tracking-tight text-slate-800 dark:text-white">Central de Obras</h1>
-            <p className="text-slate-500 dark:text-slate-400 font-medium">Gestão hierárquica por portfólio.</p>
-          </header>
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <header>
+              <h1 className="text-3xl font-black tracking-tight text-slate-800 dark:text-white">Central de Obras</h1>
+              <p className="text-slate-500 dark:text-slate-400 font-medium">
+                {lifecycleFilter === 'archived' ? 'Área de obras arquivadas.' : 'Gestão hierárquica por portfólio.'}
+              </p>
+            </header>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                <input 
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Pesquisar..." 
+                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs outline-none focus:ring-2 focus:ring-indigo-500/20 w-full sm:w-64 transition-all"
+                />
+              </div>
+              <button onClick={handleCreateFolder} disabled={!showLocalArea} className="p-3 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 rounded-xl border border-slate-200 dark:border-slate-800 hover:text-indigo-600 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                <FolderPlus size={18} />
+              </button>
+              <button onClick={() => props.onCreateProject(currentGroupId)} disabled={lifecycleFilter === 'archived' || !showLocalArea} className="flex items-center gap-2 px-6 py-3 bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg hover:scale-105 active:scale-95 transition-all">
+                <Plus size={16} /> Nova Obra
+              </button>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+             <div className="flex items-center gap-1 p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm">
+               <button
+                 onClick={() => setLifecycleFilter('active')}
+                 className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${lifecycleFilter === 'active' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-indigo-600'}`}
+                 title="Obras ativas"
+               >
+                 Obras Ativas
+               </button>
+               <button
+                 onClick={() => setLifecycleFilter('archived')}
+                 className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${lifecycleFilter === 'archived' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-indigo-600'}`}
+                 title="Obras arquivadas"
+               >
+                 Arquivadas
+               </button>
+             </div>
+             <div className="flex items-center gap-1 p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm">
+               <button
+                 onClick={() => setOriginFilter('all')}
+                 className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${originFilter === 'all' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-indigo-600'}`}
+               >
+                 Todas
+               </button>
+               <button
+                 onClick={() => setOriginFilter('local')}
+                 className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${originFilter === 'local' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-indigo-600'}`}
+               >
+                 Locais
+               </button>
+               <button
+                 onClick={() => setOriginFilter('shared')}
+                 className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${originFilter === 'shared' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-indigo-600'}`}
+               >
+                 Compart.
+               </button>
+             </div>
+             <div className="flex items-center gap-1 p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm">
+               <button
+                 onClick={() => setSortMode('custom')}
+                 className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${sortMode === 'custom' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-indigo-600'}`}
+                 title="Ordenação personalizada"
+               >
+                 Ordem Personalizada
+               </button>
+               <button
+                 onClick={() => setSortMode('name')}
+                 className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${sortMode === 'name' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-indigo-600'}`}
+                 title="Ordenar por nome"
+               >
+                 Nome
+               </button>
+               <button
+                 onClick={() => setSortMode('created')}
+                 className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${sortMode === 'created' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-indigo-600'}`}
+                 title="Ordenar por data de cadastro"
+               >
+                 Cadastro
+               </button>
+             </div>
              <div className="flex items-center gap-1 p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm">
                <button
                  onClick={() => setViewMode('grid')}
@@ -357,24 +761,16 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
                  <List size={16} />
                </button>
              </div>
-             <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                <input 
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  placeholder="Pesquisar..." 
-                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs outline-none focus:ring-2 focus:ring-indigo-500/20 w-full sm:w-64 transition-all"
-                />
-             </div>
-             <button onClick={handleCreateFolder} className="p-3 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 rounded-xl border border-slate-200 dark:border-slate-800 hover:text-indigo-600 shadow-sm transition-all">
-                <FolderPlus size={18} />
-             </button>
-             <button onClick={() => props.onCreateProject(currentGroupId)} className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg hover:scale-105 active:scale-95 transition-all">
-                <Plus size={16} /> Nova Obra
-             </button>
           </div>
         </div>
 
+        {!showLocalArea && (
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 text-xs font-bold uppercase tracking-widest text-slate-500">
+            Exibindo apenas obras compartilhadas.
+          </div>
+        )}
+
+        {showLocalArea && (
         <DragDropContext onDragEnd={handleDragEnd}>
           {!searchQuery && (
             <nav className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 overflow-x-auto no-scrollbar py-2">
@@ -418,7 +814,7 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
             </nav>
           )}
 
-          <Droppable droppableId="dashboard-grid" direction={viewMode === 'list' ? 'vertical' : 'horizontal'} isCombineEnabled>
+          <Droppable droppableId="dashboard-grid" direction={viewMode === 'list' ? 'vertical' : 'horizontal'} isCombineEnabled={isCustomSort}>
             {(provided) => (
               <div 
                 {...provided.droppableProps} 
@@ -438,7 +834,7 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
                         className={`bg-white dark:bg-slate-900 border-2 border-dashed rounded-[2rem] p-6 flex flex-col items-center justify-center transition-all group cursor-pointer ${viewMode === 'list' ? 'h-auto' : 'h-full'} ${s.combineTargetFor ? 'bg-indigo-50 border-indigo-500 ring-4 ring-indigo-500/20 scale-105' : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-indigo-600 hover:bg-slate-50'}`}
                       >
                         <ChevronLeft size={32} className={`${s.combineTargetFor ? 'animate-bounce' : 'group-hover:-translate-x-1'} transition-transform`} /> 
-                        <span className="text-[10px] font-black uppercase tracking-widest mt-2">Mover para cima</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest mt-2">Mover para fora</span>
                       </div>
                     )}
                   </Draggable>
@@ -446,8 +842,8 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
 
                 {searchQuery ? (
                   <>
-                    {filteredGroups.map((g, idx) => (
-                      <Draggable key={`grp-${g.id}`} draggableId={`grp-${g.id}`} index={idx}>
+                    {sortedFilteredGroups.map((g, idx) => (
+                      <Draggable key={`grp-${g.id}`} draggableId={`grp-${g.id}`} index={idx} isDragDisabled={!isCustomSort}>
                         {(p) => (
                           viewMode === 'grid' ? (
                             <FolderCard 
@@ -458,6 +854,7 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
                               onDelete={() => setIsDeleting({ type: 'group', id: g.id })} 
                               onMove={() => setMovingItem({ type: 'group', id: g.id })} 
                               canRename={canRenameProjects}
+                              canMove={isCustomSort}
                             />
                           ) : (
                             <FolderRow
@@ -468,13 +865,14 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
                               onDelete={() => setIsDeleting({ type: 'group', id: g.id })}
                               onMove={() => setMovingItem({ type: 'group', id: g.id })}
                               canRename={canRenameProjects}
+                              canMove={isCustomSort}
                             />
                           )
                         )}
                       </Draggable>
                     ))}
-                    {filteredProjects.map((p, idx) => (
-                      <Draggable key={`prj-${p.id}`} draggableId={`prj-${p.id}`} index={idx + filteredGroups.length}>
+                    {sortedFilteredProjects.map((p, idx) => (
+                      <Draggable key={`prj-${p.id}`} draggableId={`prj-${p.id}`} index={idx + sortedFilteredGroups.length} isDragDisabled={!isCustomSort}>
                         {(pr) => (
                           viewMode === 'grid' ? (
                             <ProjectCard 
@@ -485,7 +883,9 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
                               onRename={() => { setEditingProject(p); setNewName(p.name); }} 
                               onDelete={() => setIsDeleting({ type: 'project', id: p.id })} 
                               onMove={() => setMovingItem({ type: 'project', id: p.id })} 
-                              canRename={canRenameProjects}
+                              canRename={canRenameProjects && lifecycleFilter !== 'archived'}
+                              canDelete={lifecycleFilter !== 'archived'}
+                              canMove={isCustomSort}
                             />
                           ) : (
                             <ProjectRow
@@ -496,7 +896,9 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
                               onRename={() => { setEditingProject(p); setNewName(p.name); }}
                               onDelete={() => setIsDeleting({ type: 'project', id: p.id })}
                               onMove={() => setMovingItem({ type: 'project', id: p.id })}
-                              canRename={canRenameProjects}
+                              canRename={canRenameProjects && lifecycleFilter !== 'archived'}
+                              canDelete={lifecycleFilter !== 'archived'}
+                              canMove={isCustomSort}
                             />
                           )
                         )}
@@ -505,10 +907,10 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
                   </>
                 ) : (
                   <>
-                    {currentGroups.map((g, idx) => {
+                    {sortedCurrentGroups.map((g, idx) => {
                       const baseIdx = (currentGroupId ? 1 : 0) + idx;
                       return (
-                        <Draggable key={`grp-${g.id}`} draggableId={`grp-${g.id}`} index={baseIdx}>
+                        <Draggable key={`grp-${g.id}`} draggableId={`grp-${g.id}`} index={baseIdx} isDragDisabled={!isCustomSort}>
                           {(p) => (
                             viewMode === 'grid' ? (
                               <FolderCard 
@@ -519,6 +921,7 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
                                 onDelete={() => setIsDeleting({ type: 'group', id: g.id })} 
                                 onMove={() => setMovingItem({ type: 'group', id: g.id })} 
                                 canRename={canRenameProjects}
+                                canMove={isCustomSort}
                               />
                             ) : (
                               <FolderRow
@@ -529,16 +932,17 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
                                 onDelete={() => setIsDeleting({ type: 'group', id: g.id })}
                                 onMove={() => setMovingItem({ type: 'group', id: g.id })}
                                 canRename={canRenameProjects}
+                                canMove={isCustomSort}
                               />
                             )
                           )}
                         </Draggable>
                       );
                     })}
-                    {currentProjects.map((p, idx) => {
-                      const baseIdx = (currentGroupId ? 1 : 0) + currentGroups.length + idx;
+                    {sortedCurrentProjects.map((p, idx) => {
+                      const baseIdx = (currentGroupId ? 1 : 0) + sortedCurrentGroups.length + idx;
                       return (
-                        <Draggable key={`prj-${p.id}`} draggableId={`prj-${p.id}`} index={baseIdx}>
+                        <Draggable key={`prj-${p.id}`} draggableId={`prj-${p.id}`} index={baseIdx} isDragDisabled={!isCustomSort}>
                           {(pr) => (
                             viewMode === 'grid' ? (
                               <ProjectCard 
@@ -549,7 +953,9 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
                                 onRename={() => { setEditingProject(p); setNewName(p.name); }} 
                                 onDelete={() => setIsDeleting({ type: 'project', id: p.id })} 
                                 onMove={() => setMovingItem({ type: 'project', id: p.id })} 
-                                canRename={canRenameProjects}
+                                canRename={canRenameProjects && lifecycleFilter !== 'archived'}
+                                canDelete={lifecycleFilter !== 'archived'}
+                                canMove={isCustomSort}
                               />
                             ) : (
                               <ProjectRow
@@ -560,14 +966,16 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
                                 onRename={() => { setEditingProject(p); setNewName(p.name); }} 
                                 onDelete={() => setIsDeleting({ type: 'project', id: p.id })}
                                 onMove={() => setMovingItem({ type: 'project', id: p.id })}
-                                canRename={canRenameProjects}
+                                canRename={canRenameProjects && lifecycleFilter !== 'archived'}
+                                canDelete={lifecycleFilter !== 'archived'}
+                                canMove={isCustomSort}
                               />
                             )
                           )}
                         </Draggable>
                       );
                     })}
-                    {currentGroups.length === 0 && currentProjects.length === 0 && !currentGroupId && <EmptyState />}
+                    {sortedCurrentGroups.length === 0 && sortedCurrentProjects.length === 0 && !currentGroupId && <EmptyState />}
                   </>
                 )}
                 {provided.placeholder}
@@ -575,8 +983,9 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
             )}
           </Droppable>
         </DragDropContext>
+        )}
 
-        {(filteredExternalProjects.length > 0 && (searchQuery || !currentGroupId)) && (
+        {showSharedArea && (filteredExternalProjects.length > 0 && (searchQuery || !currentGroupId || !showLocalArea)) && (
           <ExternalProjectsSection
             projects={filteredExternalProjects}
             viewMode={viewMode}
@@ -598,7 +1007,7 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
 
       {movingItem && (
         <MoveDialog 
-          groups={props.groups}
+          groups={lifecycleGroups}
           activeItem={movingItem}
           onCancel={() => setMovingItem(null)}
           onConfirm={handleConfirmMove}
@@ -616,14 +1025,15 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
 };
 
 // SUB-COMPONENTES
-const FolderCard = ({ group, onOpen, onRename, onDelete, onMove, provided, canRename }: { 
+const FolderCard = ({ group, onOpen, onRename, onDelete, onMove, provided, canRename, canMove }: { 
   group: ProjectGroup, 
   onOpen: () => void, 
   onRename: () => void, 
   onDelete: () => void, 
   onMove: () => void, 
   provided: DraggableProvided,
-  canRename: boolean
+  canRename: boolean,
+  canMove: boolean,
 }) => (
   <div 
     ref={provided.innerRef}
@@ -635,7 +1045,7 @@ const FolderCard = ({ group, onOpen, onRename, onDelete, onMove, provided, canRe
     <div className="flex justify-between items-start mb-8">
       <div className="p-4 bg-amber-50 dark:bg-amber-900/20 text-amber-500 rounded-2xl group-hover:scale-110 transition-transform"><Folder size={24}/></div>
       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
-        <button title="Mover" onClick={e => { e.stopPropagation(); onMove(); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><FolderInput size={16}/></button>
+        {canMove && <button title="Mover" onClick={e => { e.stopPropagation(); onMove(); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><FolderInput size={16}/></button>}
         {canRename && (
           <button title="Renomear" onClick={e => { e.stopPropagation(); onRename(); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><Edit2 size={16}/></button>
         )}
@@ -657,7 +1067,7 @@ const ProjectIconBadge = ({ unreadCount }: { unreadCount: number }) => {
   );
 };
 
-const ProjectCard = ({ project, unreadCount, onOpen, onRename, onDelete, onMove, provided, canRename }: {
+const ProjectCard = ({ project, unreadCount, onOpen, onRename, onDelete, onMove, provided, canRename, canDelete, canMove }: {
   project: Project,
   unreadCount: number,
   onOpen: () => void,
@@ -665,7 +1075,9 @@ const ProjectCard = ({ project, unreadCount, onOpen, onRename, onDelete, onMove,
   onDelete: () => void,
   onMove: () => void,
   provided: DraggableProvided,
-  canRename: boolean
+  canRename: boolean,
+  canDelete: boolean,
+  canMove: boolean,
 }) => {
   const stats = project.items?.length
     ? treeService.calculateBasicStats(project.items, project.bdi || 0)
@@ -684,11 +1096,11 @@ const ProjectCard = ({ project, unreadCount, onOpen, onRename, onDelete, onMove,
           <ProjectIconBadge unreadCount={unreadCount} />
         </div>
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
-          <button title="Mover" onClick={e => { e.stopPropagation(); onMove(); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><FolderInput size={16}/></button>
+          {canMove && <button title="Mover" onClick={e => { e.stopPropagation(); onMove(); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><FolderInput size={16}/></button>}
           {canRename && (
             <button title="Renomear" onClick={e => { e.stopPropagation(); onRename(); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><Edit2 size={16}/></button>
           )}
-          <button title="Excluir" onClick={e => { e.stopPropagation(); onDelete(); }} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"><Trash2 size={16}/></button>
+          {canDelete && <button title="Excluir" onClick={e => { e.stopPropagation(); onDelete(); }} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"><Trash2 size={16}/></button>}
         </div>
       </div>
       <h3 className="text-sm font-black text-slate-800 dark:text-white truncate uppercase tracking-tight">{project.name}</h3>
@@ -705,14 +1117,15 @@ const ProjectCard = ({ project, unreadCount, onOpen, onRename, onDelete, onMove,
   );
 };
 
-const FolderRow = ({ group, onOpen, onRename, onDelete, onMove, provided, canRename }: {
+const FolderRow = ({ group, onOpen, onRename, onDelete, onMove, provided, canRename, canMove }: {
   group: ProjectGroup,
   onOpen: () => void,
   onRename: () => void,
   onDelete: () => void,
   onMove: () => void,
   provided: DraggableProvided,
-  canRename: boolean
+  canRename: boolean,
+  canMove: boolean,
 }) => (
   <div
     ref={provided.innerRef}
@@ -731,7 +1144,7 @@ const FolderRow = ({ group, onOpen, onRename, onDelete, onMove, provided, canRen
       </div>
     </div>
     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-      <button title="Mover" onClick={e => { e.stopPropagation(); onMove(); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><FolderInput size={16}/></button>
+      {canMove && <button title="Mover" onClick={e => { e.stopPropagation(); onMove(); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><FolderInput size={16}/></button>}
       {canRename && (
         <button title="Renomear" onClick={e => { e.stopPropagation(); onRename(); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><Edit2 size={16}/></button>
       )}
@@ -740,7 +1153,7 @@ const FolderRow = ({ group, onOpen, onRename, onDelete, onMove, provided, canRen
   </div>
 );
 
-const ProjectRow = ({ project, unreadCount, onOpen, onRename, onDelete, onMove, provided, canRename }: {
+const ProjectRow = ({ project, unreadCount, onOpen, onRename, onDelete, onMove, provided, canRename, canDelete, canMove }: {
   project: Project,
   unreadCount: number,
   onOpen: () => void,
@@ -748,7 +1161,9 @@ const ProjectRow = ({ project, unreadCount, onOpen, onRename, onDelete, onMove, 
   onDelete: () => void,
   onMove: () => void,
   provided: DraggableProvided,
-  canRename: boolean
+  canRename: boolean,
+  canDelete: boolean,
+  canMove: boolean,
 }) => {
   const stats = project.items?.length
     ? treeService.calculateBasicStats(project.items, project.bdi || 0)
@@ -782,11 +1197,11 @@ const ProjectRow = ({ project, unreadCount, onOpen, onRename, onDelete, onMove, 
           <div className="text-xs font-black text-indigo-600">{stats.progress.toFixed(1)}%</div>
         </div>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-          <button title="Mover" onClick={e => { e.stopPropagation(); onMove(); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><FolderInput size={16}/></button>
+          {canMove && <button title="Mover" onClick={e => { e.stopPropagation(); onMove(); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><FolderInput size={16}/></button>}
           {canRename && (
             <button title="Renomear" onClick={e => { e.stopPropagation(); onRename(); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><Edit2 size={16}/></button>
           )}
-          <button title="Excluir" onClick={e => { e.stopPropagation(); onDelete(); }} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"><Trash2 size={16}/></button>
+          {canDelete && <button title="Excluir" onClick={e => { e.stopPropagation(); onDelete(); }} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"><Trash2 size={16}/></button>}
         </div>
       </div>
     </div>

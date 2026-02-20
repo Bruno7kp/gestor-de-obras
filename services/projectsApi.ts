@@ -94,6 +94,9 @@ export const normalizeProject = (project: any): Project => {
 
   return {
     id: project.id,
+    createdAt: project.createdAt ?? undefined,
+    isArchived: Boolean(project.isArchived),
+    archivedAt: project.archivedAt ?? null,
     groupId: project.groupId ?? null,
     order: project.order ?? 0,
     progress: project.progress ?? undefined,
@@ -209,7 +212,37 @@ export const projectsApi = {
       throw new Error('Falha ao carregar projetos externos');
     }
 
-    return response.json();
+    const data = await response.json();
+    return (Array.isArray(data) ? data : []).map((project) => ({
+      ...project,
+      isArchived: Boolean(project.isArchived),
+    }));
+  },
+
+  async updateLifecycle(
+    id: string,
+    input: {
+      action: 'archive' | 'reactivate';
+      projectNameConfirmation: string;
+    },
+  ): Promise<Project> {
+    const response = await fetch(`${API_BASE}/projects/${id}/lifecycle`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(input),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text().catch(() => '');
+      throw new Error(
+        `Falha ao atualizar ciclo de vida da obra (${response.status})${errorBody ? `: ${errorBody}` : ''}`,
+      );
+    }
+
+    return normalizeProject(await response.json());
   },
 
   async getExternal(id: string): Promise<Project> {

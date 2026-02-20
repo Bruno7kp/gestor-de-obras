@@ -89,7 +89,18 @@ export const useProjectState = () => {
               (existing.planning?.forecasts?.length ?? 0) > 0 ||
               (existing.planning?.milestones?.length ?? 0) > 0;
 
-            return hasDetails ? { ...project, ...existing } : project;
+            return hasDetails
+              ? {
+                  ...project,
+                  ...existing,
+                  name: project.name,
+                  groupId: project.groupId ?? null,
+                  order: project.order ?? 0,
+                  progress: project.progress,
+                  isArchived: project.isArchived,
+                  archivedAt: project.archivedAt ?? null,
+                }
+              : project;
           });
 
           return {

@@ -20,6 +20,7 @@ interface JournalViewProps {
   project: Project;
   onUpdateJournal: (journal: ProjectJournal) => void;
   allWorkItems: WorkItem[];
+  isReadOnly?: boolean;
 }
 
 const PROGRESS_CLASSIFICATION_OPTIONS: Array<{ stage: string; items: string[] }> = [
@@ -137,10 +138,10 @@ const PROGRESS_CLASSIFICATION_OPTIONS: Array<{ stage: string; items: string[] }>
   },
 ];
 
-export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJournal, allWorkItems }) => {
+export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJournal, allWorkItems, isReadOnly = false }) => {
   const { user } = useAuth();
   const { canEdit, getLevel } = usePermissions();
-  const canEditJournal = canEdit('journal');
+  const canEditJournal = canEdit('journal') && !isReadOnly;
   const toast = useToast();
 
   const journalFilterKey = `journal_filter_${project.id}`;

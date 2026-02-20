@@ -341,6 +341,7 @@ export interface NotificationDigestPreview {
 // --- ESTRUTURA GLOBAL ---
 export interface ProjectGroup {
   id: string;
+  createdAt?: string;
   parentId: string | null;
   name: string;
   order: number;
@@ -394,6 +395,7 @@ export interface UserAccount {
 export interface ExternalProject {
   projectId: string;
   projectName: string;
+  isArchived?: boolean;
   companyName: string;
   instanceId: string;
   instanceName: string;
@@ -439,7 +441,10 @@ export interface Supplier {
 // --- PROJETO ---
 export interface Project {
   id: string;
+  createdAt?: string;
   instanceId?: string;
+  isArchived?: boolean;
+  archivedAt?: string | null;
   groupId: string | null;
   order: number;
   progress?: number;

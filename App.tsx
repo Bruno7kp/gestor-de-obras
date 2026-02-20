@@ -178,6 +178,14 @@ const App: React.FC = () => {
     () => projects.filter(p => !externalProjectIds.has(p.id)),
     [projects, externalProjectIds],
   );
+  const activeOwnProjects = useMemo(
+    () => ownProjects.filter((project) => !project.isArchived),
+    [ownProjects],
+  );
+  const activeExternalProjects = useMemo(
+    () => externalProjects.filter((project) => !project.isArchived),
+    [externalProjects],
+  );
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('promeasure_theme') === 'dark');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -189,8 +197,8 @@ const App: React.FC = () => {
   const [notificationsLoading, setNotificationsLoading] = useState(false);
 
   const allVisibleProjectIds = useMemo(
-    () => Array.from(new Set([...ownProjects.map((project) => project.id), ...externalProjects.map((project) => project.projectId)])),
-    [ownProjects, externalProjects],
+    () => Array.from(new Set([...projects.map((project) => project.id), ...externalProjects.map((project) => project.projectId)])),
+    [projects, externalProjects],
   );
 
   useEffect(() => {
@@ -407,9 +415,9 @@ const App: React.FC = () => {
       <Sidebar 
         isOpen={sidebarOpen} setIsOpen={setSidebarOpen}
         mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen}
-        projects={ownProjects} groups={groups} activeProjectId={activeProjectId}
+        projects={activeOwnProjects} groups={groups} activeProjectId={activeProjectId}
         isActiveExternal={isActiveExternal}
-        externalProjects={externalProjects}
+        externalProjects={activeExternalProjects}
         onOpenProject={handleOpenProject} onCreateProject={handleCreateProject}
         onBackToDashboard={handleBackToDashboard}
         isDarkMode={isDarkMode} toggleDarkMode={() => setIsDarkMode(!isDarkMode)}

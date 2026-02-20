@@ -108,7 +108,7 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                                 }}
                                 disabled={isReadOnly}
                                 className={`p-0.5 rounded text-slate-300 hover:text-indigo-500 ${isReadOnly ? 'opacity-40 cursor-not-allowed' : ''}`}
-                                title="Mover para cima"
+                                title="Mover para fora"
                               >
                                 <ChevronUp size={12} />
                               </button>

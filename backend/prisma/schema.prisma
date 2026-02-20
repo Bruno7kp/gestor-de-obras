@@ -142,6 +142,7 @@ model ProjectMember {
 
 model ProjectGroup {
   id         String         @id @default(uuid())
+  createdAt  DateTime       @default(now())
   parentId   String?
   name       String
   order      Int
@@ -154,6 +155,7 @@ model ProjectGroup {
 
 model Project {
   id                    String                @id @default(uuid())
+  createdAt             DateTime              @default(now())
   groupId               String?
   order                 Int                   @default(0)
   name                  String
@@ -170,6 +172,8 @@ model Project {
   printCards            Boolean
   printSubtotals         Boolean
   showSignatures        Boolean
+  isArchived            Boolean               @default(false)
+  archivedAt            DateTime?
   instanceId            String
   instance              Instance              @relation(fields: [instanceId], references: [id])
   group                 ProjectGroup?         @relation(fields: [groupId], references: [id])

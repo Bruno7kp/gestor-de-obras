@@ -360,6 +360,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
            checkCanEdit(memberPermissions, 'projects_general');
   }, [membersLoading, permissionsLoading, useMemberPermissions, memberPermissions, getLevelGlobal]);
 
+  const isProjectArchived = Boolean(project.isArchived);
+
   const isProjectLoading = permissionsLoading || membersLoading;
   const canEditMeasurements = useMemo(() => {
     if (isProjectLoading) return false;
@@ -468,15 +470,20 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     if (viewingMeasurementId === 'current') {
       return {
         items: project.items,
-        isReadOnly: !canEditProject,
+        isReadOnly: !canEditProject || isProjectArchived,
         label: `Medição Nº ${project.measurementNumber}`,
         date: project.referenceDate,
       };
     }
     const snapshot = project.history?.find(h => h.measurementNumber === viewingMeasurementId);
     if (snapshot) return { items: snapshot.items, isReadOnly: true, label: `Medição Nº ${snapshot.measurementNumber}`, date: snapshot.date };
-    return { items: project.items, isReadOnly: !canEditProject, label: 'Erro', date: '' };
-  }, [project, viewingMeasurementId, canEditProject]);
+    return {
+      items: project.items,
+      isReadOnly: !canEditProject || isProjectArchived,
+      label: 'Erro',
+      date: '',
+    };
+  }, [project, viewingMeasurementId, canEditProject, isProjectArchived]);
 
   const flattenedPrintData = useMemo(() => {
     const tree = treeService.buildTree<WorkItem>(displayData.items);
@@ -985,7 +992,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
               ) : (
                 <h1 className="text-xl font-black uppercase tracking-tight text-slate-800 dark:text-white leading-none truncate">{project.name}</h1>
               )}
-              {!isHistoryMode && canEditMeasurements && (
+              {!isHistoryMode && canEditMeasurements && !isProjectArchived && (
                 isEditingName ? (
                   <div className="flex items-center gap-1">
                     <button
@@ -1083,7 +1090,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           )}
 
           {!isHistoryMode ? (
-            canEditMeasurements ? (
+            canEditMeasurements && !isProjectArchived ? (
               <button onClick={() => setIsClosingModalOpen(true)} className="flex items-center gap-2 px-6 py-3.5 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-500/20">
                 <CheckCircle2 size={16} /> Encerrar Período
               </button>
@@ -1102,6 +1109,12 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           )}
         </div>
       </header>
+
+      {isProjectArchived && (
+        <div className="mx-6 mt-4 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-bold uppercase tracking-wider text-amber-800 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200">
+          Obra arquivada: edição, cadastro e remoção estão bloqueados. Visualização liberada.
+        </div>
+      )}
 
       {isProjectLoading ? (
         <div className="flex-1 flex items-center justify-center bg-slate-50 dark:bg-slate-950">
@@ -1227,6 +1240,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     categories={displayData.items.filter(i => i.type === 'category')}
                     allWorkItems={displayData.items}
                     viewMode="supplies"
+                    isReadOnly={displayData.isReadOnly}
                   />
                 )}
                 {tab === 'labor-contracts' && (
@@ -1238,7 +1252,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     isReadOnly={displayData.isReadOnly}
                   />
                 )}
-                {tab === 'workforce' && <WorkforceManager project={project} onUpdateProject={onUpdateProject} />}
+                {tab === 'workforce' && <WorkforceManager project={project} onUpdateProject={onUpdateProject} isReadOnly={displayData.isReadOnly} />}
                 {tab === 'planning' && (
                   <PlanningView
                     project={project}
@@ -1250,6 +1264,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     allWorkItems={displayData.items}
                     fixedSubTab="tasks"
                     showSubTabs={false}
+                    isReadOnly={displayData.isReadOnly}
                   />
                 )}
                 {tab === 'schedule' && (
@@ -1263,9 +1278,10 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     allWorkItems={displayData.items}
                     fixedSubTab="milestones"
                     showSubTabs={false}
+                    isReadOnly={displayData.isReadOnly}
                   />
                 )}
-                {tab === 'journal' && <JournalView project={project} onUpdateJournal={(j) => onUpdateProject({ journal: j })} allWorkItems={displayData.items} />}
+                {tab === 'journal' && <JournalView project={project} onUpdateJournal={(j) => onUpdateProject({ journal: j })} allWorkItems={displayData.items} isReadOnly={displayData.isReadOnly} />}
                 {tab === 'documents' && <AssetManager assets={project.assets} onAdd={handleAssetAdd} onDelete={handleAssetDelete} isReadOnly={displayData.isReadOnly} />}
                 {tab === 'branding' && <BrandingView project={project} onUpdateProject={handleBrandingUpdate} isReadOnly={displayData.isReadOnly} />}
               </div>

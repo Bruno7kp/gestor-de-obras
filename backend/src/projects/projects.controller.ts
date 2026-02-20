@@ -59,6 +59,11 @@ interface UpdateProjectBody {
   };
 }
 
+interface UpdateProjectLifecycleBody {
+  action: 'archive' | 'reactivate';
+  projectNameConfirmation: string;
+}
+
 @Controller('projects')
 @UseGuards(AuthGuard('jwt'))
 @Roles('USER', 'ADMIN', 'SUPER_ADMIN')
@@ -124,6 +129,22 @@ export class ProjectsController {
     return this.projectsService.update({
       ...body,
       id,
+      instanceId: req.user.instanceId,
+      userId: req.user.id,
+      permissions: req.user.permissions || [],
+    });
+  }
+
+  @Patch(':id/lifecycle')
+  updateLifecycle(
+    @Param('id') id: string,
+    @Body() body: UpdateProjectLifecycleBody,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.projectsService.updateLifecycle({
+      id,
+      action: body.action,
+      projectNameConfirmation: body.projectNameConfirmation,
       instanceId: req.user.instanceId,
       userId: req.user.id,
       permissions: req.user.permissions || [],

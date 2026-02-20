@@ -3,6 +3,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Project, PDFTheme } from '../types';
 import { ThemeEditor } from './ThemeEditor';
 import { uploadService } from '../services/uploadService';
+import { projectsApi } from '../services/projectsApi';
 import { financial } from '../utils/math';
 import { usePermissions } from '../hooks/usePermissions';
 import { useToast } from '../hooks/useToast';
@@ -10,7 +11,7 @@ import {
   Percent, MapPin, Upload, 
   Image as ImageIcon, Trash2, FileText, 
   CheckCircle2, Building2, Palette, Settings2,
-  ToggleRight, ToggleLeft, Cpu, Globe, CreditCard
+  ToggleRight, ToggleLeft, Cpu, Globe, CreditCard, Archive, RotateCcw, AlertTriangle
 } from 'lucide-react';
 
 interface BrandingViewProps {
@@ -22,12 +23,16 @@ interface BrandingViewProps {
 export const BrandingView: React.FC<BrandingViewProps> = ({ 
   project, onUpdateProject, isReadOnly 
 }) => {
-  const { canEdit, getLevel } = usePermissions();
+  const { canEdit } = usePermissions();
   const toast = useToast();
   const canEditBranding = canEdit('project_settings') && !isReadOnly;
+  const canManageLifecycle = canEdit('project_settings');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [strBdi, setStrBdi] = useState(financial.formatVisual(project.bdi || 0, '').trim());
+  const [lifecycleAction, setLifecycleAction] = useState<'archive' | 'reactivate' | null>(null);
+  const [lifecycleNameInput, setLifecycleNameInput] = useState('');
+  const [lifecycleSubmitting, setLifecycleSubmitting] = useState(false);
 
   useEffect(() => {
     setStrBdi(financial.formatVisual(project.bdi || 0, '').trim());
@@ -58,6 +63,36 @@ export const BrandingView: React.FC<BrandingViewProps> = ({
         [key]: !project.config[key]
       }
     });
+  };
+
+  const handleSubmitLifecycle = async () => {
+    if (!lifecycleAction || !canManageLifecycle || lifecycleSubmitting) return;
+
+    setLifecycleSubmitting(true);
+    try {
+      const updated = await projectsApi.updateLifecycle(project.id, {
+        action: lifecycleAction,
+        projectNameConfirmation: lifecycleNameInput,
+      });
+
+      onUpdateProject({
+        isArchived: updated.isArchived,
+        archivedAt: updated.archivedAt ?? null,
+      });
+
+      toast.success(
+        lifecycleAction === 'archive'
+          ? 'Obra encerrada e arquivada com sucesso.'
+          : 'Obra reativada com sucesso.',
+      );
+      setLifecycleAction(null);
+      setLifecycleNameInput('');
+    } catch (error) {
+      console.error('Erro ao alterar ciclo de vida da obra:', error);
+      toast.error(error instanceof Error ? error.message : 'Nao foi possivel alterar o status da obra.');
+    } finally {
+      setLifecycleSubmitting(false);
+    }
   };
 
   return (
@@ -241,6 +276,85 @@ export const BrandingView: React.FC<BrandingViewProps> = ({
           />
         </div>
       </section>
+
+      <section className="space-y-8">
+        <div className="flex items-center gap-3">
+          <AlertTriangle className="text-rose-500" size={20} />
+          <h2 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Ciclo de Vida da Obra</h2>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col gap-5">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Status atual:
+            <span className={`ml-2 inline-flex items-center rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-widest ${project.isArchived ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-200' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-200'}`}>
+              {project.isArchived ? 'Arquivada' : 'Ativa'}
+            </span>
+          </p>
+
+          {canManageLifecycle && (
+            <div className="flex flex-wrap gap-3">
+              {!project.isArchived ? (
+                <button
+                  onClick={() => {
+                    setLifecycleAction('archive');
+                    setLifecycleNameInput('');
+                  }}
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-rose-600 text-white text-[11px] font-black uppercase tracking-widest hover:bg-rose-700 transition-all"
+                >
+                  <Archive size={16} /> Encerrar e Arquivar Obra
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    setLifecycleAction('reactivate');
+                    setLifecycleNameInput('');
+                  }}
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-emerald-600 text-white text-[11px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all"
+                >
+                  <RotateCcw size={16} /> Reativar Obra
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {lifecycleAction && (
+        <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md" onClick={() => setLifecycleAction(null)}>
+          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-black text-slate-800 dark:text-white tracking-tight">
+              {lifecycleAction === 'archive' ? 'Encerrar obra' : 'Reativar obra'}
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
+              Digite exatamente <span className="font-black text-slate-700 dark:text-slate-200">{project.name}</span> para confirmar.
+            </p>
+            <input
+              value={lifecycleNameInput}
+              onChange={(e) => setLifecycleNameInput(e.target.value)}
+              className="mt-4 w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm font-semibold text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500/30"
+              placeholder="Digite o nome da obra"
+              autoFocus
+            />
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setLifecycleAction(null)}
+                className="flex-1 py-3 text-[11px] font-black uppercase tracking-widest rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-700"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmitLifecycle}
+                disabled={lifecycleSubmitting || lifecycleNameInput.trim() !== project.name.trim()}
+                className={`flex-1 py-3 text-[11px] font-black uppercase tracking-widest rounded-xl text-white transition-all ${lifecycleAction === 'archive' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-emerald-600 hover:bg-emerald-700'} disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {lifecycleSubmitting ? 'Processando...' : 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
