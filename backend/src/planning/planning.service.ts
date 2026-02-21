@@ -720,6 +720,30 @@ export class PlanningService {
       },
     });
 
+    const groupLabel = group.title?.trim() || `Lote ${group.id.slice(0, 8)}`;
+
+    if (group.status === 'ordered') {
+      void this.emitSupplyOrderedNotification({
+        instanceId: input.instanceId,
+        projectId: input.projectId,
+        actorUserId: input.userId,
+        supplyGroupId: group.id,
+        label: groupLabel,
+        referenceId: group.id,
+      }).catch(() => undefined);
+    }
+
+    if (group.isPaid) {
+      void this.emitSupplyPaymentNotification({
+        instanceId: input.instanceId,
+        projectId: input.projectId,
+        actorUserId: input.userId,
+        supplyGroupId: group.id,
+        label: groupLabel,
+        referenceId: group.id,
+      }).catch(() => undefined);
+    }
+
     return this.prisma.supplyGroup.findUnique({
       where: { id: group.id },
       include: {
