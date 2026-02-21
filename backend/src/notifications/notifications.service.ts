@@ -612,7 +612,8 @@ export class NotificationsService {
                 row.notification.eventType === 'EXPENSE_DELIVERED' ||
                 row.notification.eventType === 'MATERIAL_ON_SITE_CONFIRMED' ||
                 row.notification.category === 'SUPPLIES' ||
-                row.notification.category === 'FINANCIAL') &&
+                row.notification.category === 'FINANCIAL' ||
+                row.notification.category === 'PLANNING') &&
               !!row.notification.projectId,
           )
           .map((row) => row.notification.projectId as string),
@@ -688,6 +689,13 @@ export class NotificationsService {
         return hasAnyPermission(row.notification.projectId, [
           'supplies.view',
           'supplies.edit',
+        ]);
+      }
+
+      if (row.notification.category === 'PLANNING') {
+        return hasAnyPermission(row.notification.projectId, [
+          'planning.view',
+          'planning.edit',
         ]);
       }
 

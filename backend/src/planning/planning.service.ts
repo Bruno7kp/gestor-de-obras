@@ -185,6 +185,71 @@ export class PlanningService {
     });
   }
 
+  private getTaskStatusLabel(status: string) {
+    if (status === 'todo') return 'A Fazer';
+    if (status === 'doing') return 'Em Andamento';
+    if (status === 'done') return 'Concluído';
+    return status;
+  }
+
+  private async emitTaskCreatedNotification(input: {
+    instanceId: string;
+    projectId: string;
+    actorUserId?: string;
+    taskId: string;
+    description: string;
+    status: string;
+  }) {
+    await this.notificationsService.emit({
+      instanceId: input.instanceId,
+      projectId: input.projectId,
+      actorUserId: input.actorUserId,
+      category: 'PLANNING',
+      eventType: 'TASK_CREATED',
+      priority: 'normal',
+      title: 'Nova tarefa de planejamento',
+      body: `${input.description} foi criada em ${this.getTaskStatusLabel(input.status)}.`,
+      dedupeKey: `task:${input.taskId}:CREATED`,
+      permissionCodes: ['planning.view', 'planning.edit'],
+      includeProjectMembers: true,
+      metadata: {
+        taskId: input.taskId,
+        description: input.description,
+        status: input.status,
+      },
+    });
+  }
+
+  private async emitTaskStatusChangedNotification(input: {
+    instanceId: string;
+    projectId: string;
+    actorUserId?: string;
+    taskId: string;
+    description: string;
+    oldStatus: string;
+    newStatus: string;
+  }) {
+    await this.notificationsService.emit({
+      instanceId: input.instanceId,
+      projectId: input.projectId,
+      actorUserId: input.actorUserId,
+      category: 'PLANNING',
+      eventType: 'TASK_STATUS_CHANGED',
+      priority: 'normal',
+      title: 'Status de tarefa atualizado',
+      body: `${input.description} mudou de ${this.getTaskStatusLabel(input.oldStatus)} para ${this.getTaskStatusLabel(input.newStatus)}.`,
+      dedupeKey: `task:${input.taskId}:STATUS:${input.newStatus}`,
+      permissionCodes: ['planning.view', 'planning.edit'],
+      includeProjectMembers: true,
+      metadata: {
+        taskId: input.taskId,
+        description: input.description,
+        oldStatus: input.oldStatus,
+        newStatus: input.newStatus,
+      },
+    });
+  }
+
   private async canRemoveUpload(url?: string | null) {
     if (!isLocalUpload(url)) return false;
 
@@ -264,7 +329,7 @@ export class PlanningService {
     await this.ensureProject(input.projectId, input.instanceId, input.userId, true);
     const planning = await this.ensurePlanning(input.projectId);
 
-    return this.prisma.planningTask.create({
+    const createdTask = await this.prisma.planningTask.create({
       data: {
         id: input.id,
         projectPlanningId: planning.id,
@@ -277,6 +342,17 @@ export class PlanningService {
         completedAt: input.completedAt ?? null,
       },
     });
+
+    await this.emitTaskCreatedNotification({
+      instanceId: input.instanceId,
+      projectId: input.projectId,
+      actorUserId: input.userId,
+      taskId: createdTask.id,
+      description: createdTask.description,
+      status: createdTask.status,
+    });
+
+    return createdTask;
   }
 
   async updateTask(
@@ -287,6 +363,11 @@ export class PlanningService {
   ) {
     let task = await this.prisma.planningTask.findFirst({
       where: { id, projectPlanning: { project: { instanceId } } },
+      include: {
+        projectPlanning: {
+          select: { projectId: true },
+        },
+      },
     });
     if (!task && userId) {
       task = await this.prisma.planningTask.findFirst({
@@ -294,13 +375,22 @@ export class PlanningService {
           id,
           projectPlanning: { project: { members: { some: { userId } } } },
         },
+        include: {
+          projectPlanning: {
+            select: { projectId: true },
+          },
+        },
       });
     }
     if (!task) throw new NotFoundException('Tarefa nao encontrada');
 
     await this.ensurePlanningWritable(task.projectPlanningId);
 
-    return this.prisma.planningTask.update({
+    const nextStatus = data.status ?? task.status;
+    const statusChanged = nextStatus !== task.status;
+    const nextDescription = data.description ?? task.description;
+
+    const updatedTask = await this.prisma.planningTask.update({
       where: { id },
       data: {
         categoryId: data.categoryId ?? task.categoryId,
@@ -312,6 +402,20 @@ export class PlanningService {
         completedAt: data.completedAt ?? task.completedAt,
       },
     });
+
+    if (statusChanged) {
+      await this.emitTaskStatusChangedNotification({
+        instanceId,
+        projectId: task.projectPlanning.projectId,
+        actorUserId: userId,
+        taskId: updatedTask.id,
+        description: nextDescription,
+        oldStatus: task.status,
+        newStatus: nextStatus,
+      });
+    }
+
+    return updatedTask;
   }
 
   async deleteTask(id: string, instanceId: string, userId?: string) {

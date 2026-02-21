@@ -3,6 +3,7 @@ import { UserNotification } from '../types';
 export type NotificationTypeKey =
   | 'SUPRIMENTO'
   | 'MAO_DE_OBRA'
+  | 'PLANEJAMENTO'
   | 'OUTROS';
 
 export type NotificationSubtypeKey =
@@ -13,11 +14,14 @@ export type NotificationSubtypeKey =
   | 'CONTRATO_CRIADO'
   | 'STATUS_CONTRATO'
   | 'PAGAMENTO_MO'
+  | 'TAREFA_CRIADA'
+  | 'STATUS_TAREFA'
   | 'OUTROS';
 
 export const NOTIFICATION_FILTERS: Array<{ key: NotificationTypeKey | 'TODOS'; label: string }> = [
   { key: 'TODOS', label: 'Todos' },
   { key: 'SUPRIMENTO', label: 'Suprimentos' },
+  { key: 'PLANEJAMENTO', label: 'Planejamento' },
   { key: 'MAO_DE_OBRA', label: 'M.O.' },
 ];
 
@@ -29,6 +33,14 @@ export const getNotificationType = (notification: UserNotification): Notificatio
     notification.category === 'WORKFORCE'
   ) {
     return 'MAO_DE_OBRA';
+  }
+
+  if (
+    notification.eventType === 'TASK_CREATED' ||
+    notification.eventType === 'TASK_STATUS_CHANGED' ||
+    notification.category === 'PLANNING'
+  ) {
+    return 'PLANEJAMENTO';
   }
 
   if (
@@ -52,10 +64,13 @@ export const getNotificationSubtype = (notification: UserNotification): Notifica
   if (notification.eventType === 'LABOR_CONTRACT_CREATED') return 'CONTRATO_CRIADO';
   if (notification.eventType === 'LABOR_CONTRACT_STATUS_CHANGED') return 'STATUS_CONTRATO';
   if (notification.eventType === 'LABOR_PAYMENT_RECORDED') return 'PAGAMENTO_MO';
+  if (notification.eventType === 'TASK_CREATED') return 'TAREFA_CRIADA';
+  if (notification.eventType === 'TASK_STATUS_CHANGED') return 'STATUS_TAREFA';
 
   if (notification.category === 'FINANCIAL') return 'PAGAMENTO';
   if (notification.category === 'SUPPLIES') return 'ENTREGA';
   if (notification.category === 'WORKFORCE') return 'STATUS_CONTRATO';
+  if (notification.category === 'PLANNING') return 'STATUS_TAREFA';
 
   return 'OUTROS';
 };
@@ -63,6 +78,7 @@ export const getNotificationSubtype = (notification: UserNotification): Notifica
 export const getNotificationTypeLabel = (type: NotificationTypeKey) => {
   if (type === 'SUPRIMENTO') return 'Suprimentos';
   if (type === 'MAO_DE_OBRA') return 'M.O.';
+  if (type === 'PLANEJAMENTO') return 'Planejamento';
   return 'Outros';
 };
 
@@ -74,6 +90,8 @@ export const getNotificationSubtypeLabel = (subtype: NotificationSubtypeKey) => 
   if (subtype === 'CONTRATO_CRIADO') return 'Contrato criado';
   if (subtype === 'STATUS_CONTRATO') return 'Status do contrato';
   if (subtype === 'PAGAMENTO_MO') return 'Pagamento';
+  if (subtype === 'TAREFA_CRIADA') return 'Tarefa criada';
+  if (subtype === 'STATUS_TAREFA') return 'Status da tarefa';
   return 'Ação';
 };
 
@@ -89,6 +107,13 @@ export const getNotificationTypeClasses = (type: NotificationTypeKey) => {
     return {
       badge: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
       border: 'border-l-indigo-500',
+    };
+  }
+
+  if (type === 'PLANEJAMENTO') {
+    return {
+      badge: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
+      border: 'border-l-cyan-500',
     };
   }
 
@@ -145,6 +170,20 @@ export const getNotificationSubtypeClasses = (subtype: NotificationSubtypeKey) =
     return {
       badge: 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/30 dark:text-fuchsia-300',
       border: 'border-l-fuchsia-500',
+    };
+  }
+
+  if (subtype === 'TAREFA_CRIADA') {
+    return {
+      badge: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300',
+      border: 'border-l-cyan-500',
+    };
+  }
+
+  if (subtype === 'STATUS_TAREFA') {
+    return {
+      badge: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300',
+      border: 'border-l-sky-500',
     };
   }
 
