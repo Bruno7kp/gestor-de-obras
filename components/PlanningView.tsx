@@ -1632,7 +1632,13 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
 
                         return (
                           <React.Fragment key={`group-${row.groupId}`}>
-                            <tr className="group/row border border-indigo-100 dark:border-indigo-900/40 transition-all shadow-sm bg-indigo-50/50 dark:bg-indigo-950/10 hover:shadow-md">
+                            <tr
+                              className={`group/row transition-all shadow-sm hover:shadow-md ${
+                                forecastStatusFilter === 'ordered' && !group.isPaid
+                                  ? 'border border-amber-100 dark:border-amber-900/40 bg-amber-50/60 dark:bg-amber-900/10'
+                                  : 'border border-indigo-100 dark:border-indigo-900/40 bg-indigo-50/50 dark:bg-indigo-950/10'
+                              }`}
+                            >
                               <td className="py-4 pl-2">
                                 <button
                                   onClick={() => toggleSupplyGroupExpansion(row.groupId)}
@@ -1645,6 +1651,11 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                               <td className="py-6 px-4 text-left min-w-[250px]">
                                 <div className="flex flex-col gap-1">
                                   <div className="flex items-center gap-2">
+                                    {forecastStatusFilter === 'ordered' && !group.isPaid && (
+                                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-100 text-amber-600" title="Pagamento pendente">
+                                        <Clock size={12} />
+                                      </span>
+                                    )}
                                     <span className="text-sm font-black text-indigo-700 dark:text-indigo-300 uppercase leading-tight">
                                       {group.title?.trim() || `Grupo com ${row.forecasts.length} itens`}
                                     </span>
