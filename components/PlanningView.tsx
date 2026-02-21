@@ -2232,6 +2232,8 @@ const ProcurementStep = ({ active, onClick, label, count, icon, color }: any) =>
 
 const MIN_UNIT_PRICE_DECIMALS = 2;
 const MAX_UNIT_PRICE_DECIMALS = 6;
+const MIN_QUANTITY_DECIMALS = 2;
+const MAX_QUANTITY_DECIMALS = 6;
 const QUANTITY_DECIMALS = 2;
 type DiscountDriver = 'percent' | 'value';
 
@@ -2246,8 +2248,14 @@ const countDecimalPlaces = (value: number) => {
 const resolveUnitPriceScale = (value: number) =>
   financial.clampDecimals(countDecimalPlaces(value), MIN_UNIT_PRICE_DECIMALS, MAX_UNIT_PRICE_DECIMALS);
 
+const resolveQuantityScale = (value: number) =>
+  financial.clampDecimals(countDecimalPlaces(value), MIN_QUANTITY_DECIMALS, MAX_QUANTITY_DECIMALS);
+
 const normalizeUnitPriceByScale = (value: number, scale: number) =>
   financial.normalizeMoneyPrecision(value || 0, financial.clampDecimals(scale, MIN_UNIT_PRICE_DECIMALS, MAX_UNIT_PRICE_DECIMALS));
+
+const normalizeQuantityByScale = (value: number, scale: number) =>
+  financial.normalizeQuantityPrecision(value || 0, financial.clampDecimals(scale, MIN_QUANTITY_DECIMALS, MAX_QUANTITY_DECIMALS));
 
 const formatUnitPriceByScale = (value: number, scale: number) =>
   financial
@@ -2264,8 +2272,8 @@ const formatQuantityByScale = (value: number, scale = QUANTITY_DECIMALS) =>
     .formatVisualPrecision(
       value || 0,
       '',
-      financial.clampDecimals(scale, 0, 10),
-      financial.clampDecimals(scale, 0, 10),
+      financial.clampDecimals(scale, MIN_QUANTITY_DECIMALS, MAX_QUANTITY_DECIMALS),
+      financial.clampDecimals(scale, MIN_QUANTITY_DECIMALS, MAX_QUANTITY_DECIMALS),
     )
     .trim();
 
@@ -2337,6 +2345,9 @@ const ForecastModal = ({ onClose, onSave, projectId, allWorkItems, suppliers, ex
   );
   const [unitPriceDecimals, setUnitPriceDecimals] = useState(
     resolveUnitPriceScale(editingItem?.unitPrice || 0),
+  );
+  const [quantityDecimals, setQuantityDecimals] = useState(
+    resolveQuantityScale(editingItem?.quantityNeeded || 0),
   );
   const [strDiscountValue, setStrDiscountValue] = useState(
     financial.formatVisual(editingItem?.discountValue || 0, '').trim()
@@ -2836,16 +2847,37 @@ const ForecastModal = ({ onClose, onSave, projectId, allWorkItems, suppliers, ex
                 />
               </div>
               <div>
-                <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest block mb-3 text-center">Quantidade</label>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest text-center">Quantidade</label>
+                  <div className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-xl py-0.5 px-1">
+                    <button
+                      type="button"
+                      onClick={() => setQuantityDecimals((prev) => financial.clampDecimals(prev - 1, MIN_QUANTITY_DECIMALS, MAX_QUANTITY_DECIMALS))}
+                      className="px-2 py-0.5 text-[10px] font-black text-slate-600 dark:text-slate-200 rounded-lg hover:bg-white dark:hover:bg-slate-700"
+                      title="Reduzir casas decimais"
+                    >
+                      <ChevronLeft size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setQuantityDecimals((prev) => financial.clampDecimals(prev + 1, MIN_QUANTITY_DECIMALS, MAX_QUANTITY_DECIMALS))}
+                      className="px-2 py-0.5 text-[10px] font-black text-slate-600 dark:text-slate-200 rounded-lg hover:bg-white dark:hover:bg-slate-700"
+                      title="Aumentar casas decimais"
+                    >
+                      <ChevronRight size={12} />
+                    </button>
+                  </div>
+                </div>
                 <input 
                   type="text"
                   inputMode="decimal"
                   className="w-full px-4 py-5 rounded-3xl bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-white text-sm font-black text-center outline-none focus:border-indigo-600" 
-                  value={formatQuantityByScale(data.quantityNeeded || 0)}
+                  value={formatQuantityByScale(data.quantityNeeded || 0, quantityDecimals)}
                   onChange={e => {
-                    const masked = financial.maskDecimal(e.target.value, QUANTITY_DECIMALS);
-                    const nextQuantity = financial.normalizeQuantity(
+                    const masked = financial.maskDecimal(e.target.value, quantityDecimals);
+                    const nextQuantity = normalizeQuantityByScale(
                       financial.parseLocaleNumber(masked),
+                      quantityDecimals,
                     );
 
                     if (isEditingTotalNet) {
@@ -3100,6 +3132,7 @@ type SupplyGroupItemDraft = {
   discountDriver: DiscountDriver;
   categoryId?: string | null;
   unitPriceDecimals: number;
+  quantityDecimals: number;
   isEditingTotalNet: boolean;
 };
 
@@ -3196,6 +3229,7 @@ const SupplyGroupModal = ({
         discountDriver: 'percent',
         categoryId: forecast.categoryId || '',
         unitPriceDecimals: resolveUnitPriceScale(forecast.unitPrice || 0),
+        quantityDecimals: resolveQuantityScale(forecast.quantityNeeded || 0),
         isEditingTotalNet: false,
       }));
     }
@@ -3213,6 +3247,7 @@ const SupplyGroupModal = ({
         discountDriver: 'percent',
         categoryId: '',
         unitPriceDecimals: MIN_UNIT_PRICE_DECIMALS,
+        quantityDecimals: MIN_QUANTITY_DECIMALS,
         isEditingTotalNet: false,
       },
     ];
@@ -3487,6 +3522,7 @@ const SupplyGroupModal = ({
         discountDriver: 'percent',
         categoryId: '',
         unitPriceDecimals: MIN_UNIT_PRICE_DECIMALS,
+        quantityDecimals: MIN_QUANTITY_DECIMALS,
         isEditingTotalNet: false,
       },
     ]);
@@ -3742,38 +3778,59 @@ const SupplyGroupModal = ({
                           }}
                         />
                       </td>
-                      <td className="p-3 w-[110px]">
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-semibold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500"
-                          value={formatQuantityByScale(item.quantityNeeded || 0)}
-                          onChange={(event) => {
-                            const masked = financial.maskDecimal(event.target.value, QUANTITY_DECIMALS);
-                            const quantityNeeded = financial.normalizeQuantity(
-                              financial.parseLocaleNumber(masked),
-                            );
-                            const currentTotal = getRowTotal(item);
-                            const nextDiscount = resolveRowDiscountFromDriver(
-                              quantityNeeded * (item.unitPrice || 0),
-                              item.discountDriver,
-                              item.discountValue || 0,
-                              item.discountPercentage || 0,
-                            );
+                      <td className="p-3 w-[130px]">
+                        <div className="space-y-1.5">
+                          <div className="flex w-full items-center justify-between bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
+                            <button
+                              type="button"
+                              onClick={() => updateItem(index, 'quantityDecimals', financial.clampDecimals((item.quantityDecimals || MIN_QUANTITY_DECIMALS) - 1, MIN_QUANTITY_DECIMALS, MAX_QUANTITY_DECIMALS))}
+                              className="px-1.5 py-1 text-slate-500 dark:text-slate-200 rounded-md hover:bg-white dark:hover:bg-slate-700"
+                              title="Reduzir casas decimais"
+                            >
+                              <ChevronLeft size={11} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => updateItem(index, 'quantityDecimals', financial.clampDecimals((item.quantityDecimals || MIN_QUANTITY_DECIMALS) + 1, MIN_QUANTITY_DECIMALS, MAX_QUANTITY_DECIMALS))}
+                              className="px-1.5 py-1 text-slate-500 dark:text-slate-200 rounded-md hover:bg-white dark:hover:bg-slate-700"
+                              title="Aumentar casas decimais"
+                            >
+                              <ChevronRight size={11} />
+                            </button>
+                          </div>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-semibold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500"
+                            value={formatQuantityByScale(item.quantityNeeded || 0, item.quantityDecimals || MIN_QUANTITY_DECIMALS)}
+                            onChange={(event) => {
+                              const masked = financial.maskDecimal(event.target.value, item.quantityDecimals || MIN_QUANTITY_DECIMALS);
+                              const quantityNeeded = normalizeQuantityByScale(
+                                financial.parseLocaleNumber(masked),
+                                item.quantityDecimals || MIN_QUANTITY_DECIMALS,
+                              );
+                              const currentTotal = getRowTotal(item);
+                              const nextDiscount = resolveRowDiscountFromDriver(
+                                quantityNeeded * (item.unitPrice || 0),
+                                item.discountDriver,
+                                item.discountValue || 0,
+                                item.discountPercentage || 0,
+                              );
 
-                            setItems((prev) => prev.map((row, rowIndex) => {
-                              if (rowIndex !== index) return row;
-                              const nextRow = {
-                                ...row,
-                                quantityNeeded,
-                                discountPercentage: nextDiscount.discountPercentage,
-                                discountValue: nextDiscount.discountValue,
-                              };
-                              if (!row.isEditingTotalNet) return nextRow;
-                              return applyTargetNetTotalToRow(nextRow, currentTotal);
-                            }));
-                          }}
-                        />
+                              setItems((prev) => prev.map((row, rowIndex) => {
+                                if (rowIndex !== index) return row;
+                                const nextRow = {
+                                  ...row,
+                                  quantityNeeded,
+                                  discountPercentage: nextDiscount.discountPercentage,
+                                  discountValue: nextDiscount.discountValue,
+                                };
+                                if (!row.isEditingTotalNet) return nextRow;
+                                return applyTargetNetTotalToRow(nextRow, currentTotal);
+                              }));
+                            }}
+                          />
+                        </div>
                       </td>
                       <td className="p-3 w-[130px]">
                         <div className="space-y-1.5">

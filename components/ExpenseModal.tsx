@@ -3,7 +3,21 @@ import React, { useState, useEffect } from 'react';
 import { ProjectExpense, ItemType, ExpenseType, ExpenseStatus, Supplier } from '../types';
 import { financial } from '../utils/math';
 import { ExpenseAttachmentZone } from './ExpenseAttachmentZone';
-import { X, Save, Truck, Users, Calculator, FolderTree, Landmark, ReceiptText, ClipboardCheck, Percent, Layers } from 'lucide-react';
+import { X, Save, Truck, Users, Calculator, FolderTree, Landmark, ReceiptText, ClipboardCheck, Percent, Layers, ChevronLeft, ChevronRight } from 'lucide-react';
+
+const MIN_QUANTITY_DECIMALS = 2;
+const MAX_QUANTITY_DECIMALS = 6;
+
+const countDecimalPlaces = (value: number) => {
+  if (!Number.isFinite(value)) return MIN_QUANTITY_DECIMALS;
+  const asString = value.toString();
+  const index = asString.indexOf('.');
+  if (index < 0) return MIN_QUANTITY_DECIMALS;
+  return asString.length - index - 1;
+};
+
+const resolveQuantityScale = (value: number) =>
+  financial.clampDecimals(countDecimalPlaces(value), MIN_QUANTITY_DECIMALS, MAX_QUANTITY_DECIMALS);
 
 interface ExpenseModalProps {
   isOpen: boolean;
@@ -49,6 +63,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
   const [formData, setFormData] = useState<Partial<ProjectExpense>>(buildDefaultFormData());
 
   const [strQty, setStrQty] = useState('1,00');
+  const [quantityDecimals, setQuantityDecimals] = useState(MIN_QUANTITY_DECIMALS);
   const [strPrice, setStrPrice] = useState('0,00');
   const [strDiscountValue, setStrDiscountValue] = useState('0,00');
   const [strDiscountPercent, setStrDiscountPercent] = useState('0,00');
@@ -72,7 +87,9 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
         status: editingItem.status ?? defaults.status,
       });
       setActiveItemType(editingItem.itemType);
-      setStrQty(financial.formatVisual(editingItem.quantity || 0, '').trim());
+      const qtyScale = resolveQuantityScale(editingItem.quantity || 0);
+      setQuantityDecimals(qtyScale);
+      setStrQty(financial.formatVisualPrecision(editingItem.quantity || 0, '', qtyScale, qtyScale).trim());
       setStrPrice(financial.formatVisual(editingItem.unitPrice || 0, '').trim());
       setStrDiscountValue(financial.formatVisual(editingItem.discountValue || 0, '').trim());
       setStrDiscountPercent(financial.formatVisual(editingItem.discountPercentage || 0, '').trim());
@@ -82,9 +99,33 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
     } else {
       setFormData(buildDefaultFormData());
       setActiveItemType(initialItemType);
+      setQuantityDecimals(MIN_QUANTITY_DECIMALS);
       setStrQty('1,00'); setStrPrice('0,00'); setStrDiscountValue('0,00'); setStrDiscountPercent('0,00'); setStrIssValue('0,00'); setStrIssPercent('0,00'); setStrAmount('0,00');
     }
   }, [editingItem, isOpen, initialItemType, expenseType]);
+
+  // Re-format quantity string when decimal precision changes
+  useEffect(() => {
+    const currentQty = financial.parseLocaleNumber(strQty);
+    const reformatted = financial.maskDecimal(
+      Math.round(currentQty * 10 ** quantityDecimals).toString(),
+      quantityDecimals,
+    );
+    setStrQty(reformatted);
+    // Recalculate amount with new quantity precision
+    const q = financial.normalizeQuantityPrecision(currentQty, quantityDecimals);
+    const p = financial.parseLocaleNumber(strPrice);
+    const subtotal = financial.round(q * p);
+    const dPct = financial.parseLocaleNumber(strDiscountPercent);
+    const dVal = financial.round(subtotal * (dPct / 100));
+    setStrDiscountValue(financial.formatVisual(dVal, '').trim());
+    const iPct = isIncome ? financial.parseLocaleNumber(strIssPercent) : 0;
+    const iVal = isIncome ? financial.round(subtotal * (iPct / 100)) : 0;
+    if (isIncome) setStrIssValue(financial.formatVisual(iVal, '').trim());
+    const finalAmount = Math.max(0, financial.round(subtotal - dVal - iVal));
+    setStrAmount(financial.formatVisual(finalAmount, '').trim());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quantityDecimals]);
 
   // Automação básica de status baseada em anexos (apenas para ITENS)
   useEffect(() => {
@@ -101,7 +142,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
   }, [formData.invoiceDoc, formData.paymentProof, activeItemType, isLabor, isIncome]);
 
   const handleNumericChange = (val: string, setter: (v: string) => void, field: 'qty' | 'price' | 'discountVal' | 'discountPct' | 'issVal' | 'issPct') => {
-    const masked = financial.maskCurrency(val);
+    const masked = field === 'qty' ? financial.maskDecimal(val, quantityDecimals) : financial.maskCurrency(val);
     setter(masked);
 
     const q = field === 'qty' ? financial.parseLocaleNumber(masked) : financial.parseLocaleNumber(strQty);
@@ -157,7 +198,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
       ...formData,
       itemType: activeItemType,
       type: expenseType,
-      quantity: financial.normalizeQuantity(financial.parseLocaleNumber(strQty)),
+      quantity: financial.normalizeQuantityPrecision(financial.parseLocaleNumber(strQty), quantityDecimals),
       unitPrice: financial.normalizeMoney(financial.parseLocaleNumber(strPrice)),
       discountValue: financial.normalizeMoney(financial.parseLocaleNumber(strDiscountValue)),
       discountPercentage: financial.normalizePercent(financial.parseLocaleNumber(strDiscountPercent)),
@@ -291,7 +332,27 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                         )}
                         {!isOther && (
                           <div>
-                            <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block text-center">Qtd</label>
+                            <div className="flex items-center justify-between mb-2">
+                              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Qtd</label>
+                              <div className="inline-flex items-center gap-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg py-0.5 px-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setQuantityDecimals((prev) => financial.clampDecimals(prev - 1, MIN_QUANTITY_DECIMALS, MAX_QUANTITY_DECIMALS))}
+                                  className="px-1.5 py-0.5 text-[9px] font-black text-slate-600 dark:text-slate-200 rounded-md hover:bg-white dark:hover:bg-slate-700"
+                                  title="Reduzir casas decimais"
+                                >
+                                  <ChevronLeft size={10} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setQuantityDecimals((prev) => financial.clampDecimals(prev + 1, MIN_QUANTITY_DECIMALS, MAX_QUANTITY_DECIMALS))}
+                                  className="px-1.5 py-0.5 text-[9px] font-black text-slate-600 dark:text-slate-200 rounded-md hover:bg-white dark:hover:bg-slate-700"
+                                  title="Aumentar casas decimais"
+                                >
+                                  <ChevronRight size={10} />
+                                </button>
+                              </div>
+                            </div>
                             <input inputMode="decimal" className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-black text-center outline-none focus:ring-2 focus:ring-indigo-500/20" value={strQty} onChange={e => handleNumericChange(e.target.value, setStrQty, 'qty')} />
                           </div>
                         )}

@@ -74,16 +74,16 @@ export const financial = {
   },
 
   /**
-   * Formata quantidade com ate 2 casas decimais.
+   * Formata quantidade com ate 6 casas decimais (exibe precisão real).
    */
   formatQuantity: (value: number | string | null | undefined): string => {
     const parsed = typeof value === 'string'
       ? parseFloat(value.replace(/\./g, '').replace(',', '.'))
       : (value ?? 0);
-    const num = financial.round(Number.isFinite(parsed) ? parsed : 0);
+    const num = Number.isFinite(parsed) ? parsed : 0;
     return new Intl.NumberFormat('pt-BR', {
       minimumFractionDigits: 0,
-      maximumFractionDigits: 2
+      maximumFractionDigits: 6
     }).format(num);
   },
 
@@ -104,6 +104,14 @@ export const financial = {
    */
   normalizeQuantity: (value: number): number => {
     return financial.round(value || 0);
+  },
+
+  /**
+   * Normaliza quantidades com precisão configurável.
+   */
+  normalizeQuantityPrecision: (value: number, decimals = 2): number => {
+    const safeDecimals = financial.clampDecimals(decimals, 0, 10);
+    return financial.roundTo(value || 0, safeDecimals);
   },
 
   /**
