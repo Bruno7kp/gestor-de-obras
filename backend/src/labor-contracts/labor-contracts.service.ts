@@ -56,10 +56,12 @@ export class LaborContractsService {
       valorTotal: number;
       associadoId: string;
     },
+    actorUserId?: string,
   ) {
     await this.notificationsService.emit({
       instanceId,
       projectId: contract.projectId,
+      actorUserId,
       category: 'WORKFORCE',
       eventType: 'LABOR_CONTRACT_CREATED',
       priority: 'normal',
@@ -86,12 +88,14 @@ export class LaborContractsService {
       valorTotal: number;
     },
     previousStatus: string,
+    actorUserId?: string,
   ) {
     if (previousStatus === contract.status) return;
 
     await this.notificationsService.emit({
       instanceId,
       projectId: contract.projectId,
+      actorUserId,
       category: 'WORKFORCE',
       eventType: 'LABOR_CONTRACT_STATUS_CHANGED',
       priority: contract.status === 'pago' ? 'high' : 'normal',
@@ -121,10 +125,12 @@ export class LaborContractsService {
       valor: number;
       data: string;
     },
+    actorUserId?: string,
   ) {
     await this.notificationsService.emit({
       instanceId,
       projectId: contract.projectId,
+      actorUserId,
       category: 'WORKFORCE',
       eventType: 'LABOR_PAYMENT_RECORDED',
       priority: 'high',
@@ -298,7 +304,7 @@ export class LaborContractsService {
         descricao: created.descricao,
         valorTotal: created.valorTotal,
         associadoId: created.associadoId,
-      });
+      }, input.userId);
     }
 
     return created;
@@ -425,6 +431,7 @@ export class LaborContractsService {
           valorTotal: updated.valorTotal,
         },
         previousStatus,
+        input.userId,
       );
     }
 
@@ -518,6 +525,7 @@ export class LaborContractsService {
           valor: payment.valor,
           data: payment.data,
         },
+        userId,
       );
 
       await this.emitLaborContractStatusChangedNotification(
@@ -531,6 +539,7 @@ export class LaborContractsService {
           valorTotal: updated.valorTotal,
         },
         previousStatus,
+        userId,
       );
     }
 

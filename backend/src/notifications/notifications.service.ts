@@ -8,6 +8,7 @@ type NotificationPriority = 'low' | 'normal' | 'high' | 'critical';
 interface EmitNotificationInput {
   instanceId: string;
   projectId?: string | null;
+  actorUserId?: string;
   category: string;
   eventType: string;
   title: string;
@@ -39,6 +40,12 @@ interface PreferenceResolved {
   frequency: 'immediate' | 'digest' | 'off';
   minPriority: NotificationPriority;
   isEnabled: boolean;
+}
+
+export interface NotificationActor {
+  id: string;
+  name: string;
+  profileImage: string | null;
 }
 
 export interface DigestPreviewGroup {
@@ -338,6 +345,34 @@ export class NotificationsService {
     return map;
   }
 
+  private extractActorFromMetadata(
+    metadata: Prisma.JsonValue | null,
+  ): NotificationActor | null {
+    if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+      return null;
+    }
+
+    const actor = metadata.actor;
+    if (!actor || typeof actor !== 'object' || Array.isArray(actor)) {
+      return null;
+    }
+
+    const actorObject = actor;
+    const id = actorObject.id;
+    const name = actorObject.name;
+    const profileImage = actorObject.profileImage;
+
+    if (typeof id !== 'string' || typeof name !== 'string') {
+      return null;
+    }
+
+    return {
+      id,
+      name,
+      profileImage: typeof profileImage === 'string' ? profileImage : null,
+    };
+  }
+
   async emit(input: EmitNotificationInput) {
     let effectiveInstanceId = input.instanceId;
     if (input.projectId) {
@@ -357,12 +392,39 @@ export class NotificationsService {
       instanceId: effectiveInstanceId,
     });
 
-    if (candidateUsers.length === 0) {
+    const filteredCandidateUsers = input.actorUserId
+      ? candidateUsers.filter((user) => user.id !== input.actorUserId)
+      : candidateUsers;
+
+    if (filteredCandidateUsers.length === 0) {
       return null;
     }
 
+    const actor = input.actorUserId
+      ? await this.prisma.user.findUnique({
+          where: { id: input.actorUserId },
+          select: { id: true, name: true, profileImage: true },
+        })
+      : null;
+
+    let metadata = input.metadata;
+    if (actor) {
+      const metadataObject: Prisma.JsonObject =
+        metadata && typeof metadata === 'object' && !Array.isArray(metadata)
+          ? { ...(metadata as Prisma.JsonObject) }
+          : {};
+
+      metadataObject.actor = {
+        id: actor.id,
+        name: actor.name,
+        profileImage: actor.profileImage,
+      };
+
+      metadata = metadataObject as Prisma.InputJsonValue;
+    }
+
     const preferences = await this.resolvePreferences(
-      candidateUsers.map((user) => user.id),
+      filteredCandidateUsers.map((user) => user.id),
       effectiveInstanceId,
       projectId,
       input.category,
@@ -411,7 +473,7 @@ export class NotificationsService {
           priority,
           title: input.title,
           body: input.body,
-          metadata: input.metadata,
+          metadata,
           dedupeKey: input.dedupeKey,
           triggeredAt: new Date(),
         },
@@ -424,7 +486,7 @@ export class NotificationsService {
       return null;
     }
 
-    for (const user of candidateUsers) {
+    for (const user of filteredCandidateUsers) {
       const preference = preferences.get(user.id) ?? DEFAULT_PREFERENCE;
 
       if (!preference.isEnabled) continue;
@@ -642,6 +704,7 @@ export class NotificationsService {
       title: row.notification.title,
       body: row.notification.body,
       metadata: row.notification.metadata,
+      actor: this.extractActorFromMetadata(row.notification.metadata),
       triggeredAt: row.notification.triggeredAt,
       createdAt: row.notification.createdAt,
       isRead: row.isRead,

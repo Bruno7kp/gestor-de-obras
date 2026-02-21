@@ -296,6 +296,7 @@ export interface UserNotification {
   title: string;
   body: string;
   metadata?: Record<string, unknown> | null;
+  actor?: Pick<UserAccount, 'id' | 'name' | 'profileImage'> | null;
   triggeredAt: string;
   createdAt: string;
   isRead: boolean;

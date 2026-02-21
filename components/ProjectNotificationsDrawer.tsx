@@ -35,6 +35,14 @@ export const ProjectNotificationsDrawer: React.FC<ProjectNotificationsDrawerProp
 }) => {
   const [filter, setFilter] = useState<NotificationTypeKey | 'TODOS'>('TODOS');
 
+  const getInitials = (name?: string | null) => {
+    if (!name) return '?';
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '?';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  };
+
   const filteredNotifications = useMemo(() => {
     if (filter === 'TODOS') return notifications;
     return notifications.filter((notification) => getNotificationType(notification) === filter);
@@ -163,9 +171,31 @@ export const ProjectNotificationsDrawer: React.FC<ProjectNotificationsDrawerProp
                     </div>
                   </div>
                   <p className="mt-2 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{notification.body}</p>
-                  <p className="mt-3 text-[10px] text-slate-400 font-semibold">
-                    {new Date(notification.triggeredAt).toLocaleString('pt-BR')}
-                  </p>
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    {notification.actor?.name ? (
+                      <div className="flex items-center gap-2 min-w-0">
+                        {notification.actor.profileImage ? (
+                          <img
+                            src={notification.actor.profileImage}
+                            alt={notification.actor.name}
+                            className="w-5 h-5 rounded-full object-cover border border-slate-200 dark:border-slate-700"
+                          />
+                        ) : (
+                          <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-200 text-[9px] font-black flex items-center justify-center">
+                            {getInitials(notification.actor.name)}
+                          </div>
+                        )}
+                        <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 truncate">
+                          {notification.actor.name}
+                        </span>
+                      </div>
+                    ) : (
+                      <span />
+                    )}
+                    <p className="text-[10px] text-slate-400 font-semibold whitespace-nowrap">
+                      {new Date(notification.triggeredAt).toLocaleString('pt-BR')}
+                    </p>
+                  </div>
                 </article>
               );
             })

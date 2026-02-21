@@ -133,6 +133,7 @@ export class ProjectExpensesService {
       amount: number;
       entityName: string;
     },
+    actorUserId?: string,
   ) {
     const forecastById = await this.prisma.materialForecast.findFirst({
       where: {
@@ -176,6 +177,7 @@ export class ProjectExpensesService {
       await this.notificationsService.emit({
         instanceId,
         projectId: expense.projectId,
+        actorUserId,
         category: 'FINANCIAL',
         eventType: 'EXPENSE_PAID',
         priority: 'high',
@@ -201,6 +203,7 @@ export class ProjectExpensesService {
       await this.notificationsService.emit({
         instanceId,
         projectId: expense.projectId,
+        actorUserId,
         category: 'SUPPLIES',
         eventType: 'EXPENSE_DELIVERED',
         priority: 'normal',
@@ -491,7 +494,7 @@ export class ProjectExpensesService {
         description: created.description,
         amount: created.amount,
         entityName: created.entityName,
-      }).catch(() => undefined);
+      }, input.userId).catch(() => undefined);
 
       void this.emitExpenseJournalEntry(input.instanceId, {
         projectId: created.projectId,
@@ -572,7 +575,7 @@ export class ProjectExpensesService {
         description: updated.description,
         amount: updated.amount,
         entityName: updated.entityName,
-      }).catch(() => undefined);
+      }, input.userId).catch(() => undefined);
 
       void this.emitExpenseJournalEntry(input.instanceId, {
         projectId: updated.projectId,

@@ -118,6 +118,7 @@ export class PlanningService {
   private async emitSupplyOrderedNotification(input: {
     instanceId: string;
     projectId: string;
+    actorUserId?: string;
     supplyGroupId?: string | null;
     label: string;
     referenceId: string;
@@ -129,6 +130,7 @@ export class PlanningService {
     await this.notificationsService.emit({
       instanceId: input.instanceId,
       projectId: input.projectId,
+      actorUserId: input.actorUserId,
       category: 'SUPPLIES',
       eventType: 'SUPPLY_ORDERED',
       priority: 'normal',
@@ -151,6 +153,7 @@ export class PlanningService {
   private async emitSupplyPaymentNotification(input: {
     instanceId: string;
     projectId: string;
+    actorUserId?: string;
     supplyGroupId?: string | null;
     label: string;
     referenceId: string;
@@ -162,6 +165,7 @@ export class PlanningService {
     await this.notificationsService.emit({
       instanceId: input.instanceId,
       projectId: input.projectId,
+      actorUserId: input.actorUserId,
       category: 'FINANCIAL',
       eventType: 'EXPENSE_PAID',
       priority: 'high',
@@ -428,6 +432,7 @@ export class PlanningService {
       void this.emitSupplyOrderedNotification({
         instanceId: input.instanceId,
         projectId: input.projectId,
+        actorUserId: input.userId,
         supplyGroupId: group.id,
         label: group.title?.trim() || `Lote ${group.id.slice(0, 8)}`,
         referenceId: group.id,
@@ -438,6 +443,7 @@ export class PlanningService {
       void this.emitSupplyPaymentNotification({
         instanceId: input.instanceId,
         projectId: input.projectId,
+        actorUserId: input.userId,
         supplyGroupId: group.id,
         label: group.title?.trim() || `Lote ${group.id.slice(0, 8)}`,
         referenceId: group.id,
@@ -515,6 +521,7 @@ export class PlanningService {
       void this.emitSupplyOrderedNotification({
         instanceId,
         projectId: planning.projectId,
+        actorUserId: userId,
         supplyGroupId: updated.id,
         label: updated.title?.trim() || `Lote ${updated.id.slice(0, 8)}`,
         referenceId: updated.id,
@@ -525,6 +532,7 @@ export class PlanningService {
       void this.emitSupplyPaymentNotification({
         instanceId,
         projectId: planning.projectId,
+        actorUserId: userId,
         supplyGroupId: updated.id,
         label: updated.title?.trim() || `Lote ${updated.id.slice(0, 8)}`,
         referenceId: updated.id,
@@ -765,6 +773,7 @@ export class PlanningService {
       void this.emitSupplyOrderedNotification({
         instanceId: input.instanceId,
         projectId: input.projectId,
+        actorUserId: input.userId,
         supplyGroupId: created.supplyGroupId,
         label: supplyGroupLabel,
         referenceId: created.id,
@@ -775,6 +784,7 @@ export class PlanningService {
       void this.emitSupplyPaymentNotification({
         instanceId: input.instanceId,
         projectId: input.projectId,
+        actorUserId: input.userId,
         supplyGroupId: created.supplyGroupId,
         label: supplyGroupLabel,
         referenceId: created.id,
@@ -865,6 +875,7 @@ export class PlanningService {
         void this.emitSupplyOrderedNotification({
           instanceId,
           projectId: planning.projectId,
+          actorUserId: userId,
           supplyGroupId: updated.supplyGroupId,
           label: supplyGroupLabel,
           referenceId: updated.id,
@@ -875,6 +886,7 @@ export class PlanningService {
         void this.emitSupplyPaymentNotification({
           instanceId,
           projectId: planning.projectId,
+          actorUserId: userId,
           supplyGroupId: updated.supplyGroupId,
           label: supplyGroupLabel,
           referenceId: updated.id,
