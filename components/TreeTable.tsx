@@ -416,13 +416,11 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                                 </td>
                                 <td className="p-2 text-center border-r border-slate-100 dark:border-slate-800 bg-blue-50/20 dark:bg-blue-900/10">
                                   {item.type === 'item' ? (
-                                    <input 
-                                      disabled={isReadOnly || isFullyMeasuredPreviously} 
-                                      type="number" 
-                                      step="any" 
-                                      className={`w-16 bg-white dark:bg-slate-950 border border-blue-300 dark:border-blue-700 rounded px-1 py-0.5 text-center text-[10px] font-bold focus:ring-2 focus:ring-blue-500/20 outline-none ${isFullyMeasuredPreviously ? 'text-slate-400 bg-slate-50' : 'text-blue-700 dark:text-blue-300'}`} 
-                                      value={financial.normalizeQuantity(item.currentQuantity).toFixed(2)} 
-                                      onChange={(e) => onUpdateQuantity(item.id, parseFloat(e.target.value) || 0)} 
+                                    <CurrentQuantityInput
+                                      value={item.currentQuantity}
+                                      onUpdate={(val: number) => onUpdateQuantity(item.id, val)}
+                                      disabled={isReadOnly || isFullyMeasuredPreviously}
+                                      textColorClass={isFullyMeasuredPreviously ? 'text-slate-400 bg-slate-50' : 'text-blue-700 dark:text-blue-300'}
                                     />
                                   ) : '-'}
                                 </td>
@@ -584,11 +582,52 @@ const ItemTotalInput = ({ value, onUpdate, disabled, currencySymbol, textColorCl
       value={localVal}
       onChange={(e) => setLocalVal(financial.maskCurrency(e.target.value))}
       onBlur={(e) => {
-        const parsed = financial.parseLocaleNumber(e.target.value);
+        const masked = financial.maskCurrency(e.target.value);
+        setLocalVal(masked);
+        const parsed = financial.parseLocaleNumber(masked);
         if (!Number.isFinite(parsed)) return;
         if (Math.abs(parsed - value) < 0.01) return;
         onUpdate(parsed);
       }}
+    />
+  );
+};
+
+const CurrentQuantityInput = ({ value, onUpdate, disabled, textColorClass = 'text-blue-700 dark:text-blue-300' }: any) => {
+  const [localVal, setLocalVal] = useState(
+    financial.formatVisualPrecision(value || 0, '', 2, 2).trim(),
+  );
+  const lastCommittedRef = useRef(value || 0);
+
+  useEffect(() => {
+    setLocalVal(financial.formatVisualPrecision(value || 0, '', 2, 2).trim());
+    lastCommittedRef.current = value || 0;
+  }, [value]);
+
+  const commitValue = () => {
+    const masked = financial.maskDecimal(localVal, 2);
+    const parsed = financial.normalizeQuantityPrecision(financial.parseLocaleNumber(masked), 2);
+    setLocalVal(financial.formatVisualPrecision(parsed, '', 2, 2).trim());
+
+    if (Math.abs(parsed - (lastCommittedRef.current || 0)) < 0.0001) return;
+    lastCommittedRef.current = parsed;
+    onUpdate(parsed);
+  };
+
+  return (
+    <input
+      disabled={disabled}
+      type="text"
+      inputMode="decimal"
+      className={`w-16 bg-white dark:bg-slate-950 border border-blue-300 dark:border-blue-700 rounded px-1 py-0.5 text-center text-[10px] font-bold focus:ring-2 focus:ring-blue-500/20 outline-none ${textColorClass}`}
+      value={localVal}
+      onChange={(e) => setLocalVal(financial.maskDecimal(e.target.value, 2))}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.currentTarget.blur();
+        }
+      }}
+      onBlur={commitValue}
     />
   );
 };
@@ -612,7 +651,9 @@ const GrandTotalInput = ({ initialValue, onUpdate, disabled, textColorClass = "t
       }}
       onChange={(e) => setLocalVal(financial.maskCurrency(e.target.value))}
       onBlur={(e) => {
-        const parsed = financial.parseLocaleNumber(e.target.value);
+        const masked = financial.maskCurrency(e.target.value);
+        setLocalVal(masked);
+        const parsed = financial.parseLocaleNumber(masked);
         if (!Number.isFinite(parsed)) return;
         if (Math.abs(parsed - lastCommittedRef.current) < 0.01) return;
         lastCommittedRef.current = parsed;
