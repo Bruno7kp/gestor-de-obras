@@ -25,7 +25,8 @@ interface UpdateGlobalSettingsBody {
 interface CreateCertificateBody {
   name: string;
   issuer: string;
-  expirationDate: string;
+  category?: string;
+  expirationDate?: string | null;
   status: string;
   attachmentUrls?: string[];
 }

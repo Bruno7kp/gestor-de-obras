@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { BiddingProcess, CompanyCertificate, BiddingStatus } from '../types';
+import { BiddingProcess, CompanyCertificate, BiddingStatus, CERTIFICATE_CATEGORIES } from '../types';
 import { biddingService } from '../services/biddingService';
 import { financial } from '../utils/math';
 import { biddingsApi } from '../services/biddingsApi';
@@ -38,6 +38,7 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
   const [editingBidding, setEditingBidding] = useState<BiddingProcess | null>(null);
   const [certModalOpen, setCertModalOpen] = useState(false);
   const [editingCert, setEditingCert] = useState<CompanyCertificate | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<'ALL' | CompanyCertificate['category']>('ALL');
   const [confirmDelete, setConfirmDelete] = useState<{ type: 'bidding' | 'certificate'; id: string; name: string } | null>(null);
 
   const { canEdit } = usePermissions();
@@ -56,6 +57,18 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
       b.tenderNumber.toLowerCase().includes(search.toLowerCase())
     );
   }, [biddings, search]);
+
+  const filteredCertificates = useMemo(() => {
+    if (categoryFilter === 'ALL') return certificates;
+    return certificates.filter((certificate) => certificate.category === categoryFilter);
+  }, [certificates, categoryFilter]);
+
+  const categoryLabelByValue = useMemo(() => {
+    return CERTIFICATE_CATEGORIES.reduce<Record<string, string>>((acc, option) => {
+      acc[option.value] = option.label;
+      return acc;
+    }, {});
+  }, []);
 
   const handleAddBidding = () => {
     setEditingBidding(null);
@@ -201,6 +214,7 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
         const updated = await globalSettingsApi.updateCertificate(editingCert.id, {
           name: data.name,
           issuer: data.issuer,
+          category: data.category,
           expirationDate: data.expirationDate,
           status: data.status,
           attachmentUrls: data.attachmentUrls,
@@ -224,7 +238,8 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
         id: crypto.randomUUID(),
         name: data.name || 'Nova Certidão',
         issuer: data.issuer || '',
-        expirationDate: data.expirationDate || new Date().toISOString().split('T')[0],
+        category: data.category ?? 'OUTROS',
+        expirationDate: data.expirationDate ?? null,
         status: (data.status as CompanyCertificate['status']) || 'valid',
         attachmentUrls: data.attachmentUrls ?? [],
       };
@@ -233,6 +248,7 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
         const created = await globalSettingsApi.addCertificate({
           name: newCert.name,
           issuer: newCert.issuer,
+          category: newCert.category,
           expirationDate: newCert.expirationDate,
           status: newCert.status,
           attachmentUrls: newCert.attachmentUrls,
@@ -350,14 +366,31 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
           </div>
         ) : (
           <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3">
               <div>
                 <h3 className="text-xl font-black dark:text-white tracking-tight">Certidões e Compliance</h3>
                 <p className="text-sm text-slate-500">Documentação legal para habilitação em editais.</p>
               </div>
-              <button onClick={handleAddCertificate} className={`flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg active:scale-95 transition-all ${!canEditBiddings ? 'hidden' : ''}`}>
-                <Plus size={16} /> Adicionar Certidão
-              </button>
+              <div className="flex items-center gap-2">
+                <select
+                  className="px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase tracking-widest outline-none"
+                  value={categoryFilter}
+                  onChange={(event) =>
+                    setCategoryFilter(event.target.value as 'ALL' | CompanyCertificate['category'])
+                  }
+                >
+                  <option value="ALL">Todas as Categorias</option>
+                  {CERTIFICATE_CATEGORIES.map((category) => (
+                    <option key={category.value} value={category.value}>
+                      {category.label}
+                    </option>
+                  ))}
+                </select>
+
+                <button onClick={handleAddCertificate} className={`flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg active:scale-95 transition-all ${!canEditBiddings ? 'hidden' : ''}`}>
+                  <Plus size={16} /> Adicionar Certidão
+                </button>
+              </div>
             </div>
 
             <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
@@ -365,6 +398,7 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
                  <thead className="bg-slate-50 dark:bg-slate-800/50">
                     <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                       <th className="px-8 py-5">Certidão</th>
+                      <th className="px-8 py-5">Categoria</th>
                       <th className="px-8 py-5">Emissor</th>
                       <th className="px-8 py-5">Vencimento</th>
                       <th className="px-8 py-5">Status</th>
@@ -372,7 +406,7 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
                     </tr>
                  </thead>
                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {certificates.map(cert => {
+                    {filteredCertificates.map(cert => {
                       const status = biddingService.checkCertificateStatus(cert);
                       return (
                         <tr key={cert.id} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all">
@@ -384,8 +418,9 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
                               <span className="text-sm font-black dark:text-white uppercase tracking-tight">{cert.name}</span>
                             </div>
                           </td>
+                          <td className="px-8 py-5 text-xs text-slate-500 font-medium">{categoryLabelByValue[cert.category] ?? 'Outros'}</td>
                           <td className="px-8 py-5 text-xs text-slate-500 font-medium">{cert.issuer}</td>
-                          <td className="px-8 py-5 text-xs font-black dark:text-slate-300">{financial.formatDate(cert.expirationDate)}</td>
+                          <td className="px-8 py-5 text-xs font-black dark:text-slate-300">{cert.expirationDate ? financial.formatDate(cert.expirationDate) : 'Sem Vencimento'}</td>
                           <td className="px-8 py-5">
                              <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
                                status === 'expired' ? 'bg-rose-100 text-rose-600' : (status === 'warning' ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600')
@@ -406,7 +441,7 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
                     })}
                  </tbody>
                </table>
-               {certificates.length === 0 && <div className="py-20 text-center text-slate-300 uppercase text-[10px] font-black">Nenhuma certidão cadastrada.</div>}
+               {filteredCertificates.length === 0 && <div className="py-20 text-center text-slate-300 uppercase text-[10px] font-black">Nenhuma certidão cadastrada.</div>}
             </div>
           </div>
         )}

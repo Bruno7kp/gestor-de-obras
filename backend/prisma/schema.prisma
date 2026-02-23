@@ -61,7 +61,8 @@ model CompanyCertificate {
   id               String         @id @default(uuid())
   name             String
   issuer           String
-  expirationDate   DateTime
+  category         String         @default("OUTROS")
+  expirationDate   DateTime?
   status           String
   attachmentUrls   String[]       @default([])
   globalSettingsId String

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { CompanyCertificate } from '../types';
+import { CERTIFICATE_CATEGORIES, CompanyCertificate } from '../types';
 import { uploadService } from '../services/uploadService';
 import { useToast } from '../hooks/useToast';
 import { X, Save, ShieldCheck, Building2, Calendar, UploadCloud, Loader2, Paperclip, Trash2, ExternalLink } from 'lucide-react';
@@ -15,6 +15,7 @@ interface CertificateModalProps {
 const defaultForm: Partial<CompanyCertificate> = {
   name: '',
   issuer: '',
+  category: 'OUTROS',
   expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
   status: 'valid',
   attachmentUrls: [],
@@ -27,6 +28,7 @@ const toDateInputValue = (value?: string) => {
 
 export const CertificateModal: React.FC<CertificateModalProps> = ({ isOpen, onClose, onSave, certificate }) => {
   const [formData, setFormData] = useState<Partial<CompanyCertificate>>(defaultForm);
+  const [hasNoExpiration, setHasNoExpiration] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const toast = useToast();
   const attachmentUrlsRef = useRef<string[]>([]);
@@ -37,14 +39,18 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({ isOpen, onCl
       setFormData({
         name: certificate.name,
         issuer: certificate.issuer,
+        category: certificate.category ?? 'OUTROS',
         expirationDate: toDateInputValue(certificate.expirationDate),
         status: certificate.status,
         attachmentUrls: attachmentUrlsRef.current,
       });
+      setHasNoExpiration(!certificate.expirationDate);
     } else {
       attachmentUrlsRef.current = [];
+      setHasNoExpiration(false);
       setFormData({
         ...defaultForm,
+        category: 'OUTROS',
         expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         attachmentUrls: attachmentUrlsRef.current,
       });
@@ -117,6 +123,7 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({ isOpen, onCl
           }
           onSave({
             ...formData,
+            expirationDate: hasNoExpiration ? null : (formData.expirationDate ?? null),
             attachmentUrls: attachmentUrlsRef.current,
           });
         }} className="flex-1 overflow-y-auto custom-scrollbar space-y-8 pr-2">
@@ -139,13 +146,55 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({ isOpen, onCl
             </div>
           </div>
 
+          <div>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">Categoria</label>
+            <select
+              required
+              className="w-full px-6 py-4 rounded-2xl border-2 border-slate-50 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all"
+              value={formData.category ?? 'OUTROS'}
+              onChange={e => setFormData({ ...formData, category: e.target.value as CompanyCertificate['category'] })}
+            >
+              {CERTIFICATE_CATEGORIES.map((category) => (
+                <option key={category.value} value={category.value}>
+                  {category.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Expiration Date */}
           <div>
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">Data de Vencimento</label>
-            <div className="relative">
-              <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18}/>
-              <input type="date" required className="w-full pl-12 pr-6 py-4 rounded-2xl border-2 border-slate-50 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all" value={formData.expirationDate} onChange={e => setFormData({...formData, expirationDate: e.target.value})} />
-            </div>
+            <label className="flex items-center gap-2 px-1 py-1 mb-3 text-xs font-semibold text-slate-500 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={hasNoExpiration}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setHasNoExpiration(checked);
+                  if (checked) {
+                    setFormData({ ...formData, expirationDate: null });
+                    return;
+                  }
+                  setFormData({
+                    ...formData,
+                    expirationDate:
+                      typeof formData.expirationDate === 'string' && formData.expirationDate
+                        ? formData.expirationDate
+                        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                  });
+                }}
+                className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+              />
+              Sem Vencimento
+            </label>
+
+            {!hasNoExpiration && (
+              <div className="relative">
+                <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18}/>
+                <input type="date" required={!hasNoExpiration} className="w-full pl-12 pr-6 py-4 rounded-2xl border-2 border-slate-50 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all" value={typeof formData.expirationDate === 'string' ? formData.expirationDate : ''} onChange={e => setFormData({...formData, expirationDate: e.target.value})} />
+              </div>
+            )}
           </div>
 
           <div>

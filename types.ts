@@ -349,11 +349,30 @@ export interface ProjectGroup {
   children?: ProjectGroup[];
 }
 
+export type CertificateCategory =
+  | 'HABILITACAO_JURIDICA'
+  | 'FISCAL_TRABALHISTA'
+  | 'QUALIFICACAO_TECNICA'
+  | 'QUALIFICACAO_FINANCEIRA'
+  | 'OUTROS';
+
+export const CERTIFICATE_CATEGORIES: Array<{
+  value: CertificateCategory;
+  label: string;
+}> = [
+  { value: 'HABILITACAO_JURIDICA', label: 'Habilitação Jurídica' },
+  { value: 'FISCAL_TRABALHISTA', label: 'Fiscal e Trabalhista' },
+  { value: 'QUALIFICACAO_TECNICA', label: 'Qualificação Técnica' },
+  { value: 'QUALIFICACAO_FINANCEIRA', label: 'Qualificação Financeira' },
+  { value: 'OUTROS', label: 'Outros' },
+];
+
 export interface CompanyCertificate {
   id: string;
   name: string;
   issuer: string;
-  expirationDate: string;
+  category: CertificateCategory;
+  expirationDate: string | null;
   status: 'valid' | 'warning' | 'expired';
   attachmentUrls?: string[];
 }

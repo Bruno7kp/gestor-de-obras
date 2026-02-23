@@ -15,7 +15,8 @@ interface CreateCertificateInput {
   instanceId: string;
   name: string;
   issuer: string;
-  expirationDate: string;
+  category?: string;
+  expirationDate?: string | null;
   status: string;
   attachmentUrls?: unknown;
 }
@@ -147,7 +148,10 @@ export class GlobalSettingsService {
         globalSettingsId: settings.id,
         name: input.name,
         issuer: input.issuer,
-        expirationDate: new Date(input.expirationDate),
+        category: input.category ?? 'OUTROS',
+        expirationDate: input.expirationDate
+          ? new Date(input.expirationDate)
+          : null,
         status: input.status,
         attachmentUrls,
       },
@@ -166,7 +170,8 @@ export class GlobalSettingsService {
       instanceId: string;
       name?: string;
       issuer?: string;
-      expirationDate?: string;
+      category?: string;
+      expirationDate?: string | null;
       status?: string;
       attachmentUrls?: unknown;
     },
@@ -196,8 +201,11 @@ export class GlobalSettingsService {
       data: {
         ...(input.name !== undefined && { name: input.name }),
         ...(input.issuer !== undefined && { issuer: input.issuer }),
+        ...(input.category !== undefined && { category: input.category }),
         ...(input.expirationDate !== undefined && {
-          expirationDate: new Date(input.expirationDate),
+          expirationDate: input.expirationDate
+            ? new Date(input.expirationDate)
+            : null,
         }),
         ...(input.status !== undefined && { status: input.status }),
         ...(normalizedInputAttachmentUrls !== undefined && {

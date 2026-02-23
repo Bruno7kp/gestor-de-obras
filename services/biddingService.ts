@@ -47,6 +47,8 @@ export const biddingService = {
   },
 
   checkCertificateStatus: (cert: CompanyCertificate): 'valid' | 'warning' | 'expired' => {
+    if (!cert.expirationDate) return 'valid';
+
     const today = new Date();
     const exp = new Date(cert.expirationDate);
     const diffDays = Math.ceil((exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));

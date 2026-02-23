@@ -23,6 +23,8 @@ const normalizeAttachmentUrls = (value: unknown): string[] => {
 
 const normalizeCertificate = (cert: any): CompanyCertificate => ({
   ...cert,
+  category: cert?.category ?? 'OUTROS',
+  expirationDate: cert?.expirationDate ?? null,
   attachmentUrls: normalizeAttachmentUrls(cert?.attachmentUrls),
 });
 
