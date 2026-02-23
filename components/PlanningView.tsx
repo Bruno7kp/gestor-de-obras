@@ -40,13 +40,14 @@ interface PlanningViewProps {
   categories: WorkItem[];
   allWorkItems: WorkItem[];
   viewMode?: 'planning' | 'supplies';
+  onRequestPrintReport?: () => void;
   fixedSubTab?: 'tasks' | 'forecast' | 'milestones';
   showSubTabs?: boolean;
   isReadOnly?: boolean;
 }
 
 export const PlanningView: React.FC<PlanningViewProps> = ({ 
-  project, suppliers, onUpdatePlanning, onAddExpense, onUpdateExpense, categories, allWorkItems, viewMode = 'planning', fixedSubTab, showSubTabs = true, isReadOnly = false
+  project, suppliers, onUpdatePlanning, onAddExpense, onUpdateExpense, categories, allWorkItems, viewMode = 'planning', onRequestPrintReport, fixedSubTab, showSubTabs = true, isReadOnly = false
 }) => {
   const { user } = useAuth();
   const { canEdit, getLevel } = usePermissions();
@@ -1062,12 +1063,6 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
         <div className="no-print flex flex-col md:flex-row md:items-center justify-between gap-4">
           {showSubTabs ? (
             <div className="flex flex-wrap items-center gap-3">
-              <button
-                onClick={() => window.print()}
-                className="flex items-center gap-2 px-5 py-3 text-slate-700 dark:text-slate-300 text-[9px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700 rounded-xl hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all"
-              >
-                <Printer size={16} /> PDF
-              </button>
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => fileInputRef.current?.click()}
@@ -1096,12 +1091,6 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-3">
-              <button
-                onClick={() => window.print()}
-                className="flex items-center gap-2 px-5 py-3 text-slate-700 dark:text-slate-300 text-[9px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700 rounded-xl hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all"
-              >
-                <Printer size={16} /> PDF
-              </button>
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => fileInputRef.current?.click()}
@@ -1192,7 +1181,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
              <div className="no-print flex justify-end">
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => window.print()}
+                    onClick={() => onRequestPrintReport?.()}
                     className="flex items-center gap-2 px-5 py-3 text-slate-700 dark:text-slate-300 text-[9px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700 rounded-xl hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all"
                   >
                     <Printer size={16} /> PDF

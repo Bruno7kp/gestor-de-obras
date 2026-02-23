@@ -65,6 +65,7 @@ interface ProjectWorkspaceProps {
 
 export type TabID = 'wbs' | 'stats' | 'expenses' | 'supplies' | 'workforce' | 'labor-contracts' | 'planning' | 'schedule' | 'journal' | 'documents' | 'branding';
 type ExpensePrintMode = 'complete' | 'material' | 'labor';
+type SuppliesPrintMode = 'complete' | 'pending' | 'ordered';
 
 export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   project, globalSettings, suppliers, isExternalProject: isExternalProjectProp = false, onUpdateProject, onCloseMeasurement,
@@ -93,6 +94,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const [deletingNotificationId, setDeletingNotificationId] = useState<string | null>(null);
   const [isExpensePrintModalOpen, setIsExpensePrintModalOpen] = useState(false);
   const [expensePrintMode, setExpensePrintMode] = useState<ExpensePrintMode>('complete');
+  const [isSuppliesPrintModalOpen, setIsSuppliesPrintModalOpen] = useState(false);
+  const [suppliesPrintMode, setSuppliesPrintMode] = useState<SuppliesPrintMode>('complete');
+  const [suppliesPrintOnlyUnpaid, setSuppliesPrintOnlyUnpaid] = useState(false);
 
   const tabsNavRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef<{ x: number; scrollLeft: number; moved: boolean } | null>(null);
@@ -128,6 +132,18 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const handleConfirmExpensePrintMode = useCallback((mode: ExpensePrintMode) => {
     setExpensePrintMode(mode);
     setIsExpensePrintModalOpen(false);
+    window.setTimeout(() => {
+      window.print();
+    }, 80);
+  }, []);
+
+  const handleRequestSuppliesPrint = useCallback(() => {
+    setIsSuppliesPrintModalOpen(true);
+  }, []);
+
+  const handleConfirmSuppliesPrintMode = useCallback((mode: SuppliesPrintMode) => {
+    setSuppliesPrintMode(mode);
+    setIsSuppliesPrintModalOpen(false);
     window.setTimeout(() => {
       window.print();
     }, 80);
@@ -1256,6 +1272,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     categories={displayData.items.filter(i => i.type === 'category')}
                     allWorkItems={displayData.items}
                     viewMode="supplies"
+                    onRequestPrintReport={handleRequestSuppliesPrint}
                     isReadOnly={displayData.isReadOnly}
                   />
                 )}
@@ -1327,6 +1344,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
             {(tab === 'planning' || tab === 'supplies' || tab === 'schedule') && (
               <PrintPlanningReport
                 project={project}
+                printMode={suppliesPrintMode}
+                onlyUnpaid={suppliesPrintOnlyUnpaid}
               />
             )}
           </div>
@@ -1369,6 +1388,61 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                 <div className="mt-5 flex justify-end">
                   <button
                     onClick={() => setIsExpensePrintModalOpen(false)}
+                    className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isSuppliesPrintModalOpen && (
+            <div
+              className="fixed inset-0 z-[2500] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4"
+              onClick={() => setIsSuppliesPrintModalOpen(false)}
+            >
+              <div
+                className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <h3 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">Exportar PDF de Suprimentos</h3>
+                <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">Escolha o formato do relatório</p>
+
+                <div className="mt-5 space-y-2">
+                  <button
+                    onClick={() => handleConfirmSuppliesPrintMode('complete')}
+                    className="w-full text-left px-4 py-3 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-300 font-black text-[11px] uppercase tracking-widest"
+                  >
+                    Completo (padrão)
+                  </button>
+                  <button
+                    onClick={() => handleConfirmSuppliesPrintMode('pending')}
+                    className="w-full text-left px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 font-black text-[11px] uppercase tracking-widest text-slate-700 dark:text-slate-200"
+                  >
+                    A comprar
+                  </button>
+                  <button
+                    onClick={() => handleConfirmSuppliesPrintMode('ordered')}
+                    className="w-full text-left px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 font-black text-[11px] uppercase tracking-widest text-slate-700 dark:text-slate-200"
+                  >
+                    Pedidos de compra
+                  </button>
+                </div>
+
+                <label className="mt-4 flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={suppliesPrintOnlyUnpaid}
+                    onChange={(event) => setSuppliesPrintOnlyUnpaid(event.target.checked)}
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  Exibir apenas NÃO PAGOS?
+                </label>
+
+                <div className="mt-5 flex justify-end">
+                  <button
+                    onClick={() => setIsSuppliesPrintModalOpen(false)}
                     className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
                   >
                     Cancelar
