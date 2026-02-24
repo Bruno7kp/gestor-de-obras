@@ -1273,7 +1273,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     allWorkItems={displayData.items}
                     viewMode="supplies"
                     onRequestPrintReport={handleRequestSuppliesPrint}
-                    isReadOnly={displayData.isReadOnly}
+                    isReadOnly={isHistoryMode}
+                    isProjectArchived={isProjectArchived}
+                    canEditModule={getLevel('supplies') === 'edit'}
                   />
                 )}
                 {tab === 'labor-contracts' && (
@@ -1297,7 +1299,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     allWorkItems={displayData.items}
                     fixedSubTab="tasks"
                     showSubTabs={false}
-                    isReadOnly={displayData.isReadOnly}
+                    isReadOnly={isHistoryMode}
+                    isProjectArchived={isProjectArchived}
+                    canEditModule={getLevel('planning') === 'edit'}
                   />
                 )}
                 {tab === 'schedule' && (
@@ -1311,7 +1315,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     allWorkItems={displayData.items}
                     fixedSubTab="milestones"
                     showSubTabs={false}
-                    isReadOnly={displayData.isReadOnly}
+                    isReadOnly={isHistoryMode}
+                    isProjectArchived={isProjectArchived}
+                    canEditModule={getLevel('schedule') === 'edit'}
                   />
                 )}
                 {tab === 'journal' && <JournalView project={project} onUpdateJournal={(j) => onUpdateProject({ journal: j })} allWorkItems={displayData.items} isReadOnly={displayData.isReadOnly} />}

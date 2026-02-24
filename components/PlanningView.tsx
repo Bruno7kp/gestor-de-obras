@@ -26,7 +26,6 @@ import {
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { ExpenseAttachmentZone } from './ExpenseAttachmentZone';
 import { ConfirmModal } from './ConfirmModal';
-import { usePermissions } from '../hooks/usePermissions';
 import { useToast } from '../hooks/useToast';
 import { uiPreferences } from '../utils/uiPreferences';
 import { useAuth } from '../auth/AuthContext';
@@ -44,18 +43,35 @@ interface PlanningViewProps {
   fixedSubTab?: 'tasks' | 'forecast' | 'milestones';
   showSubTabs?: boolean;
   isReadOnly?: boolean;
+  isProjectArchived?: boolean;
+  canEditModule?: boolean;
 }
 
 export const PlanningView: React.FC<PlanningViewProps> = ({ 
-  project, suppliers, onUpdatePlanning, onAddExpense, onUpdateExpense, categories, allWorkItems, viewMode = 'planning', onRequestPrintReport, fixedSubTab, showSubTabs = true, isReadOnly = false
+  project,
+  suppliers,
+  onUpdatePlanning,
+  onAddExpense,
+  onUpdateExpense,
+  categories,
+  allWorkItems,
+  viewMode = 'planning',
+  onRequestPrintReport,
+  fixedSubTab,
+  showSubTabs = true,
+  isReadOnly = false,
+  isProjectArchived = false,
+  canEditModule = true,
 }) => {
   const { user } = useAuth();
-  const { canEdit, getLevel } = usePermissions();
   const toast = useToast();
-  const isSuppliesView = viewMode === 'supplies';
-  const canEditPlanning = (isSuppliesView ? canEdit('supplies') : canEdit('planning')) && !isReadOnly;
+  const canEditPlanning = canEditModule && !isReadOnly && !isProjectArchived;
   const showReadOnlyWarning = () => {
-    toast.warning('Obra arquivada: edição, cadastro e remoção estão bloqueados.');
+    if (isProjectArchived) {
+      toast.warning('Obra arquivada: edição, cadastro e remoção estão bloqueados.');
+      return;
+    }
+    toast.warning('Sem permissão de edição para este módulo.');
   };
 
   const ensureCanEditPlanning = () => {
@@ -68,6 +84,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   const planningTabKey = `planning_subtab_${project.id}`;
   const suppliesStatusKey = `supplies_status_${project.id}`;
   const supplyGroupsExpandedKey = `supplies_groups_expanded_${project.id}`;
+  const isSuppliesView = viewMode === 'supplies';
 
   const [activeSubTab, setActiveSubTab] = useState<'tasks' | 'forecast' | 'milestones'>(() => {
     if (fixedSubTab) return fixedSubTab;

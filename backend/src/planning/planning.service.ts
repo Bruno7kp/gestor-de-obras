@@ -115,6 +115,12 @@ export class PlanningService {
     private readonly notificationsService: NotificationsService,
   ) {}
 
+  private normalizeRelationId(value?: string | null): string | null {
+    if (value == null) return null;
+    const normalized = value.trim();
+    return normalized.length > 0 ? normalized : null;
+  }
+
   private async emitSupplyOrderedNotification(input: {
     instanceId: string;
     projectId: string;
@@ -499,7 +505,7 @@ export class PlanningService {
         status: input.status,
         isPaid: input.isPaid,
         isCleared: input.isCleared,
-        supplierId: input.supplierId ?? null,
+        supplierId: this.normalizeRelationId(input.supplierId),
         paymentProof: input.paymentProof ?? null,
         invoiceDoc: input.invoiceDoc ?? null,
         createdById: input.userId ?? null,
@@ -525,7 +531,7 @@ export class PlanningService {
         isPaid: input.isPaid,
         isCleared: input.isCleared,
         order: item.order ?? index,
-        supplierId: input.supplierId ?? null,
+        supplierId: this.normalizeRelationId(input.supplierId),
         paymentProof: input.paymentProof ?? null,
         createdById: input.userId ?? null,
         supplyGroupId: group.id,
@@ -586,6 +592,10 @@ export class PlanningService {
 
     await this.ensurePlanningWritable(group.projectPlanningId);
 
+    const resolvedSupplierId = Object.prototype.hasOwnProperty.call(data, 'supplierId')
+      ? this.normalizeRelationId(data.supplierId)
+      : group.supplierId;
+
     const updated = await this.prisma.supplyGroup.update({
       where: { id },
       data: {
@@ -596,7 +606,7 @@ export class PlanningService {
         status: data.status ?? group.status,
         isPaid: data.isPaid ?? group.isPaid,
         isCleared: data.isCleared ?? group.isCleared,
-        supplierId: data.supplierId ?? group.supplierId,
+        supplierId: resolvedSupplierId,
         paymentProof: data.paymentProof ?? group.paymentProof,
         invoiceDoc: data.invoiceDoc ?? group.invoiceDoc,
       },
@@ -798,7 +808,7 @@ export class PlanningService {
         status: input.status,
         isPaid: input.isPaid,
         isCleared: input.isCleared,
-        supplierId: input.supplierId ?? null,
+        supplierId: this.normalizeRelationId(input.supplierId),
         paymentProof: input.paymentProof ?? null,
         invoiceDoc: input.invoiceDoc ?? null,
         createdById: input.userId ?? null,
@@ -819,7 +829,7 @@ export class PlanningService {
         status: input.status,
         isPaid: input.isPaid,
         isCleared: input.isCleared,
-        supplierId: input.supplierId ?? null,
+        supplierId: this.normalizeRelationId(input.supplierId),
         paymentProof: input.paymentProof ?? null,
       },
     });
@@ -880,8 +890,8 @@ export class PlanningService {
         isPaid: input.isPaid,
         isCleared: input.isCleared ?? false,
         order: input.order ?? 0,
-        supplierId: input.supplierId ?? null,
-        supplyGroupId: input.supplyGroupId ?? null,
+        supplierId: this.normalizeRelationId(input.supplierId),
+        supplyGroupId: this.normalizeRelationId(input.supplyGroupId),
         paymentProof: input.paymentProof ?? null,
         createdById: input.userId ?? input.createdById ?? null,
       },
@@ -953,6 +963,13 @@ export class PlanningService {
       throw new BadRequestException('Nao e possivel voltar para pendente apos pagamento.');
     }
 
+    const resolvedSupplierId = Object.prototype.hasOwnProperty.call(data, 'supplierId')
+      ? this.normalizeRelationId(data.supplierId)
+      : forecast.supplierId;
+    const resolvedSupplyGroupId = Object.prototype.hasOwnProperty.call(data, 'supplyGroupId')
+      ? this.normalizeRelationId(data.supplyGroupId)
+      : forecast.supplyGroupId;
+
     const updated = await this.prisma.materialForecast.update({
       where: { id },
       data: {
@@ -977,8 +994,8 @@ export class PlanningService {
         isPaid: data.isPaid ?? forecast.isPaid,
         isCleared: data.isCleared ?? forecast.isCleared,
         order: data.order ?? forecast.order,
-        supplierId: data.supplierId ?? forecast.supplierId,
-        supplyGroupId: data.supplyGroupId ?? forecast.supplyGroupId,
+        supplierId: resolvedSupplierId,
+        supplyGroupId: resolvedSupplyGroupId,
         paymentProof: data.paymentProof ?? forecast.paymentProof,
       },
     });
