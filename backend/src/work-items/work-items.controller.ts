@@ -67,7 +67,7 @@ export class WorkItemsController {
   }
 
   @Post()
-  @HasPermission('wbs.edit')
+  @HasPermission('wbs.edit', 'blueprint.edit')
   create(@Body() body: CreateWorkItemBody, @Req() req: AuthenticatedRequest) {
     return this.workItemsService.create({
       ...body,
@@ -77,7 +77,7 @@ export class WorkItemsController {
   }
 
   @Post('replace')
-  @HasPermission('wbs.edit')
+  @HasPermission('wbs.edit', 'blueprint.edit')
   async replace(
     @Body()
     body: { projectId: string; items: CreateWorkItemBody[]; scope?: string },
@@ -93,7 +93,7 @@ export class WorkItemsController {
   }
 
   @Post('batch')
-  @HasPermission('wbs.edit')
+  @HasPermission('wbs.edit', 'blueprint.edit')
   async batch(
     @Body()
     body: { projectId: string; items: CreateWorkItemBody[]; replace?: boolean; scope?: string },
@@ -110,7 +110,7 @@ export class WorkItemsController {
   }
 
   @Patch(':id')
-  @HasPermission('wbs.edit')
+  @HasPermission('wbs.edit', 'blueprint.edit')
   update(
     @Param('id') id: string,
     @Body() body: UpdateWorkItemBody,
@@ -125,7 +125,7 @@ export class WorkItemsController {
   }
 
   @Delete(':id')
-  @HasPermission('wbs.edit')
+  @HasPermission('wbs.edit', 'blueprint.edit')
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.workItemsService.remove(id, req.user.instanceId, req.user.id);
   }
