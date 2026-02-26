@@ -127,9 +127,10 @@ export class StockService {
     );
     await ensureProjectWritable(this.prisma, input.projectId);
 
-    const maxOrder = await this.prisma.stockItem.aggregate({
+    // Shift all existing items down so the new one lands at the top
+    await this.prisma.stockItem.updateMany({
       where: { projectId: input.projectId },
-      _max: { order: true },
+      data: { order: { increment: 1 } },
     });
 
     return this.prisma.stockItem.create({
@@ -138,7 +139,7 @@ export class StockService {
         name: input.name,
         unit: input.unit ?? 'un',
         minQuantity: input.minQuantity ?? 0,
-        order: (maxOrder._max.order ?? -1) + 1,
+        order: 0,
       },
       include: {
         movements: { include: this.movementInclude },

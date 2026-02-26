@@ -89,7 +89,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ projectId, canEdit
         toast.success('Material atualizado');
       } else {
         const created = await stockApi.create(projectId, data);
-        setStockItems((prev) => [...prev, created]);
+        setStockItems((prev) => [created, ...prev.map(it => ({ ...it, order: it.order + 1 }))]);
         toast.success('Material adicionado');
       }
     } catch {
