@@ -97,8 +97,11 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ assets, onAdd, onDel
 
   return (
     <div className="space-y-6 sm:space-y-8 max-w-6xl mx-auto">
-      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-end gap-6 bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm">
-        
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white tracking-tight">Repositório Técnico</h2>
+          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Plantas e Memoriais</p>
+        </div> 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
           <div className="relative flex-1 sm:w-64">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
