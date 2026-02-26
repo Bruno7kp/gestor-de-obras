@@ -503,7 +503,10 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
 
   const handleAddTask = (data: Partial<PlanningTask>) => {
     if (!ensureCanEditPlanning()) return;
-    const updated = planningService.addTask(planning, data);
+    const createdBy = user?.id && user?.name
+      ? { id: user.id, name: user.name, profileImage: user.profileImage ?? null }
+      : undefined;
+    const updated = planningService.addTask(planning, { ...data, createdBy });
     onUpdatePlanning(updated);
     setIsAddingTask(null);
   };

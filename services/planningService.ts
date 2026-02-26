@@ -105,7 +105,8 @@ export const planningService = {
         isCompleted: data.status === 'done',
         status: data.status || 'todo',
         dueDate: data.dueDate || now,
-        createdAt: now
+        createdAt: now,
+        createdBy: data.createdBy,
       }]
     };
   },
