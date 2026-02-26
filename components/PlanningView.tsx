@@ -121,6 +121,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   const [confirmingGroupPurchase, setConfirmingGroupPurchase] = useState<SupplyGroup | null>(null);
   const [confirmingGroupDelivery, setConfirmingGroupDelivery] = useState<SupplyGroup | null>(null);
   const [confirmingGroupClearance, setConfirmingGroupClearance] = useState<SupplyGroup | null>(null);
+  const [editingGroupDocs, setEditingGroupDocs] = useState<SupplyGroup | null>(null);
   const [confirmingDeleteSupplyGroup, setConfirmingDeleteSupplyGroup] = useState<SupplyGroup | null>(null);
   const [editingForecast, setEditingForecast] = useState<MaterialForecast | null>(null);
   const [editingSupplyGroup, setEditingSupplyGroup] = useState<SupplyGroup | null>(null);
@@ -1668,6 +1669,16 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                     <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[8px] font-black uppercase tracking-widest">
                                       Lote ({row.forecasts.length})
                                     </span>
+                                    {group.invoiceDoc && (
+                                      <button onClick={() => handleViewProof(group.invoiceDoc!)} className="p-1.5 text-emerald-400 hover:text-emerald-600 rounded-lg" title="Ver Nota Fiscal">
+                                        <Receipt size={14} />
+                                      </button>
+                                    )}
+                                    {group.paymentProof && (
+                                      <button onClick={() => handleViewProof(group.paymentProof!)} className="p-1.5 text-blue-400 hover:text-blue-600 rounded-lg" title="Ver Comprovante">
+                                        <Download size={14} />
+                                      </button>
+                                    )}
                                   </div>
                                   <div className="flex items-center gap-1.5 text-[9px] font-bold text-indigo-500 uppercase tracking-widest">
                                     <Building2 size={10} className="shrink-0" />
@@ -1760,6 +1771,15 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                               )}
                               <td className="py-6 text-right pr-6">
                                 <div className="flex items-center justify-end gap-1 opacity-100 transition-opacity">
+                                  {forecastStatusFilter === 'delivered' && (
+                                    <button
+                                      onClick={() => setEditingGroupDocs(group)}
+                                      className="p-2 text-emerald-500 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 rounded-xl"
+                                      title="Documentos do grupo"
+                                    >
+                                      <FileText size={18}/>
+                                    </button>
+                                  )}
                                   <button
                                     onClick={() => void openSupplyGroupEditorById(group.id)}
                                     className="p-2 text-indigo-500 hover:bg-indigo-100 rounded-xl"
@@ -2051,6 +2071,17 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
           onConfirm={(invoiceDoc?: string) => handleFinalizeGroupClearance(confirmingGroupClearance, invoiceDoc)}
         />
       )}
+
+      {editingGroupDocs && (
+        <SupplyGroupDocsModal
+          group={editingGroupDocs}
+          onClose={() => setEditingGroupDocs(null)}
+          onSave={async (docs) => {
+            await handleUpdateSupplyGroup(editingGroupDocs.id, docs);
+            setEditingGroupDocs(null);
+          }}
+        />
+      )}
     </div>
   );
 };
@@ -2167,6 +2198,68 @@ const ConfirmSupplyGroupPurchaseModal = ({
             className="flex-[2] py-3 rounded-2xl bg-indigo-600 text-white font-black uppercase text-[10px] tracking-widest"
           >
             Confirmar Pedido
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const SupplyGroupDocsModal = ({
+  group,
+  onClose,
+  onSave,
+}: {
+  group: SupplyGroup;
+  onClose: () => void;
+  onSave: (docs: { paymentProof?: string | null; invoiceDoc?: string | null }) => Promise<void> | void;
+}) => {
+  const [paymentProof, setPaymentProof] = useState<string | undefined>(group.paymentProof || undefined);
+  const [invoiceDoc, setInvoiceDoc] = useState<string | undefined>(group.invoiceDoc || undefined);
+  const [saving, setSaving] = useState(false);
+
+  return (
+    <div className="fixed inset-0 z-[2100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}>
+      <div className="bg-white dark:bg-[#0f111a] w-full max-w-xl rounded-[2.5rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl" onClick={e => e.stopPropagation()}>
+        <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-3">Documentos do Grupo</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">Gerencie o comprovante de pagamento e a nota fiscal deste grupo.</p>
+
+        <div className="space-y-4">
+          <ExpenseAttachmentZone
+            label="Comprovante de Pagamento"
+            requiredStatus="PAID"
+            currentFile={paymentProof}
+            onUploadUrl={(url) => setPaymentProof(url)}
+            onRemove={() => setPaymentProof(undefined)}
+          />
+
+          <ExpenseAttachmentZone
+            label="Nota Fiscal"
+            requiredStatus="DELIVERED"
+            currentFile={invoiceDoc}
+            onUploadUrl={(url) => setInvoiceDoc(url)}
+            onRemove={() => setInvoiceDoc(undefined)}
+          />
+        </div>
+
+        <div className="flex items-center gap-3 mt-8">
+          <button onClick={onClose} className="flex-1 py-3 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 font-black uppercase text-[10px] tracking-widest">Cancelar</button>
+          <button
+            disabled={saving}
+            onClick={async () => {
+              setSaving(true);
+              try {
+                await onSave({
+                  paymentProof: paymentProof || null,
+                  invoiceDoc: invoiceDoc || null,
+                });
+              } finally {
+                setSaving(false);
+              }
+            }}
+            className="flex-[2] py-3 rounded-2xl bg-indigo-600 text-white font-black uppercase text-[10px] tracking-widest disabled:opacity-50"
+          >
+            {saving ? 'Salvando…' : 'Salvar'}
           </button>
         </div>
       </div>
