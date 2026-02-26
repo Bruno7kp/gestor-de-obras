@@ -459,6 +459,33 @@ export interface Supplier {
   order: number;
 }
 
+// --- CONTROLE DE ESTOQUE ---
+export type StockMovementType = 'entry' | 'exit';
+
+export interface StockMovement {
+  id: string;
+  stockItemId: string;
+  type: StockMovementType;
+  quantity: number;
+  date: string;
+  responsible: string;
+  notes: string;
+  createdAt?: string;
+}
+
+export interface StockItem {
+  id: string;
+  projectId: string;
+  name: string;
+  unit: string;
+  minQuantity: number;
+  currentQuantity: number;
+  movements: StockMovement[];
+  order: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 // --- PROJETO ---
 export interface Project {
   id: string;
@@ -486,6 +513,7 @@ export interface Project {
   laborContracts: LaborContract[]; // NOVO
   planning: ProjectPlanning;
   journal: ProjectJournal;
+  stockItems: StockItem[];
   contractTotalOverride?: number;
   currentTotalOverride?: number;
   config: {

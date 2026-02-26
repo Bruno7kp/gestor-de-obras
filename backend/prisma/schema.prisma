@@ -191,6 +191,7 @@ model Project {
   workforce             WorkforceMember[]
   laborContracts        LaborContract[]
   theme                 PDFTheme?
+  stockItems            StockItem[]
 }
 
 model Notification {
@@ -600,4 +601,41 @@ model StaffDocument {
   status           String
   workforceMemberId String
   workforceMember  WorkforceMember @relation(fields: [workforceMemberId], references: [id])
+}
+
+// --- CONTROLE DE ESTOQUE ---
+
+enum StockMovementType {
+  ENTRY
+  EXIT
+}
+
+model StockItem {
+  id              String          @id @default(uuid())
+  projectId       String
+  name            String
+  unit            String          @default("un")
+  minQuantity     Float           @default(0)
+  currentQuantity Float           @default(0)
+  order           Int             @default(0)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  project         Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  movements       StockMovement[]
+
+  @@index([projectId])
+}
+
+model StockMovement {
+  id          String            @id @default(uuid())
+  stockItemId String
+  type        StockMovementType
+  quantity    Float
+  responsible String
+  notes       String            @default("")
+  date        DateTime          @default(now())
+  createdAt   DateTime          @default(now())
+  stockItem   StockItem         @relation(fields: [stockItemId], references: [id], onDelete: Cascade)
+
+  @@index([stockItemId, date(sort: Desc)])
 }

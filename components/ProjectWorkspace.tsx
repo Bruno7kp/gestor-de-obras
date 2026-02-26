@@ -4,7 +4,7 @@ import { Project, GlobalSettings, WorkItem, Supplier, ProjectAsset, ProjectExpen
 import {
   Layers, BarChart3, Coins, Users, HardHat, BookOpen, FileText, Sliders, Boxes,
   CheckCircle2, History, Calendar, Lock, ChevronDown,
-  ArrowRight, Clock, Undo2, Redo2, RotateCcw, AlertTriangle, X, Target, Info, RefreshCw, Briefcase, Edit2, Check, Bell
+  ArrowRight, Clock, Undo2, Redo2, RotateCcw, AlertTriangle, X, Target, Info, RefreshCw, Briefcase, Edit2, Check, Bell, Package
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
@@ -23,6 +23,7 @@ import { WorkItemModal } from './WorkItemModal';
 import { ProjectMembersBadge } from './ProjectMembersBadge';
 import { ProjectMembersModal } from './ProjectMembersModal';
 import { ProjectNotificationsDrawer } from './ProjectNotificationsDrawer';
+import { InventoryView } from './InventoryView';
 import { PrintReport } from './PrintReport';
 import { PrintExpenseReport } from './PrintExpenseReport';
 import { PrintPlanningReport } from './PrintPlanningReport';
@@ -63,7 +64,7 @@ interface ProjectWorkspaceProps {
   onDeleteNotification: (id: string) => Promise<void> | void;
 }
 
-export type TabID = 'wbs' | 'stats' | 'expenses' | 'supplies' | 'workforce' | 'labor-contracts' | 'planning' | 'schedule' | 'journal' | 'documents' | 'branding';
+export type TabID = 'wbs' | 'stats' | 'expenses' | 'supplies' | 'workforce' | 'labor-contracts' | 'planning' | 'schedule' | 'stock' | 'journal' | 'documents' | 'branding';
 type ExpensePrintMode = 'complete' | 'material' | 'labor';
 type SuppliesPrintMode = 'complete' | 'pending' | 'ordered';
 
@@ -413,6 +414,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     'labor-contracts': 'workforce',
     planning: 'planning',
     schedule: 'schedule',
+    stock: 'stock',
     journal: 'journal',
     documents: 'documents',
     branding: 'project_settings',
@@ -427,6 +429,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     'labor-contracts',
     'planning',
     'schedule',
+    'stock',
     'journal',
     'documents',
     'branding',
@@ -1206,6 +1209,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
               {canView('planning') && <TabBtn active={tab === 'planning'} id="planning" label="Planejamento" icon={<HardHat size={16} />} />}
               {canView('journal') && <TabBtn active={tab === 'journal'} id="journal" label="Diário de Obra" icon={<BookOpen size={16} />} />}
               {canView('schedule') && <TabBtn active={tab === 'schedule'} id="schedule" label="Cronograma" icon={<Target size={16} />} />}
+              {canView('stock') && <TabBtn active={tab === 'stock'} id="stock" label="Estoque" icon={<Package size={16} />} />}
               {canView('documents') && <TabBtn active={tab === 'documents'} id="documents" label="Repositório" icon={<FileText size={16} />} />}
               {canView('project_settings') && <TabBtn active={tab === 'branding'} id="branding" label="Ajustes" icon={<Sliders size={16} />} />}
             </div>
@@ -1321,6 +1325,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                   />
                 )}
                 {tab === 'journal' && <JournalView project={project} onUpdateJournal={(j) => onUpdateProject({ journal: j })} allWorkItems={displayData.items} isReadOnly={displayData.isReadOnly} />}
+                {tab === 'stock' && <InventoryView projectId={project.id} canEditModule={getLevel('stock') === 'edit'} isReadOnly={isHistoryMode || isProjectArchived} />}
                 {tab === 'documents' && <AssetManager assets={project.assets} onAdd={handleAssetAdd} onDelete={handleAssetDelete} isReadOnly={displayData.isReadOnly} />}
                 {tab === 'branding' && <BrandingView project={project} onUpdateProject={handleBrandingUpdate} isReadOnly={displayData.isReadOnly} />}
               </div>

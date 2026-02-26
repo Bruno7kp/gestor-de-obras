@@ -27,6 +27,7 @@ import { UploadsModule } from './uploads/uploads.module';
 import { LaborContractsModule } from './labor-contracts/labor-contracts.module';
 import { DebugModule } from './debug/debug.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { StockModule } from './stock/stock.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     LaborContractsModule,
     DebugModule,
     NotificationsModule,
+    StockModule,
   ],
   controllers: [AppController],
   providers: [

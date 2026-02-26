@@ -33,6 +33,7 @@ export const projectService = {
     journal: {
       entries: []
     },
+    stockItems: [],
     config: {
       strict: false,
       printCards: true,

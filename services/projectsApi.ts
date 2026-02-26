@@ -121,6 +121,7 @@ export const normalizeProject = (project: any): Project => {
     laborContracts: normalizeLaborContracts(project.laborContracts),
     planning: project.planning ?? { tasks: [], forecasts: [], milestones: [] },
     journal: project.journal ?? { entries: [] },
+    stockItems: project.stockItems ?? [],
     contractTotalOverride: project.contractTotalOverride ?? null,
     currentTotalOverride: project.currentTotalOverride ?? null,
     config,

@@ -11,7 +11,7 @@ export type PermissionLevel = 'none' | 'view' | 'edit';
 export type PermissionModule = 
   | 'biddings' | 'suppliers' | 'projects_general' | 'projects_specific' 
   | 'wbs' | 'technical_analysis' | 'financial_flow' | 'supplies' | 'workforce' 
-  | 'planning' | 'schedule' | 'journal' | 'notifications' | 'documents' | 'project_settings' | 'global_settings';
+  | 'planning' | 'schedule' | 'journal' | 'notifications' | 'documents' | 'stock' | 'project_settings' | 'global_settings';
 
 export const PERMISSION_MODULES: Array<{ key: PermissionModule; label: string }> = [
   { key: 'biddings', label: 'Licitações' },
@@ -28,6 +28,7 @@ export const PERMISSION_MODULES: Array<{ key: PermissionModule; label: string }>
   { key: 'journal', label: 'Diário de Obra' },
   { key: 'notifications', label: 'Notificações' },
   { key: 'documents', label: 'Documentos' },
+  { key: 'stock', label: 'Estoque' },
   { key: 'project_settings', label: 'Ajustes do projeto' },
   { key: 'global_settings', label: 'Configurações gerais' },
 ];
@@ -97,6 +98,10 @@ export const PERMISSIONS = {
   PROJECT_SETTINGS_VIEW: 'project_settings.view',
   PROJECT_SETTINGS_EDIT: 'project_settings.edit',
   
+  // Stock / Inventory
+  STOCK_VIEW: 'stock.view',
+  STOCK_EDIT: 'stock.edit',
+
   // Global Settings
   GLOBAL_SETTINGS_VIEW: 'global_settings.view',
   GLOBAL_SETTINGS_EDIT: 'global_settings.edit',
