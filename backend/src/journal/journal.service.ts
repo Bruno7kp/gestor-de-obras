@@ -31,6 +31,14 @@ export class JournalService {
     private readonly notificationsService: NotificationsService,
   ) {}
 
+  private getJournalCategoryLabel(category: string) {
+    if (category === 'PROGRESS') return 'Progresso';
+    if (category === 'FINANCIAL') return 'Financeiro';
+    if (category === 'INCIDENT') return 'Ocorrência';
+    if (category === 'WEATHER') return 'Clima';
+    return category;
+  }
+
   private async emitJournalEntryCreatedNotification(input: {
     instanceId: string;
     projectId: string;
@@ -42,6 +50,8 @@ export class JournalService {
       type: string;
     };
   }) {
+    const categoryLabel = this.getJournalCategoryLabel(input.entry.category);
+
     await this.notificationsService.emit({
       instanceId: input.instanceId,
       projectId: input.projectId,
@@ -50,7 +60,7 @@ export class JournalService {
       eventType: 'JOURNAL_ENTRY_CREATED',
       priority: 'normal',
       title: 'Nova entrada no diário da obra',
-      body: `${input.entry.title} foi registrada no diário (${input.entry.category}).`,
+      body: `${input.entry.title} foi registrada no diário (${categoryLabel}).`,
       dedupeKey: `journal-entry:${input.entry.id}:CREATED`,
       permissionCodes: ['journal.view', 'journal.edit'],
       includeProjectMembers: true,
@@ -73,6 +83,8 @@ export class JournalService {
       type: string;
     };
   }) {
+    const categoryLabel = this.getJournalCategoryLabel(input.entry.category);
+
     await this.notificationsService.emit({
       instanceId: input.instanceId,
       projectId: input.projectId,
@@ -81,7 +93,7 @@ export class JournalService {
       eventType: 'JOURNAL_ENTRY_UPDATED',
       priority: 'normal',
       title: 'Entrada do diário atualizada',
-      body: `${input.entry.title} foi atualizada no diário (${input.entry.category}).`,
+      body: `${input.entry.title} foi atualizada no diário (${categoryLabel}).`,
       dedupeKey: `journal-entry:${input.entry.id}:UPDATED`,
       permissionCodes: ['journal.view', 'journal.edit'],
       includeProjectMembers: true,
