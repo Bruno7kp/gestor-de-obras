@@ -1,27 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { PlusCircle, RefreshCw, Save, Trash2 } from 'lucide-react';
 import type { PermissionLevel, Role } from '../../types';
+import { PERMISSION_MODULES } from '../../utils/permissions';
 import { rolesApi } from '../../services/rolesApi';
 import { useToast } from '../../hooks/useToast';
 import { ConfirmModal } from '../ConfirmModal';
-
-const PERMISSION_MODULES = [
-  { key: 'biddings', label: 'Licitacoes' },
-  { key: 'suppliers', label: 'Fornecedores' },
-  { key: 'projects_general', label: 'Obras gerais' },
-  { key: 'projects_specific', label: 'Obras especificas' },
-  { key: 'wbs', label: 'Planilha EAP' },
-  { key: 'technical_analysis', label: 'Analise Tecnica' },
-  { key: 'financial_flow', label: 'Fluxo Financeiro' },
-  { key: 'supplies', label: 'Suprimentos' },
-  { key: 'workforce', label: 'Mao de Obra' },
-  { key: 'planning', label: 'Planejamento' },
-  { key: 'schedule', label: 'Cronograma' },
-  { key: 'journal', label: 'Diario de Obra' },
-  { key: 'documents', label: 'Documentos' },
-  { key: 'project_settings', label: 'Ajustes do projeto' },
-  { key: 'global_settings', label: 'Configuracoes gerais' },
-];
 
 const DEFAULT_ROLE_NAMES = new Set(['Gestor Principal', 'Gestor de Suprimentos', 'Arquiteto']);
 const SYSTEM_ROLE_NAMES = new Set(['ADMIN', 'SUPER_ADMIN']);
