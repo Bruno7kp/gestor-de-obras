@@ -302,19 +302,42 @@ export const excelService = {
           const workbook = XLSX.read(data, { type: 'array' });
           const sheet = workbook.Sheets[workbook.SheetNames[0]];
           const raw: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+          const headerRow = (raw[0] || []).map((h: any) => String(h).trim().toUpperCase());
+          const isBlueprintFormat = !headerRow.includes('CODIGO') && !headerRow.includes('FONTE') && !headerRow.includes('UNITARIO_S_BDI') && (headerRow.includes('P_UNITARIO') || headerRow.includes('QUANTIDADE'));
+
           const importedItems: WorkItem[] = [];
           const dataRows = raw.slice(1).filter(r => r.length > 0 && r[0]);
           const wbsMap = new Map<string, WorkItem>();
           dataRows.forEach((row, idx) => {
             const wbs = String(row[0] || "").trim();
             const type = (String(row[1] || "").toLowerCase() === 'category' ? 'category' : 'item') as ItemType;
-            const qty = financial.normalizeQuantity(parseVal(row[5]));
-            const priceNoBdi = financial.normalizeMoney(parseVal(row[6]));
-            const fonte = type === 'item' ? (row[7] ? String(row[7]).trim() : "Próprio") : "";
-            const prevQty = type === 'item' ? financial.normalizeQuantity(parseVal(row[8])) : 0;
-            const currentQty = type === 'item' ? financial.normalizeQuantity(parseVal(row[9])) : 0;
+
+            let name: string, cod: string, unit: string, qty: number, priceNoBdi: number, fonte: string, prevQty: number, currentQty: number;
+
+            if (isBlueprintFormat) {
+              // Blueprint/Quantitativo format (6-col): WBS, TIPO, NOME, UNIDADE, QUANTIDADE, P_UNITARIO
+              name = String(row[2] || "Novo Item").trim();
+              cod = '';
+              unit = String(row[3] || "");
+              qty = financial.normalizeQuantity(parseVal(row[4]));
+              priceNoBdi = financial.normalizeMoney(parseVal(row[5]));
+              fonte = type === 'item' ? "Próprio" : "";
+              prevQty = 0;
+              currentQty = 0;
+            } else {
+              // WBS/EAP format (10-col): WBS, TIPO, CODIGO, NOME, UNIDADE, QTD, UNITARIO_S_BDI, FONTE, QTD_ANT, QTD_AGORA
+              name = String(row[3] || "Novo Item").trim();
+              cod = String(row[2] || "").trim();
+              unit = String(row[4] || "");
+              qty = financial.normalizeQuantity(parseVal(row[5]));
+              priceNoBdi = financial.normalizeMoney(parseVal(row[6]));
+              fonte = type === 'item' ? (row[7] ? String(row[7]).trim() : "Próprio") : "";
+              prevQty = type === 'item' ? financial.normalizeQuantity(parseVal(row[8])) : 0;
+              currentQty = type === 'item' ? financial.normalizeQuantity(parseVal(row[9])) : 0;
+            }
+
             const item: WorkItem = {
-              id: crypto.randomUUID(), parentId: null, name: String(row[3] || "Novo Item").trim(), type: type, wbs: wbs, order: idx, cod: String(row[2] || "").trim(), unit: String(row[4] || ""), contractQuantity: qty, unitPriceNoBdi: priceNoBdi, fonte, unitPrice: 0, contractTotal: 0, previousQuantity: prevQty, previousTotal: 0, currentQuantity: currentQty, currentTotal: 0, currentPercentage: 0, accumulatedQuantity: 0, accumulatedTotal: 0, accumulatedPercentage: 0, balanceQuantity: 0, balanceTotal: 0, scope: 'wbs'
+              id: crypto.randomUUID(), parentId: null, name, type, wbs, order: idx, cod, unit, contractQuantity: qty, unitPriceNoBdi: priceNoBdi, fonte, unitPrice: 0, contractTotal: 0, previousQuantity: prevQty, previousTotal: 0, currentQuantity: currentQty, currentTotal: 0, currentPercentage: 0, accumulatedQuantity: 0, accumulatedTotal: 0, accumulatedPercentage: 0, balanceQuantity: 0, balanceTotal: 0, scope: 'wbs'
             };
             importedItems.push(item);
             if (wbs) wbsMap.set(wbs, item);
