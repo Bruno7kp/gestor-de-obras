@@ -2,10 +2,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Package, Plus, Search, ArrowUpCircle, ArrowDownCircle,
-  History, AlertTriangle, Edit2, Trash2, GripVertical, RefreshCw,
+  History, AlertTriangle, Edit2, Trash2, GripVertical, RefreshCw, ChevronDown,
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
-import type { StockItem, StockMovementType } from '../types';
+import type { StockItem, StockMovement, StockMovementType } from '../types';
 import { stockApi } from '../services/stockApi';
 import { financial } from '../utils/math';
 import { StockItemModal } from './StockItemModal';
@@ -31,6 +31,10 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ projectId, canEdit
   const [defaultMovementType, setDefaultMovementType] = useState<StockMovementType>('entry');
   const [showHistory, setShowHistory] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<StockItem | null>(null);
+  const [editingMovement, setEditingMovement] = useState<StockMovement | null>(null);
+  const [deleteMovConfirm, setDeleteMovConfirm] = useState<{ itemId: string; movement: StockMovement } | null>(null);
+  const [movementTotals, setMovementTotals] = useState<Record<string, number>>({});
+  const [loadingMore, setLoadingMore] = useState<string | null>(null);
 
   const canEdit = canEditModule && !isReadOnly;
 
@@ -94,7 +98,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ projectId, canEdit
     setEditingItem(null);
   };
 
-  const handleSaveMovement = async (type: StockMovementType, quantity: number, responsible: string, notes: string) => {
+  const handleSaveMovement = async (type: StockMovementType, quantity: number, responsible: string, notes: string, date?: string) => {
     if (!activeItem) return;
 
     const willGoNegative = type === 'exit' && quantity > activeItem.currentQuantity;
@@ -103,8 +107,9 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ projectId, canEdit
       const updated = await stockApi.addMovement(activeItem.id, {
         type,
         quantity,
-        responsible,
+        responsible: type === 'exit' ? responsible : undefined,
         notes,
+        date,
       });
       setStockItems((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
 
@@ -119,6 +124,30 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ projectId, canEdit
     setActiveItem(null);
   };
 
+  const handleUpdateMovement = async (movementId: string, data: { quantity?: number; responsible?: string; notes?: string; date?: string }) => {
+    try {
+      const updated = await stockApi.updateMovement(movementId, data);
+      setStockItems((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
+      toast.success('Movimentação atualizada');
+    } catch {
+      toast.error('Erro ao atualizar movimentação');
+    }
+    setEditingMovement(null);
+    setActiveItem(null);
+  };
+
+  const handleDeleteMovement = async () => {
+    if (!deleteMovConfirm) return;
+    try {
+      const updated = await stockApi.deleteMovement(deleteMovConfirm.movement.id);
+      setStockItems((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
+      toast.success('Movimentação excluída');
+    } catch {
+      toast.error('Erro ao excluir movimentação');
+    }
+    setDeleteMovConfirm(null);
+  };
+
   const handleDeleteItem = async () => {
     if (!deleteConfirm) return;
     try {
@@ -131,15 +160,44 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ projectId, canEdit
     setDeleteConfirm(null);
   };
 
+  const handleLoadMore = async (item: StockItem) => {
+    try {
+      setLoadingMore(item.id);
+      const currentCount = (item.movements ?? []).length;
+      const result = await stockApi.loadMoreMovements(item.id, currentCount, 10);
+      setMovementTotals((prev) => ({ ...prev, [item.id]: result.total }));
+      setStockItems((prev) =>
+        prev.map((it) =>
+          it.id === item.id
+            ? { ...it, movements: [...(it.movements ?? []), ...result.movements] }
+            : it,
+        ),
+      );
+    } catch {
+      toast.error('Erro ao carregar movimentações');
+    } finally {
+      setLoadingMore(null);
+    }
+  };
+
   const openEntry = (item: StockItem) => {
     setActiveItem(item);
     setDefaultMovementType('entry');
+    setEditingMovement(null);
     setIsMovementModalOpen(true);
   };
 
   const openExit = (item: StockItem) => {
     setActiveItem(item);
     setDefaultMovementType('exit');
+    setEditingMovement(null);
+    setIsMovementModalOpen(true);
+  };
+
+  const openEditMovement = (item: StockItem, movement: StockMovement) => {
+    setActiveItem(item);
+    setEditingMovement(movement);
+    setDefaultMovementType(movement.type);
     setIsMovementModalOpen(true);
   };
 
@@ -290,32 +348,88 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ projectId, canEdit
                           {/* History Dropdown */}
                           {showHistory === item.id && (
                             <div className="mx-6 lg:mx-8 mb-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-100 dark:border-slate-700 animate-in slide-in-from-top-2 duration-200">
-                              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4 px-2">Histórico Recente</h4>
+                              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4 px-2">Histórico</h4>
                               <div className="space-y-2">
                                 {(item.movements ?? []).length === 0 ? (
                                   <p className="text-center py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Nenhuma movimentação registrada</p>
                                 ) : (
-                                  (item.movements ?? []).slice(0, 10).map((mov) => (
-                                    <div key={mov.id} className="flex items-center justify-between bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
-                                      <div className="flex items-center gap-3">
-                                        <div className={`p-1.5 rounded-lg ${mov.type === 'entry' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600' : 'bg-rose-50 dark:bg-rose-900/20 text-rose-600'}`}>
-                                          {mov.type === 'entry' ? <ArrowUpCircle size={14} /> : <ArrowDownCircle size={14} />}
+                                  <>
+                                    {(item.movements ?? []).map((mov) => (
+                                      <div key={mov.id} className="flex items-center justify-between bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                                        <div className="flex items-center gap-3">
+                                          <div className={`p-1.5 rounded-lg ${mov.type === 'entry' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600' : 'bg-rose-50 dark:bg-rose-900/20 text-rose-600'}`}>
+                                            {mov.type === 'entry' ? <ArrowUpCircle size={14} /> : <ArrowDownCircle size={14} />}
+                                          </div>
+                                          <div>
+                                            <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">
+                                              {mov.type === 'entry' ? 'Entrada' : 'Saída'} de {financial.formatQuantity(mov.quantity)} {item.unit}
+                                            </p>
+                                            <p className="text-[9px] text-slate-400 font-medium">{mov.notes || 'Sem observações'}</p>
+                                          </div>
                                         </div>
-                                        <div>
-                                          <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">
-                                            {mov.type === 'entry' ? 'Entrada' : 'Saída'} de {financial.formatQuantity(mov.quantity)} {item.unit}
-                                          </p>
-                                          <p className="text-[9px] text-slate-400 font-medium">{mov.notes || 'Sem observações'}</p>
+                                        <div className="flex items-center gap-3">
+                                          <div className="text-right">
+                                            {mov.type === 'entry' && mov.createdBy ? (
+                                              <div className="flex items-center gap-2 justify-end">
+                                                {mov.createdBy.profileImage ? (
+                                                  <img src={mov.createdBy.profileImage} alt={mov.createdBy.name} className="w-5 h-5 rounded-full object-cover" />
+                                                ) : (
+                                                  <div className="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center">
+                                                    <span className="text-[8px] font-black text-white">{mov.createdBy.name.charAt(0).toUpperCase()}</span>
+                                                  </div>
+                                                )}
+                                                <span className="text-[9px] text-slate-500 font-medium">cadastrado por {mov.createdBy.name}</span>
+                                              </div>
+                                            ) : mov.type === 'exit' && mov.responsible ? (
+                                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{mov.responsible}</p>
+                                            ) : null}
+                                            <p className="text-[9px] text-slate-400">
+                                              {new Date(mov.date).toLocaleDateString('pt-BR')} {new Date(mov.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                            </p>
+                                          </div>
+                                          {canEdit && (
+                                            <div className="flex items-center gap-1 ml-1">
+                                              <button
+                                                onClick={() => openEditMovement(item, mov)}
+                                                className="p-1 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded transition-all"
+                                                title="Editar movimentação"
+                                              >
+                                                <Edit2 size={12} />
+                                              </button>
+                                              <button
+                                                onClick={() => setDeleteMovConfirm({ itemId: item.id, movement: mov })}
+                                                className="p-1 text-slate-300 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded transition-all"
+                                                title="Excluir movimentação"
+                                              >
+                                                <Trash2 size={12} />
+                                              </button>
+                                            </div>
+                                          )}
                                         </div>
                                       </div>
-                                      <div className="text-right">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{mov.responsible}</p>
-                                        <p className="text-[9px] text-slate-400">
-                                          {new Date(mov.date).toLocaleDateString('pt-BR')} {new Date(mov.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                                        </p>
-                                      </div>
-                                    </div>
-                                  ))
+                                    ))}
+                                    {/* Load more button */}
+                                    {(() => {
+                                      const total = movementTotals[item.id];
+                                      const loaded = (item.movements ?? []).length;
+                                      const hasMore = total !== undefined ? loaded < total : loaded >= 10;
+                                      if (!hasMore) return null;
+                                      return (
+                                        <button
+                                          onClick={() => handleLoadMore(item)}
+                                          disabled={loadingMore === item.id}
+                                          className="w-full flex items-center justify-center gap-2 py-2.5 text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 rounded-xl transition-all disabled:opacity-50"
+                                        >
+                                          {loadingMore === item.id ? (
+                                            <RefreshCw size={12} className="animate-spin" />
+                                          ) : (
+                                            <ChevronDown size={14} />
+                                          )}
+                                          Ver mais
+                                        </button>
+                                      );
+                                    })()}
+                                  </>
                                 )}
                               </div>
                             </div>
@@ -342,10 +456,12 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ projectId, canEdit
 
       <StockMovementModal
         isOpen={isMovementModalOpen}
-        onClose={() => { setIsMovementModalOpen(false); setActiveItem(null); }}
+        onClose={() => { setIsMovementModalOpen(false); setActiveItem(null); setEditingMovement(null); }}
         onSave={handleSaveMovement}
+        onUpdate={handleUpdateMovement}
         item={activeItem}
         defaultType={defaultMovementType}
+        editingMovement={editingMovement}
       />
 
       {deleteConfirm && (
@@ -355,6 +471,18 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ projectId, canEdit
           onConfirm={handleDeleteItem}
           title="Excluir Item de Estoque"
           message={`Deseja realmente excluir "${deleteConfirm.name}" e todo seu histórico de movimentações?`}
+          confirmLabel="Excluir"
+          variant="danger"
+        />
+      )}
+
+      {deleteMovConfirm && (
+        <ConfirmModal
+          isOpen={!!deleteMovConfirm}
+          onCancel={() => setDeleteMovConfirm(null)}
+          onConfirm={handleDeleteMovement}
+          title="Excluir Movimentação"
+          message={`Deseja realmente excluir esta ${deleteMovConfirm.movement.type === 'entry' ? 'entrada' : 'saída'} de ${financial.formatQuantity(deleteMovConfirm.movement.quantity)}? O saldo será recalculado.`}
           confirmLabel="Excluir"
           variant="danger"
         />

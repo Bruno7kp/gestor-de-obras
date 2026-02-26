@@ -33,7 +33,17 @@ interface AddMovementInput {
   userId?: string;
   type: StockMovementType;
   quantity: number;
-  responsible: string;
+  responsible?: string;
+  notes?: string;
+  date?: string;
+}
+
+interface UpdateMovementInput {
+  movementId: string;
+  instanceId: string;
+  userId?: string;
+  quantity?: number;
+  responsible?: string;
   notes?: string;
   date?: string;
 }
@@ -49,6 +59,12 @@ interface ReorderInput {
 export class StockService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private get movementInclude() {
+    return {
+      createdBy: { select: { id: true, name: true, profileImage: true } },
+    };
+  }
+
   async findAll(projectId: string, instanceId: string, userId?: string) {
     await ensureProjectAccess(this.prisma, projectId, instanceId, userId);
 
@@ -57,11 +73,49 @@ export class StockService {
       include: {
         movements: {
           orderBy: { date: 'desc' },
-          take: 50,
+          take: 10,
+          include: this.movementInclude,
         },
       },
       orderBy: { order: 'asc' },
     });
+  }
+
+  async findMovements(
+    stockItemId: string,
+    instanceId: string,
+    userId?: string,
+    skip = 0,
+    take = 10,
+  ) {
+    await ensureEntityAccess(
+      this.prisma,
+      stockItemId,
+      instanceId,
+      userId,
+      () =>
+        this.prisma.stockItem.findFirst({
+          where: { id: stockItemId, project: { instanceId } },
+        }),
+      () =>
+        this.prisma.stockItem.findUnique({
+          where: { id: stockItemId },
+          include: { project: { select: { id: true } } },
+        }),
+    );
+
+    const [movements, total] = await Promise.all([
+      this.prisma.stockMovement.findMany({
+        where: { stockItemId },
+        orderBy: { date: 'desc' },
+        skip,
+        take,
+        include: this.movementInclude,
+      }),
+      this.prisma.stockMovement.count({ where: { stockItemId } }),
+    ]);
+
+    return { movements, total };
   }
 
   async create(input: CreateStockItemInput) {
@@ -87,7 +141,7 @@ export class StockService {
         order: (maxOrder._max.order ?? -1) + 1,
       },
       include: {
-        movements: true,
+        movements: { include: this.movementInclude },
       },
     });
   }
@@ -125,7 +179,8 @@ export class StockService {
       include: {
         movements: {
           orderBy: { date: 'desc' },
-          take: 50,
+          take: 10,
+          include: this.movementInclude,
         },
       },
     });
@@ -189,7 +244,8 @@ export class StockService {
           stockItemId: input.stockItemId,
           type: input.type,
           quantity: input.quantity,
-          responsible: input.responsible,
+          responsible: input.type === 'EXIT' ? (input.responsible ?? null) : null,
+          createdById: input.type === 'ENTRY' ? input.userId : undefined,
           notes: input.notes ?? '',
           date: input.date ? new Date(input.date) : new Date(),
         },
@@ -203,7 +259,113 @@ export class StockService {
         include: {
           movements: {
             orderBy: { date: 'desc' },
-            take: 50,
+            take: 10,
+            include: this.movementInclude,
+          },
+        },
+      });
+    });
+  }
+
+  async updateMovement(input: UpdateMovementInput) {
+    const movement = await this.prisma.stockMovement.findUnique({
+      where: { id: input.movementId },
+      include: { stockItem: { include: { project: { select: { id: true, instanceId: true } } } } },
+    });
+
+    if (!movement) {
+      throw new BadRequestException('Movimentação não encontrada');
+    }
+
+    // Validate access
+    const project = movement.stockItem.project;
+    if (project.instanceId !== input.instanceId) {
+      // Try membership fallback
+      await ensureProjectAccess(
+        this.prisma,
+        project.id,
+        input.instanceId,
+        input.userId,
+      );
+    }
+    await ensureProjectWritable(this.prisma, project.id);
+
+    const newQuantity = input.quantity ?? movement.quantity;
+    if (newQuantity <= 0) {
+      throw new BadRequestException('Quantidade deve ser maior que zero');
+    }
+
+    // Calculate delta reversal and new delta
+    const oldDelta = movement.type === 'ENTRY' ? movement.quantity : -movement.quantity;
+    const newDelta = movement.type === 'ENTRY' ? newQuantity : -newQuantity;
+    const adjustment = newDelta - oldDelta;
+
+    const data: Record<string, any> = {};
+    if (input.quantity !== undefined) data.quantity = input.quantity;
+    if (input.notes !== undefined) data.notes = input.notes;
+    if (input.date !== undefined) data.date = new Date(input.date);
+    if (movement.type === 'EXIT' && input.responsible !== undefined) {
+      data.responsible = input.responsible;
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.stockMovement.update({
+        where: { id: input.movementId },
+        data,
+      });
+
+      return tx.stockItem.update({
+        where: { id: movement.stockItemId },
+        data: {
+          currentQuantity: { increment: adjustment },
+        },
+        include: {
+          movements: {
+            orderBy: { date: 'desc' },
+            take: 10,
+            include: this.movementInclude,
+          },
+        },
+      });
+    });
+  }
+
+  async deleteMovement(
+    movementId: string,
+    instanceId: string,
+    userId?: string,
+  ) {
+    const movement = await this.prisma.stockMovement.findUnique({
+      where: { id: movementId },
+      include: { stockItem: { include: { project: { select: { id: true, instanceId: true } } } } },
+    });
+
+    if (!movement) {
+      throw new BadRequestException('Movimentação não encontrada');
+    }
+
+    const project = movement.stockItem.project;
+    if (project.instanceId !== instanceId) {
+      await ensureProjectAccess(this.prisma, project.id, instanceId, userId);
+    }
+    await ensureProjectWritable(this.prisma, project.id);
+
+    // Reverse the delta
+    const reverseDelta = movement.type === 'ENTRY' ? -movement.quantity : movement.quantity;
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.stockMovement.delete({ where: { id: movementId } });
+
+      return tx.stockItem.update({
+        where: { id: movement.stockItemId },
+        data: {
+          currentQuantity: { increment: reverseDelta },
+        },
+        include: {
+          movements: {
+            orderBy: { date: 'desc' },
+            take: 10,
+            include: this.movementInclude,
           },
         },
       });

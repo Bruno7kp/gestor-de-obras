@@ -69,7 +69,7 @@ export const stockApi = {
     input: {
       type: 'entry' | 'exit';
       quantity: number;
-      responsible: string;
+      responsible?: string;
       notes?: string;
       date?: string;
     },
@@ -85,6 +85,51 @@ export const stockApi = {
     });
     if (!response.ok) throw new Error('Falha ao registrar movimentação');
     return normalizeItem(await response.json());
+  },
+
+  async updateMovement(
+    movementId: string,
+    input: {
+      quantity?: number;
+      responsible?: string;
+      notes?: string;
+      date?: string;
+    },
+  ): Promise<StockItem> {
+    const response = await fetch(`${API_BASE}/stock/movements/${movementId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(input),
+    });
+    if (!response.ok) throw new Error('Falha ao atualizar movimentação');
+    return normalizeItem(await response.json());
+  },
+
+  async deleteMovement(movementId: string): Promise<StockItem> {
+    const response = await fetch(`${API_BASE}/stock/movements/${movementId}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    if (!response.ok) throw new Error('Falha ao excluir movimentação');
+    return normalizeItem(await response.json());
+  },
+
+  async loadMoreMovements(
+    itemId: string,
+    skip: number,
+    take = 10,
+  ): Promise<{ movements: StockMovement[]; total: number }> {
+    const response = await fetch(
+      `${API_BASE}/stock/${itemId}/movements?skip=${skip}&take=${take}`,
+      { method: 'GET', credentials: 'include' },
+    );
+    if (!response.ok) throw new Error('Falha ao carregar movimentações');
+    const data = await response.json();
+    return {
+      movements: (data.movements ?? []).map(normalizeMovement),
+      total: data.total,
+    };
   },
 
   async reorder(

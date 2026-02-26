@@ -86,6 +86,7 @@ model User {
   createdLaborPayments LaborPayment[] @relation("UserLaborPayments")
   createdProjectAssets ProjectAsset[] @relation("UserProjectAssets")
   createdJournalEntries JournalEntry[] @relation("UserJournalEntries")
+  createdStockMovements StockMovement[] @relation("UserStockMovements")
   notificationRecipients NotificationRecipient[]
   notificationPreferences NotificationPreference[]
   notificationDeliveries NotificationDelivery[]
@@ -631,10 +632,12 @@ model StockMovement {
   stockItemId String
   type        StockMovementType
   quantity    Float
-  responsible String
+  responsible String?
   notes       String            @default("")
   date        DateTime          @default(now())
   createdAt   DateTime          @default(now())
+  createdById String?
+  createdBy   User?             @relation("UserStockMovements", fields: [createdById], references: [id])
   stockItem   StockItem         @relation(fields: [stockItemId], references: [id], onDelete: Cascade)
 
   @@index([stockItemId, date(sort: Desc)])

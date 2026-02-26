@@ -6,6 +6,7 @@ export const PERMISSION_MODULES = [
   { key: 'projects_general', label: 'Obras gerais' },
   { key: 'projects_specific', label: 'Obras especificas' },
   { key: 'wbs', label: 'Planilha EAP' },
+  { key: 'blueprint', label: 'Quantitativos' },
   { key: 'technical_analysis', label: 'Analise Tecnica' },
   { key: 'financial_flow', label: 'Fluxo Financeiro' },
   { key: 'supplies', label: 'Suprimentos' },
@@ -13,7 +14,9 @@ export const PERMISSION_MODULES = [
   { key: 'planning', label: 'Planejamento' },
   { key: 'schedule', label: 'Cronograma' },
   { key: 'journal', label: 'Diario de Obra' },
+  { key: 'notifications', label: 'Notificacoes' },
   { key: 'documents', label: 'Documentos' },
+  { key: 'stock', label: 'Estoque' },
   { key: 'project_settings', label: 'Ajustes do projeto' },
   { key: 'global_settings', label: 'Configuracoes gerais' },
 ];

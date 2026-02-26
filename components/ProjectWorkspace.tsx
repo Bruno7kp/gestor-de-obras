@@ -4,7 +4,7 @@ import { Project, GlobalSettings, WorkItem, Supplier, ProjectAsset, ProjectExpen
 import {
   Layers, BarChart3, Coins, Users, HardHat, BookOpen, FileText, Sliders, Boxes,
   CheckCircle2, History, Calendar, Lock, ChevronDown,
-  ArrowRight, Clock, Undo2, Redo2, RotateCcw, AlertTriangle, X, Target, Info, RefreshCw, Briefcase, Edit2, Check, Bell, Package
+  ArrowRight, Clock, Undo2, Redo2, RotateCcw, AlertTriangle, X, Target, Info, RefreshCw, Briefcase, Edit2, Check, Bell, Package, Ruler
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
@@ -24,6 +24,7 @@ import { ProjectMembersBadge } from './ProjectMembersBadge';
 import { ProjectMembersModal } from './ProjectMembersModal';
 import { ProjectNotificationsDrawer } from './ProjectNotificationsDrawer';
 import { InventoryView } from './InventoryView';
+import { BlueprintView } from './BlueprintView';
 import { PrintReport } from './PrintReport';
 import { PrintExpenseReport } from './PrintExpenseReport';
 import { PrintPlanningReport } from './PrintPlanningReport';
@@ -64,7 +65,7 @@ interface ProjectWorkspaceProps {
   onDeleteNotification: (id: string) => Promise<void> | void;
 }
 
-export type TabID = 'wbs' | 'stats' | 'expenses' | 'supplies' | 'workforce' | 'labor-contracts' | 'planning' | 'schedule' | 'stock' | 'journal' | 'documents' | 'branding';
+export type TabID = 'wbs' | 'blueprint' | 'stats' | 'expenses' | 'supplies' | 'workforce' | 'labor-contracts' | 'planning' | 'schedule' | 'stock' | 'journal' | 'documents' | 'branding';
 type ExpensePrintMode = 'complete' | 'material' | 'labor';
 type SuppliesPrintMode = 'complete' | 'pending' | 'ordered';
 
@@ -407,6 +408,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   }, [isProjectLoading, useMemberPermissions, memberPermissions, getLevelGlobal]);
   const tabPermissions: Record<TabID, PermissionModule> = {
     wbs: 'wbs',
+    blueprint: 'blueprint',
     stats: 'technical_analysis',
     expenses: 'financial_flow',
     supplies: 'supplies',
@@ -422,6 +424,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
   const availableTabs = useMemo(() => ([
     'wbs',
+    'blueprint',
     'stats',
     'expenses',
     'supplies',
@@ -1202,6 +1205,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
               className={`px-6 py-3 flex items-center gap-2 overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing select-none`}
             >
               {canView('wbs') && <TabBtn active={tab === 'wbs'} id="wbs" label="Planilha EAP" icon={<Layers size={16} />} />}
+              {canView('blueprint') && <TabBtn active={tab === 'blueprint'} id="blueprint" label="Quantitativos" icon={<Ruler size={16} />} />}
               {canView('technical_analysis') && <TabBtn active={tab === 'stats'} id="stats" label="Análise Técnica" icon={<BarChart3 size={16} />} />}
               {canView('financial_flow') && <TabBtn active={tab === 'expenses'} id="expenses" label="Fluxo Financeiro" icon={<Coins size={16} />} />}
               {canView('supplies') && <TabBtn active={tab === 'supplies'} id="supplies" label="Suprimentos" icon={<Boxes size={16} />} />}
@@ -1249,6 +1253,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                   </div>
                 )}
                 {tab === 'wbs' && <WbsView project={{ ...project, items: displayData.items }} onUpdateProject={onUpdateProject} onOpenModal={handleOpenModal} isReadOnly={displayData.isReadOnly} />}
+                {tab === 'blueprint' && <BlueprintView project={{ ...project, items: displayData.items }} onUpdateProject={onUpdateProject} onOpenModal={handleOpenModal} isReadOnly={displayData.isReadOnly} />}
                 {tab === 'stats' && <StatsView project={{ ...project, items: displayData.items }} />}
                 {tab === 'expenses' && (
                   <ExpenseManager

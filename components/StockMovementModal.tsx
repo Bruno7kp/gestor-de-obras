@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, ArrowUpCircle, ArrowDownCircle, Save, User, FileText, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
-import type { StockItem, StockMovementType } from '../types';
+import { X, ArrowUpCircle, ArrowDownCircle, Save, User, FileText, AlertTriangle, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import type { StockItem, StockMovement, StockMovementType } from '../types';
 import { financial } from '../utils/math';
 
 const MIN_QTY_DECIMALS = 2;
@@ -10,27 +10,44 @@ const MAX_QTY_DECIMALS = 6;
 interface StockMovementModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (type: StockMovementType, quantity: number, responsible: string, notes: string) => void;
+  onSave: (type: StockMovementType, quantity: number, responsible: string, notes: string, date?: string) => void;
+  onUpdate?: (movementId: string, data: { quantity?: number; responsible?: string; notes?: string; date?: string }) => void;
   item: StockItem | null;
   defaultType?: StockMovementType;
+  editingMovement?: StockMovement | null;
 }
 
-export const StockMovementModal: React.FC<StockMovementModalProps> = ({ isOpen, onClose, onSave, item, defaultType }) => {
+export const StockMovementModal: React.FC<StockMovementModalProps> = ({ isOpen, onClose, onSave, onUpdate, item, defaultType, editingMovement }) => {
   const [type, setType] = useState<StockMovementType>('entry');
   const [strQty, setStrQty] = useState('0,00');
   const [qtyDecimals, setQtyDecimals] = useState(MIN_QTY_DECIMALS);
   const [responsible, setResponsible] = useState('');
   const [notes, setNotes] = useState('');
+  const [date, setDate] = useState('');
+
+  const isEditing = !!editingMovement;
 
   useEffect(() => {
     if (isOpen) {
-      setType(defaultType ?? 'entry');
-      setStrQty(financial.maskDecimal('0', MIN_QTY_DECIMALS));
-      setQtyDecimals(MIN_QTY_DECIMALS);
-      setResponsible('');
-      setNotes('');
+      if (editingMovement) {
+        setType(editingMovement.type);
+        const qStr = Math.round(editingMovement.quantity * 10 ** MIN_QTY_DECIMALS).toString();
+        setStrQty(financial.maskDecimal(qStr, MIN_QTY_DECIMALS));
+        setQtyDecimals(MIN_QTY_DECIMALS);
+        setResponsible(editingMovement.responsible ?? '');
+        setNotes(editingMovement.notes ?? '');
+        const d = new Date(editingMovement.date);
+        setDate(d.toISOString().slice(0, 10));
+      } else {
+        setType(defaultType ?? 'entry');
+        setStrQty(financial.maskDecimal('0', MIN_QTY_DECIMALS));
+        setQtyDecimals(MIN_QTY_DECIMALS);
+        setResponsible('');
+        setNotes('');
+        setDate('');
+      }
     }
-  }, [isOpen, defaultType]);
+  }, [isOpen, defaultType, editingMovement]);
 
   // Reformat when decimal scale changes
   useEffect(() => {
@@ -57,7 +74,17 @@ export const StockMovementModal: React.FC<StockMovementModalProps> = ({ isOpen, 
     e.preventDefault();
     const qty = financial.normalizeQuantityPrecision(financial.parseLocaleNumber(strQty), qtyDecimals);
     if (qty <= 0) return;
-    onSave(type, qty, responsible, notes);
+
+    if (isEditing && onUpdate && editingMovement) {
+      onUpdate(editingMovement.id, {
+        quantity: qty,
+        responsible: type === 'exit' ? responsible : undefined,
+        notes,
+        date: date || undefined,
+      });
+    } else {
+      onSave(type, qty, responsible, notes, date || undefined);
+    }
     onClose();
   };
 
@@ -71,7 +98,7 @@ export const StockMovementModal: React.FC<StockMovementModalProps> = ({ isOpen, 
             </div>
             <div className="min-w-0">
               <h2 className="text-sm font-black uppercase tracking-widest text-slate-800 dark:text-white truncate">
-                Movimentar: {item.name}
+                {isEditing ? 'Editar Movimentação' : `Movimentar: ${item.name}`}
               </h2>
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Saldo Atual: {financial.formatQuantity(item.currentQuantity)} {item.unit}</p>
             </div>
@@ -82,17 +109,17 @@ export const StockMovementModal: React.FC<StockMovementModalProps> = ({ isOpen, 
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl">
+          <div className={`flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl ${isEditing ? 'opacity-60 pointer-events-none' : ''}`}>
             <button
               type="button"
-              onClick={() => setType('entry')}
+              onClick={() => !isEditing && setType('entry')}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${type === 'entry' ? 'bg-white dark:bg-slate-700 text-emerald-600 shadow-sm' : 'text-slate-400'}`}
             >
               <ArrowUpCircle size={14} /> Entrada
             </button>
             <button
               type="button"
-              onClick={() => setType('exit')}
+              onClick={() => !isEditing && setType('exit')}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${type === 'exit' ? 'bg-white dark:bg-slate-700 text-rose-600 shadow-sm' : 'text-slate-400'}`}
             >
               <ArrowDownCircle size={14} /> Saída
@@ -141,18 +168,33 @@ export const StockMovementModal: React.FC<StockMovementModalProps> = ({ isOpen, 
             </div>
           )}
 
+          {type === 'exit' && (
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">Responsável</label>
+              <div className="relative">
+                <input
+                  required
+                  type="text"
+                  value={responsible}
+                  onChange={(e) => setResponsible(e.target.value)}
+                  className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-indigo-500 rounded-2xl outline-none transition-all text-sm font-medium"
+                  placeholder="Nome do colaborador"
+                />
+                <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+              </div>
+            </div>
+          )}
+
           <div>
-            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">Responsável</label>
+            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">Data</label>
             <div className="relative">
               <input
-                required
-                type="text"
-                value={responsible}
-                onChange={(e) => setResponsible(e.target.value)}
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
                 className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-indigo-500 rounded-2xl outline-none transition-all text-sm font-medium"
-                placeholder="Nome do colaborador"
               />
-              <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Calendar size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
             </div>
           </div>
 
@@ -176,7 +218,7 @@ export const StockMovementModal: React.FC<StockMovementModalProps> = ({ isOpen, 
               className={`w-full py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2 ${type === 'entry' ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20' : 'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-500/20'}`}
             >
               <Save size={16} />
-              Registrar {type === 'entry' ? 'Entrada' : 'Saída'}
+              {isEditing ? 'Salvar Alterações' : `Registrar ${type === 'entry' ? 'Entrada' : 'Saída'}`}
             </button>
           </div>
         </form>

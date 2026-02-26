@@ -67,6 +67,8 @@ async function main() {
     { code: 'global_settings.edit', description: 'Edit global settings' },
     { code: 'stock.view', description: 'View stock / inventory' },
     { code: 'stock.edit', description: 'Edit stock / inventory' },
+    { code: 'blueprint.view', description: 'View blueprint quantities' },
+    { code: 'blueprint.edit', description: 'Edit blueprint quantities' },
   ];
 
   const createdPermissions = await Promise.all(

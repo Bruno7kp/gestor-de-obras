@@ -10,7 +10,7 @@
 export type PermissionLevel = 'none' | 'view' | 'edit';
 export type PermissionModule = 
   | 'biddings' | 'suppliers' | 'projects_general' | 'projects_specific' 
-  | 'wbs' | 'technical_analysis' | 'financial_flow' | 'supplies' | 'workforce' 
+  | 'wbs' | 'blueprint' | 'technical_analysis' | 'financial_flow' | 'supplies' | 'workforce' 
   | 'planning' | 'schedule' | 'journal' | 'notifications' | 'documents' | 'stock' | 'project_settings' | 'global_settings';
 
 export const PERMISSION_MODULES: Array<{ key: PermissionModule; label: string }> = [
@@ -19,6 +19,7 @@ export const PERMISSION_MODULES: Array<{ key: PermissionModule; label: string }>
   { key: 'projects_general', label: 'Obras gerais' },
   { key: 'projects_specific', label: 'Obras especificas' },
   { key: 'wbs', label: 'Planilha EAP' },
+  { key: 'blueprint', label: 'Quantitativos' },
   { key: 'technical_analysis', label: 'Análise Técnica' },
   { key: 'financial_flow', label: 'Fluxo Financeiro' },
   { key: 'supplies', label: 'Suprimentos' },
@@ -101,6 +102,10 @@ export const PERMISSIONS = {
   // Stock / Inventory
   STOCK_VIEW: 'stock.view',
   STOCK_EDIT: 'stock.edit',
+
+  // Blueprint / Quantitativos
+  BLUEPRINT_VIEW: 'blueprint.view',
+  BLUEPRINT_EDIT: 'blueprint.edit',
 
   // Global Settings
   GLOBAL_SETTINGS_VIEW: 'global_settings.view',

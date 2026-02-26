@@ -21,6 +21,7 @@ import { Menu } from 'lucide-react';
 
 const PROJECT_TABS: TabID[] = [
   'wbs',
+  'blueprint',
   'stats',
   'expenses',
   'supplies',

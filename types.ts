@@ -468,9 +468,10 @@ export interface StockMovement {
   type: StockMovementType;
   quantity: number;
   date: string;
-  responsible: string;
+  responsible: string | null;
   notes: string;
   createdAt?: string;
+  createdBy?: { id: string; name: string; profileImage?: string | null };
 }
 
 export interface StockItem {

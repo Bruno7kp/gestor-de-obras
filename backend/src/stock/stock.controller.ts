@@ -33,7 +33,14 @@ interface UpdateStockItemBody {
 interface AddMovementBody {
   type: 'ENTRY' | 'EXIT';
   quantity: number;
-  responsible: string;
+  responsible?: string;
+  notes?: string;
+  date?: string;
+}
+
+interface UpdateMovementBody {
+  quantity?: number;
+  responsible?: string;
   notes?: string;
   date?: string;
 }
@@ -86,6 +93,37 @@ export class StockController {
     });
   }
 
+  @Patch('movements/:movId')
+  @HasPermission('stock.edit')
+  updateMovement(
+    @Param('movId') movId: string,
+    @Body() body: UpdateMovementBody,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.stockService.updateMovement({
+      movementId: movId,
+      instanceId: req.user.instanceId,
+      userId: req.user.id,
+      quantity: body.quantity,
+      responsible: body.responsible,
+      notes: body.notes,
+      date: body.date,
+    });
+  }
+
+  @Delete('movements/:movId')
+  @HasPermission('stock.edit')
+  deleteMovement(
+    @Param('movId') movId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.stockService.deleteMovement(
+      movId,
+      req.user.instanceId,
+      req.user.id,
+    );
+  }
+
   @Patch(':id')
   @HasPermission('stock.edit')
   update(
@@ -126,5 +164,22 @@ export class StockController {
       notes: body.notes,
       date: body.date,
     });
+  }
+
+  @Get(':id/movements')
+  @HasPermission('stock.view', 'stock.edit')
+  findMovements(
+    @Param('id') id: string,
+    @Query('skip') skip: string,
+    @Query('take') take: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.stockService.findMovements(
+      id,
+      req.user.instanceId,
+      req.user.id,
+      skip ? parseInt(skip, 10) : 0,
+      take ? parseInt(take, 10) : 10,
+    );
   }
 }
