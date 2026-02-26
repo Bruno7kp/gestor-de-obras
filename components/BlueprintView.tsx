@@ -553,9 +553,9 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
         style={{ overflowAnchor: 'none' }}
       >
         <DragDropContext onDragEnd={handleDragEnd}>
-          <table className="min-w-max w-full border-separate border-spacing-0 text-[11px]">
+          <table className="min-w-max w-full border-separate border-spacing-0 text-[13px]">
             <thead className="bg-slate-900 dark:bg-black text-white sticky top-0 z-30">
-              <tr className="text-[9px] font-black uppercase tracking-widest opacity-80 text-center">
+              <tr className="text-[11px] font-black uppercase tracking-widest opacity-80 text-center">
                 {canEditBlueprint && <th className="p-3 border-r border-slate-800 dark:border-slate-900 w-10 no-print">Mover</th>}
                 {canEditBlueprint && <th className="p-4 border-r border-slate-800 dark:border-slate-900 w-24 no-print">Ações</th>}
                 <th className="p-4 border-r border-slate-800 dark:border-slate-900 w-16">Item</th>
@@ -597,7 +597,7 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
                               </div>
                             </td>
                           )}
-                          <td className="p-3 text-center font-mono text-[10px] text-slate-400 border-r border-slate-100 dark:border-slate-800">{item.wbs}</td>
+                          <td className="p-3 text-center font-mono text-[12px] text-slate-400 border-r border-slate-100 dark:border-slate-800">{item.wbs}</td>
                           <td className="p-3 max-w-[400px] border-r border-slate-100 dark:border-slate-800">
                             <div className="flex items-center gap-2" style={{ marginLeft: `${(item as any).depth * 1.5}rem` }}>
                               {item.type === 'category' ? (
@@ -607,14 +607,14 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
                               ) : <div className="w-6" />}
                               {item.type === 'category' ? <Layers size={14} className="text-indigo-500 shrink-0" /> : <Package size={14} className="text-slate-300 shrink-0" />}
                               <span 
-                                className={`truncate max-w-[320px] ${item.type === 'category' ? 'uppercase text-[10px] font-black text-slate-800 dark:text-white' : 'text-slate-600 dark:text-slate-300 font-medium'}`}
+                                className={`truncate max-w-[320px] ${item.type === 'category' ? 'uppercase text-[12px] font-black text-slate-800 dark:text-white' : 'text-slate-600 dark:text-slate-300 font-medium'}`}
                                 title={item.name}
                               >
                                 {item.name}
                               </span>
                             </div>
                           </td>
-                          <td className="p-3 text-center font-black text-slate-400 uppercase text-[9px] border-r border-slate-100 dark:border-slate-800">{item.unit || '-'}</td>
+                          <td className="p-3 text-center font-black text-slate-400 uppercase text-[11px] border-r border-slate-100 dark:border-slate-800">{item.unit || '-'}</td>
                           {showQuantity && (
                             <td className="p-3 text-center border-r border-slate-100 dark:border-slate-800">
                               {item.type === 'item' ? (
@@ -622,7 +622,7 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
                                   type="number" 
                                   step="any"
                                   disabled={!canEditBlueprint}
-                                  className="w-20 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 focus:border-indigo-500 rounded px-2 py-0.5 text-center text-[10px] font-bold outline-none transition-all disabled:opacity-50"
+                                  className="w-20 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 focus:border-indigo-500 rounded px-2 py-0.5 text-center text-[12px] font-bold outline-none transition-all disabled:opacity-50"
                                   value={item.contractQuantity}
                                   onChange={(e) => updateItemContractQuantity(item.id, parseFloat(e.target.value) || 0)}
                                 />
@@ -643,7 +643,7 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
                                       updateItemUnitPrice(item.id, val);
                                     }}
                                   />
-                                  <span className="text-[9px] text-slate-400 font-black">{currencySymbol}</span>
+                                  <span className="text-[11px] text-slate-400 font-black">{currencySymbol}</span>
                                 </div>
                               ) : '-'}
                             </td>
@@ -665,10 +665,10 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
             {showPrice && (
               <tfoot className="bg-slate-950 dark:bg-black text-white font-black text-xs sticky bottom-0 z-40 shadow-2xl">
                 <tr className="border-t border-slate-800 dark:border-slate-900">
-                  <td colSpan={totalColCount - 1} className="p-5 text-right uppercase tracking-[0.2em] text-[10px] border-r border-slate-800 dark:border-slate-900">Consolidado Total:</td>
+                  <td colSpan={totalColCount - 1} className="p-5 text-right uppercase tracking-[0.2em] text-[12px] border-r border-slate-800 dark:border-slate-900">Consolidado Total:</td>
                   <td className="p-5 text-right text-base tracking-tighter whitespace-nowrap">
                     <div className="flex items-center justify-end gap-1">
-                      <span className="text-[10px] text-slate-400 font-black">{currencySymbol}</span>
+                      <span className="text-[12px] text-slate-400 font-black">{currencySymbol}</span>
                       <span>{financial.formatVisual(totalGeral, '').trim()}</span>
                     </div>
                   </td>
