@@ -529,7 +529,7 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
           <div className="px-3 py-1 text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 border-r border-slate-200 dark:border-slate-700 mr-1">
             <Eye size={12}/> Visão:
           </div>
-          {([['full', 'Completo'], ['quantity', 'Quantitativo'], ['price', 'Preço']] as const).map(([mode, label]) => (
+          {([['quantity', 'Quantitativo'], ['price', 'Preço'], ['full', 'Completo']] as const).map(([mode, label]) => (
             <button
               key={mode}
               onClick={() => handleViewModeChange(mode)}
