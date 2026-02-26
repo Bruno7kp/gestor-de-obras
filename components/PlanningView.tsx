@@ -1187,6 +1187,18 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                        <span className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500 px-2 py-1 rounded-lg text-[8px] font-black uppercase">EAP</span>
                                      )}
                                   </div>
+                                  {task.createdBy && (
+                                    <div className="mt-3 flex items-center gap-2">
+                                      {task.createdBy.profileImage ? (
+                                        <img src={task.createdBy.profileImage} alt="" className="w-5 h-5 rounded-full object-cover" />
+                                      ) : (
+                                        <div className="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center">
+                                          <span className="text-[8px] font-black text-white">{task.createdBy.name.charAt(0).toUpperCase()}</span>
+                                        </div>
+                                      )}
+                                      <span className="text-[9px] text-slate-400 font-medium truncate">cadastrado por {task.createdBy.name.split(' ')[0]}</span>
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </Draggable>

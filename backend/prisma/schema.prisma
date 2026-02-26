@@ -87,6 +87,7 @@ model User {
   createdProjectAssets ProjectAsset[] @relation("UserProjectAssets")
   createdJournalEntries JournalEntry[] @relation("UserJournalEntries")
   createdStockMovements StockMovement[] @relation("UserStockMovements")
+  createdPlanningTasks PlanningTask[] @relation("UserPlanningTasks")
   notificationRecipients NotificationRecipient[]
   notificationPreferences NotificationPreference[]
   notificationDeliveries NotificationDelivery[]
@@ -413,8 +414,10 @@ model PlanningTask {
   dueDate          String
   createdAt        String
   completedAt      String?
+  createdById      String?
   projectPlanningId String
   projectPlanning  ProjectPlanning @relation(fields: [projectPlanningId], references: [id])
+  createdBy        User?   @relation("UserPlanningTasks", fields: [createdById], references: [id])
 }
 
 model MaterialForecast {

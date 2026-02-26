@@ -196,6 +196,7 @@ export interface PlanningTask {
   dueDate: string;
   createdAt: string;
   completedAt?: string;
+  createdBy?: { id: string; name: string; profileImage?: string | null };
 }
 
 export interface MaterialForecast {

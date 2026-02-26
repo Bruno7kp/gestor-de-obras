@@ -322,12 +322,19 @@ export class PlanningService {
     });
   }
 
+  private get taskInclude() {
+    return {
+      createdBy: { select: { id: true, name: true, profileImage: true } },
+    } as const;
+  }
+
   async listTasks(projectId: string, instanceId: string, userId?: string) {
     await this.ensureProject(projectId, instanceId, userId);
     const planning = await this.ensurePlanning(projectId);
     return this.prisma.planningTask.findMany({
       where: { projectPlanningId: planning.id },
       orderBy: { createdAt: 'desc' },
+      include: this.taskInclude,
     });
   }
 
@@ -346,7 +353,9 @@ export class PlanningService {
         dueDate: input.dueDate,
         createdAt: input.createdAt,
         completedAt: input.completedAt ?? null,
+        createdById: input.userId ?? null,
       },
+      include: this.taskInclude,
     });
 
     await this.emitTaskCreatedNotification({
@@ -407,6 +416,7 @@ export class PlanningService {
         createdAt: data.createdAt ?? task.createdAt,
         completedAt: data.completedAt ?? task.completedAt,
       },
+      include: this.taskInclude,
     });
 
     if (statusChanged) {
