@@ -198,15 +198,15 @@ const getTaskStatusColor = (status: string | undefined) => {
 export const getNotificationSubtypeClasses = (subtype: NotificationSubtypeKey, notification?: UserNotification) => {
   if (subtype === 'COMPRA') {
     return {
-      badge: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
-      border: 'border-l-rose-500',
+      badge: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+      border: 'border-l-orange-500',
     };
   }
 
   if (subtype === 'PAGAMENTO') {
     return {
-      badge: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
-      border: 'border-l-orange-500',
+      badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+      border: 'border-l-blue-500',
     };
   }
 
