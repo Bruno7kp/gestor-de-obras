@@ -381,7 +381,12 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ projectId, canEdit
                                                 <span className="text-[9px] text-slate-500 font-medium">cadastrado por {mov.createdBy.name}</span>
                                               </div>
                                             ) : mov.type === 'exit' && mov.responsible ? (
-                                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{mov.responsible}</p>
+                                              <div className="flex items-center gap-2 justify-end">
+                                                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-slate-300 to-slate-400 dark:from-slate-500 dark:to-slate-600 flex items-center justify-center">
+                                                  <span className="text-[8px] font-black text-white">{mov.responsible.charAt(0).toUpperCase()}</span>
+                                                </div>
+                                                <span className="text-[9px] text-slate-500 font-medium">retirado por {mov.responsible}</span>
+                                              </div>
                                             ) : null}
                                             <p className="text-[9px] text-slate-400">
                                               {new Date(mov.date).toLocaleDateString('pt-BR')} {new Date(mov.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
