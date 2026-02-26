@@ -557,13 +557,13 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
             <thead className="bg-slate-900 dark:bg-black text-white sticky top-0 z-30">
               <tr className="text-[9px] font-black uppercase tracking-widest opacity-80 text-center">
                 {canEditBlueprint && <th className="p-3 border-r border-slate-800 dark:border-slate-900 w-10 no-print">Mover</th>}
+                {canEditBlueprint && <th className="p-4 border-r border-slate-800 dark:border-slate-900 w-24 no-print">Ações</th>}
                 <th className="p-4 border-r border-slate-800 dark:border-slate-900 w-16">Item</th>
                 <th className="p-4 border-r border-slate-800 dark:border-slate-900 text-left w-[400px] min-w-[300px] max-w-[400px]">Descrição do Serviço</th>
                 <th className="p-4 border-r border-slate-800 dark:border-slate-900 w-14">Und</th>
                 {showQuantity && <th className="p-4 border-r border-slate-800 dark:border-slate-900 w-24">Qtd</th>}
                 {showPrice && <th className="p-4 border-r border-slate-800 dark:border-slate-900 w-32 text-right">P.Unit ({currencySymbol})</th>}
-                {showPrice && <th className="p-4 border-r border-slate-800 dark:border-slate-900 w-32 text-right">Total</th>}
-                {canEditBlueprint && <th className="p-4 w-24 no-print">Ações</th>}
+                {showPrice && <th className="p-4 w-32 text-right">Total</th>}
               </tr>
             </thead>
             <Droppable droppableId="blueprint-list" direction="vertical" isDropDisabled={!canEditBlueprint}>
@@ -582,6 +582,18 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
                             <td className="p-2 text-center no-print border-r border-slate-100 dark:border-slate-800">
                               <div {...provided.dragHandleProps} className="inline-flex p-1 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing">
                                 <GripVertical size={14} />
+                              </div>
+                            </td>
+                          )}
+                          {canEditBlueprint && (
+                            <td className="p-3 text-center no-print border-r border-slate-100 dark:border-slate-800">
+                              <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => onOpenModal(item.type, item, item.parentId)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-all">
+                                  <Edit3 size={14}/>
+                                </button>
+                                <button onClick={() => setConfirmDeleteId(item.id)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-all">
+                                  <Trash2 size={14}/>
+                                </button>
                               </div>
                             </td>
                           )}
@@ -621,7 +633,6 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
                             <td className="p-3 text-right border-r border-slate-100 dark:border-slate-800">
                               {item.type === 'item' ? (
                                 <div className="flex items-center justify-end gap-1">
-                                  <span className="text-[9px] text-slate-400 font-black">{currencySymbol}</span>
                                   <input 
                                     type="text"
                                     disabled={!canEditBlueprint}
@@ -632,25 +643,14 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
                                       updateItemUnitPrice(item.id, val);
                                     }}
                                   />
+                                  <span className="text-[9px] text-slate-400 font-black">{currencySymbol}</span>
                                 </div>
                               ) : '-'}
                             </td>
                           )}
                           {showPrice && (
-                            <td className="p-3 text-right font-black text-slate-800 dark:text-white whitespace-nowrap border-r border-slate-100 dark:border-slate-800">
+                            <td className="p-3 text-right font-black text-slate-800 dark:text-white whitespace-nowrap">
                               {financial.formatVisual(item.contractTotal, currencySymbol)}
-                            </td>
-                          )}
-                          {canEditBlueprint && (
-                            <td className="p-3 text-center no-print">
-                              <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => onOpenModal(item.type, item, item.parentId)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-all">
-                                  <Edit3 size={14}/>
-                                </button>
-                                <button onClick={() => setConfirmDeleteId(item.id)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-all">
-                                  <Trash2 size={14}/>
-                                </button>
-                              </div>
                             </td>
                           )}
                         </tr>
@@ -665,14 +665,13 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
             {showPrice && (
               <tfoot className="bg-slate-950 dark:bg-black text-white font-black text-xs sticky bottom-0 z-40 shadow-2xl">
                 <tr className="border-t border-slate-800 dark:border-slate-900">
-                  <td colSpan={totalColCount - 1 - (canEditBlueprint ? 1 : 0)} className="p-5 text-right uppercase tracking-[0.2em] text-[10px] border-r border-slate-800 dark:border-slate-900">Consolidado Total:</td>
+                  <td colSpan={totalColCount - 1} className="p-5 text-right uppercase tracking-[0.2em] text-[10px] border-r border-slate-800 dark:border-slate-900">Consolidado Total:</td>
                   <td className="p-5 text-right text-base tracking-tighter whitespace-nowrap">
                     <div className="flex items-center justify-end gap-1">
                       <span className="text-[10px] text-slate-400 font-black">{currencySymbol}</span>
                       <span>{financial.formatVisual(totalGeral, '').trim()}</span>
                     </div>
                   </td>
-                  {canEditBlueprint && <td className="p-5 no-print"></td>}
                 </tr>
               </tfoot>
             )}
