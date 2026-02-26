@@ -301,6 +301,7 @@ model WorkItem {
   parentId             String?
   name                 String
   type                 String
+  scope                String    @default("wbs")
   wbs                  String
   order                Int
   unit                 String

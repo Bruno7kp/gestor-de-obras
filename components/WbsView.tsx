@@ -323,7 +323,7 @@ export const WbsView: React.FC<WbsViewProps> = ({
       let sent = 0;
       for (let i = 0; i < chunks.length; i++) {
         const chunk = chunks[i];
-        await workItemsApi.batch(project.id, chunk, i === 0); // first chunk replace=true
+        await workItemsApi.batch(project.id, chunk, i === 0, 'wbs'); // first chunk replace=true, scope=wbs
         sent += chunk.length;
         setImportProgress({ sent, total: sorted.length });
       }

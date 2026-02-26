@@ -15,6 +15,7 @@ interface CreateWorkItemInput {
   parentId?: string | null;
   name: string;
   type: string;
+  scope?: string;
   wbs?: string;
   order?: number;
   unit?: string;
@@ -85,10 +86,12 @@ export class WorkItemsService {
     }
   }
 
-  async findAll(projectId: string, instanceId: string, userId?: string) {
+  async findAll(projectId: string, instanceId: string, userId?: string, scope?: string) {
     await this.ensureProject(projectId, instanceId, userId);
+    const where: any = { projectId };
+    if (scope) where.scope = scope;
     return this.prisma.workItem.findMany({
-      where: { projectId },
+      where,
       orderBy: { order: 'asc' },
     });
   }
@@ -102,6 +105,7 @@ export class WorkItemsService {
         parentId: input.parentId ?? null,
         name: input.name,
         type: input.type,
+        scope: input.scope || 'wbs',
         wbs: input.wbs || '',
         order: input.order ?? 0,
         unit: input.unit || 'un',
@@ -130,9 +134,11 @@ export class WorkItemsService {
     items: Array<Omit<CreateWorkItemInput, 'instanceId'>>,
     instanceId: string,
     userId?: string,
+    scope?: string,
   ): Promise<{ created: number }> {
     await this.ensureProject(projectId, instanceId, userId, true);
 
+    const effectiveScope = scope || 'wbs';
     // Prepare data for bulk insert
     const createData = items.map((i) => ({
       id: i.id,
@@ -140,6 +146,7 @@ export class WorkItemsService {
       parentId: i.parentId ?? null,
       name: i.name,
       type: i.type,
+      scope: i.scope || effectiveScope,
       wbs: i.wbs || '',
       order: i.order ?? 0,
       unit: i.unit || 'un',
@@ -162,19 +169,20 @@ export class WorkItemsService {
     }));
 
     const chunks = this.chunkItems(createData, 200);
+    const scopeFilter = { projectId, scope: effectiveScope };
 
     await this.prisma.$transaction(async (tx) => {
       await tx.laborContractWorkItem.deleteMany({
-        where: { workItem: { projectId } },
+        where: { workItem: scopeFilter },
       });
       await tx.laborContract.updateMany({
-        where: { projectId },
+        where: { projectId, linkedWorkItem: { scope: effectiveScope } },
         data: { linkedWorkItemId: null },
       });
       await tx.workItemResponsibility.deleteMany({
-        where: { workItem: { projectId } },
+        where: { workItem: scopeFilter },
       });
-      await tx.workItem.deleteMany({ where: { projectId } });
+      await tx.workItem.deleteMany({ where: scopeFilter });
 
       for (const chunk of chunks) {
         if (chunk.length === 0) continue;
@@ -191,15 +199,18 @@ export class WorkItemsService {
     replaceFlag: boolean,
     instanceId: string,
     userId?: string,
+    scope?: string,
   ): Promise<{ created: number }> {
     await this.ensureProject(projectId, instanceId, userId, true);
 
+    const effectiveScope = scope || 'wbs';
     const createData = items.map((i) => ({
       id: i.id,
       projectId: projectId,
       parentId: i.parentId ?? null,
       name: i.name,
       type: i.type,
+      scope: i.scope || effectiveScope,
       wbs: i.wbs || '',
       order: i.order ?? 0,
       unit: i.unit || 'un',
@@ -224,18 +235,19 @@ export class WorkItemsService {
     const chunks = this.chunkItems(createData, 200);
 
     if (replaceFlag) {
+      const scopeFilter = { projectId, scope: effectiveScope };
       await this.prisma.$transaction(async (tx) => {
         await tx.laborContractWorkItem.deleteMany({
-          where: { workItem: { projectId } },
+          where: { workItem: scopeFilter },
         });
         await tx.laborContract.updateMany({
-          where: { projectId },
+          where: { projectId, linkedWorkItem: { scope: effectiveScope } },
           data: { linkedWorkItemId: null },
         });
         await tx.workItemResponsibility.deleteMany({
-          where: { workItem: { projectId } },
+          where: { workItem: scopeFilter },
         });
-        await tx.workItem.deleteMany({ where: { projectId } });
+        await tx.workItem.deleteMany({ where: scopeFilter });
         for (const chunk of chunks) {
           if (chunk.length === 0) continue;
           await tx.workItem.createMany({ data: chunk });

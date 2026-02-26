@@ -54,6 +54,15 @@ const WBS_HEADERS = [
   "QTD_MEDIDA_AGORA"
 ];
 
+const BLUEPRINT_HEADERS = [
+  "WBS",
+  "TIPO_ITEM",
+  "NOME",
+  "UNIDADE",
+  "QUANTIDADE",
+  "P_UNITARIO"
+];
+
 const EXPENSE_HEADERS = ["WBS", "TIPO_REGISTRO", "CATEGORIA", "DATA", "DESCRICAO", "ENTIDADE", "UNIDADE", "QUANTIDADE", "UNITARIO", "DESCONTO", "TOTAL_LIQUIDO", "PAGO"];
 const SUPPLIER_HEADERS = ["NOME", "CNPJ", "CATEGORIA", "CONTATO", "EMAIL", "TELEFONE", "OBSERVACOES"];
 
@@ -305,7 +314,7 @@ export const excelService = {
             const prevQty = type === 'item' ? financial.normalizeQuantity(parseVal(row[8])) : 0;
             const currentQty = type === 'item' ? financial.normalizeQuantity(parseVal(row[9])) : 0;
             const item: WorkItem = {
-              id: crypto.randomUUID(), parentId: null, name: String(row[3] || "Novo Item").trim(), type: type, wbs: wbs, order: idx, cod: String(row[2] || "").trim(), unit: String(row[4] || ""), contractQuantity: qty, unitPriceNoBdi: priceNoBdi, fonte, unitPrice: 0, contractTotal: 0, previousQuantity: prevQty, previousTotal: 0, currentQuantity: currentQty, currentTotal: 0, currentPercentage: 0, accumulatedQuantity: 0, accumulatedTotal: 0, accumulatedPercentage: 0, balanceQuantity: 0, balanceTotal: 0
+              id: crypto.randomUUID(), parentId: null, name: String(row[3] || "Novo Item").trim(), type: type, wbs: wbs, order: idx, cod: String(row[2] || "").trim(), unit: String(row[4] || ""), contractQuantity: qty, unitPriceNoBdi: priceNoBdi, fonte, unitPrice: 0, contractTotal: 0, previousQuantity: prevQty, previousTotal: 0, currentQuantity: currentQty, currentTotal: 0, currentPercentage: 0, accumulatedQuantity: 0, accumulatedTotal: 0, accumulatedPercentage: 0, balanceQuantity: 0, balanceTotal: 0, scope: 'wbs'
             };
             importedItems.push(item);
             if (wbs) wbsMap.set(wbs, item);
@@ -425,6 +434,138 @@ export const excelService = {
             }
           });
           resolve({ expenses: importedExpenses, errors: [], stats });
+        } catch (err) { reject(err); }
+      };
+      reader.readAsArrayBuffer(file);
+    });
+  },
+
+  // ── Blueprint (Quantitativo) ──────────────────────────────────
+
+  downloadBlueprintTemplate: () => {
+    const wb = XLSX.utils.book_new();
+    const data = [
+      BLUEPRINT_HEADERS,
+      ["1", "category", "1. INFRAESTRUTURA", "", "", ""],
+      ["1.1", "category", "1.1 Movimentação de Terra", "", "", ""],
+      ["1.1.1", "item", "Escavação manual de valas", "m3", "150", "45.50"],
+      ["1.1.2", "item", "Carga e descarga de terra", "m3", "150", "12.30"],
+      ["2", "category", "2. ALVENARIA E VEDAÇÃO", "", "", ""],
+      ["2.1", "item", "Alvenaria de bloco cerâmico 14cm", "m2", "300", "85.90"],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    XLSX.utils.book_append_sheet(wb, ws, "Template_Quantitativo");
+    XLSX.writeFile(wb, "Canteiro_Digital_Template_Quantitativo.xlsx");
+  },
+
+  exportBlueprintToExcel: (project: Project, blueprintItems: WorkItem[]) => {
+    const wb = XLSX.utils.book_new();
+    const tree = treeService.buildTree(blueprintItems);
+    const processedTree = tree.map((root, idx) => treeService.processRecursive(root, '', idx, 0));
+    const allIds = new Set(blueprintItems.map(i => i.id));
+    const fullFlattened = treeService.flattenTree(processedTree, allIds);
+    const rows = fullFlattened.map(i => [
+      i.wbs,
+      i.type,
+      i.name,
+      i.unit || "",
+      financial.normalizeQuantity(i.contractQuantity || 0),
+      financial.normalizeMoney(i.unitPriceNoBdi || 0),
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([BLUEPRINT_HEADERS, ...rows]);
+    XLSX.utils.book_append_sheet(wb, ws, "Quantitativo");
+    XLSX.writeFile(wb, `Quantitativo_${project.name}.xlsx`);
+  },
+
+  parseBlueprintExcel: async (file: File): Promise<ImportResult> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const buffer = e.target?.result;
+          const data = new Uint8Array(buffer as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const raw: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+          const headerRow = (raw[0] || []).map((h: any) => String(h).trim().toUpperCase());
+          const isWbsFormat = headerRow.includes('CODIGO') || headerRow.includes('FONTE') || headerRow.includes('UNITARIO_S_BDI');
+
+          const importedItems: WorkItem[] = [];
+          const dataRows = raw.slice(1).filter(r => r.length > 0 && r[0]);
+          const wbsMap = new Map<string, WorkItem>();
+
+          dataRows.forEach((row, idx) => {
+            let wbs: string, type: ItemType, name: string, unit: string, qty: number, price: number;
+
+            if (isWbsFormat) {
+              // Cross-compatible: accept WBS/EAP format (10-col)
+              wbs = String(row[0] || "").trim();
+              type = (String(row[1] || "").toLowerCase() === 'category' ? 'category' : 'item') as ItemType;
+              name = String(row[3] || "Novo Item").trim();
+              unit = String(row[4] || "");
+              qty = financial.normalizeQuantity(parseVal(row[5]));
+              price = financial.normalizeMoney(parseVal(row[6]));
+            } else {
+              // Native blueprint format (6-col)
+              wbs = String(row[0] || "").trim();
+              type = (String(row[1] || "").toLowerCase() === 'category' ? 'category' : 'item') as ItemType;
+              name = String(row[2] || "Novo Item").trim();
+              unit = String(row[3] || "");
+              qty = financial.normalizeQuantity(parseVal(row[4]));
+              price = financial.normalizeMoney(parseVal(row[5]));
+            }
+
+            const unitPriceNoBdi = type === 'item' ? price : 0;
+            const contractTotal = type === 'item' ? financial.truncate(qty * unitPriceNoBdi) : 0;
+
+            const item: WorkItem = {
+              id: crypto.randomUUID(),
+              parentId: null,
+              name,
+              type,
+              wbs,
+              order: idx,
+              cod: '',
+              unit,
+              contractQuantity: qty,
+              unitPriceNoBdi,
+              unitPrice: unitPriceNoBdi,
+              contractTotal,
+              fonte: '',
+              previousQuantity: 0,
+              previousTotal: 0,
+              currentQuantity: 0,
+              currentTotal: 0,
+              currentPercentage: 0,
+              accumulatedQuantity: 0,
+              accumulatedTotal: 0,
+              accumulatedPercentage: 0,
+              balanceQuantity: 0,
+              balanceTotal: 0,
+              scope: 'quantitativo',
+            };
+            importedItems.push(item);
+            if (wbs) wbsMap.set(wbs, item);
+          });
+
+          importedItems.forEach(item => {
+            if (item.wbs.includes('.')) {
+              const parts = item.wbs.split('.');
+              parts.pop();
+              const parent = wbsMap.get(parts.join('.'));
+              if (parent) item.parentId = parent.id;
+            }
+          });
+
+          resolve({
+            items: importedItems,
+            errors: [],
+            stats: {
+              categories: importedItems.filter(i => i.type === 'category').length,
+              items: importedItems.filter(i => i.type === 'item').length,
+            }
+          });
         } catch (err) { reject(err); }
       };
       reader.readAsArrayBuffer(file);

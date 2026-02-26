@@ -32,11 +32,10 @@ export const PhysicalScheduleView: React.FC<PhysicalScheduleViewProps> = ({ proj
   }, [startMonth, numMonths]);
 
   const treeData = useMemo(() => {
-    // Fix: Explicitly type buildTree call to ensure inferred types align with WorkItem for processRecursive
-    const tree = treeService.buildTree<WorkItem>(project.items);
+    const wbsItems = project.items.filter(i => i.scope !== 'quantitativo');
+    const tree = treeService.buildTree<WorkItem>(wbsItems);
     const processed = tree.map((root, idx) => treeService.processRecursive(root, '', idx, project.bdi));
-    // Fix: Explicitly typed the Set constructor to ensure allIds is Set<string>
-    const allIds = new Set<string>(project.items.map(i => i.id));
+    const allIds = new Set<string>(wbsItems.map(i => i.id));
     return treeService.flattenTree(processed, allIds);
   }, [project.items, project.bdi]);
 

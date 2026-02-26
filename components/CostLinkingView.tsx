@@ -16,7 +16,7 @@ export const CostLinkingView: React.FC<CostLinkingViewProps> = ({ project, onUpd
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'alert' | 'healthy'>('all');
 
-  const workItems = useMemo(() => project.items.filter(i => i.type === 'item'), [project.items]);
+  const workItems = useMemo(() => project.items.filter(i => i.type === 'item' && i.scope !== 'quantitativo'), [project.items]);
   
   const analysis = useMemo(() => {
     return workItems.map(item => {

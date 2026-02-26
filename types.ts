@@ -1,11 +1,13 @@
 
 export type ItemType = 'category' | 'item';
+export type WorkItemScope = 'wbs' | 'quantitativo';
 
 export interface WorkItem {
   id: string;
   parentId: string | null;
   name: string;
   type: ItemType;
+  scope: WorkItemScope;
   wbs: string;
   order: number;
 

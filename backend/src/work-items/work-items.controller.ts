@@ -22,6 +22,7 @@ interface CreateWorkItemBody {
   parentId?: string | null;
   name: string;
   type: string;
+  scope?: string;
   wbs?: string;
   order?: number;
   unit?: string;
@@ -54,12 +55,14 @@ export class WorkItemsController {
   @Get()
   findAll(
     @Query('projectId') projectId: string,
+    @Query('scope') scope: string | undefined,
     @Req() req: AuthenticatedRequest,
   ) {
     return this.workItemsService.findAll(
       projectId,
       req.user.instanceId,
       req.user.id,
+      scope,
     );
   }
 
@@ -77,7 +80,7 @@ export class WorkItemsController {
   @HasPermission('wbs.edit')
   async replace(
     @Body()
-    body: { projectId: string; items: CreateWorkItemBody[] },
+    body: { projectId: string; items: CreateWorkItemBody[]; scope?: string },
     @Req() req: AuthenticatedRequest,
   ): Promise<{ created: number }> {
     return this.workItemsService.replaceAll(
@@ -85,6 +88,7 @@ export class WorkItemsController {
       body.items,
       req.user.instanceId,
       req.user.id,
+      body.scope,
     );
   }
 
@@ -92,7 +96,7 @@ export class WorkItemsController {
   @HasPermission('wbs.edit')
   async batch(
     @Body()
-    body: { projectId: string; items: CreateWorkItemBody[]; replace?: boolean },
+    body: { projectId: string; items: CreateWorkItemBody[]; replace?: boolean; scope?: string },
     @Req() req: AuthenticatedRequest,
   ): Promise<{ created: number }> {
     return this.workItemsService.batchInsert(
@@ -101,6 +105,7 @@ export class WorkItemsController {
       !!body.replace,
       req.user.instanceId,
       req.user.id,
+      body.scope,
     );
   }
 

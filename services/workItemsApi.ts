@@ -8,6 +8,7 @@ type WorkItemPayload = {
   parentId?: string | null;
   name: string;
   type: string;
+  scope?: string;
   wbs?: string;
   order?: number;
   unit?: string;
@@ -35,6 +36,7 @@ const toPayload = (item: WorkItem, projectId: string): WorkItemPayload => ({
   parentId: item.parentId ?? null,
   name: item.name,
   type: item.type,
+  scope: item.scope,
   wbs: item.wbs,
   order: item.order,
   unit: item.unit,
@@ -88,12 +90,12 @@ export const workItemsApi = {
     return response.json();
   },
 
-  async replace(projectId: string, items: WorkItem[]): Promise<void> {
+  async replace(projectId: string, items: WorkItem[], scope?: string): Promise<void> {
     const response = await fetch(`${API_BASE}/work-items/replace`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ projectId, items: items.map(i => toPayload(i, projectId)) }),
+      body: JSON.stringify({ projectId, items: items.map(i => toPayload(i, projectId)), scope }),
     });
 
     if (!response.ok) {
@@ -101,12 +103,12 @@ export const workItemsApi = {
     }
   },
 
-  async batch(projectId: string, items: WorkItem[], replaceFlag = false): Promise<void> {
+  async batch(projectId: string, items: WorkItem[], replaceFlag = false, scope?: string): Promise<void> {
     const response = await fetch(`${API_BASE}/work-items/batch`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ projectId, items: items.map(i => toPayload(i, projectId)), replace: replaceFlag }),
+      body: JSON.stringify({ projectId, items: items.map(i => toPayload(i, projectId)), replace: replaceFlag, scope }),
     });
 
     if (!response.ok) {

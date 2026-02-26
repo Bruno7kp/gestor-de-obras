@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { WorkItem, ItemType } from '../types';
+import { WorkItem, ItemType, WorkItemScope } from '../types';
 import { financial } from '../utils/math';
 import { X, Save, Layers, Package, Calculator, FolderTree } from 'lucide-react';
 import { z } from 'zod';
@@ -30,10 +30,11 @@ interface WorkItemModalProps {
   initialParentId: string | null;
   categories: (WorkItem & { depth: number })[];
   projectBdi: number;
+  context?: WorkItemScope;
 }
 
 export const WorkItemModal: React.FC<WorkItemModalProps> = ({
-  isOpen, onClose, onSave, editingItem, type: initialType, initialParentId, categories, projectBdi
+  isOpen, onClose, onSave, editingItem, type: initialType, initialParentId, categories, projectBdi, context = 'wbs'
 }) => {
   const [activeType, setActiveType] = useState<ItemType>(initialType);
   const [formData, setFormData] = useState<Partial<WorkItem>>({
@@ -63,6 +64,8 @@ export const WorkItemModal: React.FC<WorkItemModalProps> = ({
     setErrors({});
   }, [editingItem, initialType, initialParentId, isOpen]);
 
+  const isQuantitativo = context === 'quantitativo';
+
   const handleNumericChange = (setter: (v: string) => void, val: string, field: 'qty' | 'priceNoBdi' | 'priceWithBdi' | 'totalWithBdi') => {
     const masked = financial.maskCurrency(val);
     setter(masked);
@@ -70,27 +73,44 @@ export const WorkItemModal: React.FC<WorkItemModalProps> = ({
     const num = financial.parseLocaleNumber(masked);
     const currentQty = field === 'qty' ? num : financial.parseLocaleNumber(strQty);
 
-    if (field === 'priceNoBdi') {
-      const pWithBdi = financial.truncate(num * (1 + projectBdi/100));
-      setStrPriceWithBdi(financial.formatVisual(pWithBdi, '').trim());
-      setStrTotalWithBdi(financial.formatVisual(financial.truncate(pWithBdi * currentQty), '').trim());
-    } 
-    else if (field === 'priceWithBdi') {
-      const pNoBdi = financial.truncate(num / (1 + projectBdi/100));
-      setStrPriceNoBdi(financial.formatVisual(pNoBdi, '').trim());
-      setStrTotalWithBdi(financial.formatVisual(financial.truncate(num * currentQty), '').trim());
-    }
-    else if (field === 'totalWithBdi') {
-      if (currentQty > 0) {
-        const pWithBdi = financial.truncate(num / currentQty);
-        const pNoBdi = financial.truncate(pWithBdi / (1 + projectBdi/100));
-        setStrPriceWithBdi(financial.formatVisual(pWithBdi, '').trim());
-        setStrPriceNoBdi(financial.formatVisual(pNoBdi, '').trim());
+    if (isQuantitativo) {
+      // No BDI in quantitativo context
+      if (field === 'priceNoBdi') {
+        setStrPriceWithBdi(financial.formatVisual(num, '').trim());
+        setStrTotalWithBdi(financial.formatVisual(financial.truncate(num * currentQty), '').trim());
+      } else if (field === 'totalWithBdi') {
+        if (currentQty > 0) {
+          const pUnit = financial.truncate(num / currentQty);
+          setStrPriceNoBdi(financial.formatVisual(pUnit, '').trim());
+          setStrPriceWithBdi(financial.formatVisual(pUnit, '').trim());
+        }
+      } else if (field === 'qty') {
+        const pUnit = financial.parseLocaleNumber(strPriceNoBdi);
+        setStrTotalWithBdi(financial.formatVisual(financial.truncate(pUnit * num), '').trim());
       }
-    }
-    else if (field === 'qty') {
-      const pWithBdi = financial.parseLocaleNumber(strPriceWithBdi);
-      setStrTotalWithBdi(financial.formatVisual(financial.truncate(pWithBdi * num), '').trim());
+    } else {
+      if (field === 'priceNoBdi') {
+        const pWithBdi = financial.truncate(num * (1 + projectBdi/100));
+        setStrPriceWithBdi(financial.formatVisual(pWithBdi, '').trim());
+        setStrTotalWithBdi(financial.formatVisual(financial.truncate(pWithBdi * currentQty), '').trim());
+      } 
+      else if (field === 'priceWithBdi') {
+        const pNoBdi = financial.truncate(num / (1 + projectBdi/100));
+        setStrPriceNoBdi(financial.formatVisual(pNoBdi, '').trim());
+        setStrTotalWithBdi(financial.formatVisual(financial.truncate(num * currentQty), '').trim());
+      }
+      else if (field === 'totalWithBdi') {
+        if (currentQty > 0) {
+          const pWithBdi = financial.truncate(num / currentQty);
+          const pNoBdi = financial.truncate(pWithBdi / (1 + projectBdi/100));
+          setStrPriceWithBdi(financial.formatVisual(pWithBdi, '').trim());
+          setStrPriceNoBdi(financial.formatVisual(pNoBdi, '').trim());
+        }
+      }
+      else if (field === 'qty') {
+        const pWithBdi = financial.parseLocaleNumber(strPriceWithBdi);
+        setStrTotalWithBdi(financial.formatVisual(financial.truncate(pWithBdi * num), '').trim());
+      }
     }
   };
 
@@ -99,11 +119,13 @@ export const WorkItemModal: React.FC<WorkItemModalProps> = ({
     const finalData = {
       ...formData,
       type: activeType,
-      cod: activeType === 'category' ? '' : (formData.cod || ''),
-      fonte: activeType === 'category' ? '' : (formData.fonte || ''),
+      cod: (activeType === 'category' || isQuantitativo) ? '' : (formData.cod || ''),
+      fonte: (activeType === 'category' || isQuantitativo) ? '' : (formData.fonte || ''),
       contractQuantity: financial.normalizeQuantity(financial.parseLocaleNumber(strQty)),
       unitPriceNoBdi: financial.normalizeMoney(financial.parseLocaleNumber(strPriceNoBdi)),
-      unitPrice: financial.normalizeMoney(financial.parseLocaleNumber(strPriceWithBdi))
+      unitPrice: isQuantitativo
+        ? financial.normalizeMoney(financial.parseLocaleNumber(strPriceNoBdi))
+        : financial.normalizeMoney(financial.parseLocaleNumber(strPriceWithBdi))
     };
     
     const result = WorkItemSchema.safeParse(finalData);
@@ -162,7 +184,7 @@ export const WorkItemModal: React.FC<WorkItemModalProps> = ({
                   </div>
                 </div>
                 
-                {!isCategory && (
+                {!isCategory && !isQuantitativo && (
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase mb-2 block tracking-widest">Cód. Interno</label>
@@ -194,25 +216,27 @@ export const WorkItemModal: React.FC<WorkItemModalProps> = ({
                   </div>
                   
                   <div className="col-span-2 p-5 bg-slate-50 dark:bg-slate-800/40 rounded-3xl border-2 border-slate-100 dark:border-slate-800 space-y-4">
-                    <div className="grid grid-cols-2 gap-5">
+                    <div className={isQuantitativo ? '' : 'grid grid-cols-2 gap-5'}>
                       <div>
-                        <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase mb-2 block tracking-widest">P. Unit S/ BDI</label>
+                        <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase mb-2 block tracking-widest">{isQuantitativo ? 'P. Unit' : 'P. Unit S/ BDI'}</label>
                         <div className="relative">
                           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-400 dark:text-slate-600">R$</span>
                           <input type="text" inputMode="decimal" className="w-full pl-10 pr-4 py-3.5 rounded-xl border-2 border-white dark:border-slate-800 bg-white dark:bg-slate-950 dark:text-white text-xs font-black text-right outline-none focus:border-indigo-500 transition-all" value={strPriceNoBdi} onChange={e => handleNumericChange(setStrPriceNoBdi, e.target.value, 'priceNoBdi')} />
                         </div>
                       </div>
-                      <div>
-                        <label className="text-[9px] font-black text-emerald-600 dark:text-emerald-500 uppercase mb-2 block tracking-widest">P. Unit C/ BDI</label>
-                        <div className="relative">
-                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-emerald-500/50">R$</span>
-                          <input type="text" inputMode="decimal" className="w-full pl-10 pr-4 py-3.5 rounded-xl border-2 border-emerald-100 dark:border-emerald-900 bg-emerald-50/30 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 text-xs font-black text-right outline-none focus:border-emerald-500 transition-all shadow-inner" value={strPriceWithBdi} onChange={e => handleNumericChange(setStrPriceWithBdi, e.target.value, 'priceWithBdi')} />
+                      {!isQuantitativo && (
+                        <div>
+                          <label className="text-[9px] font-black text-emerald-600 dark:text-emerald-500 uppercase mb-2 block tracking-widest">P. Unit C/ BDI</label>
+                          <div className="relative">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-emerald-500/50">R$</span>
+                            <input type="text" inputMode="decimal" className="w-full pl-10 pr-4 py-3.5 rounded-xl border-2 border-emerald-100 dark:border-emerald-900 bg-emerald-50/30 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 text-xs font-black text-right outline-none focus:border-emerald-500 transition-all shadow-inner" value={strPriceWithBdi} onChange={e => handleNumericChange(setStrPriceWithBdi, e.target.value, 'priceWithBdi')} />
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
 
                     <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
-                      <label className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase mb-2 block tracking-widest text-center">Valor Total Contratual</label>
+                      <label className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase mb-2 block tracking-widest text-center">{isQuantitativo ? 'Valor Total' : 'Valor Total Contratual'}</label>
                       <div className="relative max-w-xs mx-auto">
                         <Calculator className="absolute left-6 top-1/2 -translate-y-1/2 text-indigo-400" size={16} />
                         <input type="text" inputMode="decimal" className="w-full pl-12 pr-6 py-3.5 rounded-[1.5rem] border-2 border-indigo-200 dark:border-indigo-900 bg-white dark:bg-slate-950 text-indigo-600 dark:text-indigo-400 text-xl font-black text-right outline-none focus:border-indigo-600 transition-all shadow-lg" value={strTotalWithBdi} onChange={e => handleNumericChange(setStrTotalWithBdi, e.target.value, 'totalWithBdi')} />

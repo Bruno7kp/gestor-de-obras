@@ -1079,8 +1079,9 @@ const ProjectCard = ({ project, unreadCount, onOpen, onRename, onDelete, onMove,
   canDelete: boolean,
   canMove: boolean,
 }) => {
-  const stats = project.items?.length
-    ? treeService.calculateBasicStats(project.items, project.bdi || 0)
+  const wbsItems = project.items?.filter(i => i.scope !== 'quantitativo') || [];
+  const stats = wbsItems.length
+    ? treeService.calculateBasicStats(wbsItems, project.bdi || 0)
     : { progress: project.progress ?? 0 };
   return (
     <div 
@@ -1165,8 +1166,9 @@ const ProjectRow = ({ project, unreadCount, onOpen, onRename, onDelete, onMove, 
   canDelete: boolean,
   canMove: boolean,
 }) => {
-  const stats = project.items?.length
-    ? treeService.calculateBasicStats(project.items, project.bdi || 0)
+  const wbsItems = project.items?.filter(i => i.scope !== 'quantitativo') || [];
+  const stats = wbsItems.length
+    ? treeService.calculateBasicStats(wbsItems, project.bdi || 0)
     : { progress: project.progress ?? 0 };
   return (
     <div
