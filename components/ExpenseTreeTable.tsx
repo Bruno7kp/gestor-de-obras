@@ -42,12 +42,22 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
     return url;
   };
 
-  const handleDownloadDoc = (url: string, name: string) => {
+  const handleDownloadDoc = async (url: string, name: string) => {
     const resolvedUrl = resolveUploadUrl(url);
-    const link = document.createElement('a');
-    link.href = resolvedUrl;
-    link.download = name;
-    link.click();
+    try {
+      const res = await fetch(resolvedUrl, { credentials: 'include' });
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = name;
+      link.click();
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      // fallback: abrir em nova aba
+      const win = window.open();
+      win?.document.write(`<iframe src="${resolvedUrl}" frameborder="0" style="border:0;top:0;left:0;bottom:0;right:0;width:100%;height:100%;" allowfullscreen></iframe>`);
+    }
   };
 
   const handleDragEnd = (result: DropResult) => {
