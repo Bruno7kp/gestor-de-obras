@@ -152,18 +152,9 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ projectId, canEdit
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-6">
       {/* 1. TOP BAR */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 rounded-2xl">
-            <Package size={24} />
-          </div>
-          <div>
-            <h2 className="text-lg font-black uppercase tracking-tight text-slate-800 dark:text-white leading-none">Controle de Estoque</h2>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1.5">Gestão de Materiais e Insumos</p>
-          </div>
-        </div>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-end gap-4 bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm">
 
         <div className="flex items-center gap-3">
           <div className="relative">
