@@ -1101,13 +1101,26 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                 <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-50"><Clock size={12} /></div>
                 <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-50 text-current"><ChevronDown size={14} /></div>
               </div>
-              <button
-                onClick={() => setShowDescriptionModal(true)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
-                title="Descrição da obra"
-              >
-                <Info size={13} />
-              </button>
+              <div className="relative group/tip">
+                <button
+                  onClick={() => setShowDescriptionModal(true)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
+                >
+                  <Info size={13} />
+                </button>
+                {project.description && project.description.replace(/<[^>]*>/g, '').trim() ? (
+                  <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 w-64 max-h-40 overflow-hidden rounded-2xl bg-slate-800 dark:bg-slate-700 px-4 py-3 text-[11px] text-white shadow-xl opacity-0 scale-95 transition-all group-hover/tip:opacity-100 group-hover/tip:scale-100 z-50">
+                    <div
+                      className="line-clamp-6 leading-relaxed [&_a]:text-indigo-300 [&_a]:underline [&_strong]:font-bold [&_p]:mb-1"
+                      dangerouslySetInnerHTML={{ __html: project.description }}
+                    />
+                  </div>
+                ) : (
+                  <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1.5 whitespace-nowrap rounded-lg bg-slate-800 dark:bg-slate-700 px-2.5 py-1 text-[9px] font-bold text-white shadow-lg opacity-0 scale-95 transition-all group-hover/tip:opacity-100 group-hover/tip:scale-100 z-50">
+                    Sem descrição
+                  </span>
+                )}
+              </div>
               <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest whitespace-nowrap">Ref: {displayData.date}</span>
               {isHistoryMode && <div className="flex items-center gap-1.5 px-2 py-0.5 bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-100 rounded-md text-[8px] font-black uppercase shadow-sm"><Lock size={10} /> Arquivo Congelado</div>}
             </div>
