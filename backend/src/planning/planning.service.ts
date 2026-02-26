@@ -611,14 +611,22 @@ export class PlanningService {
       data: {
         title: data.title ?? group.title,
         estimatedDate: data.estimatedDate ?? group.estimatedDate,
-        purchaseDate: data.purchaseDate ?? group.purchaseDate,
-        deliveryDate: data.deliveryDate ?? group.deliveryDate,
+        purchaseDate: Object.prototype.hasOwnProperty.call(data, 'purchaseDate')
+          ? (data.purchaseDate ?? null)
+          : group.purchaseDate,
+        deliveryDate: Object.prototype.hasOwnProperty.call(data, 'deliveryDate')
+          ? (data.deliveryDate ?? null)
+          : group.deliveryDate,
         status: data.status ?? group.status,
         isPaid: data.isPaid ?? group.isPaid,
         isCleared: data.isCleared ?? group.isCleared,
         supplierId: resolvedSupplierId,
-        paymentProof: data.paymentProof ?? group.paymentProof,
-        invoiceDoc: data.invoiceDoc ?? group.invoiceDoc,
+        paymentProof: Object.prototype.hasOwnProperty.call(data, 'paymentProof')
+          ? (data.paymentProof ?? null)
+          : group.paymentProof,
+        invoiceDoc: Object.prototype.hasOwnProperty.call(data, 'invoiceDoc')
+          ? (data.invoiceDoc ?? null)
+          : group.invoiceDoc,
       },
     });
 
@@ -965,7 +973,9 @@ export class PlanningService {
 
     const nextStatus = data.status ?? forecast.status;
     const nextIsPaid = data.isPaid ?? forecast.isPaid;
-    const nextPaymentProof = data.paymentProof ?? forecast.paymentProof;
+    const nextPaymentProof = Object.prototype.hasOwnProperty.call(data, 'paymentProof')
+      ? (data.paymentProof ?? null)
+      : forecast.paymentProof;
     if (nextStatus === 'pending' && forecast.status !== 'pending') {
       throw new BadRequestException('Nao e possivel voltar para pendente apos comprado.');
     }
@@ -998,15 +1008,21 @@ export class PlanningService {
         discountValue: data.discountValue ?? forecast.discountValue,
         discountPercentage: data.discountPercentage ?? forecast.discountPercentage,
         estimatedDate: data.estimatedDate ?? forecast.estimatedDate,
-        purchaseDate: data.purchaseDate ?? forecast.purchaseDate,
-        deliveryDate: data.deliveryDate ?? forecast.deliveryDate,
+        purchaseDate: Object.prototype.hasOwnProperty.call(data, 'purchaseDate')
+          ? (data.purchaseDate ?? null)
+          : forecast.purchaseDate,
+        deliveryDate: Object.prototype.hasOwnProperty.call(data, 'deliveryDate')
+          ? (data.deliveryDate ?? null)
+          : forecast.deliveryDate,
         status: data.status ?? forecast.status,
         isPaid: data.isPaid ?? forecast.isPaid,
         isCleared: data.isCleared ?? forecast.isCleared,
         order: data.order ?? forecast.order,
         supplierId: resolvedSupplierId,
         supplyGroupId: resolvedSupplyGroupId,
-        paymentProof: data.paymentProof ?? forecast.paymentProof,
+        paymentProof: Object.prototype.hasOwnProperty.call(data, 'paymentProof')
+          ? (data.paymentProof ?? null)
+          : forecast.paymentProof,
       },
     });
 
