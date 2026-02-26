@@ -514,12 +514,22 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     onUpdatePlanning(updated);
   };
 
-  const isExpenseForForecast = (expense: ProjectExpense, forecast: MaterialForecast) => {
+  const findExpenseForForecast = (forecast: MaterialForecast) => {
+    // Priority 1: exact ID match (reliable, avoids false positives with duplicate descriptions)
+    const byId = project.expenses.find(expense => expense.id === forecast.id);
+    if (byId) return byId;
+
+    // Fallback: description-based match (legacy data where expense.id !== forecast.id).
+    // Exclude expenses whose ID matches another forecast — those are already
+    // "owned" by that forecast and must not be cross-matched when items share
+    // the same name (same lote, different lotes, or no lote at all).
     const suffix = `: ${forecast.description}`;
-    return expense.id === forecast.id || (
+    const knownForecastIds = new Set(planning.forecasts.map(f => f.id));
+    return project.expenses.find(expense =>
       expense.type === 'material' &&
       expense.itemType === 'item' &&
-      expense.description.endsWith(suffix)
+      expense.description.endsWith(suffix) &&
+      !knownForecastIds.has(expense.id),
     );
   };
 
@@ -532,7 +542,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     discountValue?: number,
     discountPercentage?: number,
   ) => {
-    const existingExpense = project.expenses.find(expense => isExpenseForForecast(expense, forecast));
+    const existingExpense = findExpenseForForecast(forecast);
     const expenseData = planningService.prepareExpenseFromForecast(
       forecast,
       parentId,
@@ -584,10 +594,6 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     onUpdatePlanning(updatedPlanning);
     setConfirmingForecast(null);
     setForecastStatusFilter('ordered');
-  };
-
-  const findExpenseForForecast = (forecast: MaterialForecast) => {
-    return project.expenses.find(expense => isExpenseForForecast(expense, forecast));
   };
 
   const syncExpenseWithForecast = (forecast: MaterialForecast) => {
@@ -643,14 +649,15 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   const syncItemFinancialGroup = (
     forecastId: string,
     categoryId: string | null,
-    description: string,
+    _description: string,
   ) => {
     const forecast = planning.forecasts.find((item) => item.id === forecastId);
-    const byId = project.expenses.find((expense) => expense.id === forecastId);
-    const linkedExpense = byId || (forecast ? findExpenseForForecast(forecast) : undefined) || project.expenses.find((expense) => {
-      const suffix = `: ${description}`;
-      return expense.type === 'material' && expense.itemType === 'item' && expense.description.endsWith(suffix);
-    });
+    // Use findExpenseForForecast when the forecast object is available (safe two-pass lookup).
+    // Otherwise fall back to ID-only match — bare description matching is unreliable
+    // when multiple items share the same name.
+    const linkedExpense = forecast
+      ? findExpenseForForecast(forecast)
+      : project.expenses.find((expense) => expense.id === forecastId);
 
     if (!linkedExpense) return;
 
