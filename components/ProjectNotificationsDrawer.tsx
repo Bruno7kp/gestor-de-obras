@@ -129,7 +129,7 @@ export const ProjectNotificationsDrawer: React.FC<ProjectNotificationsDrawerProp
               const type = getNotificationType(notification);
               const classes = getNotificationTypeClasses(type);
               const subtype = getNotificationSubtype(notification);
-              const subtypeClasses = getNotificationSubtypeClasses(subtype);
+              const subtypeClasses = getNotificationSubtypeClasses(subtype, notification);
               return (
                 <article
                   key={notification.id}

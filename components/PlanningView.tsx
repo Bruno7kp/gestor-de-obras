@@ -1071,8 +1071,8 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   };
 
   const columns: { id: TaskStatus, label: string, color: string }[] = [
-    { id: 'todo', label: 'Planejado', color: 'indigo' },
-    { id: 'doing', label: 'Executando', color: 'amber' },
+    { id: 'todo', label: 'Planejado', color: 'amber' },
+    { id: 'doing', label: 'Executando', color: 'indigo' },
     { id: 'done', label: 'Concluído', color: 'emerald' }
   ];
 

@@ -123,7 +123,29 @@ export const getNotificationTypeClasses = (type: NotificationTypeKey) => {
   };
 };
 
-export const getNotificationSubtypeClasses = (subtype: NotificationSubtypeKey) => {
+const getTaskStatusColor = (status: string | undefined) => {
+  if (status === 'todo') {
+    return {
+      badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+      border: 'border-l-amber-500',
+    };
+  }
+  if (status === 'doing') {
+    return {
+      badge: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
+      border: 'border-l-indigo-500',
+    };
+  }
+  if (status === 'done') {
+    return {
+      badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+      border: 'border-l-emerald-500',
+    };
+  }
+  return null;
+};
+
+export const getNotificationSubtypeClasses = (subtype: NotificationSubtypeKey, notification?: UserNotification) => {
   if (subtype === 'COMPRA') {
     return {
       badge: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
@@ -174,6 +196,9 @@ export const getNotificationSubtypeClasses = (subtype: NotificationSubtypeKey) =
   }
 
   if (subtype === 'TAREFA_CRIADA') {
+    const status = notification?.metadata?.status as string | undefined;
+    const statusColor = getTaskStatusColor(status);
+    if (statusColor) return statusColor;
     return {
       badge: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300',
       border: 'border-l-cyan-500',
@@ -181,6 +206,9 @@ export const getNotificationSubtypeClasses = (subtype: NotificationSubtypeKey) =
   }
 
   if (subtype === 'STATUS_TAREFA') {
+    const newStatus = notification?.metadata?.newStatus as string | undefined;
+    const statusColor = getTaskStatusColor(newStatus);
+    if (statusColor) return statusColor;
     return {
       badge: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300',
       border: 'border-l-sky-500',
