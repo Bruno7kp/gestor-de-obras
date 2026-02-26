@@ -381,7 +381,9 @@ export class ProjectsService {
           },
           planning: {
             include: {
-              tasks: true,
+              tasks: {
+                include: { createdBy: { select: { id: true, name: true, profileImage: true } } },
+              },
               forecasts: {
                 include: { createdBy: { select: { id: true, name: true, profileImage: true } } },
               },
@@ -886,7 +888,9 @@ export class ProjectsService {
         },
         planning: {
           include: {
-            tasks: true,
+            tasks: {
+              include: { createdBy: { select: { id: true, name: true, profileImage: true } } },
+            },
             forecasts: {
               include: { createdBy: { select: { id: true, name: true, profileImage: true } } },
             },
