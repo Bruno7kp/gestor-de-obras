@@ -4,6 +4,8 @@ export type NotificationTypeKey =
   | 'SUPRIMENTO'
   | 'MAO_DE_OBRA'
   | 'PLANEJAMENTO'
+  | 'DIARIO'
+  | 'REPOSITORIO'
   | 'OUTROS';
 
 export type NotificationSubtypeKey =
@@ -16,6 +18,10 @@ export type NotificationSubtypeKey =
   | 'PAGAMENTO_MO'
   | 'TAREFA_CRIADA'
   | 'STATUS_TAREFA'
+  | 'DIARIO_CRIADO'
+  | 'DIARIO_ATUALIZADO'
+  | 'ARQUIVO_CRIADO'
+  | 'ARQUIVO_ATUALIZADO'
   | 'OUTROS';
 
 export const NOTIFICATION_FILTERS: Array<{ key: NotificationTypeKey | 'TODOS'; label: string }> = [
@@ -23,6 +29,8 @@ export const NOTIFICATION_FILTERS: Array<{ key: NotificationTypeKey | 'TODOS'; l
   { key: 'SUPRIMENTO', label: 'Suprimentos' },
   { key: 'PLANEJAMENTO', label: 'Planejamento' },
   { key: 'MAO_DE_OBRA', label: 'M.O.' },
+  { key: 'DIARIO', label: 'Diário' },
+  { key: 'REPOSITORIO', label: 'Repositório' },
 ];
 
 export const getNotificationType = (notification: UserNotification): NotificationTypeKey => {
@@ -53,6 +61,22 @@ export const getNotificationType = (notification: UserNotification): Notificatio
     return 'SUPRIMENTO';
   }
 
+  if (
+    notification.eventType === 'JOURNAL_ENTRY_CREATED' ||
+    notification.eventType === 'JOURNAL_ENTRY_UPDATED' ||
+    notification.category === 'JOURNAL'
+  ) {
+    return 'DIARIO';
+  }
+
+  if (
+    notification.eventType === 'PROJECT_ASSET_CREATED' ||
+    notification.eventType === 'PROJECT_ASSET_UPDATED' ||
+    notification.category === 'REPOSITORY'
+  ) {
+    return 'REPOSITORIO';
+  }
+
   return 'OUTROS';
 };
 
@@ -66,11 +90,17 @@ export const getNotificationSubtype = (notification: UserNotification): Notifica
   if (notification.eventType === 'LABOR_PAYMENT_RECORDED') return 'PAGAMENTO_MO';
   if (notification.eventType === 'TASK_CREATED') return 'TAREFA_CRIADA';
   if (notification.eventType === 'TASK_STATUS_CHANGED') return 'STATUS_TAREFA';
+  if (notification.eventType === 'JOURNAL_ENTRY_CREATED') return 'DIARIO_CRIADO';
+  if (notification.eventType === 'JOURNAL_ENTRY_UPDATED') return 'DIARIO_ATUALIZADO';
+  if (notification.eventType === 'PROJECT_ASSET_CREATED') return 'ARQUIVO_CRIADO';
+  if (notification.eventType === 'PROJECT_ASSET_UPDATED') return 'ARQUIVO_ATUALIZADO';
 
   if (notification.category === 'FINANCIAL') return 'PAGAMENTO';
   if (notification.category === 'SUPPLIES') return 'ENTREGA';
   if (notification.category === 'WORKFORCE') return 'STATUS_CONTRATO';
   if (notification.category === 'PLANNING') return 'STATUS_TAREFA';
+  if (notification.category === 'JOURNAL') return 'DIARIO_ATUALIZADO';
+  if (notification.category === 'REPOSITORY') return 'ARQUIVO_ATUALIZADO';
 
   return 'OUTROS';
 };
@@ -79,6 +109,8 @@ export const getNotificationTypeLabel = (type: NotificationTypeKey) => {
   if (type === 'SUPRIMENTO') return 'Suprimentos';
   if (type === 'MAO_DE_OBRA') return 'M.O.';
   if (type === 'PLANEJAMENTO') return 'Planejamento';
+  if (type === 'DIARIO') return 'Diário';
+  if (type === 'REPOSITORIO') return 'Repositório';
   return 'Outros';
 };
 
@@ -92,6 +124,10 @@ export const getNotificationSubtypeLabel = (subtype: NotificationSubtypeKey) => 
   if (subtype === 'PAGAMENTO_MO') return 'Pagamento';
   if (subtype === 'TAREFA_CRIADA') return 'Tarefa criada';
   if (subtype === 'STATUS_TAREFA') return 'Status da tarefa';
+  if (subtype === 'DIARIO_CRIADO') return 'Entrada criada';
+  if (subtype === 'DIARIO_ATUALIZADO') return 'Entrada atualizada';
+  if (subtype === 'ARQUIVO_CRIADO') return 'Arquivo criado';
+  if (subtype === 'ARQUIVO_ATUALIZADO') return 'Arquivo atualizado';
   return 'Ação';
 };
 
@@ -114,6 +150,20 @@ export const getNotificationTypeClasses = (type: NotificationTypeKey) => {
     return {
       badge: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
       border: 'border-l-cyan-500',
+    };
+  }
+
+  if (type === 'DIARIO') {
+    return {
+      badge: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
+      border: 'border-l-lime-500',
+    };
+  }
+
+  if (type === 'REPOSITORIO') {
+    return {
+      badge: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
+      border: 'border-l-violet-500',
     };
   }
 
@@ -212,6 +262,34 @@ export const getNotificationSubtypeClasses = (subtype: NotificationSubtypeKey, n
     return {
       badge: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300',
       border: 'border-l-sky-500',
+    };
+  }
+
+  if (subtype === 'DIARIO_CRIADO') {
+    return {
+      badge: 'bg-lime-100 text-lime-700 dark:bg-lime-900/30 dark:text-lime-300',
+      border: 'border-l-lime-500',
+    };
+  }
+
+  if (subtype === 'DIARIO_ATUALIZADO') {
+    return {
+      badge: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+      border: 'border-l-green-500',
+    };
+  }
+
+  if (subtype === 'ARQUIVO_CRIADO') {
+    return {
+      badge: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300',
+      border: 'border-l-violet-500',
+    };
+  }
+
+  if (subtype === 'ARQUIVO_ATUALIZADO') {
+    return {
+      badge: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+      border: 'border-l-purple-500',
     };
   }
 

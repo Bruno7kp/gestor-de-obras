@@ -71,6 +71,19 @@ const DEFAULT_PREFERENCE: PreferenceResolved = {
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
+  private principalInstanceIdCache: string | null | undefined;
+
+  private readonly workforceNotificationEvents = new Set([
+    'LABOR_CONTRACT_CREATED',
+    'LABOR_CONTRACT_STATUS_CHANGED',
+    'LABOR_PAYMENT_RECORDED',
+  ]);
+
+  private readonly suppliesNotificationEvents = new Set([
+    'EXPENSE_PAID',
+    'EXPENSE_DELIVERED',
+    'MATERIAL_ON_SITE_CONFIRMED',
+  ]);
 
   constructor(
     private readonly prisma: PrismaService,
@@ -135,6 +148,23 @@ export class NotificationsService {
     return score;
   }
 
+  private async getPrincipalInstanceId() {
+    if (this.principalInstanceIdCache !== undefined) {
+      return this.principalInstanceIdCache;
+    }
+
+    const principalInstanceName =
+      process.env.ADMIN_INSTANCE_NAME || 'Instancia Principal';
+
+    const principalInstance = await this.prisma.instance.findFirst({
+      where: { name: principalInstanceName },
+      select: { id: true },
+    });
+
+    this.principalInstanceIdCache = principalInstance?.id ?? null;
+    return this.principalInstanceIdCache;
+  }
+
   private async resolveCandidateUsers(input: EmitNotificationInput) {
     const explicitUserIds = new Set<string>();
 
@@ -194,6 +224,11 @@ export class NotificationsService {
     }
 
     if (input.includeProjectMembers && input.projectId) {
+      const principalInstanceId = await this.getPrincipalInstanceId();
+      const privilegedInstanceIds = principalInstanceId
+        ? Array.from(new Set([input.instanceId, principalInstanceId]))
+        : [input.instanceId];
+
       const members = await this.prisma.projectMember.findMany({
         where: { projectId: input.projectId },
         select: { userId: true },
@@ -201,14 +236,16 @@ export class NotificationsService {
 
       const privilegedUsers = await this.prisma.user.findMany({
         where: {
-          instanceId: input.instanceId,
+          instanceId: { in: privilegedInstanceIds },
           status: 'ACTIVE',
           OR: [
             {
               roles: {
                 some: {
                   role: {
-                    name: { in: ['ADMIN', 'SUPER_ADMIN'] },
+                    name: {
+                      in: ['ADMIN', 'SUPER_ADMIN', 'Gestor Principal'],
+                    },
                   },
                 },
               },
@@ -590,7 +627,7 @@ export class NotificationsService {
         userId,
         role: {
           instanceId,
-          name: { in: ['ADMIN', 'SUPER_ADMIN'] },
+          name: { in: ['ADMIN', 'SUPER_ADMIN', 'Gestor Principal'] },
         },
       },
     });
@@ -603,17 +640,18 @@ export class NotificationsService {
         rows
           .filter(
             (row) =>
-              (row.notification.eventType === 'LABOR_CONTRACT_CREATED' ||
-                row.notification.eventType ===
-                  'LABOR_CONTRACT_STATUS_CHANGED' ||
-                row.notification.eventType === 'LABOR_PAYMENT_RECORDED' ||
+              (this.workforceNotificationEvents.has(
+                row.notification.eventType,
+              ) ||
                 row.notification.category === 'WORKFORCE' ||
-                row.notification.eventType === 'EXPENSE_PAID' ||
-                row.notification.eventType === 'EXPENSE_DELIVERED' ||
-                row.notification.eventType === 'MATERIAL_ON_SITE_CONFIRMED' ||
+                this.suppliesNotificationEvents.has(
+                  row.notification.eventType,
+                ) ||
                 row.notification.category === 'SUPPLIES' ||
                 row.notification.category === 'FINANCIAL' ||
-                row.notification.category === 'PLANNING') &&
+                row.notification.category === 'PLANNING' ||
+                row.notification.category === 'JOURNAL' ||
+                row.notification.category === 'REPOSITORY') &&
               !!row.notification.projectId,
           )
           .map((row) => row.notification.projectId as string),
@@ -668,9 +706,7 @@ export class NotificationsService {
 
     const scopedRows = rows.filter((row) => {
       if (
-        row.notification.eventType === 'LABOR_CONTRACT_CREATED' ||
-        row.notification.eventType === 'LABOR_CONTRACT_STATUS_CHANGED' ||
-        row.notification.eventType === 'LABOR_PAYMENT_RECORDED' ||
+        this.workforceNotificationEvents.has(row.notification.eventType) ||
         row.notification.category === 'WORKFORCE'
       ) {
         return hasAnyPermission(row.notification.projectId, [
@@ -680,9 +716,7 @@ export class NotificationsService {
       }
 
       if (
-        row.notification.eventType === 'EXPENSE_PAID' ||
-        row.notification.eventType === 'EXPENSE_DELIVERED' ||
-        row.notification.eventType === 'MATERIAL_ON_SITE_CONFIRMED' ||
+        this.suppliesNotificationEvents.has(row.notification.eventType) ||
         row.notification.category === 'SUPPLIES' ||
         row.notification.category === 'FINANCIAL'
       ) {
@@ -696,6 +730,20 @@ export class NotificationsService {
         return hasAnyPermission(row.notification.projectId, [
           'planning.view',
           'planning.edit',
+        ]);
+      }
+
+      if (row.notification.category === 'JOURNAL') {
+        return hasAnyPermission(row.notification.projectId, [
+          'journal.view',
+          'journal.edit',
+        ]);
+      }
+
+      if (row.notification.category === 'REPOSITORY') {
+        return hasAnyPermission(row.notification.projectId, [
+          'documents.view',
+          'documents.edit',
         ]);
       }
 

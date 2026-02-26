@@ -5,6 +5,7 @@ import {
   ensureProjectAccess,
   ensureProjectWritable,
 } from '../common/project-access.util';
+import { NotificationsService } from '../notifications/notifications.service';
 
 interface CreateAssetInput {
   id?: string;
@@ -22,12 +23,78 @@ interface CreateAssetInput {
 
 interface UpdateAssetInput extends Partial<CreateAssetInput> {
   id: string;
+  instanceId: string;
   userId?: string;
 }
 
 @Injectable()
 export class ProjectAssetsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
+
+  private async emitAssetCreatedNotification(input: {
+    instanceId: string;
+    projectId: string;
+    actorUserId?: string;
+    asset: {
+      id: string;
+      name: string;
+      category: string;
+      fileType: string;
+    };
+  }) {
+    await this.notificationsService.emit({
+      instanceId: input.instanceId,
+      projectId: input.projectId,
+      actorUserId: input.actorUserId,
+      category: 'REPOSITORY',
+      eventType: 'PROJECT_ASSET_CREATED',
+      priority: 'normal',
+      title: 'Novo arquivo no repositório',
+      body: `${input.asset.name} foi adicionado ao repositório da obra.`,
+      dedupeKey: `project-asset:${input.asset.id}:CREATED`,
+      permissionCodes: ['documents.view', 'documents.edit'],
+      includeProjectMembers: true,
+      metadata: {
+        assetId: input.asset.id,
+        category: input.asset.category,
+        fileType: input.asset.fileType,
+      },
+    });
+  }
+
+  private async emitAssetUpdatedNotification(input: {
+    instanceId: string;
+    projectId: string;
+    actorUserId?: string;
+    asset: {
+      id: string;
+      name: string;
+      category: string;
+      fileType: string;
+    };
+  }) {
+    await this.notificationsService.emit({
+      instanceId: input.instanceId,
+      projectId: input.projectId,
+      actorUserId: input.actorUserId,
+      category: 'REPOSITORY',
+      eventType: 'PROJECT_ASSET_UPDATED',
+      priority: 'normal',
+      title: 'Arquivo do repositório atualizado',
+      body: `${input.asset.name} foi atualizado no repositório da obra.`,
+      dedupeKey: `project-asset:${input.asset.id}:UPDATED`,
+      permissionCodes: ['documents.view', 'documents.edit'],
+      includeProjectMembers: true,
+      metadata: {
+        assetId: input.asset.id,
+        category: input.asset.category,
+        fileType: input.asset.fileType,
+      },
+    });
+  }
 
   private async ensureProject(
     projectId: string,
@@ -56,7 +123,7 @@ export class ProjectAssetsService {
 
   async create(input: CreateAssetInput) {
     await this.ensureProject(input.projectId, input.instanceId, input.userId, true);
-    return this.prisma.projectAsset.create({
+    const createdAsset = await this.prisma.projectAsset.create({
       data: {
         id: input.id,
         projectId: input.projectId,
@@ -74,6 +141,20 @@ export class ProjectAssetsService {
         },
       },
     });
+
+    await this.emitAssetCreatedNotification({
+      instanceId: input.instanceId,
+      projectId: input.projectId,
+      actorUserId: input.userId,
+      asset: {
+        id: createdAsset.id,
+        name: createdAsset.name,
+        category: createdAsset.category,
+        fileType: createdAsset.fileType,
+      },
+    });
+
+    return createdAsset;
   }
 
   async update(input: UpdateAssetInput) {
@@ -96,7 +177,7 @@ export class ProjectAssetsService {
 
     await ensureProjectWritable(this.prisma, existing.projectId);
 
-    return this.prisma.projectAsset.update({
+    const updatedAsset = await this.prisma.projectAsset.update({
       where: { id: input.id },
       data: {
         name: input.name ?? existing.name,
@@ -112,6 +193,20 @@ export class ProjectAssetsService {
         },
       },
     });
+
+    await this.emitAssetUpdatedNotification({
+      instanceId: input.instanceId,
+      projectId: existing.projectId,
+      actorUserId: input.userId,
+      asset: {
+        id: updatedAsset.id,
+        name: updatedAsset.name,
+        category: updatedAsset.category,
+        fileType: updatedAsset.fileType,
+      },
+    });
+
+    return updatedAsset;
   }
 
   async remove(id: string, instanceId: string, userId?: string) {

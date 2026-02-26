@@ -5,6 +5,7 @@ import {
   ensureProjectAccess,
   ensureProjectWritable,
 } from '../common/project-access.util';
+import { NotificationsService } from '../notifications/notifications.service';
 
 interface CreateJournalEntryInput {
   id?: string;
@@ -25,7 +26,72 @@ interface CreateJournalEntryInput {
 
 @Injectable()
 export class JournalService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
+
+  private async emitJournalEntryCreatedNotification(input: {
+    instanceId: string;
+    projectId: string;
+    actorUserId?: string;
+    entry: {
+      id: string;
+      title: string;
+      category: string;
+      type: string;
+    };
+  }) {
+    await this.notificationsService.emit({
+      instanceId: input.instanceId,
+      projectId: input.projectId,
+      actorUserId: input.actorUserId,
+      category: 'JOURNAL',
+      eventType: 'JOURNAL_ENTRY_CREATED',
+      priority: 'normal',
+      title: 'Nova entrada no diário da obra',
+      body: `${input.entry.title} foi registrada no diário (${input.entry.category}).`,
+      dedupeKey: `journal-entry:${input.entry.id}:CREATED`,
+      permissionCodes: ['journal.view', 'journal.edit'],
+      includeProjectMembers: true,
+      metadata: {
+        journalEntryId: input.entry.id,
+        journalCategory: input.entry.category,
+        journalType: input.entry.type,
+      },
+    });
+  }
+
+  private async emitJournalEntryUpdatedNotification(input: {
+    instanceId: string;
+    projectId: string;
+    actorUserId?: string;
+    entry: {
+      id: string;
+      title: string;
+      category: string;
+      type: string;
+    };
+  }) {
+    await this.notificationsService.emit({
+      instanceId: input.instanceId,
+      projectId: input.projectId,
+      actorUserId: input.actorUserId,
+      category: 'JOURNAL',
+      eventType: 'JOURNAL_ENTRY_UPDATED',
+      priority: 'normal',
+      title: 'Entrada do diário atualizada',
+      body: `${input.entry.title} foi atualizada no diário (${input.entry.category}).`,
+      dedupeKey: `journal-entry:${input.entry.id}:UPDATED`,
+      permissionCodes: ['journal.view', 'journal.edit'],
+      includeProjectMembers: true,
+      metadata: {
+        journalEntryId: input.entry.id,
+        journalCategory: input.entry.category,
+        journalType: input.entry.type,
+      },
+    });
+  }
 
   private async ensureProject(
     projectId: string,
@@ -75,7 +141,7 @@ export class JournalService {
       throw new NotFoundException('Diario da obra nao encontrado');
     }
 
-    return this.prisma.journalEntry.create({
+    const createdEntry = await this.prisma.journalEntry.create({
       data: {
         id: input.id,
         projectJournalId: journal.id,
@@ -97,6 +163,20 @@ export class JournalService {
         },
       },
     });
+
+    await this.emitJournalEntryCreatedNotification({
+      instanceId: input.instanceId,
+      projectId: input.projectId,
+      actorUserId: input.userId,
+      entry: {
+        id: createdEntry.id,
+        title: createdEntry.title,
+        category: createdEntry.category,
+        type: createdEntry.type,
+      },
+    });
+
+    return createdEntry;
   }
 
   async updateEntry(
@@ -148,7 +228,7 @@ export class JournalService {
 
     await ensureProjectWritable(this.prisma, entry.projectJournal.projectId);
 
-    return this.prisma.journalEntry.update({
+    const updatedEntry = await this.prisma.journalEntry.update({
       where: { id },
       data: {
         timestamp: data.timestamp ?? entry.timestamp,
@@ -177,6 +257,20 @@ export class JournalService {
         },
       },
     });
+
+    await this.emitJournalEntryUpdatedNotification({
+      instanceId,
+      projectId: entry.projectJournal.projectId,
+      actorUserId: userId,
+      entry: {
+        id: updatedEntry.id,
+        title: updatedEntry.title,
+        category: updatedEntry.category,
+        type: updatedEntry.type,
+      },
+    });
+
+    return updatedEntry;
   }
 
   async deleteEntry(id: string, instanceId: string, userId?: string) {

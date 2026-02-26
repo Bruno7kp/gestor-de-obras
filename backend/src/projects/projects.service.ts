@@ -584,10 +584,6 @@ export class ProjectsService {
       where: { id: input.id },
       data: {
         name: input.name ?? existing.name,
-        description:
-          input.description !== undefined
-            ? this.sanitizeHtml(input.description)
-            : existing.description,
         companyName: input.companyName ?? existing.companyName,
         companyCnpj: input.companyCnpj ?? existing.companyCnpj,
         location: input.location ?? existing.location,
