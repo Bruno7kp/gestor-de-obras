@@ -106,7 +106,14 @@ async function main() {
       },
       include: {
         supplier: { select: { id: true, name: true } },
-        supplyGroup: { select: { id: true, title: true } },
+        supplyGroup: {
+          select: {
+            id: true,
+            title: true,
+            invoiceDoc: true,
+            paymentProof: true,
+          },
+        },
       },
     });
 
@@ -198,6 +205,13 @@ async function main() {
               isPaid: forecast.isPaid,
               status: expectedStatus,
               entityName: forecast.supplier?.name || expense.entityName,
+              paymentProof:
+                forecast.paymentProof ??
+                forecast.supplyGroup?.paymentProof ??
+                expense.paymentProof,
+              invoiceDoc:
+                forecast.supplyGroup?.invoiceDoc ?? expense.invoiceDoc,
+              deliveryDate: forecast.deliveryDate ?? expense.deliveryDate,
             },
           });
         }
@@ -286,8 +300,11 @@ async function main() {
             isPaid: forecast.isPaid,
             status: expectedStatus,
             paymentDate: forecast.isPaid ? effectiveDate : null,
-            paymentProof: forecast.paymentProof ?? null,
-            invoiceDoc: null,
+            paymentProof:
+              forecast.paymentProof ??
+              forecast.supplyGroup?.paymentProof ??
+              null,
+            invoiceDoc: forecast.supplyGroup?.invoiceDoc ?? null,
             deliveryDate: forecast.deliveryDate ?? null,
           },
         });
