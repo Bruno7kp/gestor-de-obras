@@ -23,6 +23,7 @@ import { WorkItemModal } from './WorkItemModal';
 import { ProjectMembersBadge } from './ProjectMembersBadge';
 import { ProjectMembersModal } from './ProjectMembersModal';
 import { ProjectNotificationsDrawer } from './ProjectNotificationsDrawer';
+import { ProjectDescriptionModal } from './ProjectDescriptionModal';
 import { InventoryView } from './InventoryView';
 import { BlueprintView } from './BlueprintView';
 import { PrintReport } from './PrintReport';
@@ -93,6 +94,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(project.name);
   const [showNotificationsDrawer, setShowNotificationsDrawer] = useState(false);
+  const [showDescriptionModal, setShowDescriptionModal] = useState(false);
   const [deletingNotificationId, setDeletingNotificationId] = useState<string | null>(null);
   const [isExpensePrintModalOpen, setIsExpensePrintModalOpen] = useState(false);
   const [expensePrintMode, setExpensePrintMode] = useState<ExpensePrintMode>('complete');
@@ -1099,6 +1101,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                 <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-50"><Clock size={12} /></div>
                 <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-50 text-current"><ChevronDown size={14} /></div>
               </div>
+              <button
+                onClick={() => setShowDescriptionModal(true)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
+                title="Descrição da obra"
+              >
+                <Info size={13} />
+              </button>
               <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest whitespace-nowrap">Ref: {displayData.date}</span>
               {isHistoryMode && <div className="flex items-center gap-1.5 px-2 py-0.5 bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-100 rounded-md text-[8px] font-black uppercase shadow-sm"><Lock size={10} /> Arquivo Congelado</div>}
             </div>
@@ -1571,6 +1580,17 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
               onMembersChange={handleMembersChange}
             />
           )}
+
+          <ProjectDescriptionModal
+            isOpen={showDescriptionModal}
+            onClose={() => setShowDescriptionModal(false)}
+            description={project.description ?? ''}
+            canEdit={canEditProject && !isProjectArchived}
+            onSave={async (html) => {
+              await projectsApi.update(project.id, { description: html } as any);
+              onUpdateProject({ description: html });
+            }}
+          />
         </>
       )}
     </div>

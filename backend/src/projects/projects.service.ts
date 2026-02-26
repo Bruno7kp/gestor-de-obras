@@ -23,6 +23,7 @@ interface UpdateProjectInput {
   userId: string;
   permissions: string[];
   name?: string;
+  description?: string | null;
   companyName?: string;
   companyCnpj?: string;
   location?: string;
@@ -66,6 +67,43 @@ interface UpdateProjectLifecycleInput {
 @Injectable()
 export class ProjectsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Sanitize HTML allowing only safe tags for project descriptions.
+   * Strips everything except <p>, <br>, <strong>, <b>, <em>, <a>, <ul>, <ol>, <li>.
+   * On <a> tags, only href and target attributes are kept.
+   */
+  private sanitizeHtml(html: string | null | undefined): string | null {
+    if (html == null) return null;
+    const trimmed = html.trim();
+    if (!trimmed || trimmed === '<p><br></p>') return null;
+
+    const allowedTags = new Set([
+      'p', 'br', 'strong', 'b', 'em', 'i', 'a', 'ul', 'ol', 'li',
+    ]);
+
+    return trimmed.replace(/<\/?([a-zA-Z][a-zA-Z0-9]*)\b([^>]*)?\/?>/g, (match, tag, attrs) => {
+      const lowerTag = (tag as string).toLowerCase();
+      if (!allowedTags.has(lowerTag)) return '';
+      if (lowerTag === 'a' && attrs) {
+        const hrefMatch = (attrs as string).match(/href\s*=\s*"([^"]*)"/i);
+        const targetMatch = (attrs as string).match(/target\s*=\s*"([^"]*)"/i);
+        const safeAttrs: string[] = [];
+        if (hrefMatch) {
+          const href = hrefMatch[1];
+          if (/^https?:\/\//i.test(href)) {
+            safeAttrs.push(`href="${href}"`);
+          }
+        }
+        safeAttrs.push('target="_blank"');
+        safeAttrs.push('rel="noopener noreferrer"');
+        return `<a ${safeAttrs.join(' ')}>`;
+      }
+      if (match.startsWith('</')) return `</${lowerTag}>`;
+      if (match.endsWith('/>')) return `<${lowerTag} />`;
+      return `<${lowerTag}>`;
+    });
+  }
 
   private async canManageProjectLifecycle(
     projectId: string,
@@ -546,6 +584,10 @@ export class ProjectsService {
       where: { id: input.id },
       data: {
         name: input.name ?? existing.name,
+        description:
+          input.description !== undefined
+            ? this.sanitizeHtml(input.description)
+            : existing.description,
         companyName: input.companyName ?? existing.companyName,
         companyCnpj: input.companyCnpj ?? existing.companyCnpj,
         location: input.location ?? existing.location,

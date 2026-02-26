@@ -501,6 +501,7 @@ export interface Project {
   order: number;
   progress?: number;
   name: string;
+  description?: string;
   companyName: string;
   companyCnpj: string;
   location: string;

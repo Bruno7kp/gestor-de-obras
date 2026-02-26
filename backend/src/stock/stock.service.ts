@@ -167,7 +167,11 @@ export class StockService {
         }),
     );
 
-    await ensureProjectWritable(this.prisma, (item as any).projectId ?? (item as any).project?.id);
+    const projectId =
+      (item as { projectId: string }).projectId ??
+      (item as { project?: { id: string } }).project?.id;
+
+    await ensureProjectWritable(this.prisma, projectId);
 
     const data: Record<string, any> = {};
     if (input.name !== undefined) data.name = input.name;
@@ -228,10 +232,11 @@ export class StockService {
         }),
     );
 
-    await ensureProjectWritable(
-      this.prisma,
-      (item as any).projectId ?? (item as any).project?.id,
-    );
+    const projectId =
+      (item as { projectId: string }).projectId ??
+      (item as { project?: { id: string } }).project?.id;
+
+    await ensureProjectWritable(this.prisma, projectId);
 
     if (input.quantity <= 0) {
       throw new BadRequestException('Quantidade deve ser maior que zero');
@@ -245,7 +250,8 @@ export class StockService {
           stockItemId: input.stockItemId,
           type: input.type,
           quantity: input.quantity,
-          responsible: input.type === 'EXIT' ? (input.responsible ?? null) : null,
+          responsible:
+            input.type === 'EXIT' ? (input.responsible ?? null) : null,
           createdById: input.type === 'ENTRY' ? input.userId : undefined,
           notes: input.notes ?? '',
           date: input.date ? new Date(input.date) : new Date(),
@@ -271,7 +277,11 @@ export class StockService {
   async updateMovement(input: UpdateMovementInput) {
     const movement = await this.prisma.stockMovement.findUnique({
       where: { id: input.movementId },
-      include: { stockItem: { include: { project: { select: { id: true, instanceId: true } } } } },
+      include: {
+        stockItem: {
+          include: { project: { select: { id: true, instanceId: true } } },
+        },
+      },
     });
 
     if (!movement) {
@@ -297,7 +307,8 @@ export class StockService {
     }
 
     // Calculate delta reversal and new delta
-    const oldDelta = movement.type === 'ENTRY' ? movement.quantity : -movement.quantity;
+    const oldDelta =
+      movement.type === 'ENTRY' ? movement.quantity : -movement.quantity;
     const newDelta = movement.type === 'ENTRY' ? newQuantity : -newQuantity;
     const adjustment = newDelta - oldDelta;
 
@@ -338,7 +349,11 @@ export class StockService {
   ) {
     const movement = await this.prisma.stockMovement.findUnique({
       where: { id: movementId },
-      include: { stockItem: { include: { project: { select: { id: true, instanceId: true } } } } },
+      include: {
+        stockItem: {
+          include: { project: { select: { id: true, instanceId: true } } },
+        },
+      },
     });
 
     if (!movement) {
@@ -352,7 +367,8 @@ export class StockService {
     await ensureProjectWritable(this.prisma, project.id);
 
     // Reverse the delta
-    const reverseDelta = movement.type === 'ENTRY' ? -movement.quantity : movement.quantity;
+    const reverseDelta =
+      movement.type === 'ENTRY' ? -movement.quantity : movement.quantity;
 
     return this.prisma.$transaction(async (tx) => {
       await tx.stockMovement.delete({ where: { id: movementId } });

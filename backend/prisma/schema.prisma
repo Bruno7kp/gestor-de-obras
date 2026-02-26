@@ -163,6 +163,7 @@ model Project {
   groupId               String?
   order                 Int                   @default(0)
   name                  String
+  description           String?
   companyName           String
   companyCnpj           String
   location              String
