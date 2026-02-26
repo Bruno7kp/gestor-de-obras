@@ -318,23 +318,42 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
   return (
     <div ref={rootRef} className="space-y-6">
       {/* 1. HEADER */}
-      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-end gap-6 bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm">
-
-        <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-stretch gap-3">
+        <div className="flex-1 flex items-center gap-2.5 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <Calculator size={16} className="text-blue-500" />
+          <div className="leading-tight">
+            <p className="text-sm font-black text-slate-800 dark:text-white">{localItems.filter(i => i.type === 'item').length}</p>
+            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Itens</p>
+          </div>
+        </div>
+        <div className="flex-1 flex items-center gap-2.5 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <Coins size={16} className="text-indigo-500" />
+          <div className="leading-tight">
+            <p className="text-sm font-black text-slate-800 dark:text-white">{financial.formatVisual(averageValue, currencySymbol)}</p>
+            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Valor méd.</p>
+          </div>
+        </div>
+        <div className="flex-1 flex items-center gap-2.5 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <Layers size={16} className="text-emerald-500" />
+          <div className="leading-tight">
+            <p className="text-sm font-black text-slate-800 dark:text-white">{localItems.filter(i => i.type === 'category').length}</p>
+            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Categorias</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
           {canEditBlueprint && (
             <button 
               onClick={() => onOpenModal('item', null, null)} 
-              className="px-6 py-3 bg-indigo-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg shadow-indigo-500/10 hover:bg-indigo-700 transition-colors"
+              className="flex items-center gap-2 px-5 py-2 bg-indigo-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-indigo-500/10 hover:bg-indigo-700 transition-colors"
             >
-              <Plus size={14} className="inline mr-1"/> Novo Item
+              <Plus size={14}/> Novo Item
             </button>
           )}
-
-          <div className="relative w-full lg:w-64">
+          <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
             <input 
               placeholder="Buscar item..." 
-              className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 pl-11 pr-4 py-2.5 rounded-xl text-xs outline-none focus:border-indigo-500 transition-all dark:text-white font-bold"
+              className="bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 pl-11 pr-4 py-2 rounded-xl text-xs outline-none focus:border-indigo-500 transition-all dark:text-white font-bold w-56"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)} 
             />
@@ -464,33 +483,6 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
               </tr>
             </tfoot>
           </table>
-        </div>
-      </div>
-
-      {/* 3. FOOTER INFO */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-blue-50 dark:bg-blue-900/30 text-blue-600 rounded-2xl"><Calculator size={20}/></div>
-          <div>
-            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Total de Itens</p>
-            <p className="text-xl font-black text-slate-800 dark:text-white">{localItems.filter(i => i.type === 'item').length}</p>
-          </div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 rounded-2xl"><Coins size={20}/></div>
-          <div>
-            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Valor Médio/Item</p>
-            <p className="text-xl font-black text-slate-800 dark:text-white">
-              {financial.formatVisual(averageValue, currencySymbol)}
-            </p>
-          </div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 rounded-2xl"><Layers size={20}/></div>
-          <div>
-            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Categorias EAP</p>
-            <p className="text-xl font-black text-slate-800 dark:text-white">{localItems.filter(i => i.type === 'category').length}</p>
-          </div>
         </div>
       </div>
     </div>

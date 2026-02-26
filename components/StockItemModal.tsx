@@ -107,7 +107,7 @@ export const StockItemModal: React.FC<StockItemModalProps> = ({ isOpen, onClose,
             </div>
             <div>
               <div className="flex items-center justify-between mb-1.5 ml-1">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Estoque Mínimo</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Estoque Esperado</label>
                 <div className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-xl py-0.5 px-1">
                   <button
                     type="button"

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Package, Plus, Search, ArrowUpCircle, ArrowDownCircle,
   History, AlertTriangle, Edit2, Trash2, GripVertical, RefreshCw, ChevronDown,
+  Boxes, TrendingDown, Activity,
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import type { StockItem, StockMovement, StockMovementType } from '../types';
@@ -59,6 +60,13 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ projectId, canEdit
       .filter((item) => item.name.toLowerCase().includes(searchTerm.toLowerCase()))
       .sort((a, b) => a.order - b.order);
   }, [stockItems, searchTerm]);
+
+  const stockStats = useMemo(() => {
+    const totalItems = stockItems.length;
+    const totalExits = stockItems.reduce((sum, i) => sum + i.movements.filter(m => m.type === 'exit').length, 0);
+    const totalEntries = stockItems.reduce((sum, i) => sum + i.movements.filter(m => m.type === 'entry').length, 0);
+    return { totalItems, totalExits, totalEntries };
+  }, [stockItems]);
 
   const handleDragEnd = async (result: DropResult) => {
     if (!result.destination || !canEdit) return;
@@ -212,22 +220,43 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ projectId, canEdit
   return (
     <div className="space-y-6">
       {/* 1. TOP BAR */}
-      <div className="flex justify-end">
-        <div className="flex items-center gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+      <div className="flex flex-wrap items-stretch gap-3">
+        <div className="flex-1 flex items-center gap-2.5 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <Boxes size={16} className="text-indigo-500" />
+          <div className="leading-tight">
+            <p className="text-sm font-black text-slate-800 dark:text-white">{stockStats.totalItems}</p>
+            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Materiais</p>
+          </div>
+        </div>
+        <div className="flex-1 flex items-center gap-2.5 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <ArrowDownCircle size={16} className="text-rose-500" />
+          <div className="leading-tight">
+            <p className="text-sm font-black text-slate-800 dark:text-white">{stockStats.totalExits}</p>
+            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Retiradas</p>
+          </div>
+        </div>
+        <div className="flex-1 flex items-center gap-2.5 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <ArrowUpCircle size={16} className="text-emerald-500" />
+          <div className="leading-tight">
+            <p className="text-sm font-black text-slate-800 dark:text-white">{stockStats.totalEntries}</p>
+            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Entradas</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
           <div className="relative">
             <input
               type="text"
               placeholder="Buscar material..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2.5 bg-slate-100 dark:bg-slate-800 border-transparent focus:bg-white dark:focus:bg-slate-700 border-2 focus:border-indigo-500 rounded-xl outline-none transition-all text-xs font-bold w-64"
+              className="pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-800 border-transparent focus:bg-white dark:focus:bg-slate-700 border-2 focus:border-indigo-500 rounded-xl outline-none transition-all text-xs font-bold w-56"
             />
             <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           </div>
           {canEdit && (
             <button
               onClick={() => { setEditingItem(null); setIsItemModalOpen(true); }}
-              className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20"
+              className="flex items-center gap-2 px-5 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20"
             >
               <Plus size={16} /> Novo Item
             </button>
@@ -277,7 +306,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ projectId, canEdit
                               {item.currentQuantity <= item.minQuantity && item.minQuantity > 0 && (
                                 <div className="flex items-center gap-1.5 mt-1 text-amber-500">
                                   <AlertTriangle size={12} />
-                                  <span className="text-[9px] font-black uppercase tracking-widest">Estoque Baixo (Mín: {financial.formatQuantity(item.minQuantity)})</span>
+                                  <span className="text-[9px] font-black uppercase tracking-widest">Estoque Baixo (Esperado: {financial.formatQuantity(item.minQuantity)})</span>
                                 </div>
                               )}
                             </div>
