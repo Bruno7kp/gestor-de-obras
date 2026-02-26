@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Package, Plus, Search, ArrowUpCircle, ArrowDownCircle,
   History, AlertTriangle, Edit2, Trash2, GripVertical, RefreshCw, ChevronDown,
-  Boxes, TrendingDown, Activity,
+  Boxes, TrendingDown, Activity, CheckCircle2,
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import type { StockItem, StockMovement, StockMovementType } from '../types';
@@ -303,12 +303,28 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ projectId, canEdit
 
                             <div className="min-w-0">
                               <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{item.name}</p>
-                              {item.currentQuantity <= item.minQuantity && item.minQuantity > 0 && (
-                                <div className="flex items-center gap-1.5 mt-1 text-amber-500">
-                                  <AlertTriangle size={12} />
-                                  <span className="text-[9px] font-black uppercase tracking-widest">Estoque Baixo (Esperado: {financial.formatQuantity(item.minQuantity)})</span>
-                                </div>
-                              )}
+                              {(() => {
+                                const totalEntries = item.movements.filter(m => m.type === 'entry').reduce((s, m) => s + m.quantity, 0);
+                                const totalExits = item.movements.filter(m => m.type === 'exit').reduce((s, m) => s + m.quantity, 0);
+                                const hadEntries = totalEntries > 0;
+                                if (item.currentQuantity === 0 && hadEntries) {
+                                  return (
+                                    <div className="flex items-center gap-1.5 mt-1 text-emerald-600">
+                                      <CheckCircle2 size={12} />
+                                      <span className="text-[9px] font-black uppercase tracking-widest">Estoque foi atingido (Utilizado: {financial.formatQuantity(totalExits)} {item.unit})</span>
+                                    </div>
+                                  );
+                                }
+                                if (item.currentQuantity > 0 && item.currentQuantity <= item.minQuantity && item.minQuantity > 0) {
+                                  return (
+                                    <div className="flex items-center gap-1.5 mt-1 text-amber-500">
+                                      <AlertTriangle size={12} />
+                                      <span className="text-[9px] font-black uppercase tracking-widest">Estoque Baixo (Esperado: {financial.formatQuantity(item.minQuantity)})</span>
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              })()}
                             </div>
 
                             <div className="text-center">
@@ -318,7 +334,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ projectId, canEdit
                             </div>
 
                             <div className="text-center">
-                              <span className={`text-sm font-black ${item.currentQuantity <= item.minQuantity && item.minQuantity > 0 ? 'text-amber-500' : item.currentQuantity < 0 ? 'text-rose-500' : 'text-slate-700 dark:text-slate-200'}`}>
+                              <span className={`text-sm font-black ${item.currentQuantity === 0 && item.movements.some(m => m.type === 'entry') ? 'text-emerald-600' : item.currentQuantity <= item.minQuantity && item.minQuantity > 0 ? 'text-amber-500' : item.currentQuantity < 0 ? 'text-rose-500' : 'text-slate-700 dark:text-slate-200'}`}>
                                 {financial.formatQuantity(item.currentQuantity)}
                               </span>
                             </div>
