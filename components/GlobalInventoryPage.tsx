@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Package, Plus, Search, ArrowDownCircle, ArrowUpCircle, AlertTriangle,
-  Truck, ShoppingCart, FileText, Edit2, Trash2, ChevronDown, ChevronRight,
+  ShoppingCart, FileText, Edit2, Trash2, ChevronDown, ChevronRight,
   TrendingUp, RefreshCw, Boxes, DollarSign,
 } from 'lucide-react';
 import { usePermissions } from '../hooks/usePermissions';
@@ -9,7 +9,6 @@ import { useToast } from '../hooks/useToast';
 import { globalStockApi } from '../services/globalStockApi';
 import { purchaseRequestApi } from '../services/purchaseRequestApi';
 import { financial } from '../utils/math';
-import { ConfirmModal } from './ConfirmModal';
 import type { GlobalStockItem, GlobalStockMovement, Supplier, PriceHistoryEntry } from '../types';
 
 interface GlobalInventoryPageProps {
@@ -23,14 +22,12 @@ type InventoryMode = 'almoxarifado' | 'financeiro';
 /* ------------------------------------------------------------------ */
 const GlobalStockItemModal: React.FC<{
   item?: GlobalStockItem | null;
-  suppliers: Supplier[];
-  onSave: (data: { name: string; unit: string; minQuantity: number; supplierId?: string }) => void;
+  onSave: (data: { name: string; unit: string; minQuantity: number }) => void;
   onClose: () => void;
-}> = ({ item, suppliers, onSave, onClose }) => {
+}> = ({ item, onSave, onClose }) => {
   const [name, setName] = useState(item?.name ?? '');
   const [unit, setUnit] = useState(item?.unit ?? 'un');
   const [minQuantity, setMinQuantity] = useState(String(item?.minQuantity ?? 0));
-  const [supplierId, setSupplierId] = useState(item?.supplierId ?? '');
 
   const handleSave = () => {
     if (!name.trim()) return;
@@ -38,7 +35,6 @@ const GlobalStockItemModal: React.FC<{
       name: name.trim(),
       unit: unit.trim() || 'un',
       minQuantity: parseFloat(minQuantity) || 0,
-      supplierId: supplierId || undefined,
     });
   };
 
@@ -63,13 +59,6 @@ const GlobalStockItemModal: React.FC<{
               <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Qtd Mínima</label>
               <input type="number" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-indigo-500 rounded-xl outline-none transition-all text-sm font-bold" value={minQuantity} onChange={e => setMinQuantity(e.target.value)} min={0} step="0.01" />
             </div>
-          </div>
-          <div>
-            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Fornecedor</label>
-            <select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-indigo-500 rounded-xl outline-none transition-all text-sm font-bold" value={supplierId} onChange={e => setSupplierId(e.target.value)}>
-              <option value="">Nenhum</option>
-              {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
           </div>
         </div>
         <div className="px-8 py-5 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
@@ -208,6 +197,61 @@ const PurchaseRequestModal: React.FC<{
 };
 
 /* ------------------------------------------------------------------ */
+/*  Delete Item Modal (type name to confirm)                           */
+/* ------------------------------------------------------------------ */
+const DeleteItemModal: React.FC<{
+  item: GlobalStockItem;
+  onConfirm: () => void;
+  onClose: () => void;
+}> = ({ item, onConfirm, onClose }) => {
+  const [typed, setTyped] = useState('');
+  const matches = typed.trim().toLowerCase() === item.name.trim().toLowerCase();
+
+  return (
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
+      <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex items-start gap-4">
+          <div className="p-3 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded-2xl shrink-0">
+            <AlertTriangle size={24} />
+          </div>
+          <div>
+            <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight">Excluir item do estoque</h3>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Ação irreversível</p>
+          </div>
+        </div>
+        <div className="px-8 py-6 space-y-4">
+          <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+            Deseja realmente excluir <strong className="text-rose-600 dark:text-rose-400">{item.name}</strong> e todo seu histórico de movimentações? Esta ação não pode ser desfeita.
+          </p>
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">
+              Digite <span className="text-rose-600 dark:text-rose-400">{item.name}</span> para confirmar
+            </label>
+            <input
+              className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-rose-500 rounded-xl outline-none transition-all text-sm font-bold"
+              value={typed}
+              onChange={e => setTyped(e.target.value)}
+              placeholder={item.name}
+              autoFocus
+            />
+          </div>
+        </div>
+        <div className="px-8 py-5 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
+          <button onClick={onClose} className="px-6 py-3 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 text-[10px] font-black uppercase tracking-widest transition-all">Cancelar</button>
+          <button
+            onClick={onConfirm}
+            disabled={!matches}
+            className="flex items-center gap-2 px-8 py-3 bg-rose-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-rose-500/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-30 disabled:hover:scale-100 disabled:cursor-not-allowed"
+          >
+            <Trash2 size={16} /> Excluir
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ------------------------------------------------------------------ */
 /*  KPI Card                                                           */
 /* ------------------------------------------------------------------ */
 const KpiCard = ({ label, value, icon, color }: { label: string; value: string | number; icon: React.ReactNode; color: string }) => {
@@ -284,7 +328,7 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
   }, [items]);
 
   // -- Handlers --
-  const handleSaveItem = async (data: { name: string; unit: string; minQuantity: number; supplierId?: string }) => {
+  const handleSaveItem = async (data: { name: string; unit: string; minQuantity: number }) => {
     try {
       if (itemModal.item) {
         const updated = await globalStockApi.update(itemModal.item.id, data);
@@ -454,14 +498,7 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
                       {/* Material name */}
                       <div className="min-w-0">
                         <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{item.name}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          {item.supplier && (
-                            <p className="text-[9px] text-slate-400 font-medium flex items-center gap-1">
-                              <Truck size={9} /> {item.supplier.name}
-                            </p>
-                          )}
-                          <span className="text-[9px] text-slate-400 font-medium">Mín: {item.minQuantity}</span>
-                        </div>
+                        <span className="text-[9px] text-slate-400 font-medium mt-0.5 block">Mín: {item.minQuantity}</span>
                       </div>
 
                       {/* Unit */}
@@ -590,7 +627,6 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
       {itemModal.open && (
         <GlobalStockItemModal
           item={itemModal.item}
-          suppliers={suppliers}
           onSave={handleSaveItem}
           onClose={() => setItemModal({ open: false })}
         />
@@ -610,16 +646,13 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
           onClose={() => setPurchaseModal({ open: false })}
         />
       )}
-      <ConfirmModal
-        isOpen={!!deleteConfirm}
-        title="Excluir item do estoque"
-        message={deleteConfirm ? `Deseja realmente excluir "${deleteConfirm.name}" e todo seu histórico? Esta ação não pode ser desfeita.` : ''}
-        confirmLabel="Excluir"
-        cancelLabel="Cancelar"
-        variant="danger"
-        onConfirm={handleDeleteItem}
-        onCancel={() => setDeleteConfirm(null)}
-      />
+      {deleteConfirm && (
+        <DeleteItemModal
+          item={deleteConfirm}
+          onConfirm={handleDeleteItem}
+          onClose={() => setDeleteConfirm(null)}
+        />
+      )}
     </div>
   );
 };
