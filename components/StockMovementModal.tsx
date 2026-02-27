@@ -192,7 +192,7 @@ export const StockMovementModal: React.FC<StockMovementModalProps> = ({ isOpen, 
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-indigo-500 rounded-2xl outline-none transition-all text-sm font-medium"
+                className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-indigo-500 rounded-2xl outline-none transition-all text-sm font-medium dark:[color-scheme:dark]"
               />
               <Calendar size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
             </div>

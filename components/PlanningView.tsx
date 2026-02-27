@@ -2175,7 +2175,7 @@ const ConfirmSupplyGroupPurchaseModal = ({
             <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest">Data da Compra</label>
             <input
               type="date"
-              className="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 text-xs font-bold outline-none focus:border-indigo-600"
+              className="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 text-xs font-bold outline-none focus:border-indigo-600 dark:[color-scheme:dark]"
               value={purchaseDate}
               onChange={(event) => setPurchaseDate(event.target.value)}
             />
@@ -3828,7 +3828,7 @@ const SupplyGroupModal = ({
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Previsão de Chegada</label>
               <input
                 type="date"
-                className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500"
+                className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500 dark:[color-scheme:dark]"
                 value={estimatedDate}
                 onChange={(event) => setEstimatedDate(event.target.value)}
               />
@@ -4268,7 +4268,7 @@ const ConvertForecastsToGroupModal = ({
           <div>
             <div>
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Previsão</label>
-              <input type="date" className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500" value={estimatedDate} onChange={(event) => setEstimatedDate(event.target.value)} />
+              <input type="date" className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500 dark:[color-scheme:dark]" value={estimatedDate} onChange={(event) => setEstimatedDate(event.target.value)} />
             </div>
           </div>
 
@@ -4473,7 +4473,7 @@ const MilestoneModal = ({ milestone, onClose, onSave }: any) => {
         <h2 className="text-xl font-black mb-6 dark:text-white uppercase tracking-tight">{milestone ? 'Editar Meta' : 'Nova Meta'}</h2>
         <div className="space-y-4">
           <input autoFocus className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-sm font-bold outline-none focus:border-indigo-500 transition-all" value={title} onChange={e => setTitle(e.target.value)} placeholder="Título da Meta" />
-          <input type="date" className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-sm font-bold outline-none focus:border-indigo-500 transition-all" value={date} onChange={e => setDate(e.target.value)} />
+          <input type="date" className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-sm font-bold outline-none focus:border-indigo-500 transition-all dark:[color-scheme:dark]" value={date} onChange={e => setDate(e.target.value)} />
         </div>
         <div className="flex gap-3 mt-8">
            <button onClick={onClose} className="flex-1 py-4 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 font-black uppercase text-[10px]">Cancelar</button>

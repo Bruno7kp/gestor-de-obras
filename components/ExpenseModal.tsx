@@ -318,7 +318,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                       </div>
                       <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">Mês de Competência</label>
-                        <input type="date" className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all" value={formData.date} onChange={e => setFormData(prev => ({ ...prev, date: e.target.value }))} />
+                        <input type="date" className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all dark:[color-scheme:dark]" value={formData.date} onChange={e => setFormData(prev => ({ ...prev, date: e.target.value }))} />
                       </div>
                     </div>
 
@@ -437,7 +437,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                     </label>
                     <input
                       type="date"
-                      className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-black outline-none focus:border-indigo-500 transition-all shadow-sm"
+                      className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-black outline-none focus:border-indigo-500 transition-all shadow-sm dark:[color-scheme:dark]"
                       value={formData.deliveryDate || ''}
                       onChange={e => setFormData(prev => ({ ...prev, deliveryDate: e.target.value }))}
                     />

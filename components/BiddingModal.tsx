@@ -125,14 +125,14 @@ export const BiddingModal: React.FC<BiddingModalProps> = ({ isOpen, onClose, onS
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">Data de Abertura</label>
               <div className="relative">
                 <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18}/>
-                <input type="date" required className="w-full pl-12 pr-6 py-4 rounded-2xl border-2 border-slate-50 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all" value={formData.openingDate} onChange={e => setFormData({...formData, openingDate: e.target.value})} />
+                <input type="date" required className="w-full pl-12 pr-6 py-4 rounded-2xl border-2 border-slate-50 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all dark:[color-scheme:dark]" value={formData.openingDate} onChange={e => setFormData({...formData, openingDate: e.target.value})} />
               </div>
             </div>
             <div>
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">Data de Vencimento</label>
               <div className="relative">
                 <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18}/>
-                <input type="date" className="w-full pl-12 pr-6 py-4 rounded-2xl border-2 border-slate-50 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all" value={formData.expirationDate} onChange={e => setFormData({...formData, expirationDate: e.target.value})} />
+                <input type="date" className="w-full pl-12 pr-6 py-4 rounded-2xl border-2 border-slate-50 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all dark:[color-scheme:dark]" value={formData.expirationDate} onChange={e => setFormData({...formData, expirationDate: e.target.value})} />
               </div>
             </div>
           </div>

@@ -893,7 +893,7 @@ const PaymentModal = ({
               <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block">Data</label>
               <input
                 type="date"
-                className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold outline-none"
+                className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold outline-none dark:[color-scheme:dark]"
                 value={data.data}
                 onChange={e => setData({ ...data, data: e.target.value })}
                 disabled={isReadOnly}
@@ -1450,7 +1450,7 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, financialCa
                   </label>
                   <input
                     type="date"
-                    className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500"
+                    className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 dark:[color-scheme:dark]"
                     value={data.dataInicio}
                     onChange={e => setData({ ...data, dataInicio: e.target.value })}
                     disabled={isReadOnly}
@@ -1463,7 +1463,7 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, financialCa
                   </label>
                   <input
                     type="date"
-                    className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500"
+                    className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 dark:[color-scheme:dark]"
                     value={data.dataFim || ''}
                     onChange={e => setData({ ...data, dataFim: e.target.value })}
                     disabled={isReadOnly}
@@ -1579,7 +1579,7 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, financialCa
                         </label>
                         <input
                           type="date"
-                          className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold outline-none"
+                          className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold outline-none dark:[color-scheme:dark]"
                           value={pag.data}
                           onChange={e => handleUpdatePayment(pag.id, { data: e.target.value })}
                           disabled={isReadOnly}

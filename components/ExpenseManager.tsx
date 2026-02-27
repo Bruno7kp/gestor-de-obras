@@ -654,7 +654,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
                   type="date"
                   value={dateStart}
                   onChange={e => setDateStart(e.target.value)}
-                  className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest border rounded-lg text-slate-500 dark:text-slate-300 bg-white dark:bg-slate-900"
+                  className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest border rounded-lg text-slate-500 dark:text-slate-300 bg-white dark:bg-slate-900 dark:[color-scheme:dark]"
                   aria-label="Data inicial"
                 />
                 <span className="text-[10px] font-bold text-slate-400">até</span>
@@ -662,7 +662,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
                   type="date"
                   value={dateEnd}
                   onChange={e => setDateEnd(e.target.value)}
-                  className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest border rounded-lg text-slate-500 dark:text-slate-300 bg-white dark:bg-slate-900"
+                  className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest border rounded-lg text-slate-500 dark:text-slate-300 bg-white dark:bg-slate-900 dark:[color-scheme:dark]"
                   aria-label="Data final"
                 />
               </div>
