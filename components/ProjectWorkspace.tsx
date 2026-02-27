@@ -417,6 +417,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
       checkCanEdit(memberPermissions, 'projects_specific') ||
       checkCanEdit(memberPermissions, 'projects_general');
   }, [isProjectLoading, useMemberPermissions, memberPermissions, getLevelGlobal]);
+
+  const periodCloseLevel = useMemo(() => getLevel('period_close'), [getLevel]);
+
   const tabPermissions: Record<TabID, PermissionModule> = {
     wbs: 'wbs',
     blueprint: 'blueprint',
@@ -1094,6 +1097,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
               )}
             </div>
             <div className="flex flex-wrap items-center gap-3 mt-2">
+              {periodCloseLevel !== 'none' && (
               <div className="relative z-50">
                 <select
                   className={`pl-8 pr-10 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest appearance-none border-2 outline-none cursor-pointer transition-all ${isHistoryMode ? 'bg-amber-200 border-amber-400 text-amber-900 shadow-sm' : 'bg-slate-100 dark:bg-slate-800 border-transparent text-slate-500 dark:text-slate-300 hover:border-indigo-400'}`}
@@ -1110,6 +1114,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                 <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-50"><Clock size={12} /></div>
                 <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-50 text-current"><ChevronDown size={14} /></div>
               </div>
+              )}
               <div className="relative group/tip">
                 <button
                   onClick={() => setShowDescriptionModal(true)}
@@ -1182,14 +1187,14 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           )}
 
           {!isHistoryMode ? (
-            canEditMeasurements && !isProjectArchived ? (
+            canEditMeasurements && periodCloseLevel === 'edit' && !isProjectArchived ? (
               <button onClick={() => setIsClosingModalOpen(true)} className="flex items-center gap-2 px-6 py-3.5 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-500/20">
                 <CheckCircle2 size={16} /> Encerrar Período
               </button>
             ) : null
           ) : (
             <div className="flex items-center gap-2">
-              {isLatestHistory && canEditMeasurements && (
+              {isLatestHistory && canEditMeasurements && periodCloseLevel === 'edit' && (
                 <button onClick={() => setIsReopenModalOpen(true)} className="flex items-center gap-2 px-5 py-3 bg-white border-2 border-rose-500 text-rose-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-50 transition-all shadow-sm">
                   <RotateCcw size={16} /> Reabrir Medição
                 </button>

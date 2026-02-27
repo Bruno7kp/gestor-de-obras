@@ -13,6 +13,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { MeasurementSnapshotsService } from './measurement-snapshots.service';
 import { Roles } from '../auth/roles.decorator';
+import { HasPermission } from '../auth/permissions.decorator';
 import type { AuthenticatedRequest } from '../auth/auth.types';
 
 interface CreateSnapshotBody {
@@ -32,6 +33,7 @@ export class MeasurementSnapshotsController {
   constructor(private readonly snapshotsService: MeasurementSnapshotsService) {}
 
   @Get()
+  @HasPermission('period_close.view', 'period_close.edit')
   findAll(
     @Query('projectId') projectId: string,
     @Req() req: AuthenticatedRequest,
@@ -44,6 +46,7 @@ export class MeasurementSnapshotsController {
   }
 
   @Post()
+  @HasPermission('period_close.edit')
   create(@Body() body: CreateSnapshotBody, @Req() req: AuthenticatedRequest) {
     return this.snapshotsService.create({
       ...body,
@@ -53,6 +56,7 @@ export class MeasurementSnapshotsController {
   }
 
   @Patch(':id')
+  @HasPermission('period_close.edit')
   update(
     @Param('id') id: string,
     @Body() body: UpdateSnapshotBody,
@@ -67,6 +71,7 @@ export class MeasurementSnapshotsController {
   }
 
   @Delete(':id')
+  @HasPermission('period_close.edit')
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.snapshotsService.remove(id, req.user.instanceId, req.user.id);
   }

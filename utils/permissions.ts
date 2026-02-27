@@ -11,7 +11,7 @@ export type PermissionLevel = 'none' | 'view' | 'edit';
 export type PermissionModule = 
   | 'biddings' | 'suppliers' | 'projects_general' | 'projects_specific' 
   | 'wbs' | 'blueprint' | 'technical_analysis' | 'financial_flow' | 'supplies' | 'workforce' 
-  | 'planning' | 'schedule' | 'journal' | 'notifications' | 'documents' | 'stock' | 'project_settings' | 'global_settings';
+  | 'planning' | 'schedule' | 'journal' | 'notifications' | 'documents' | 'stock' | 'project_settings' | 'period_close' | 'global_settings';
 
 export const PERMISSION_MODULES: Array<{ key: PermissionModule; label: string }> = [
   { key: 'biddings', label: 'Licitações' },
@@ -31,6 +31,7 @@ export const PERMISSION_MODULES: Array<{ key: PermissionModule; label: string }>
   { key: 'documents', label: 'Documentos' },
   { key: 'stock', label: 'Estoque' },
   { key: 'project_settings', label: 'Ajustes do projeto' },
+  { key: 'period_close', label: 'Encerramento de Período' },
   { key: 'global_settings', label: 'Configurações gerais' },
 ];
 
@@ -106,6 +107,10 @@ export const PERMISSIONS = {
   // Blueprint / Quantitativos
   BLUEPRINT_VIEW: 'blueprint.view',
   BLUEPRINT_EDIT: 'blueprint.edit',
+
+  // Period Close (encerramento de período / histórico)
+  PERIOD_CLOSE_VIEW: 'period_close.view',
+  PERIOD_CLOSE_EDIT: 'period_close.edit',
 
   // Global Settings
   GLOBAL_SETTINGS_VIEW: 'global_settings.view',

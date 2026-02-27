@@ -18,6 +18,7 @@ export const PERMISSION_MODULES = [
   { key: 'documents', label: 'Documentos' },
   { key: 'stock', label: 'Estoque' },
   { key: 'project_settings', label: 'Ajustes do projeto' },
+  { key: 'period_close', label: 'Encerramento de Periodo' },
   { key: 'global_settings', label: 'Configuracoes gerais' },
 ];
 
@@ -57,6 +58,7 @@ export const DEFAULT_ROLES: DefaultRoleDefinition[] = [
       journal: 'none',
       documents: 'none',
       project_settings: 'none',
+      period_close: 'none',
       global_settings: 'none',
     },
   },
@@ -78,6 +80,7 @@ export const DEFAULT_ROLES: DefaultRoleDefinition[] = [
       journal: 'edit',
       documents: 'edit',
       project_settings: 'none',
+      period_close: 'view',
       global_settings: 'none',
     },
   },

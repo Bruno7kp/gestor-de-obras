@@ -69,6 +69,8 @@ async function main() {
     { code: 'stock.edit', description: 'Edit stock / inventory' },
     { code: 'blueprint.view', description: 'View blueprint quantities' },
     { code: 'blueprint.edit', description: 'Edit blueprint quantities' },
+    { code: 'period_close.view', description: 'View period history' },
+    { code: 'period_close.edit', description: 'Close/reopen measurement periods' },
   ];
 
   const createdPermissions = await Promise.all(
