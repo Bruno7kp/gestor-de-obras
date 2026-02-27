@@ -3,6 +3,7 @@ import {
   Package, Search, ArrowDownCircle, ArrowUpCircle, AlertTriangle,
   ShoppingCart, ClipboardList, History, Truck, FileText,
   Check, X, Clock, RefreshCw, DollarSign, Bell, User,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { usePermissions } from '../hooks/usePermissions';
 import { useToast } from '../hooks/useToast';
@@ -19,6 +20,17 @@ interface TraceabilityPageProps {
 
 type Tab = 'requests' | 'purchases' | 'log';
 
+const MIN_DECIMALS = 2;
+const MAX_DECIMALS = 6;
+
+const DecimalControls: React.FC<{ value: number; onChange: (v: number) => void }> = ({ value, onChange }) => (
+  <div className="inline-flex items-center gap-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg py-0.5 px-0.5">
+    <button type="button" onClick={() => onChange(financial.clampDecimals(value - 1, MIN_DECIMALS, MAX_DECIMALS))} className="px-1.5 py-0.5 text-slate-500 dark:text-slate-300 rounded hover:bg-white dark:hover:bg-slate-700" title="Menos casas decimais"><ChevronLeft size={10} /></button>
+    <span className="text-[8px] font-black text-slate-400 tabular-nums w-4 text-center">{value}</span>
+    <button type="button" onClick={() => onChange(financial.clampDecimals(value + 1, MIN_DECIMALS, MAX_DECIMALS))} className="px-1.5 py-0.5 text-slate-500 dark:text-slate-300 rounded hover:bg-white dark:hover:bg-slate-700" title="Mais casas decimais"><ChevronRight size={10} /></button>
+  </div>
+);
+
 /* ------------------------------------------------------------------ */
 /*  Complete Purchase Modal                                            */
 /* ------------------------------------------------------------------ */
@@ -29,6 +41,7 @@ const CompleteModal: React.FC<{
   onClose: () => void;
 }> = ({ purchase, suppliers, onSave, onClose }) => {
   const [unitPrice, setUnitPrice] = useState('');
+  const [priceDecimals, setPriceDecimals] = useState(MIN_DECIMALS);
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [supplierId, setSupplierId] = useState('');
 
@@ -43,8 +56,11 @@ const CompleteModal: React.FC<{
         </div>
         <div className="px-8 py-6 space-y-5">
           <div>
-            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Preço Unitário *</label>
-            <input type="number" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-indigo-500 rounded-xl outline-none transition-all text-sm font-bold" value={unitPrice} onChange={e => setUnitPrice(e.target.value)} min={0.01} step="0.01" autoFocus />
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Preço Unitário *</label>
+              <DecimalControls value={priceDecimals} onChange={d => { setPriceDecimals(d); setUnitPrice(prev => prev ? financial.maskDecimal(prev.replace(/\D/g, ''), d) : prev); }} />
+            </div>
+            <input type="text" inputMode="decimal" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-indigo-500 rounded-xl outline-none transition-all text-sm font-bold" value={unitPrice} onChange={e => setUnitPrice(financial.maskDecimal(e.target.value, priceDecimals))} autoFocus />
           </div>
           <div>
             <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Nº Nota Fiscal</label>
@@ -61,8 +77,8 @@ const CompleteModal: React.FC<{
         <div className="px-8 py-5 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
           <button onClick={onClose} className="px-6 py-3 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 text-[10px] font-black uppercase tracking-widest transition-all">Cancelar</button>
           <button
-            onClick={() => onSave({ unitPrice: parseFloat(unitPrice) || 0, invoiceNumber: invoiceNumber || undefined, supplierId: supplierId || undefined })}
-            disabled={!parseFloat(unitPrice)}
+            onClick={() => onSave({ unitPrice: financial.parseLocaleNumber(unitPrice), invoiceNumber: invoiceNumber || undefined, supplierId: supplierId || undefined })}
+            disabled={!financial.parseLocaleNumber(unitPrice)}
             className="flex items-center gap-2 px-8 py-3 bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100"
           >
             <Check size={16} /> Confirmar
@@ -131,6 +147,67 @@ const RejectModal: React.FC<{
 };
 
 /* ------------------------------------------------------------------ */
+/*  Purchase From Request Modal                                        */
+/* ------------------------------------------------------------------ */
+const PurchaseFromRequestModal: React.FC<{
+  request: StockRequest;
+  onSave: (qty: number, notes: string) => void;
+  onClose: () => void;
+}> = ({ request, onSave, onClose }) => {
+  const deficit = Math.max(0, request.quantity - (request.globalStockItem?.currentQuantity ?? 0));
+  const [qtyDecimals, setQtyDecimals] = useState(MIN_DECIMALS);
+  const [quantity, setQuantity] = useState(() => financial.maskDecimal(String(Math.round(deficit * 100)), MIN_DECIMALS));
+  const [notes, setNotes] = useState(
+    `Estoque insuficiente para requisição de ${request.project?.name ?? 'projeto'}.`,
+  );
+  const parsedQty = financial.parseLocaleNumber(quantity);
+
+  return (
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
+      <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800">
+          <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight">Solicitar Compra</h3>
+          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{request.itemName}</p>
+        </div>
+        <div className="px-8 py-6 space-y-4">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Quantidade *</label>
+              <DecimalControls value={qtyDecimals} onChange={d => { setQtyDecimals(d); setQuantity(prev => prev ? financial.maskDecimal(prev.replace(/\D/g, ''), d) : prev); }} />
+            </div>
+            <input type="text" inputMode="decimal" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-indigo-500 rounded-xl outline-none transition-all text-sm font-bold" value={quantity} onChange={e => setQuantity(financial.maskDecimal(e.target.value, qtyDecimals))} autoFocus />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl">
+              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Estoque atual</p>
+              <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{financial.formatQuantity(request.globalStockItem?.currentQuantity ?? 0)} {request.globalStockItem?.unit ?? 'un'}</p>
+            </div>
+            <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl">
+              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Solicitado</p>
+              <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{financial.formatQuantity(request.quantity)} {request.globalStockItem?.unit ?? 'un'}</p>
+            </div>
+          </div>
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Observação</label>
+            <textarea className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-indigo-500 rounded-xl outline-none transition-all text-sm font-bold resize-none" rows={2} value={notes} onChange={e => setNotes(e.target.value)} />
+          </div>
+        </div>
+        <div className="px-8 py-5 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
+          <button onClick={onClose} className="px-6 py-3 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 text-[10px] font-black uppercase tracking-widest transition-all">Cancelar</button>
+          <button
+            onClick={() => { if (parsedQty > 0) onSave(parsedQty, notes); }}
+            disabled={parsedQty <= 0}
+            className="flex items-center gap-2 px-8 py-3 bg-purple-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-purple-500/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100"
+          >
+            <ShoppingCart size={16} /> Solicitar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ------------------------------------------------------------------ */
 /*  Main Page                                                          */
 /* ------------------------------------------------------------------ */
 export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers }) => {
@@ -152,7 +229,10 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
   const [completeModal, setCompleteModal] = useState<{ open: boolean; purchase?: PurchaseRequest }>({ open: false });
   const [rejectModal, setRejectModal] = useState<{ open: boolean; requestId?: string }>({ open: false });
   const [cancelConfirm, setCancelConfirm] = useState<string | null>(null);
+  const [approveConfirm, setApproveConfirm] = useState<StockRequest | null>(null);
+  const [orderedConfirm, setOrderedConfirm] = useState<PurchaseRequest | null>(null);
   const [showDrawer, setShowDrawer] = useState(false);
+  const [purchaseFromReq, setPurchaseFromReq] = useState<StockRequest | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -211,6 +291,23 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
       setStockRequests(prev => prev.map(r => r.id === rejectModal.requestId ? updated : r));
       setRejectModal({ open: false });
       toast.success('Requisição rejeitada');
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  const handleRequestPurchase = async (qty: number, notes: string) => {
+    if (!purchaseFromReq) return;
+    try {
+      const created = await purchaseRequestApi.create({
+        globalStockItemId: purchaseFromReq.globalStockItemId,
+        quantity: qty,
+        priority: 'MEDIUM',
+        notes: notes || undefined,
+      });
+      setPurchaseRequests(prev => [created, ...prev]);
+      setPurchaseFromReq(null);
+      toast.success(`Solicitação de compra criada (${financial.formatQuantity(qty)} ${purchaseFromReq.globalStockItem?.unit ?? 'un'})`);
     } catch (e: any) {
       toast.error(e.message);
     }
@@ -344,10 +441,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
                     <Clock size={14} /> Pendentes ({pendingStockRequests.length})
                   </h2>
                   {pendingStockRequests.length === 0 ? (
-                    <div className="py-12 text-center opacity-30 select-none">
-                      <ClipboardList size={48} className="mx-auto mb-3" />
-                      <p className="text-sm font-black uppercase tracking-widest">Nenhuma requisição pendente</p>
-                    </div>
+                    <p className="text-center py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Nenhuma requisição pendente</p>
                   ) : (
                     <div className="space-y-3">
                       {pendingStockRequests.map(r => {
@@ -368,6 +462,11 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
                                         <AlertTriangle size={9} /> Estoque {item.status === 'CRITICAL' ? 'Crítico' : 'Zerado'}
                                       </span>
                                     )}
+                                    {item && item.currentQuantity < r.quantity && (
+                                      <span className="px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest bg-orange-100 dark:bg-orange-900/30 text-orange-600 flex items-center gap-1">
+                                        <AlertTriangle size={9} /> Estoque insuficiente ({financial.formatQuantity(item.currentQuantity)}/{financial.formatQuantity(r.quantity)})
+                                      </span>
+                                    )}
                                   </div>
                                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
                                     {financial.formatQuantity(r.quantity)} {item?.unit ?? 'un'}
@@ -382,8 +481,13 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
                                 </div>
                               </div>
                               {canWarehouseEdit && (
-                                <div className="flex items-center gap-2">
-                                  <button onClick={() => handleApproveRequest(r.id)} className="flex items-center gap-1.5 px-5 py-2.5 bg-emerald-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  {item && item.currentQuantity < r.quantity && (
+                                    <button onClick={() => setPurchaseFromReq(r)} className="flex items-center gap-1.5 px-5 py-2.5 bg-purple-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg shadow-purple-500/20 hover:scale-105 active:scale-95 transition-all">
+                                      <ShoppingCart size={14} /> Solicitar Compra
+                                    </button>
+                                  )}
+                                  <button onClick={() => setApproveConfirm(r)} className="flex items-center gap-1.5 px-5 py-2.5 bg-emerald-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all">
                                     <Check size={14} /> Aprovar
                                   </button>
                                   <button onClick={() => setRejectModal({ open: true, requestId: r.id })} className="flex items-center gap-1.5 px-5 py-2.5 bg-rose-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg shadow-rose-500/20 hover:scale-105 active:scale-95 transition-all">
@@ -458,10 +562,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
                     <ShoppingCart size={14} /> Pipeline de Compras ({activePurchases.length})
                   </h2>
                   {activePurchases.length === 0 ? (
-                    <div className="py-12 text-center opacity-30 select-none">
-                      <ShoppingCart size={48} className="mx-auto mb-3" />
-                      <p className="text-sm font-black uppercase tracking-widest">Nenhuma compra ativa</p>
-                    </div>
+                    <p className="text-center py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Nenhuma compra ativa</p>
                   ) : (
                     <div className="space-y-3">
                       {activePurchases.map(p => {
@@ -492,11 +593,11 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
                               </div>
                               <div className="flex items-center gap-2">
                                 {p.status === 'PENDING' && canFinancialEdit && (
-                                  <button onClick={() => handleMarkOrdered(p.id)} className="flex items-center gap-1.5 px-5 py-2.5 bg-blue-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg shadow-blue-500/20 hover:scale-105 active:scale-95 transition-all">
+                                  <button onClick={() => setOrderedConfirm(p)} className="flex items-center gap-1.5 px-5 py-2.5 bg-blue-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg shadow-blue-500/20 hover:scale-105 active:scale-95 transition-all">
                                     <Truck size={14} /> Pedido Feito
                                   </button>
                                 )}
-                                {p.status === 'ORDERED' && canWarehouseEdit && (
+                                {p.status === 'ORDERED' && canFinancialEdit && (
                                   <button onClick={() => setCompleteModal({ open: true, purchase: p })} className="flex items-center gap-1.5 px-5 py-2.5 bg-emerald-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all">
                                     <Check size={14} /> Confirmar Entrega
                                   </button>
@@ -592,10 +693,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
 
                 {/* Movement log */}
                 {filteredMovements.length === 0 ? (
-                  <div className="py-12 text-center opacity-30 select-none">
-                    <History size={48} className="mx-auto mb-3" />
-                    <p className="text-sm font-black uppercase tracking-widest">Nenhuma movimentação registrada</p>
-                  </div>
+                  <p className="text-center py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Nenhuma movimentação registrada</p>
                 ) : (
                   <div className="space-y-3">
                     {filteredMovements.map(m => (
@@ -657,6 +755,30 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
           onClose={() => setRejectModal({ open: false })}
         />
       )}
+      {/* Ordered Confirm */}
+      <ConfirmModal
+        isOpen={!!orderedConfirm}
+        title="Confirmar pedido"
+        message={orderedConfirm ? `Marcar compra de ${financial.formatQuantity(orderedConfirm.quantity)} ${orderedConfirm.globalStockItem?.unit ?? 'un'} de "${orderedConfirm.itemName}" como pedido realizado?` : ''}
+        confirmLabel="Pedido Feito"
+        cancelLabel="Voltar"
+        variant="warning"
+        onConfirm={() => { if (orderedConfirm) { handleMarkOrdered(orderedConfirm.id); setOrderedConfirm(null); } }}
+        onCancel={() => setOrderedConfirm(null)}
+      />
+
+      {/* Approve Confirm */}
+      <ConfirmModal
+        isOpen={!!approveConfirm}
+        title="Aprovar requisição"
+        message={approveConfirm ? `Aprovar requisição de ${financial.formatQuantity(approveConfirm.quantity)} ${approveConfirm.globalStockItem?.unit ?? 'un'} de "${approveConfirm.itemName}"? O material será debitado do estoque global.` : ''}
+        confirmLabel="Aprovar"
+        cancelLabel="Voltar"
+        variant="success"
+        onConfirm={() => { if (approveConfirm) { handleApproveRequest(approveConfirm.id); setApproveConfirm(null); } }}
+        onCancel={() => setApproveConfirm(null)}
+      />
+
       {/* Cancel Confirm */}
       <ConfirmModal
         isOpen={!!cancelConfirm}
@@ -668,6 +790,15 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
         onConfirm={handleCancelPurchase}
         onCancel={() => setCancelConfirm(null)}
       />
+
+      {/* Purchase from Request Modal */}
+      {purchaseFromReq && (
+        <PurchaseFromRequestModal
+          request={purchaseFromReq}
+          onSave={handleRequestPurchase}
+          onClose={() => setPurchaseFromReq(null)}
+        />
+      )}
 
       {/* Notifications Drawer */}
       {showDrawer && (

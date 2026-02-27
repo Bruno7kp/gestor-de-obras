@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle, X } from 'lucide-react';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -8,7 +8,7 @@ interface ConfirmModalProps {
   message: string;
   confirmLabel?: string;
   cancelLabel?: string;
-  variant?: 'danger' | 'warning';
+  variant?: 'danger' | 'warning' | 'success';
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -27,14 +27,18 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
 
   const colors = variant === 'danger'
     ? { icon: 'bg-rose-100 dark:bg-rose-900/30 text-rose-600', btn: 'bg-rose-600 shadow-rose-500/20 hover:bg-rose-700' }
+    : variant === 'success'
+    ? { icon: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600', btn: 'bg-emerald-600 shadow-emerald-500/20 hover:bg-emerald-700' }
     : { icon: 'bg-amber-100 dark:bg-amber-900/30 text-amber-600', btn: 'bg-amber-600 shadow-amber-500/20 hover:bg-amber-700' };
+
+  const IconComponent = variant === 'success' ? CheckCircle : AlertTriangle;
 
   return (
     <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onCancel}>
       <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-start gap-4 mb-6">
           <div className={`p-3 rounded-2xl shrink-0 ${colors.icon}`}>
-            <AlertTriangle size={24} />
+            <IconComponent size={24} />
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="text-lg font-black text-slate-800 dark:text-white tracking-tight">{title}</h3>

@@ -202,7 +202,7 @@ export class PurchaseRequestsService {
       supplierId: input.supplierId,
     });
 
-    // Notify warehouse users + requester
+    // Notify financial users + requester
     this.notificationsService
       .emit({
         instanceId: input.instanceId,
@@ -213,8 +213,8 @@ export class PurchaseRequestsService {
         actorUserId: input.userId,
         specificUserIds: [request.requestedById],
         permissionCodes: [
-          'global_stock_warehouse.view',
-          'global_stock_warehouse.edit',
+          'global_stock_financial.view',
+          'global_stock_financial.edit',
         ],
       })
       .catch(() => {});
