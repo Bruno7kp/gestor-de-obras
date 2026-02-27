@@ -225,7 +225,7 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
   const viewModeKey = `blueprint_view_${project.id}`;
   const [viewMode, setViewMode] = useState<BlueprintViewMode>(() => {
     const saved = localStorage.getItem(viewModeKey);
-    return (saved === 'quantity' || saved === 'price') ? saved : 'full';
+    return (saved === 'quantity' || saved === 'price' || saved === 'full') ? saved : 'quantity';
   });
   const showQuantity = viewMode !== 'price';
   const showPrice = viewMode !== 'quantity';
