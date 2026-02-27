@@ -4451,7 +4451,7 @@ const TaskModal = ({ task, initialStatus, onClose, onSave }: any) => {
               <option value="doing">Executando</option>
               <option value="done">Concluído</option>
             </select>
-            <input type="date" className="px-4 py-3 rounded-xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-xs font-bold outline-none" value={date} onChange={e => setDate(e.target.value)} />
+            <input type="date" className="px-4 py-3 rounded-xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-xs font-bold outline-none dark:[color-scheme:dark]" value={date} onChange={e => setDate(e.target.value)} />
           </div>
         </div>
         <div className="flex gap-3 mt-8">
