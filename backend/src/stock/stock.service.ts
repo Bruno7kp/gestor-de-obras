@@ -254,7 +254,11 @@ export class StockService {
             input.type === 'EXIT' ? (input.responsible ?? null) : null,
           createdById: input.type === 'ENTRY' ? input.userId : undefined,
           notes: input.notes ?? '',
-          date: input.date ? new Date(input.date) : new Date(),
+          date: input.date
+            ? new Date(
+                input.date.includes('T') ? input.date : `${input.date}T12:00:00Z`,
+              )
+            : new Date(),
         },
       });
 
@@ -315,7 +319,10 @@ export class StockService {
     const data: Record<string, any> = {};
     if (input.quantity !== undefined) data.quantity = input.quantity;
     if (input.notes !== undefined) data.notes = input.notes;
-    if (input.date !== undefined) data.date = new Date(input.date);
+    if (input.date !== undefined)
+      data.date = new Date(
+        input.date.includes('T') ? input.date : `${input.date}T12:00:00Z`,
+      );
     if (movement.type === 'EXIT' && input.responsible !== undefined) {
       data.responsible = input.responsible;
     }

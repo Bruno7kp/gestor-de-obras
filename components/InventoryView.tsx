@@ -431,7 +431,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ projectId, canEdit
                                               </div>
                                             ) : null}
                                             <p className="text-[9px] text-slate-400">
-                                              {new Date(mov.date).toLocaleDateString('pt-BR')} {new Date(mov.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                              {new Date(mov.date).toLocaleDateString('pt-BR')}
                                             </p>
                                           </div>
                                           {canEdit && (
