@@ -212,18 +212,19 @@ const PurchaseRequestModal: React.FC<{
 /* ------------------------------------------------------------------ */
 const KpiCard = ({ label, value, icon, color }: { label: string; value: string | number; icon: React.ReactNode; color: string }) => {
   const colors: Record<string, string> = {
-    indigo: 'text-indigo-600 dark:text-indigo-400',
-    emerald: 'text-emerald-600 dark:text-emerald-400',
-    amber: 'text-amber-600 dark:text-amber-400',
-    blue: 'text-blue-600 dark:text-blue-400',
+    indigo: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20',
+    emerald: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20',
+    amber: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20',
+    blue: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20',
   };
+  const c = colors[color] ?? colors.indigo;
   return (
     <div className="p-6 rounded-[2rem] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between h-32">
       <div className="flex justify-between items-start">
-        <div className="p-2 bg-slate-50 dark:bg-slate-800 text-slate-400 rounded-lg">{icon}</div>
+        <div className={`p-2 rounded-lg ${c}`}>{icon}</div>
         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{label}</span>
       </div>
-      <p className={`text-xl font-black tracking-tighter ${colors[color] ?? colors.indigo}`}>{value}</p>
+      <p className={`text-xl font-black tracking-tighter ${c.split(' ')[0]}`}>{value}</p>
     </div>
   );
 };
