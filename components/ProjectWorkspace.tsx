@@ -355,6 +355,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
   const canEditMembers = useMemo(() => {
     if (permissionsLoading || membersLoading) return false;
+    // External/invited users can never edit members — only users from the
+    // project's own instance can manage membership.
+    if (isExternalProject) return false;
     // Exception: users with global projects_general.edit can ALWAYS edit members,
     // even when using reduced project-level permissions. This ensures admins
     // can always change their own role back to full access.
@@ -363,7 +366,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
       return checkCanEdit(memberPermissions, 'projects_general');
     }
     return checkCanEdit(memberPermissions, 'projects_general');
-  }, [permissionsLoading, membersLoading, useMemberPermissions, memberPermissions, getLevelGlobal]);
+  }, [permissionsLoading, membersLoading, isExternalProject, useMemberPermissions, memberPermissions, getLevelGlobal]);
 
   // Permission wrappers that handle external vs internal projects
   const canView = useCallback(
