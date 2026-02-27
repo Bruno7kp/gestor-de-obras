@@ -537,6 +537,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
                         <option value="INCIDENT">Ocorrência</option>
                       </select>
 
+                      {/* Porcentagem de progresso oculta
                       {newEntry.category === 'PROGRESS' && (
                         <label className="bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-[10px] font-black uppercase tracking-widest outline-none px-4 py-2 flex items-center gap-2 text-slate-500">
                           <span>%</span>
@@ -554,6 +555,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
                           />
                         </label>
                       )}
+                      */}
 
                       {newEntry.category === 'PROGRESS' && (
                         <select
@@ -646,6 +648,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
         </form>
       </div>
 
+      {/* Card de último progresso oculto
       <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
         <div className="flex items-center justify-between gap-4 mb-3">
           <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Último progresso cadastrado</h3>
@@ -661,6 +664,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
           <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">Nenhum progresso cadastrado ainda.</p>
         )}
       </div>
+      */}
 
       {/* FILTER & SEARCH BAR */}
       <div className="flex flex-col md:flex-row items-center justify-between gap-4">
@@ -728,12 +732,20 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
                     )}
                   </div>
                   <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                    <span className="flex items-center gap-1.5"><History size={12}/> {new Date(entry.timestamp).toLocaleString('pt-BR')}</span>
+                    <span className="flex items-center gap-1.5"><History size={12}/> {(() => {
+                      const d = new Date(entry.timestamp);
+                      const dateStr = d.toLocaleDateString('pt-BR');
+                      return entry.title.includes(dateStr)
+                        ? d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                        : d.toLocaleString('pt-BR');
+                    })()}</span>
+                    {/* Porcentagem no cabeçalho oculta
                     {entry.category === 'PROGRESS' && typeof entry.progressPercent === 'number' && (
                       <span className="flex items-center gap-1.5 border-l border-slate-200 dark:border-slate-700 pl-3">
                         <BarChart size={12} /> {entry.progressPercent.toFixed(2)}%
                       </span>
                     )}
+                    */}
                     {entry.category === 'PROGRESS' && (entry.progressStage || entry.progressItem) && (
                       <span className="flex items-center gap-1.5 border-l border-slate-200 dark:border-slate-700 pl-3">
                         <span>{entry.progressStage && entry.progressItem ? `${entry.progressStage} - ${entry.progressItem}` : (entry.progressStage ?? entry.progressItem)}</span>
@@ -745,22 +757,6 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
                       </span>
                     )}
                   </div>
-                  {entry.createdBy?.name && (
-                    <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-slate-400">
-                      {entry.createdBy.profileImage ? (
-                        <img
-                          src={entry.createdBy.profileImage}
-                          alt={entry.createdBy.name}
-                          className="w-6 h-6 rounded-full object-cover border border-slate-200 dark:border-slate-700"
-                        />
-                      ) : (
-                        <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px] font-black">
-                          {getInitials(entry.createdBy.name)}
-                        </div>
-                      )}
-                      <span>Cadastrado por {entry.createdBy.name}</span>
-                    </div>
-                  )}
                 </div>
                 
                 {/* Actions (Only for Manual) */}
@@ -784,6 +780,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
                 <p className="text-slate-600 dark:text-slate-300 leading-relaxed font-medium whitespace-pre-wrap">{entry.description}</p>
               </div>
 
+              {/* Barra de progresso e porcentagem do dia ocultas
               {entry.category === 'PROGRESS' && typeof entry.progressPercent === 'number' && (
                 <div className="mt-4 space-y-2">
                   <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-slate-500">
@@ -803,6 +800,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
                   </div>
                 </div>
               )}
+              */}
 
               {entry.photoUrls && entry.photoUrls.length > 0 && (
                 <div className="mt-6 flex flex-wrap gap-3">
@@ -816,6 +814,23 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
                       <img src={url} className="w-full h-full object-cover" />
                     </button>
                   ))}
+                </div>
+              )}
+
+              {entry.createdBy?.name && (
+                <div className="flex items-center justify-end gap-2 mt-4 text-[9px] font-black uppercase tracking-widest text-slate-400">
+                  {entry.createdBy.profileImage ? (
+                    <img
+                      src={entry.createdBy.profileImage}
+                      alt={entry.createdBy.name}
+                      className="w-5 h-5 rounded-full object-cover border border-slate-200 dark:border-slate-700"
+                    />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[9px] font-black">
+                      {getInitials(entry.createdBy.name)}
+                    </div>
+                  )}
+                  <span>{entry.createdBy.name}</span>
                 </div>
               )}
             </div>
@@ -937,6 +952,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
                     <option value="INCIDENT">Ocorrência</option>
                   </select>
 
+                  {/* Porcentagem de progresso oculta na edição
                   {editEntryDraft.category === 'PROGRESS' && (
                     <label className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase tracking-widest outline-none px-4 py-3 flex items-center gap-2 text-slate-500">
                       <span>%</span>
@@ -954,6 +970,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
                       />
                     </label>
                   )}
+                  */}
 
                   {editEntryDraft.category === 'PROGRESS' && (
                     <select
