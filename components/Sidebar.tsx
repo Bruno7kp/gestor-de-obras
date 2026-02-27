@@ -1,9 +1,11 @@
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Home, Cog, PlusCircle, Briefcase, Sun, Moon, Menu, HardHat, Folder, ChevronRight, ChevronLeft, ChevronDown, Landmark, Truck, Shield, User, LogOut, ChevronUp, Lock, Globe, Warehouse, GitBranch } from 'lucide-react';
 import { Project, ProjectGroup, CompanyCertificate, ExternalProject } from '../types';
 import { biddingService } from '../services/biddingService';
+import { stockRequestApi } from '../services/stockRequestApi';
+import { purchaseRequestApi } from '../services/purchaseRequestApi';
 import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 
@@ -74,6 +76,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const accountName = user?.name || user?.email || 'Usuario';
   const instanceDisplayName = user?.instanceName || '';
 
+  const canStockWarehouse = canView('global_stock_warehouse');
+  const canStockFinancial = canView('global_stock_financial');
+
+  // Traceability pending count
+  const [traceabilityPending, setTraceabilityPending] = useState(0);
+
+  const fetchTraceabilityPending = useCallback(async () => {
+    if (!canStockWarehouse && !canStockFinancial) return;
+    try {
+      const [sr, pr] = await Promise.all([
+        canStockWarehouse ? stockRequestApi.list({ status: 'PENDING' }) : Promise.resolve([]),
+        canStockFinancial ? purchaseRequestApi.list('PENDING') : Promise.resolve([]),
+      ]);
+      setTraceabilityPending(sr.length + pr.length);
+    } catch {}
+  }, [canStockWarehouse, canStockFinancial]);
+
+  useEffect(() => {
+    fetchTraceabilityPending();
+    const interval = setInterval(fetchTraceabilityPending, 60_000);
+    return () => clearInterval(interval);
+  }, [fetchTraceabilityPending]);
+
   const sortByOrder = (a: { order?: number; name?: string }, b: { order?: number; name?: string }) => {
     const orderDiff = (a.order ?? 0) - (b.order ?? 0);
     if (orderDiff !== 0) return orderDiff;
@@ -87,11 +112,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
     navigate('/login');
   };
 
-  const NavItem = ({ active, onClick, icon, label, badge }: any) => (
+  const NavItem = ({ active, onClick, icon, label, badge, badgeCount }: any) => (
     <button onClick={onClick} className={`w-full flex items-center gap-4 p-3.5 rounded-2xl transition-all relative ${active ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
       <div className="shrink-0">{icon}</div>
       {isOpen && <span className="text-[11px] font-black uppercase tracking-widest truncate">{label}</span>}
       {badge && <div className="absolute right-3 top-3 w-2 h-2 bg-rose-500 rounded-full animate-pulse border-2 border-white dark:border-slate-900" />}
+      {!badge && badgeCount > 0 && (
+        <span className={`absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center justify-center min-w-5 h-5 px-1 rounded-full text-[9px] font-black shadow-sm ${
+          active ? 'bg-white/20 text-white' : 'bg-rose-500 text-white'
+        }`}>
+          {badgeCount > 99 ? '99+' : badgeCount}
+        </span>
+      )}
     </button>
   );
 
@@ -296,7 +328,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   label="Fornecedores"
                 />
               )}
-              {(canView('global_stock_warehouse') || canView('global_stock_financial')) && (
+              {(canStockWarehouse || canStockFinancial) && (
                 <NavItem
                   active={location.pathname.startsWith('/app/global-stock')}
                   onClick={() => { navigate('/app/global-stock'); setMobileOpen(false); }}
@@ -304,12 +336,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   label="Estoque Global"
                 />
               )}
-              {(canView('global_stock_warehouse') || canView('global_stock_financial')) && (
+              {(canStockWarehouse || canStockFinancial) && (
                 <NavItem
                   active={location.pathname.startsWith('/app/traceability')}
                   onClick={() => { navigate('/app/traceability'); setMobileOpen(false); }}
                   icon={<GitBranch size={18}/>}
                   label="Rastreabilidade"
+                  badgeCount={traceabilityPending}
                 />
               )}
               

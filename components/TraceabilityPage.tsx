@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Package, Search, ArrowDownCircle, ArrowUpCircle, AlertTriangle,
   ShoppingCart, ClipboardList, History, Truck, FileText,
-  Check, X, Clock, RefreshCw, DollarSign,
+  Check, X, Clock, RefreshCw, DollarSign, Bell, User,
 } from 'lucide-react';
 import { usePermissions } from '../hooks/usePermissions';
 import { useToast } from '../hooks/useToast';
@@ -152,6 +152,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
   const [completeModal, setCompleteModal] = useState<{ open: boolean; purchase?: PurchaseRequest }>({ open: false });
   const [rejectModal, setRejectModal] = useState<{ open: boolean; requestId?: string }>({ open: false });
   const [cancelConfirm, setCancelConfirm] = useState<string | null>(null);
+  const [showDrawer, setShowDrawer] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -286,9 +287,23 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
             <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">Rastreabilidade & Logística</h1>
             <p className="text-slate-500 dark:text-slate-400 font-medium">Acompanhe requisições, compras e movimentações.</p>
           </div>
-          <button onClick={loadData} className="flex items-center gap-2 px-6 py-3 text-slate-500 hover:text-indigo-600 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm hover:shadow-md text-[10px] font-black uppercase tracking-widest transition-all">
-            <RefreshCw size={14} /> Atualizar
-          </button>
+          <div className="flex items-center gap-3">
+            <button onClick={loadData} className="flex items-center gap-2 px-6 py-3 text-slate-500 hover:text-indigo-600 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm hover:shadow-md text-[10px] font-black uppercase tracking-widest transition-all">
+              <RefreshCw size={14} /> Atualizar
+            </button>
+            <button
+              onClick={() => setShowDrawer(true)}
+              className="relative flex items-center justify-center w-10 h-10 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm hover:shadow-md transition-all"
+              title="Notificações pendentes"
+            >
+              <Bell size={16} className="text-amber-500" />
+              {(pendingStockRequests.length > 0 || activePurchases.length > 0) && (
+                <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black shadow-lg">
+                  {pendingStockRequests.length + activePurchases.length}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* KPI GRID */}
@@ -653,6 +668,131 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
         onConfirm={handleCancelPurchase}
         onCancel={() => setCancelConfirm(null)}
       />
+
+      {/* Notifications Drawer */}
+      {showDrawer && (
+        <>
+          <div className="fixed inset-0 bg-slate-950/50 backdrop-blur-sm z-[140]" onClick={() => setShowDrawer(false)} />
+          <aside className="fixed top-0 right-0 h-screen w-full sm:w-[430px] bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 z-[150] shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+            {/* Header */}
+            <header className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-900/30 text-amber-600">
+                  <Bell size={18} />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-black uppercase tracking-tight text-slate-800 dark:text-slate-100 truncate">Pendências</h3>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                    {pendingStockRequests.length + activePurchases.length} itens pendentes
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setShowDrawer(false)} className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all" title="Fechar">
+                <X size={18} />
+              </button>
+            </header>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-5 custom-scrollbar">
+              {/* Pending Stock Requests */}
+              {canWarehouse && pendingStockRequests.length > 0 && (
+                <section>
+                  <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">
+                    <ClipboardList size={14} /> Requisições de Material ({pendingStockRequests.length})
+                  </h4>
+                  <div className="space-y-2">
+                    {pendingStockRequests.map(req => (
+                      <button
+                        key={req.id}
+                        onClick={() => { setTab('requests'); setShowDrawer(false); }}
+                        className="w-full text-left border border-slate-200 dark:border-slate-800 rounded-2xl p-4 border-l-4 border-l-amber-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">{req.itemName}</p>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                              {financial.formatQuantity(req.quantity)} {req.globalStockItem?.unit || 'un'}
+                              {req.project?.name ? ` — ${req.project.name}` : ''}
+                            </p>
+                          </div>
+                          <span className="shrink-0 px-2 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-[9px] font-black uppercase tracking-widest">Pendente</span>
+                        </div>
+                        {req.requestedBy && (
+                          <div className="flex items-center gap-2 mt-2">
+                            {req.requestedBy.profileImage ? (
+                              <img src={req.requestedBy.profileImage} alt={req.requestedBy.name} className="w-4 h-4 rounded-full object-cover border border-slate-200 dark:border-slate-700" />
+                            ) : (
+                              <div className="w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-200 text-[8px] font-black flex items-center justify-center"><User size={10} /></div>
+                            )}
+                            <span className="text-[10px] font-semibold text-slate-400 truncate">{req.requestedBy.name}</span>
+                            {req.createdAt && <span className="text-[10px] text-slate-400 ml-auto whitespace-nowrap">{new Date(req.createdAt).toLocaleDateString('pt-BR')}</span>}
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Active Purchase Requests */}
+              {activePurchases.length > 0 && (
+                <section>
+                  <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">
+                    <ShoppingCart size={14} /> Solicitações de Compra ({activePurchases.length})
+                  </h4>
+                  <div className="space-y-2">
+                    {activePurchases.map(pr => {
+                      const isOrdered = pr.status === 'ORDERED';
+                      return (
+                        <button
+                          key={pr.id}
+                          onClick={() => { setTab('purchases'); setShowDrawer(false); }}
+                          className={`w-full text-left border border-slate-200 dark:border-slate-800 rounded-2xl p-4 border-l-4 ${
+                            isOrdered ? 'border-l-blue-400' : 'border-l-purple-400'
+                          } hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">{pr.itemName}</p>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                {financial.formatQuantity(pr.quantity)} {pr.globalStockItem?.unit || 'un'}
+                              </p>
+                            </div>
+                            <span className={`shrink-0 px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                              isOrdered
+                                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                                : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
+                            }`}>{isOrdered ? 'Pedido feito' : 'Pendente'}</span>
+                          </div>
+                          {pr.requestedBy && (
+                            <div className="flex items-center gap-2 mt-2">
+                              {pr.requestedBy.profileImage ? (
+                                <img src={pr.requestedBy.profileImage} alt={pr.requestedBy.name} className="w-4 h-4 rounded-full object-cover border border-slate-200 dark:border-slate-700" />
+                              ) : (
+                                <div className="w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-200 text-[8px] font-black flex items-center justify-center"><User size={10} /></div>
+                              )}
+                              <span className="text-[10px] font-semibold text-slate-400 truncate">{pr.requestedBy.name}</span>
+                              {pr.createdAt && <span className="text-[10px] text-slate-400 ml-auto whitespace-nowrap">{new Date(pr.createdAt).toLocaleDateString('pt-BR')}</span>}
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
+
+              {/* Empty state */}
+              {pendingStockRequests.length === 0 && activePurchases.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                  <Bell size={32} className="mb-3 opacity-40" />
+                  <p className="text-xs font-bold">Nenhuma pendência no momento</p>
+                </div>
+              )}
+            </div>
+          </aside>
+        </>
+      )}
     </div>
   );
 };
