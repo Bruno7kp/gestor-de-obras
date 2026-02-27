@@ -70,10 +70,7 @@ export class StockRequestsController {
 
   @Patch(':id/approve')
   @HasPermission('global_stock_warehouse.edit')
-  approve(
-    @Param('id') id: string,
-    @Req() req: AuthenticatedRequest,
-  ) {
+  approve(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.service.approve({
       id,
       instanceId: req.user.instanceId,

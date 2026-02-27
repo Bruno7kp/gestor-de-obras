@@ -3,6 +3,7 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { GlobalStockService } from '../global-stock/global-stock.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -60,9 +61,9 @@ export class PurchaseRequestsService {
   }
 
   async findAll(instanceId: string, status?: string) {
-    const where: any = { instanceId };
+    const where: Prisma.PurchaseRequestWhereInput = { instanceId };
     if (status) {
-      where.status = status;
+      where.status = status as Prisma.EnumPurchaseRequestStatusFilter;
     }
 
     return this.prisma.purchaseRequest.findMany({
@@ -80,7 +81,8 @@ export class PurchaseRequestsService {
     const item = await this.prisma.globalStockItem.findFirst({
       where: { id: input.globalStockItemId, instanceId: input.instanceId },
     });
-    if (!item) throw new NotFoundException('Item não encontrado no estoque global');
+    if (!item)
+      throw new NotFoundException('Item não encontrado no estoque global');
 
     if (input.quantity <= 0) {
       throw new BadRequestException('Quantidade deve ser maior que zero');
@@ -88,8 +90,7 @@ export class PurchaseRequestsService {
 
     // Auto-set high priority if completely out of stock
     const priority =
-      input.priority ??
-      (item.currentQuantity <= 0 ? 'HIGH' : 'MEDIUM');
+      input.priority ?? (item.currentQuantity <= 0 ? 'HIGH' : 'MEDIUM');
 
     const request = await this.prisma.purchaseRequest.create({
       data: {

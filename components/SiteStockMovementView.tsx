@@ -505,7 +505,7 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-              {movementTotal} movimentação{movementTotal !== 1 ? 'ões' : ''} nesta obra
+              {movementTotal} movimentaç{movementTotal !== 1 ? 'ões' : 'ão'} nesta obra
             </p>
             <button
               onClick={() => loadMovements(0)}

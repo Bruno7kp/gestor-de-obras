@@ -3,12 +3,11 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { GlobalStockService } from '../global-stock/global-stock.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import {
-  ensureProjectAccess,
-} from '../common/project-access.util';
+import { ensureProjectAccess } from '../common/project-access.util';
 
 interface CreateInput {
   instanceId: string;
@@ -69,12 +68,14 @@ export class StockRequestsService {
   }
 
   async findAll(input: FindAllInput) {
-    const where: any = { instanceId: input.instanceId };
+    const where: Prisma.StockRequestWhereInput = {
+      instanceId: input.instanceId,
+    };
     if (input.projectId) {
       where.projectId = input.projectId;
     }
     if (input.status) {
-      where.status = input.status;
+      where.status = input.status as Prisma.EnumStockRequestStatusFilter;
     }
 
     return this.prisma.stockRequest.findMany({
@@ -99,7 +100,8 @@ export class StockRequestsService {
     const item = await this.prisma.globalStockItem.findFirst({
       where: { id: input.globalStockItemId, instanceId: input.instanceId },
     });
-    if (!item) throw new NotFoundException('Item não encontrado no estoque global');
+    if (!item)
+      throw new NotFoundException('Item não encontrado no estoque global');
 
     const project = await this.prisma.project.findUnique({
       where: { id: input.projectId },

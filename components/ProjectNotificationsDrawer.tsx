@@ -9,6 +9,7 @@ import {
   getNotificationTypeClasses,
   getNotificationTypeLabel,
   NOTIFICATION_FILTERS,
+  NotificationFilterEntry,
   NotificationTypeKey,
 } from '../utils/notificationPresentation';
 
@@ -21,6 +22,8 @@ interface ProjectNotificationsDrawerProps {
   onMarkAllRead: () => void;
   onDelete: (id: string) => void;
   deletingId?: string | null;
+  /** When provided, only these filters are shown (permission-filtered). Falls back to all filters. */
+  visibleFilters?: NotificationFilterEntry[];
 }
 
 export const ProjectNotificationsDrawer: React.FC<ProjectNotificationsDrawerProps> = ({
@@ -32,7 +35,9 @@ export const ProjectNotificationsDrawer: React.FC<ProjectNotificationsDrawerProp
   onMarkAllRead,
   onDelete,
   deletingId,
+  visibleFilters,
 }) => {
+  const filters = visibleFilters ?? NOTIFICATION_FILTERS;
   const [filter, setFilter] = useState<NotificationTypeKey | 'TODOS'>('TODOS');
 
   const getInitials = (name?: string | null) => {
@@ -89,7 +94,7 @@ export const ProjectNotificationsDrawer: React.FC<ProjectNotificationsDrawerProp
           <div className="flex items-center gap-2">
             <Filter size={14} className="text-slate-400" />
             <div className="flex flex-wrap gap-2">
-              {NOTIFICATION_FILTERS.map((option) => (
+              {filters.map((option) => (
                 <button
                   key={option.key}
                   onClick={() => setFilter(option.key)}

@@ -284,20 +284,21 @@ const DeleteItemModal: React.FC<{
 /*  KPI Card                                                           */
 /* ------------------------------------------------------------------ */
 const KpiCard = ({ label, value, icon, color }: { label: string; value: string | number; icon: React.ReactNode; color: string }) => {
-  const iconColors: Record<string, string> = {
-    indigo: 'text-indigo-500',
-    emerald: 'text-emerald-500',
-    amber: 'text-amber-500',
-    blue: 'text-blue-500',
+  const colors: Record<string, string> = {
+    indigo: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20',
+    emerald: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20',
+    amber: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20',
+    purple: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20',
+    blue: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20',
   };
-  const ic = iconColors[color] ?? iconColors.indigo;
+  const c = colors[color] ?? colors.indigo;
   return (
-    <div className="flex-1 min-w-[140px] flex items-center gap-2.5 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-      <div className={ic}>{icon}</div>
-      <div className="leading-tight">
-        <p className="text-sm font-black text-slate-800 dark:text-white">{value}</p>
-        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{label}</p>
+    <div className="p-6 rounded-[2rem] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between h-32">
+      <div className="flex justify-between items-start">
+        <div className={`p-2 rounded-lg ${c}`}>{icon}</div>
+        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{label}</span>
       </div>
+      <p className={`text-xl font-black tracking-tighter ${c.split(' ')[0]}`}>{value}</p>
     </div>
   );
 };
@@ -474,14 +475,18 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
           </div>
         </div>
 
-        {/* KPIs + SEARCH */}
-        <div className="flex flex-wrap items-stretch gap-3">
-          <KpiCard label="Itens Cadastrados" value={kpis.totalItems} icon={<Boxes size={16} />} color="indigo" />
-          <KpiCard label="Itens Críticos" value={kpis.critical} icon={<AlertTriangle size={16} />} color="amber" />
+        {/* KPI GRID */}
+        <div className={`grid ${showPrices ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2'} gap-6`}>
+          <KpiCard label="Itens Cadastrados" value={kpis.totalItems} icon={<Boxes size={20} />} color="indigo" />
+          <KpiCard label="Itens Críticos" value={kpis.critical} icon={<AlertTriangle size={20} />} color="amber" />
           {showPrices && (
-            <KpiCard label="Valor em Estoque" value={`R$ ${kpis.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} icon={<DollarSign size={16} />} color="emerald" />
+            <KpiCard label="Valor em Estoque" value={`R$ ${kpis.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} icon={<DollarSign size={20} />} color="emerald" />
           )}
-          <div className="flex-1 min-w-[200px] flex items-center bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        </div>
+
+        {/* SEARCH + REFRESH */}
+        <div className="flex justify-end">
+          <div className="flex items-center bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm w-full sm:w-80">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
               <input

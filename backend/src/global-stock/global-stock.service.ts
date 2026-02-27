@@ -5,7 +5,11 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import type { GlobalStockStatus, StockMovementType } from '@prisma/client';
+import type {
+  GlobalStockStatus,
+  Prisma,
+  StockMovementType,
+} from '@prisma/client';
 
 // --- DTOs ---
 
@@ -102,9 +106,7 @@ export class GlobalStockService {
    */
   private parseDate(dateStr?: string): Date {
     if (!dateStr) return new Date();
-    return new Date(
-      dateStr.includes('T') ? dateStr : `${dateStr}T12:00:00Z`,
-    );
+    return new Date(dateStr.includes('T') ? dateStr : `${dateStr}T12:00:00Z`);
   }
 
   // ===== CRUD =====
@@ -143,7 +145,7 @@ export class GlobalStockService {
     });
     if (!item) throw new NotFoundException('Item não encontrado');
 
-    const data: Record<string, any> = {};
+    const data: Prisma.GlobalStockItemUpdateInput = {};
     if (input.name !== undefined) data.name = input.name;
     if (input.unit !== undefined) data.unit = input.unit;
     if (input.minQuantity !== undefined) {
@@ -151,7 +153,11 @@ export class GlobalStockService {
       // Recalculate status with new min
       data.status = this.computeStatus(item.currentQuantity, input.minQuantity);
     }
-    if (input.supplierId !== undefined) data.supplierId = input.supplierId;
+    if (input.supplierId !== undefined) {
+      data.supplier = input.supplierId
+        ? { connect: { id: input.supplierId } }
+        : { disconnect: true };
+    }
 
     return this.prisma.globalStockItem.update({
       where: { id: input.id },
@@ -169,7 +175,10 @@ export class GlobalStockService {
     return this.prisma.globalStockItem.delete({ where: { id } });
   }
 
-  async reorder(instanceId: string, items: Array<{ id: string; order: number }>) {
+  async reorder(
+    instanceId: string,
+    items: Array<{ id: string; order: number }>,
+  ) {
     await this.prisma.$transaction(
       items.map((item) =>
         this.prisma.globalStockItem.update({
@@ -222,7 +231,7 @@ export class GlobalStockService {
       });
 
       // For ENTRY with price, update average price + price history
-      let priceUpdate: Record<string, any> = {};
+      let priceUpdate: Prisma.GlobalStockItemUpdateInput = {};
       if (input.type === 'ENTRY' && input.unitPrice && input.unitPrice > 0) {
         const newQty = item.currentQuantity + input.quantity;
         const weightedAvg =
@@ -264,15 +273,15 @@ export class GlobalStockService {
       });
 
       // Emit notification if item became critical or out of stock
-      if (
-        newStatus !== 'NORMAL' &&
-        item.status === 'NORMAL'
-      ) {
+      if (newStatus !== 'NORMAL' && item.status === 'NORMAL') {
         this.notificationsService
           .emit({
             instanceId: input.instanceId,
             category: 'STOCK',
-            eventType: newStatus === 'OUT_OF_STOCK' ? 'stock_depleted' : 'stock_critical',
+            eventType:
+              newStatus === 'OUT_OF_STOCK'
+                ? 'stock_depleted'
+                : 'stock_critical',
             title:
               newStatus === 'OUT_OF_STOCK'
                 ? `Estoque zerado: ${item.name}`
@@ -348,14 +357,11 @@ export class GlobalStockService {
   // ===== MOVEMENT QUERIES =====
 
   async findAllMovements(input: FindAllMovementsInput) {
-    const where: any = {};
-
-    // Filter by instance through the global stock item
-    where.globalStockItem = { instanceId: input.instanceId };
-
-    if (input.projectId) {
-      where.projectId = input.projectId;
-    }
+    const where: Prisma.GlobalStockMovementWhereInput = {
+      // Filter by instance through the global stock item
+      globalStockItem: { instanceId: input.instanceId },
+      ...(input.projectId ? { projectId: input.projectId } : {}),
+    };
 
     const [movements, total] = await Promise.all([
       this.prisma.globalStockMovement.findMany({

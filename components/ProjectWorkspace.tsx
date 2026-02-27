@@ -11,6 +11,7 @@ import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { canView as checkCanView, canEdit as checkCanEdit, getPermissionLevel } from '../utils/permissions';
 import type { PermissionModule } from '../utils/permissions';
+import { getVisibleFilters } from '../utils/notificationPresentation';
 import { WbsView } from './WbsView';
 import { StatsView } from './StatsView';
 import { ExpenseManager } from './ExpenseManager';
@@ -459,6 +460,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     },
     [useMemberPermissions, memberPermissions, getLevelGlobal],
   );
+
+  const visibleNotificationFilters = useMemo(() => getVisibleFilters(canView), [canView]);
 
   const currentMemberRole = useMemo(() => {
     if (!user?.id) return null;
@@ -1300,6 +1303,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         onClose={() => setShowNotificationsDrawer(false)}
         notifications={notifications}
         loading={notificationsLoading}
+        visibleFilters={visibleNotificationFilters}
         onMarkRead={(id) => {
           void onMarkNotificationRead(id);
         }}

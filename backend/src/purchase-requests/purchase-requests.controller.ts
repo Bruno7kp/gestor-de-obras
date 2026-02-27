@@ -41,14 +41,8 @@ export class PurchaseRequestsController {
     'global_stock_financial.view',
     'global_stock_financial.edit',
   )
-  findAll(
-    @Query('status') status: string,
-    @Req() req: AuthenticatedRequest,
-  ) {
-    return this.service.findAll(
-      req.user.instanceId,
-      status || undefined,
-    );
+  findAll(@Query('status') status: string, @Req() req: AuthenticatedRequest) {
+    return this.service.findAll(req.user.instanceId, status || undefined);
   }
 
   @Post()
@@ -69,10 +63,7 @@ export class PurchaseRequestsController {
 
   @Patch(':id/order')
   @HasPermission('global_stock_financial.edit')
-  markOrdered(
-    @Param('id') id: string,
-    @Req() req: AuthenticatedRequest,
-  ) {
+  markOrdered(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.service.markOrdered({
       id,
       instanceId: req.user.instanceId,
@@ -99,10 +90,7 @@ export class PurchaseRequestsController {
 
   @Patch(':id/cancel')
   @HasPermission('global_stock_financial.edit')
-  cancel(
-    @Param('id') id: string,
-    @Req() req: AuthenticatedRequest,
-  ) {
+  cancel(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.service.cancel({
       id,
       instanceId: req.user.instanceId,
