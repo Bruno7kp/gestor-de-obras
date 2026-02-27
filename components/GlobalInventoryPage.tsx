@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Package, Plus, Search, ArrowDownCircle, ArrowUpCircle, AlertTriangle,
-  ShoppingCart, FileText, Edit2, Trash2, ChevronDown, ChevronRight,
+  ShoppingCart, FileText, Edit2, Trash2, ChevronDown, ChevronRight, ChevronLeft,
   TrendingUp, RefreshCw, Boxes, DollarSign,
 } from 'lucide-react';
 import { usePermissions } from '../hooks/usePermissions';
@@ -17,6 +17,17 @@ interface GlobalInventoryPageProps {
 
 type InventoryMode = 'almoxarifado' | 'financeiro';
 
+const MIN_DECIMALS = 2;
+const MAX_DECIMALS = 6;
+
+const DecimalControls: React.FC<{ value: number; onChange: (v: number) => void }> = ({ value, onChange }) => (
+  <div className="inline-flex items-center gap-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg py-0.5 px-0.5">
+    <button type="button" onClick={() => onChange(financial.clampDecimals(value - 1, MIN_DECIMALS, MAX_DECIMALS))} className="px-1.5 py-0.5 text-slate-500 dark:text-slate-300 rounded hover:bg-white dark:hover:bg-slate-700" title="Menos casas decimais"><ChevronLeft size={10} /></button>
+    <span className="text-[8px] font-black text-slate-400 tabular-nums w-4 text-center">{value}</span>
+    <button type="button" onClick={() => onChange(financial.clampDecimals(value + 1, MIN_DECIMALS, MAX_DECIMALS))} className="px-1.5 py-0.5 text-slate-500 dark:text-slate-300 rounded hover:bg-white dark:hover:bg-slate-700" title="Mais casas decimais"><ChevronRight size={10} /></button>
+  </div>
+);
+
 /* ------------------------------------------------------------------ */
 /*  Global Stock Item Modal                                            */
 /* ------------------------------------------------------------------ */
@@ -27,14 +38,15 @@ const GlobalStockItemModal: React.FC<{
 }> = ({ item, onSave, onClose }) => {
   const [name, setName] = useState(item?.name ?? '');
   const [unit, setUnit] = useState(item?.unit ?? 'un');
-  const [minQuantity, setMinQuantity] = useState(String(item?.minQuantity ?? 0));
+  const [minQtyDecimals, setMinQtyDecimals] = useState(MIN_DECIMALS);
+  const [minQuantity, setMinQuantity] = useState(() => financial.maskDecimal(String(Math.round((item?.minQuantity ?? 0) * 100)), MIN_DECIMALS));
 
   const handleSave = () => {
     if (!name.trim()) return;
     onSave({
       name: name.trim(),
       unit: unit.trim() || 'un',
-      minQuantity: parseFloat(minQuantity) || 0,
+      minQuantity: financial.parseLocaleNumber(minQuantity),
     });
   };
 
@@ -56,8 +68,11 @@ const GlobalStockItemModal: React.FC<{
               <input className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-indigo-500 rounded-xl outline-none transition-all text-sm font-bold" value={unit} onChange={e => setUnit(e.target.value)} />
             </div>
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Qtd Mínima</label>
-              <input type="number" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-indigo-500 rounded-xl outline-none transition-all text-sm font-bold" value={minQuantity} onChange={e => setMinQuantity(e.target.value)} min={0} step="0.01" />
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Qtd Mínima</label>
+                <DecimalControls value={minQtyDecimals} onChange={d => { setMinQtyDecimals(d); setMinQuantity(financial.maskDecimal(minQuantity.replace(/\D/g, ''), d)); }} />
+              </div>
+              <input type="text" inputMode="decimal" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-indigo-500 rounded-xl outline-none transition-all text-sm font-bold" value={minQuantity} onChange={e => setMinQuantity(financial.maskDecimal(e.target.value, minQtyDecimals))} />
             </div>
           </div>
         </div>
@@ -81,14 +96,17 @@ const EntryModal: React.FC<{
 }> = ({ item, suppliers, onSave, onClose }) => {
   const [quantity, setQuantity] = useState('');
   const [unitPrice, setUnitPrice] = useState('');
+  const [qtyDecimals, setQtyDecimals] = useState(MIN_DECIMALS);
+  const [priceDecimals, setPriceDecimals] = useState(MIN_DECIMALS);
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [supplierId, setSupplierId] = useState(item.supplierId ?? '');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
 
-  const previewQty = (parseFloat(quantity) || 0) + item.currentQuantity;
-  const newPrice = parseFloat(unitPrice) || 0;
+  const parsedQty = financial.parseLocaleNumber(quantity);
+  const parsedPrice = financial.parseLocaleNumber(unitPrice);
+  const previewQty = parsedQty + item.currentQuantity;
   const previewAvg = previewQty > 0
-    ? (item.currentQuantity * item.averagePrice + (parseFloat(quantity) || 0) * newPrice) / previewQty
+    ? (item.currentQuantity * item.averagePrice + parsedQty * parsedPrice) / previewQty
     : item.averagePrice;
 
   return (
@@ -101,12 +119,18 @@ const EntryModal: React.FC<{
         <div className="px-8 py-6 space-y-5">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Quantidade *</label>
-              <input type="number" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-indigo-500 rounded-xl outline-none transition-all text-sm font-bold" value={quantity} onChange={e => setQuantity(e.target.value)} min={0.01} step="0.01" autoFocus />
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Quantidade *</label>
+                <DecimalControls value={qtyDecimals} onChange={d => { setQtyDecimals(d); setQuantity(prev => prev ? financial.maskDecimal(prev.replace(/\D/g, ''), d) : prev); }} />
+              </div>
+              <input type="text" inputMode="decimal" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-indigo-500 rounded-xl outline-none transition-all text-sm font-bold" value={quantity} onChange={e => setQuantity(financial.maskDecimal(e.target.value, qtyDecimals))} autoFocus />
             </div>
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Preço Unit. *</label>
-              <input type="number" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-indigo-500 rounded-xl outline-none transition-all text-sm font-bold" value={unitPrice} onChange={e => setUnitPrice(e.target.value)} min={0.01} step="0.01" />
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Preço Unit. *</label>
+                <DecimalControls value={priceDecimals} onChange={d => { setPriceDecimals(d); setUnitPrice(prev => prev ? financial.maskDecimal(prev.replace(/\D/g, ''), d) : prev); }} />
+              </div>
+              <input type="text" inputMode="decimal" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-indigo-500 rounded-xl outline-none transition-all text-sm font-bold" value={unitPrice} onChange={e => setUnitPrice(financial.maskDecimal(e.target.value, priceDecimals))} />
             </div>
           </div>
           <div>
@@ -126,7 +150,7 @@ const EntryModal: React.FC<{
               <input type="date" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-indigo-500 rounded-xl outline-none transition-all text-sm font-bold" value={date} onChange={e => setDate(e.target.value)} />
             </div>
           </div>
-          {parseFloat(quantity) > 0 && parseFloat(unitPrice) > 0 && (
+          {parsedQty > 0 && parsedPrice > 0 && (
             <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-2xl border border-emerald-100 dark:border-emerald-800">
               <div className="flex justify-between text-sm">
                 <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Estoque após entrada</span>
@@ -142,8 +166,8 @@ const EntryModal: React.FC<{
         <div className="px-8 py-5 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
           <button onClick={onClose} className="px-6 py-3 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 text-[10px] font-black uppercase tracking-widest transition-all">Cancelar</button>
           <button
-            onClick={() => onSave({ quantity: parseFloat(quantity) || 0, unitPrice: parseFloat(unitPrice) || 0, invoiceNumber: invoiceNumber || undefined, supplierId: supplierId || undefined, date })}
-            disabled={!parseFloat(quantity) || !parseFloat(unitPrice)}
+            onClick={() => onSave({ quantity: parsedQty, unitPrice: parsedPrice, invoiceNumber: invoiceNumber || undefined, supplierId: supplierId || undefined, date })}
+            disabled={!parsedQty || !parsedPrice}
             className="flex items-center gap-2 px-8 py-3 bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100"
           >
             <ArrowDownCircle size={16} /> Registrar Entrada
@@ -163,6 +187,8 @@ const PurchaseRequestModal: React.FC<{
   onClose: () => void;
 }> = ({ item, onSave, onClose }) => {
   const [quantity, setQuantity] = useState('');
+  const [qtyDecimals, setQtyDecimals] = useState(MIN_DECIMALS);
+  const parsedQty = financial.parseLocaleNumber(quantity);
 
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
@@ -173,8 +199,11 @@ const PurchaseRequestModal: React.FC<{
         </div>
         <div className="px-8 py-6 space-y-4">
           <div>
-            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Quantidade *</label>
-            <input type="number" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-indigo-500 rounded-xl outline-none transition-all text-sm font-bold" value={quantity} onChange={e => setQuantity(e.target.value)} min={0.01} step="0.01" autoFocus />
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Quantidade *</label>
+              <DecimalControls value={qtyDecimals} onChange={d => { setQtyDecimals(d); setQuantity(prev => prev ? financial.maskDecimal(prev.replace(/\D/g, ''), d) : prev); }} />
+            </div>
+            <input type="text" inputMode="decimal" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-indigo-500 rounded-xl outline-none transition-all text-sm font-bold" value={quantity} onChange={e => setQuantity(financial.maskDecimal(e.target.value, qtyDecimals))} autoFocus />
           </div>
           <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl">
             <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Estoque atual</p>
@@ -184,8 +213,8 @@ const PurchaseRequestModal: React.FC<{
         <div className="px-8 py-5 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
           <button onClick={onClose} className="px-6 py-3 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 text-[10px] font-black uppercase tracking-widest transition-all">Cancelar</button>
           <button
-            onClick={() => { const qty = parseFloat(quantity); if (qty > 0) onSave(qty); }}
-            disabled={!parseFloat(quantity) || parseFloat(quantity) <= 0}
+            onClick={() => { if (parsedQty > 0) onSave(parsedQty); }}
+            disabled={parsedQty <= 0}
             className="flex items-center gap-2 px-8 py-3 bg-purple-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-purple-500/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100"
           >
             <ShoppingCart size={16} /> Solicitar

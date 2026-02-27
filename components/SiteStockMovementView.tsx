@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Package, Search, ArrowUpCircle, ArrowDownCircle,
   AlertTriangle, RefreshCw, CheckCircle2,
-  Send, Clock, XCircle, ChevronDown, ChevronUp,
+  Send, Clock, XCircle, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
   History, Boxes, Activity, FileText, Warehouse,
 } from 'lucide-react';
 import type { GlobalStockItem, GlobalStockMovement, StockRequest, StockRequestStatus } from '../types';
@@ -55,6 +55,7 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
     item: GlobalStockItem;
     quantity: string;
     notes: string;
+    decimals?: number;
   } | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -140,7 +141,7 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
   /* ── handlers ── */
   const handleRequest = async () => {
     if (!requestModal) return;
-    const qty = parseFloat(requestModal.quantity);
+    const qty = financial.parseLocaleNumber(requestModal.quantity);
     if (!qty || qty <= 0) {
       toast.error('Informe uma quantidade válida');
       return;
@@ -610,20 +611,24 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">
-                  Quantidade *
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Quantidade *</label>
+                  <div className="inline-flex items-center gap-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg py-0.5 px-0.5">
+                    <button type="button" onClick={() => setRequestModal(prev => prev ? { ...prev, decimals: financial.clampDecimals((prev.decimals ?? 2) - 1, 2, 6), quantity: financial.maskDecimal(prev.quantity.replace(/\D/g, ''), financial.clampDecimals((prev.decimals ?? 2) - 1, 2, 6)) } : prev)} className="px-1.5 py-0.5 text-slate-500 dark:text-slate-300 rounded hover:bg-white dark:hover:bg-slate-700"><ChevronLeft size={10} /></button>
+                    <span className="text-[8px] font-black text-slate-400 tabular-nums w-4 text-center">{requestModal.decimals ?? 2}</span>
+                    <button type="button" onClick={() => setRequestModal(prev => prev ? { ...prev, decimals: financial.clampDecimals((prev.decimals ?? 2) + 1, 2, 6), quantity: financial.maskDecimal(prev.quantity.replace(/\D/g, ''), financial.clampDecimals((prev.decimals ?? 2) + 1, 2, 6)) } : prev)} className="px-1.5 py-0.5 text-slate-500 dark:text-slate-300 rounded hover:bg-white dark:hover:bg-slate-700"><ChevronRight size={10} /></button>
+                  </div>
+                </div>
                 <input
-                  type="number"
-                  step="any"
-                  min="0.01"
+                  type="text"
+                  inputMode="decimal"
                   value={requestModal.quantity}
-                  onChange={(e) => setRequestModal({ ...requestModal, quantity: e.target.value })}
+                  onChange={(e) => setRequestModal({ ...requestModal, quantity: financial.maskDecimal(e.target.value, requestModal.decimals ?? 2) })}
                   className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-indigo-500 rounded-xl outline-none transition-all text-sm font-bold"
                   placeholder="0,00"
                   autoFocus
                 />
-                {parseFloat(requestModal.quantity) > requestModal.item.currentQuantity && requestModal.item.currentQuantity > 0 && (
+                {financial.parseLocaleNumber(requestModal.quantity) > requestModal.item.currentQuantity && requestModal.item.currentQuantity > 0 && (
                   <p className="text-[9px] text-amber-500 font-bold mt-1 flex items-center gap-1">
                     <AlertTriangle size={10} /> Quantidade excede o estoque disponível — o almoxarifado decidirá se atende
                   </p>
@@ -658,7 +663,7 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
               </button>
               <button
                 onClick={handleRequest}
-                disabled={submitting || !requestModal.quantity || parseFloat(requestModal.quantity) <= 0}
+                disabled={submitting || !requestModal.quantity || financial.parseLocaleNumber(requestModal.quantity) <= 0}
                 className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
