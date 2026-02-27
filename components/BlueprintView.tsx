@@ -535,7 +535,7 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
               onClick={() => handleViewModeChange(mode)}
               className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
                 viewMode === mode
-                  ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm'
+                  ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm'
                   : 'text-slate-500 dark:text-slate-300 hover:text-slate-700 dark:hover:text-slate-100'
               }`}
             >
