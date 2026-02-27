@@ -16,6 +16,8 @@ import { SettingsView } from './components/SettingsView';
 import { ProjectWorkspace, type TabID } from './components/ProjectWorkspace';
 import { BiddingView } from './components/BiddingView';
 import { SupplierManager } from './components/SupplierManager';
+import { GlobalInventoryPage } from './components/GlobalInventoryPage';
+import { TraceabilityPage } from './components/TraceabilityPage';
 
 import { Menu } from 'lucide-react';
 
@@ -406,6 +408,8 @@ const App: React.FC = () => {
   const headerTitle = useMemo(() => {
     if (location.pathname.startsWith('/app/biddings')) return 'Setor de Licitações';
     if (location.pathname.startsWith('/app/suppliers')) return 'Base de Fornecedores';
+    if (location.pathname.startsWith('/app/global-stock')) return 'Estoque Global';
+    if (location.pathname.startsWith('/app/traceability')) return 'Rastreabilidade';
     if (location.pathname.startsWith('/app/settings')) return 'Configurações de Sistema';
     if (location.pathname.startsWith('/app/projects')) return 'Obra em Gestão';
     return 'Portal de Obras';
@@ -467,6 +471,14 @@ const App: React.FC = () => {
           <Route
             path="suppliers"
             element={<SupplierManager suppliers={suppliers} projects={projects} onUpdateSuppliers={updateSuppliers} />}
+          />
+          <Route
+            path="global-stock"
+            element={<GlobalInventoryPage suppliers={suppliers} />}
+          />
+          <Route
+            path="traceability"
+            element={<TraceabilityPage suppliers={suppliers} />}
           />
           <Route
             path="settings/:tab?"

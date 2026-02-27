@@ -11,7 +11,9 @@ export type PermissionLevel = 'none' | 'view' | 'edit';
 export type PermissionModule = 
   | 'biddings' | 'suppliers' | 'projects_general' | 'projects_specific' 
   | 'wbs' | 'blueprint' | 'technical_analysis' | 'financial_flow' | 'supplies' | 'workforce' 
-  | 'planning' | 'schedule' | 'journal' | 'notifications' | 'documents' | 'stock' | 'project_settings' | 'period_close' | 'global_settings';
+  | 'planning' | 'schedule' | 'journal' | 'notifications' | 'documents' | 'stock' 
+  | 'global_stock_warehouse' | 'global_stock_financial'
+  | 'project_settings' | 'period_close' | 'global_settings';
 
 export const PERMISSION_MODULES: Array<{ key: PermissionModule; label: string }> = [
   { key: 'biddings', label: 'Licitações' },
@@ -29,7 +31,9 @@ export const PERMISSION_MODULES: Array<{ key: PermissionModule; label: string }>
   { key: 'journal', label: 'Diário de Obra' },
   { key: 'notifications', label: 'Notificações' },
   { key: 'documents', label: 'Documentos' },
-  { key: 'stock', label: 'Estoque' },
+  { key: 'stock', label: 'Estoque da Obra' },
+  { key: 'global_stock_warehouse', label: 'Estoque Global - Almoxarifado' },
+  { key: 'global_stock_financial', label: 'Estoque Global - Financeiro' },
   { key: 'project_settings', label: 'Ajustes do projeto' },
   { key: 'period_close', label: 'Encerramento de Período' },
   { key: 'global_settings', label: 'Configurações gerais' },
@@ -100,9 +104,17 @@ export const PERMISSIONS = {
   PROJECT_SETTINGS_VIEW: 'project_settings.view',
   PROJECT_SETTINGS_EDIT: 'project_settings.edit',
   
-  // Stock / Inventory
+  // Stock / Inventory (per-project)
   STOCK_VIEW: 'stock.view',
   STOCK_EDIT: 'stock.edit',
+
+  // Global Stock - Warehouse (almoxarifado)
+  GLOBAL_STOCK_WAREHOUSE_VIEW: 'global_stock_warehouse.view',
+  GLOBAL_STOCK_WAREHOUSE_EDIT: 'global_stock_warehouse.edit',
+
+  // Global Stock - Financial (financeiro)
+  GLOBAL_STOCK_FINANCIAL_VIEW: 'global_stock_financial.view',
+  GLOBAL_STOCK_FINANCIAL_EDIT: 'global_stock_financial.edit',
 
   // Blueprint / Quantitativos
   BLUEPRINT_VIEW: 'blueprint.view',

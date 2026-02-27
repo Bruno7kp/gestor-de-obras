@@ -28,6 +28,9 @@ import { LaborContractsModule } from './labor-contracts/labor-contracts.module';
 import { DebugModule } from './debug/debug.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { StockModule } from './stock/stock.module';
+import { GlobalStockModule } from './global-stock/global-stock.module';
+import { PurchaseRequestsModule } from './purchase-requests/purchase-requests.module';
+import { StockRequestsModule } from './stock-requests/stock-requests.module';
 
 @Module({
   imports: [
@@ -56,6 +59,9 @@ import { StockModule } from './stock/stock.module';
     DebugModule,
     NotificationsModule,
     StockModule,
+    GlobalStockModule,
+    PurchaseRequestsModule,
+    StockRequestsModule,
   ],
   controllers: [AppController],
   providers: [

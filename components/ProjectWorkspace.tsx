@@ -25,7 +25,7 @@ import { ProjectMembersBadge } from './ProjectMembersBadge';
 import { ProjectMembersModal } from './ProjectMembersModal';
 import { ProjectNotificationsDrawer } from './ProjectNotificationsDrawer';
 import { ProjectDescriptionModal } from './ProjectDescriptionModal';
-import { InventoryView } from './InventoryView';
+import { SiteStockMovementView } from './SiteStockMovementView';
 import { BlueprintView } from './BlueprintView';
 import { PrintReport } from './PrintReport';
 import { PrintExpenseReport } from './PrintExpenseReport';
@@ -1450,7 +1450,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                   />
                 )}
                 {tab === 'journal' && <JournalView project={project} onUpdateJournal={(j) => onUpdateProject({ journal: j })} allWorkItems={displayData.items.filter(i => i.scope !== 'quantitativo')} isReadOnly={displayData.isReadOnly} />}
-                {tab === 'stock' && <InventoryView projectId={project.id} canEditModule={getLevel('stock') === 'edit'} isReadOnly={isHistoryMode || isProjectArchived} projectName={project.name} />}
+                {tab === 'stock' && <SiteStockMovementView projectId={project.id} canEditModule={getLevel('stock') === 'edit'} isReadOnly={isHistoryMode || isProjectArchived} projectName={project.name} />}
                 {tab === 'documents' && <AssetManager assets={project.assets} onAdd={handleAssetAdd} onDelete={handleAssetDelete} isReadOnly={displayData.isReadOnly} />}
                 {tab === 'branding' && <BrandingView project={project} onUpdateProject={handleBrandingUpdate} isReadOnly={displayData.isReadOnly} />}
               </div>

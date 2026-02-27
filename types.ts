@@ -490,6 +490,105 @@ export interface StockItem {
   updatedAt?: string;
 }
 
+// --- ESTOQUE GLOBAL ---
+export type GlobalStockStatus = 'NORMAL' | 'CRITICAL' | 'OUT_OF_STOCK';
+export type PurchaseRequestStatus = 'PENDING' | 'ORDERED' | 'COMPLETED' | 'CANCELLED';
+export type PurchaseRequestPriority = 'LOW' | 'MEDIUM' | 'HIGH';
+export type StockRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface PriceHistoryEntry {
+  id: string;
+  globalStockItemId: string;
+  date: string;
+  price: number;
+  supplierId?: string | null;
+  supplier?: { id: string; name: string } | null;
+}
+
+export interface GlobalStockItem {
+  id: string;
+  instanceId: string;
+  name: string;
+  unit: string;
+  currentQuantity: number;
+  minQuantity: number;
+  averagePrice: number;
+  lastPrice: number | null;
+  lastEntryDate: string | null;
+  supplierId: string | null;
+  status: GlobalStockStatus;
+  order: number;
+  createdAt?: string;
+  updatedAt?: string;
+  supplier?: { id: string; name: string } | null;
+  priceHistory?: PriceHistoryEntry[];
+}
+
+export interface GlobalStockMovement {
+  id: string;
+  globalStockItemId: string;
+  type: StockMovementType;
+  quantity: number;
+  unitPrice: number | null;
+  date: string;
+  responsible: string | null;
+  originDestination: string;
+  projectId: string | null;
+  invoiceNumber: string | null;
+  supplierId: string | null;
+  notes: string;
+  createdAt?: string;
+  createdBy?: { id: string; name: string; profileImage?: string | null };
+  project?: { id: string; name: string } | null;
+  supplier?: { id: string; name: string } | null;
+  globalStockItem?: { id: string; name: string; unit: string };
+}
+
+export interface PurchaseRequest {
+  id: string;
+  instanceId: string;
+  globalStockItemId: string;
+  itemName: string;
+  quantity: number;
+  date: string;
+  status: PurchaseRequestStatus;
+  priority: PurchaseRequestPriority;
+  notes: string | null;
+  requestedById: string;
+  processedById: string | null;
+  orderedAt: string | null;
+  completedAt: string | null;
+  invoiceNumber: string | null;
+  unitPrice: number | null;
+  createdAt?: string;
+  updatedAt?: string;
+  globalStockItem?: { id: string; name: string; unit: string; currentQuantity: number };
+  requestedBy?: { id: string; name: string; profileImage?: string | null };
+  processedBy?: { id: string; name: string; profileImage?: string | null } | null;
+}
+
+export interface StockRequest {
+  id: string;
+  instanceId: string;
+  projectId: string;
+  globalStockItemId: string;
+  itemName: string;
+  quantity: number;
+  date: string;
+  status: StockRequestStatus;
+  notes: string | null;
+  rejectionReason: string | null;
+  requestedById: string;
+  approvedById: string | null;
+  approvedAt: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  globalStockItem?: { id: string; name: string; unit: string; currentQuantity: number; status: GlobalStockStatus };
+  project?: { id: string; name: string };
+  requestedBy?: { id: string; name: string; profileImage?: string | null };
+  approvedBy?: { id: string; name: string; profileImage?: string | null } | null;
+}
+
 // --- PROJETO ---
 export interface Project {
   id: string;

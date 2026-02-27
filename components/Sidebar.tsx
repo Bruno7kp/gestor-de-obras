@@ -1,7 +1,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, Cog, PlusCircle, Briefcase, Sun, Moon, Menu, HardHat, Folder, ChevronRight, ChevronLeft, ChevronDown, Landmark, Truck, Shield, User, LogOut, ChevronUp, Lock, Globe } from 'lucide-react';
+import { Home, Cog, PlusCircle, Briefcase, Sun, Moon, Menu, HardHat, Folder, ChevronRight, ChevronLeft, ChevronDown, Landmark, Truck, Shield, User, LogOut, ChevronUp, Lock, Globe, Warehouse, GitBranch } from 'lucide-react';
 import { Project, ProjectGroup, CompanyCertificate, ExternalProject } from '../types';
 import { biddingService } from '../services/biddingService';
 import { useAuth } from '../auth/AuthContext';
@@ -294,6 +294,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onClick={() => { navigate('/app/suppliers'); setMobileOpen(false); }}
                   icon={<Truck size={18}/>}
                   label="Fornecedores"
+                />
+              )}
+              {(canView('global_stock_warehouse') || canView('global_stock_financial')) && (
+                <NavItem
+                  active={location.pathname.startsWith('/app/global-stock')}
+                  onClick={() => { navigate('/app/global-stock'); setMobileOpen(false); }}
+                  icon={<Warehouse size={18}/>}
+                  label="Estoque Global"
+                />
+              )}
+              {(canView('global_stock_warehouse') || canView('global_stock_financial')) && (
+                <NavItem
+                  active={location.pathname.startsWith('/app/traceability')}
+                  onClick={() => { navigate('/app/traceability'); setMobileOpen(false); }}
+                  icon={<GitBranch size={18}/>}
+                  label="Rastreabilidade"
                 />
               )}
               

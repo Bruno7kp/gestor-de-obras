@@ -19,19 +19,22 @@ enum ExpenseStatus {
 }
 
 model Instance {
-  id             String            @id @default(uuid())
-  name           String            @unique
-  status         String
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
-  subscription   Subscription?
-  globalSettings GlobalSettings?
-  users          User[]
-  roles          Role[]
-  projects       Project[]
-  projectGroups  ProjectGroup[]
-  suppliers      Supplier[]
-  biddings       BiddingProcess[]
+  id               String              @id @default(uuid())
+  name             String              @unique
+  status           String
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  subscription     Subscription?
+  globalSettings   GlobalSettings?
+  users            User[]
+  roles            Role[]
+  projects         Project[]
+  projectGroups    ProjectGroup[]
+  suppliers        Supplier[]
+  biddings         BiddingProcess[]
+  globalStockItems GlobalStockItem[]
+  purchaseRequests PurchaseRequest[]
+  stockRequests    StockRequest[]
 }
 
 model Subscription {
@@ -88,6 +91,11 @@ model User {
   createdJournalEntries JournalEntry[] @relation("UserJournalEntries")
   createdStockMovements StockMovement[] @relation("UserStockMovements")
   createdPlanningTasks PlanningTask[] @relation("UserPlanningTasks")
+  createdGlobalStockMovements GlobalStockMovement[] @relation("UserGlobalStockMovements")
+  purchaseRequestsCreated PurchaseRequest[] @relation("UserPurchaseRequestsCreated")
+  purchaseRequestsProcessed PurchaseRequest[] @relation("UserPurchaseRequestsProcessed")
+  stockRequestsCreated StockRequest[] @relation("UserStockRequestsCreated")
+  stockRequestsApproved StockRequest[] @relation("UserStockRequestsApproved")
   notificationRecipients NotificationRecipient[]
   notificationPreferences NotificationPreference[]
   notificationDeliveries NotificationDelivery[]
@@ -196,6 +204,8 @@ model Project {
   laborContracts        LaborContract[]
   theme                 PDFTheme?
   stockItems            StockItem[]
+  globalStockMovements  GlobalStockMovement[]
+  stockRequests         StockRequest[]
 }
 
 model Notification {
@@ -524,6 +534,9 @@ model Supplier {
   instance   Instance @relation(fields: [instanceId], references: [id])
   forecasts  MaterialForecast[]
   supplyGroups SupplyGroup[]
+  globalStockItems GlobalStockItem[]
+  priceHistories PriceHistory[]
+  globalStockMovements GlobalStockMovement[]
 }
 
 model BiddingProcess {
@@ -647,4 +660,147 @@ model StockMovement {
   stockItem   StockItem         @relation(fields: [stockItemId], references: [id], onDelete: Cascade)
 
   @@index([stockItemId, date(sort: Desc)])
+}
+
+// --- ESTOQUE GLOBAL (POR INSTÂNCIA) ---
+
+enum GlobalStockStatus {
+  NORMAL
+  CRITICAL
+  OUT_OF_STOCK
+}
+
+enum PurchaseRequestStatus {
+  PENDING
+  ORDERED
+  COMPLETED
+  CANCELLED
+}
+
+enum PurchaseRequestPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum StockRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model GlobalStockItem {
+  id              String            @id @default(uuid())
+  instanceId      String
+  name            String
+  unit            String            @default("un")
+  currentQuantity Float             @default(0)
+  minQuantity     Float             @default(0)
+  averagePrice    Float             @default(0)
+  lastPrice       Float?
+  lastEntryDate   DateTime?
+  supplierId      String?
+  status          GlobalStockStatus @default(NORMAL)
+  order           Int               @default(0)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  instance        Instance          @relation(fields: [instanceId], references: [id])
+  supplier        Supplier?         @relation(fields: [supplierId], references: [id])
+  priceHistory    PriceHistory[]
+  movements       GlobalStockMovement[]
+  purchaseRequests PurchaseRequest[]
+  stockRequests   StockRequest[]
+
+  @@index([instanceId])
+  @@index([instanceId, status])
+}
+
+model PriceHistory {
+  id                String          @id @default(uuid())
+  globalStockItemId String
+  date              DateTime        @default(now())
+  price             Float
+  supplierId        String?
+  globalStockItem   GlobalStockItem @relation(fields: [globalStockItemId], references: [id], onDelete: Cascade)
+  supplier          Supplier?       @relation(fields: [supplierId], references: [id])
+
+  @@index([globalStockItemId, date(sort: Desc)])
+}
+
+model GlobalStockMovement {
+  id                String            @id @default(uuid())
+  globalStockItemId String
+  type              StockMovementType
+  quantity          Float
+  unitPrice         Float?
+  date              DateTime          @default(now())
+  responsible       String?
+  originDestination String            @default("Depósito Central")
+  projectId         String?
+  invoiceNumber     String?
+  supplierId        String?
+  notes             String            @default("")
+  createdAt         DateTime          @default(now())
+  createdById       String?
+  globalStockItem   GlobalStockItem   @relation(fields: [globalStockItemId], references: [id], onDelete: Cascade)
+  project           Project?          @relation(fields: [projectId], references: [id])
+  supplier          Supplier?         @relation(fields: [supplierId], references: [id])
+  createdBy         User?             @relation("UserGlobalStockMovements", fields: [createdById], references: [id])
+
+  @@index([globalStockItemId, date(sort: Desc)])
+  @@index([projectId, date(sort: Desc)])
+}
+
+model PurchaseRequest {
+  id                String                  @id @default(uuid())
+  instanceId        String
+  globalStockItemId String
+  itemName          String
+  quantity          Float
+  date              DateTime                @default(now())
+  status            PurchaseRequestStatus   @default(PENDING)
+  priority          PurchaseRequestPriority @default(MEDIUM)
+  notes             String?
+  requestedById     String
+  processedById     String?
+  orderedAt         DateTime?
+  completedAt       DateTime?
+  invoiceNumber     String?
+  unitPrice         Float?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  instance          Instance                @relation(fields: [instanceId], references: [id])
+  globalStockItem   GlobalStockItem         @relation(fields: [globalStockItemId], references: [id])
+  requestedBy       User                    @relation("UserPurchaseRequestsCreated", fields: [requestedById], references: [id])
+  processedBy       User?                   @relation("UserPurchaseRequestsProcessed", fields: [processedById], references: [id])
+
+  @@index([instanceId, status])
+  @@index([globalStockItemId])
+}
+
+model StockRequest {
+  id                String             @id @default(uuid())
+  instanceId        String
+  projectId         String
+  globalStockItemId String
+  itemName          String
+  quantity          Float
+  date              DateTime           @default(now())
+  status            StockRequestStatus @default(PENDING)
+  notes             String?
+  rejectionReason   String?
+  requestedById     String
+  approvedById      String?
+  approvedAt        DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  instance          Instance           @relation(fields: [instanceId], references: [id])
+  project           Project            @relation(fields: [projectId], references: [id])
+  globalStockItem   GlobalStockItem    @relation(fields: [globalStockItemId], references: [id])
+  requestedBy       User               @relation("UserStockRequestsCreated", fields: [requestedById], references: [id])
+  approvedBy        User?              @relation("UserStockRequestsApproved", fields: [approvedById], references: [id])
+
+  @@index([instanceId, status])
+  @@index([projectId, status])
+  @@index([globalStockItemId])
 }
