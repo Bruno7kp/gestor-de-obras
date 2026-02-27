@@ -234,7 +234,7 @@ export const SettingsPermissionsTab: React.FC = () => {
         <table className="min-w-[1200px] w-full text-left text-[11px]">
           <thead className="text-[10px] uppercase tracking-widest text-slate-400">
             <tr>
-              <th className="py-3 pr-4">Tipo de Usuário</th>
+              <th className="py-3 pr-4 pl-6 sticky -left-6 z-10 bg-white dark:bg-slate-900">Tipo de Usuário</th>
               {PERMISSION_MODULES.map((module) => (
                 <th key={module.key} className="py-3 px-3 whitespace-nowrap">
                   {module.label}
@@ -246,7 +246,7 @@ export const SettingsPermissionsTab: React.FC = () => {
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {visibleRoles.map((role) => (
               <tr key={role.id} className="text-slate-700 dark:text-slate-200">
-                <td className="py-4 pr-4">
+                <td className="py-4 pr-4 pl-6 sticky -left-6 z-10 bg-white dark:bg-slate-900">
                   <div className="flex items-center gap-2">
                     <span className="font-black">{role.name}</span>
                     {DEFAULT_ROLE_NAMES.has(role.name) && (
