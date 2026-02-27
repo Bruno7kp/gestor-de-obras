@@ -1,6 +1,6 @@
 
 import * as XLSX from 'xlsx';
-import { WorkItem, ItemType, Project, ProjectExpense, ExpenseType, ProjectPlanning, PlanningTask, MaterialForecast, Milestone, Supplier } from '../types';
+import { WorkItem, ItemType, Project, ProjectExpense, ExpenseType, ProjectPlanning, PlanningTask, MaterialForecast, Milestone, Supplier, StockItem } from '../types';
 import { financial } from '../utils/math';
 import { treeService } from './treeService';
 
@@ -65,6 +65,9 @@ const BLUEPRINT_HEADERS = [
 
 const EXPENSE_HEADERS = ["WBS", "TIPO_REGISTRO", "CATEGORIA", "DATA", "DESCRICAO", "ENTIDADE", "UNIDADE", "QUANTIDADE", "UNITARIO", "DESCONTO", "TOTAL_LIQUIDO", "PAGO"];
 const SUPPLIER_HEADERS = ["NOME", "CNPJ", "CATEGORIA", "CONTATO", "EMAIL", "TELEFONE", "OBSERVACOES"];
+
+const STOCK_SUMMARY_HEADERS = ["MATERIAL", "UNIDADE", "QTD_ATUAL", "QTD_MINIMA", "TOTAL_ENTRADAS", "TOTAL_SAIDAS"];
+const STOCK_HISTORY_HEADERS = ["MATERIAL", "TIPO", "QUANTIDADE", "DATA", "RESPONSAVEL", "OBSERVACAO"];
 
 const parseVal = (v: any): number => {
   if (v === undefined || v === null || v === '') return 0;
@@ -180,6 +183,52 @@ export const excelService = {
     const ws = XLSX.utils.aoa_to_sheet([SUPPLIER_HEADERS, ...data]);
     XLSX.utils.book_append_sheet(wb, ws, 'Fornecedores');
     XLSX.writeFile(wb, 'Fornecedores_Canteiro_Digital.xlsx');
+  },
+
+  exportStockToExcel: (stockItems: StockItem[], projectName: string) => {
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1: Summary (totals per item)
+    const summaryRows = stockItems
+      .sort((a, b) => a.order - b.order)
+      .map((item) => {
+        const totalEntries = (item.movements ?? []).filter(m => m.type === 'entry').reduce((s, m) => s + m.quantity, 0);
+        const totalExits = (item.movements ?? []).filter(m => m.type === 'exit').reduce((s, m) => s + m.quantity, 0);
+        return [
+          item.name,
+          item.unit,
+          financial.normalizeQuantity(item.currentQuantity),
+          financial.normalizeQuantity(item.minQuantity),
+          financial.normalizeQuantity(totalEntries),
+          financial.normalizeQuantity(totalExits),
+        ];
+      });
+    const wsSummary = XLSX.utils.aoa_to_sheet([STOCK_SUMMARY_HEADERS, ...summaryRows]);
+    XLSX.utils.book_append_sheet(wb, wsSummary, 'Resumo_Estoque');
+
+    // Sheet 2: Full movement history
+    const historyRows: any[][] = [];
+    stockItems
+      .sort((a, b) => a.order - b.order)
+      .forEach((item) => {
+        const sortedMovements = [...(item.movements ?? [])].sort(
+          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+        );
+        sortedMovements.forEach((mov) => {
+          historyRows.push([
+            item.name,
+            mov.type === 'entry' ? 'Entrada' : 'Saída',
+            financial.normalizeQuantity(mov.quantity),
+            new Date(mov.date).toLocaleDateString('pt-BR'),
+            mov.responsible || (mov.createdBy?.name ?? ''),
+            mov.notes || '',
+          ]);
+        });
+      });
+    const wsHistory = XLSX.utils.aoa_to_sheet([STOCK_HISTORY_HEADERS, ...historyRows]);
+    XLSX.utils.book_append_sheet(wb, wsHistory, 'Historico_Movimentacoes');
+
+    XLSX.writeFile(wb, `Estoque_${projectName}.xlsx`);
   },
 
   parseSuppliersExcel: async (file: File): Promise<SupplierImportResult> => {

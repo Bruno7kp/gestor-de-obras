@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Package, Plus, Search, ArrowUpCircle, ArrowDownCircle,
   History, AlertTriangle, Edit2, Trash2, GripVertical, RefreshCw, ChevronDown,
-  Boxes, TrendingDown, Activity, CheckCircle2,
+  Boxes, TrendingDown, Activity, CheckCircle2, Download,
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import type { StockItem, StockMovement, StockMovementType } from '../types';
@@ -13,14 +13,16 @@ import { StockItemModal } from './StockItemModal';
 import { StockMovementModal } from './StockMovementModal';
 import { useToast } from '../hooks/useToast';
 import { ConfirmModal } from './ConfirmModal';
+import { excelService } from '../services/excelService';
 
 interface InventoryViewProps {
   projectId: string;
   canEditModule: boolean;
   isReadOnly?: boolean;
+  projectName?: string;
 }
 
-export const InventoryView: React.FC<InventoryViewProps> = ({ projectId, canEditModule, isReadOnly }) => {
+export const InventoryView: React.FC<InventoryViewProps> = ({ projectId, canEditModule, isReadOnly, projectName }) => {
   const toast = useToast();
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,6 +38,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ projectId, canEdit
   const [deleteMovConfirm, setDeleteMovConfirm] = useState<{ itemId: string; movement: StockMovement } | null>(null);
   const [movementTotals, setMovementTotals] = useState<Record<string, number>>({});
   const [loadingMore, setLoadingMore] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const canEdit = canEditModule && !isReadOnly;
 
@@ -188,6 +191,35 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ projectId, canEdit
     }
   };
 
+  const handleExportExcel = async () => {
+    try {
+      setExporting(true);
+      // Load all movements for each item to ensure full history in the export
+      const fullItems = await Promise.all(
+        stockItems.map(async (item) => {
+          const loadedCount = (item.movements ?? []).length;
+          const total = movementTotals[item.id];
+          // If we know there are more, or if we haven't checked totals and have 10+ loaded
+          if ((total !== undefined && loadedCount < total) || (total === undefined && loadedCount >= 10)) {
+            try {
+              const result = await stockApi.loadMoreMovements(item.id, 0, 10000);
+              return { ...item, movements: result.movements };
+            } catch {
+              return item; // fallback to what we have
+            }
+          }
+          return item;
+        })
+      );
+      excelService.exportStockToExcel(fullItems, projectName || 'Obra');
+      toast.success('Estoque exportado com sucesso!');
+    } catch {
+      toast.error('Erro ao exportar estoque');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const openEntry = (item: StockItem) => {
     setActiveItem(item);
     setDefaultMovementType('entry');
@@ -253,6 +285,14 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ projectId, canEdit
             />
             <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           </div>
+          <button
+            onClick={handleExportExcel}
+            disabled={exporting || stockItems.length === 0}
+            className="p-2.5 text-slate-400 hover:text-emerald-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Exportar estoque para Excel"
+          >
+            {exporting ? <RefreshCw size={18} className="animate-spin" /> : <Download size={18} />}
+          </button>
           {canEdit && (
             <button
               onClick={() => { setEditingItem(null); setIsItemModalOpen(true); }}
