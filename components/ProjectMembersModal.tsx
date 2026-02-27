@@ -222,6 +222,38 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
     }
   };
 
+  // Assign a project-level role to a general-access user who doesn't have
+  // an explicit ProjectMember record yet. Creates the membership via POST.
+  const handleAssignRoleToGeneralUser = async (email: string, roleId: string) => {
+    if (!canEdit) {
+      toast.error('Sem permissao para editar membros.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}/members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email, roleId }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || 'Erro ao definir cargo no projeto');
+      }
+
+      onMembersChange();
+    } catch (err: any) {
+      setError(err.message);
+      toast.error('Erro ao definir cargo no projeto.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div
       className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
@@ -388,8 +420,9 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
                       <p className="text-sm text-gray-500 dark:text-slate-400 truncate">{row.user.email}</p>
                     </div>
 
-                    {/* Role Selector — editable for non-general members */}
+                    {/* Role Selector */}
                     {canEdit && row.isMember && !row.isGeneralAccess ? (
+                      /* Regular member (no general access): editable dropdown */
                       <select
                         value={row.roleId}
                         onChange={(e) => handleUpdateRole(row.user.id, e.target.value)}
@@ -402,10 +435,43 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
                           </option>
                         ))}
                       </select>
+                    ) : canEdit && row.isMember && row.isGeneralAccess ? (
+                      /* General-access user WITH explicit membership: editable dropdown */
+                      <select
+                        value={row.roleId}
+                        onChange={(e) => handleUpdateRole(row.user.id, e.target.value)}
+                        disabled={loading}
+                        className="px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100"
+                      >
+                        {selectableRoles.map((role) => (
+                          <option key={role.id} value={role.id}>
+                            {role.name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : canEdit && !row.isMember && row.isGeneralAccess ? (
+                      /* General-access user WITHOUT membership: dropdown to assign a role */
+                      <select
+                        value=""
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            handleAssignRoleToGeneralUser(row.user.email, e.target.value);
+                          }
+                        }}
+                        disabled={loading}
+                        className="px-3 py-1.5 text-sm border border-gray-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100"
+                      >
+                        <option value="">Obras gerais (padrão)</option>
+                        {selectableRoles.map((role) => (
+                          <option key={role.id} value={role.id}>
+                            {role.name}
+                          </option>
+                        ))}
+                      </select>
                     ) : row.isMember ? (
                       <div className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 dark:bg-blue-950/30 rounded-lg text-sm text-blue-700 dark:text-blue-300">
                         <Shield size={14} />
-                        <span>{row.isGeneralAccess ? 'Obras gerais' : row.roleName}</span>
+                        <span>{row.roleName}</span>
                       </div>
                     ) : (
                       <div className="flex items-center gap-1 px-3 py-1.5 bg-gray-200 dark:bg-slate-700 rounded-lg text-sm text-gray-700 dark:text-slate-200">
@@ -423,7 +489,7 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
                       </div>
                     )}
 
-                    {/* Remove Button — external members or internal without general access */}
+                    {/* Remove Button — members without general access, or general-access members (to revert to default) */}
                     {canEdit && row.isMember && !row.isGeneralAccess && (
                       <button
                         onClick={() => setConfirmRemoveUserId(row.user.id)}

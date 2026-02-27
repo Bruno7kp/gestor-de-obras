@@ -347,16 +347,22 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const useMemberPermissions = useMemo(() => {
     if (isExternalProject) return true;
     if (!user?.id) return false;
-    return !isCurrentUserGeneralAccess && memberPermissions.length > 0;
-  }, [isExternalProject, isCurrentUserGeneralAccess, memberPermissions, user?.id]);
+    // When a user has an explicit ProjectMember record with an assigned role,
+    // use those project-level permissions — even for general-access users.
+    // This allows admins to self-assign a reduced role per project.
+    return memberPermissions.length > 0;
+  }, [isExternalProject, memberPermissions, user?.id]);
 
   const canEditMembers = useMemo(() => {
     if (permissionsLoading || membersLoading) return false;
+    // Exception: users with global projects_general.edit can ALWAYS edit members,
+    // even when using reduced project-level permissions. This ensures admins
+    // can always change their own role back to full access.
+    if (getLevelGlobal('projects_general') === 'edit') return true;
     if (useMemberPermissions) {
       return checkCanEdit(memberPermissions, 'projects_general');
     }
-    return getLevelGlobal('projects_general') === 'edit' ||
-      checkCanEdit(memberPermissions, 'projects_general');
+    return checkCanEdit(memberPermissions, 'projects_general');
   }, [permissionsLoading, membersLoading, useMemberPermissions, memberPermissions, getLevelGlobal]);
 
   // Permission wrappers that handle external vs internal projects

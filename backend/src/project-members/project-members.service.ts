@@ -272,39 +272,6 @@ export class ProjectMembersService {
       throw new NotFoundException('Membro nao encontrado');
     }
 
-    const targetUser = await this.prisma.user.findUnique({
-      where: { id: input.userId },
-      include: {
-        roles: {
-          include: {
-            role: {
-              include: {
-                permissions: {
-                  include: { permission: { select: { code: true } } },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (targetUser?.instanceId === input.instanceId) {
-      const permissionCodes = new Set(
-        targetUser.roles.flatMap((userRole) =>
-          userRole.role.permissions.map((rp) => rp.permission.code),
-        ),
-      );
-      if (
-        permissionCodes.has('projects_general.view') ||
-        permissionCodes.has('projects_general.edit')
-      ) {
-        throw new BadRequestException(
-          'Nao e permitido alterar permissoes de usuarios com acesso geral',
-        );
-      }
-    }
-
     // Verify the role exists and belongs to the project's instance
     const role = await this.prisma.role.findFirst({
       where: { id: input.roleId, instanceId: input.instanceId },
