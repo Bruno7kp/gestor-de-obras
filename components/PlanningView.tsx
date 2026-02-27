@@ -1706,9 +1706,20 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                     <Building2 size={10} className="shrink-0" />
                                     {groupSupplier ? groupSupplier.name : 'Fornecedor não vinculado'}
                                   </div>
-                                  <div className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-slate-400">
+                                  <div className={`flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest ${
+                                    group.status === 'delivered' ? 'text-emerald-500'
+                                    : group.status === 'ordered' ? (group.isPaid ? 'text-indigo-500' : 'text-amber-500')
+                                    : 'text-slate-400'
+                                  }`}>
                                     <Calendar size={9} className="shrink-0" />
-                                    Previsão: {financial.formatDate(group.estimatedDate)}
+                                    {group.status === 'delivered'
+                                      ? `Entregue: ${financial.formatDate(group.deliveryDate || group.estimatedDate)}`
+                                      : group.status === 'ordered'
+                                        ? group.isPaid
+                                          ? `Pago: ${financial.formatDate(group.purchaseDate || group.estimatedDate)}`
+                                          : `Comprado: ${financial.formatDate(group.purchaseDate || group.estimatedDate)} (A Pagar)`
+                                        : `Previsto: ${financial.formatDate(group.estimatedDate)}`
+                                    }
                                   </div>
                                 </div>
                               </td>

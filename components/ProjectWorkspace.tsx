@@ -1,5 +1,6 @@
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import ReactDOM from 'react-dom';
 import { Project, GlobalSettings, WorkItem, Supplier, ProjectAsset, ProjectExpense, ProjectPlanning, PlanningTask, MaterialForecast, Milestone, UserNotification } from '../types';
 import {
   Layers, BarChart3, Coins, Users, HardHat, BookOpen, FileText, Sliders, Boxes,
@@ -50,6 +51,10 @@ const DescriptionPopover: React.FC<{
   responsavel?: string | null;
   onOpenEditor: () => void;
 }> = ({ description, responsavel, onOpenEditor }) => {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [hovered, setHovered] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+
   const hasDescription = useMemo(() => {
     if (!description) return false;
     return description.replace(/<[^>]*>/g, '').trim().length > 0;
@@ -58,38 +63,58 @@ const DescriptionPopover: React.FC<{
   const hasResponsavel = Boolean(responsavel?.trim());
   const hasContent = hasDescription || hasResponsavel;
 
+  useEffect(() => {
+    if (hovered && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 8, left: rect.left + rect.width / 2 });
+    }
+  }, [hovered]);
+
+  const popoverContent = hasContent ? (
+    <div
+      className="pointer-events-none fixed -translate-x-1/2 min-w-[16rem] max-w-[32rem] rounded-2xl bg-slate-800 dark:bg-slate-700 px-5 py-4 text-[11px] text-white shadow-2xl transition-all duration-200 z-[9999]"
+      style={pos ? { top: pos.top, left: pos.left, opacity: 1, transform: 'translateX(-50%) scale(1)' } : { opacity: 0, transform: 'translateX(-50%) scale(0.95)' }}
+    >
+      {hasResponsavel && (
+        <div className="flex items-baseline gap-1.5 mb-2 text-[10px]">
+          <span className="font-bold text-slate-300 uppercase tracking-wider">Responsável:</span>
+          <span className="text-white">{responsavel}</span>
+        </div>
+      )}
+      {hasDescription && (
+        <>
+          <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Descrição</div>
+          <div
+            className="leading-relaxed break-words whitespace-normal [&_a]:text-indigo-300 [&_a]:underline [&_strong]:font-bold [&_p]:mb-1.5 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_li]:mb-0.5"
+            dangerouslySetInnerHTML={{ __html: description! }}
+          />
+        </>
+      )}
+    </div>
+  ) : (
+    <span
+      className="pointer-events-none fixed -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-800 dark:bg-slate-700 px-2.5 py-1 text-[9px] font-bold text-white shadow-lg transition-all z-[9999]"
+      style={pos ? { top: pos.top, left: pos.left, opacity: 1, transform: 'translateX(-50%) scale(1)' } : { opacity: 0, transform: 'translateX(-50%) scale(0.95)' }}
+    >
+      Sem descrição
+    </span>
+  );
+
   return (
-    <div className="relative group/desc">
+    <div
+      className="relative"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
       <button
+        ref={triggerRef}
         onClick={onOpenEditor}
         className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
         title={hasContent ? 'Editar descrição' : 'Adicionar descrição'}
       >
         <Info size={13} />
       </button>
-      {hasContent ? (
-        <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 min-w-[16rem] max-w-[32rem] rounded-2xl bg-slate-800 dark:bg-slate-700 px-5 py-4 text-[11px] text-white shadow-2xl opacity-0 scale-95 transition-all duration-200 group-hover/desc:opacity-100 group-hover/desc:scale-100 z-[200]">
-          {hasResponsavel && (
-            <div className="flex items-baseline gap-1.5 mb-2 text-[10px]">
-              <span className="font-bold text-slate-300 uppercase tracking-wider">Responsável:</span>
-              <span className="text-white">{responsavel}</span>
-            </div>
-          )}
-          {hasDescription && (
-            <>
-              <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Descrição</div>
-              <div
-                className="leading-relaxed break-words whitespace-normal [&_a]:text-indigo-300 [&_a]:underline [&_strong]:font-bold [&_p]:mb-1.5 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_li]:mb-0.5"
-                dangerouslySetInnerHTML={{ __html: description! }}
-              />
-            </>
-          )}
-        </div>
-      ) : (
-        <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1.5 whitespace-nowrap rounded-lg bg-slate-800 dark:bg-slate-700 px-2.5 py-1 text-[9px] font-bold text-white shadow-lg opacity-0 scale-95 transition-all group-hover/desc:opacity-100 group-hover/desc:scale-100 z-[200]">
-          Sem descrição
-        </span>
-      )}
+      {hovered && ReactDOM.createPortal(popoverContent, document.body)}
     </div>
   );
 };
