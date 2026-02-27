@@ -255,20 +255,20 @@ const DeleteItemModal: React.FC<{
 /*  KPI Card                                                           */
 /* ------------------------------------------------------------------ */
 const KpiCard = ({ label, value, icon, color }: { label: string; value: string | number; icon: React.ReactNode; color: string }) => {
-  const colors: Record<string, string> = {
-    indigo: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20',
-    emerald: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20',
-    amber: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20',
-    blue: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20',
+  const iconColors: Record<string, string> = {
+    indigo: 'text-indigo-500',
+    emerald: 'text-emerald-500',
+    amber: 'text-amber-500',
+    blue: 'text-blue-500',
   };
-  const c = colors[color] ?? colors.indigo;
+  const ic = iconColors[color] ?? iconColors.indigo;
   return (
-    <div className="p-6 rounded-[2rem] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between h-32">
-      <div className="flex justify-between items-start">
-        <div className={`p-2 rounded-lg ${c}`}>{icon}</div>
-        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{label}</span>
+    <div className="flex-1 min-w-[140px] flex items-center gap-2.5 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+      <div className={ic}>{icon}</div>
+      <div className="leading-tight">
+        <p className="text-sm font-black text-slate-800 dark:text-white">{value}</p>
+        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{label}</p>
       </div>
-      <p className={`text-xl font-black tracking-tighter ${c.split(' ')[0]}`}>{value}</p>
     </div>
   );
 };
@@ -283,10 +283,18 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
   const canWarehouse = canView('global_stock_warehouse');
   const canWarehouseEdit = canEdit('global_stock_warehouse');
   const canFinancial = canView('global_stock_financial');
+  const canFinancialEdit = canEdit('global_stock_financial');
 
   const [mode, setMode] = useState<InventoryMode>(
     canFinancial && !canWarehouse ? 'financeiro' : 'almoxarifado',
   );
+
+  // Sync mode when permissions load asynchronously
+  useEffect(() => {
+    if (canFinancial && !canWarehouse) setMode('financeiro');
+    else if (canWarehouse && !canFinancial) setMode('almoxarifado');
+  }, [canFinancial, canWarehouse]);
+
   const [items, setItems] = useState<GlobalStockItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -437,29 +445,27 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
           </div>
         </div>
 
-        {/* KPI GRID */}
-        <div className={`grid grid-cols-1 ${showPrices ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-6`}>
-          <KpiCard label="Itens Cadastrados" value={kpis.totalItems} icon={<Boxes size={20} />} color="indigo" />
-          <KpiCard label="Itens Críticos" value={kpis.critical} icon={<AlertTriangle size={20} />} color="amber" />
+        {/* KPIs + SEARCH */}
+        <div className="flex flex-wrap items-stretch gap-3">
+          <KpiCard label="Itens Cadastrados" value={kpis.totalItems} icon={<Boxes size={16} />} color="indigo" />
+          <KpiCard label="Itens Críticos" value={kpis.critical} icon={<AlertTriangle size={16} />} color="amber" />
           {showPrices && (
-            <KpiCard label="Valor em Estoque" value={`R$ ${kpis.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} icon={<DollarSign size={20} />} color="emerald" />
+            <KpiCard label="Valor em Estoque" value={`R$ ${kpis.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} icon={<DollarSign size={16} />} color="emerald" />
           )}
-        </div>
-
-        {/* SEARCH BAR */}
-        <div className="flex items-center bg-white dark:bg-slate-900 p-4 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="relative flex-1 w-full">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input
-              placeholder="Buscar material por nome..."
-              className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-sm outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
+          <div className="flex-1 min-w-[200px] flex items-center bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+              <input
+                placeholder="Buscar material..."
+                className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+            </div>
+            <button onClick={loadItems} className="ml-2 p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-all" title="Atualizar">
+              <RefreshCw size={14} />
+            </button>
           </div>
-          <button onClick={loadItems} className="ml-3 p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition-all" title="Atualizar">
-            <RefreshCw size={16} />
-          </button>
         </div>
 
         {/* ITEM TABLE */}
@@ -475,7 +481,7 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
         ) : (
           <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
             {/* Table header */}
-            <div className={`hidden lg:grid ${showPrices ? 'grid-cols-[1fr_80px_110px_100px_120px_auto]' : 'grid-cols-[1fr_80px_110px_100px_auto]'} gap-4 px-8 py-4 bg-slate-50/50 dark:bg-slate-800/50 items-center`}>
+            <div className={`hidden lg:grid ${showPrices ? 'grid-cols-[1fr_80px_110px_100px_120px_160px]' : 'grid-cols-[1fr_80px_110px_100px_160px]'} gap-4 px-8 py-4 bg-slate-50/50 dark:bg-slate-800/50 items-center`}>
               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Material</span>
               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Unidade</span>
               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Disponível</span>
@@ -492,7 +498,7 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
                 return (
                   <div key={item.id}>
                     <div
-                      className={`grid grid-cols-1 ${showPrices ? 'lg:grid-cols-[1fr_80px_110px_100px_120px_auto]' : 'lg:grid-cols-[1fr_80px_110px_100px_auto]'} gap-2 lg:gap-4 px-6 lg:px-8 py-4 items-center hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors cursor-pointer`}
+                      className={`grid grid-cols-1 ${showPrices ? 'lg:grid-cols-[1fr_80px_110px_100px_120px_160px]' : 'lg:grid-cols-[1fr_80px_110px_100px_160px]'} gap-2 lg:gap-4 px-6 lg:px-8 py-4 items-center hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors cursor-pointer`}
                       onClick={() => toggleExpand(item.id)}
                     >
                       {/* Material name */}
@@ -536,11 +542,13 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
 
                       {/* Actions */}
                       <div className="flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
+                        {canFinancialEdit && (
+                          <button onClick={() => setEntryModal({ open: true, item })} className="p-2 bg-slate-50 dark:bg-slate-800 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-all" title="Registrar Entrada (NF)">
+                            <ArrowDownCircle size={15} />
+                          </button>
+                        )}
                         {canWarehouseEdit && (
                           <>
-                            <button onClick={() => setEntryModal({ open: true, item })} className="p-2 bg-slate-50 dark:bg-slate-800 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-all" title="Registrar Entrada (NF)">
-                              <ArrowDownCircle size={15} />
-                            </button>
                             <button onClick={() => setPurchaseModal({ open: true, item })} className="p-2 bg-slate-50 dark:bg-slate-800 text-purple-600 hover:text-purple-700 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-all" title="Solicitar Compra">
                               <ShoppingCart size={15} />
                             </button>
