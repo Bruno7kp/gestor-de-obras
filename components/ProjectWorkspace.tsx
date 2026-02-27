@@ -44,6 +44,56 @@ import { usersApi } from '../services/usersApi';
 import { suppliersApi } from '../services/suppliersApi';
 import { useToast } from '../hooks/useToast';
 
+/* ── Description Popover (hover to preview full text, click opens editor) ── */
+const DescriptionPopover: React.FC<{
+  description?: string | null;
+  responsavel?: string | null;
+  onOpenEditor: () => void;
+}> = ({ description, responsavel, onOpenEditor }) => {
+  const hasDescription = useMemo(() => {
+    if (!description) return false;
+    return description.replace(/<[^>]*>/g, '').trim().length > 0;
+  }, [description]);
+
+  const hasResponsavel = Boolean(responsavel?.trim());
+  const hasContent = hasDescription || hasResponsavel;
+
+  return (
+    <div className="relative group/desc">
+      <button
+        onClick={onOpenEditor}
+        className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
+        title={hasContent ? 'Editar descrição' : 'Adicionar descrição'}
+      >
+        <Info size={13} />
+      </button>
+      {hasContent ? (
+        <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 min-w-[16rem] max-w-[32rem] rounded-2xl bg-slate-800 dark:bg-slate-700 px-5 py-4 text-[11px] text-white shadow-2xl opacity-0 scale-95 transition-all duration-200 group-hover/desc:opacity-100 group-hover/desc:scale-100 z-[200]">
+          {hasResponsavel && (
+            <div className="flex items-baseline gap-1.5 mb-2 text-[10px]">
+              <span className="font-bold text-slate-300 uppercase tracking-wider">Responsável:</span>
+              <span className="text-white">{responsavel}</span>
+            </div>
+          )}
+          {hasDescription && (
+            <>
+              <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Descrição</div>
+              <div
+                className="leading-relaxed break-words whitespace-normal [&_a]:text-indigo-300 [&_a]:underline [&_strong]:font-bold [&_p]:mb-1.5 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_li]:mb-0.5"
+                dangerouslySetInnerHTML={{ __html: description! }}
+              />
+            </>
+          )}
+        </div>
+      ) : (
+        <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1.5 whitespace-nowrap rounded-lg bg-slate-800 dark:bg-slate-700 px-2.5 py-1 text-[9px] font-bold text-white shadow-lg opacity-0 scale-95 transition-all group-hover/desc:opacity-100 group-hover/desc:scale-100 z-[200]">
+          Sem descrição
+        </span>
+      )}
+    </div>
+  );
+};
+
 interface ProjectWorkspaceProps {
   project: Project;
   globalSettings: GlobalSettings;
@@ -1115,26 +1165,11 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                 <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-50 text-current"><ChevronDown size={14} /></div>
               </div>
               )}
-              <div className="relative group/tip">
-                <button
-                  onClick={() => setShowDescriptionModal(true)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
-                >
-                  <Info size={13} />
-                </button>
-                {project.description && project.description.replace(/<[^>]*>/g, '').trim() ? (
-                  <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 w-64 max-h-40 overflow-hidden rounded-2xl bg-slate-800 dark:bg-slate-700 px-4 py-3 text-[11px] text-white shadow-xl opacity-0 scale-95 transition-all group-hover/tip:opacity-100 group-hover/tip:scale-100 z-50">
-                    <div
-                      className="line-clamp-6 leading-relaxed [&_a]:text-indigo-300 [&_a]:underline [&_strong]:font-bold [&_p]:mb-1"
-                      dangerouslySetInnerHTML={{ __html: project.description }}
-                    />
-                  </div>
-                ) : (
-                  <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1.5 whitespace-nowrap rounded-lg bg-slate-800 dark:bg-slate-700 px-2.5 py-1 text-[9px] font-bold text-white shadow-lg opacity-0 scale-95 transition-all group-hover/tip:opacity-100 group-hover/tip:scale-100 z-50">
-                    Sem descrição
-                  </span>
-                )}
-              </div>
+              <DescriptionPopover
+                description={project.description}
+                responsavel={project.responsavel}
+                onOpenEditor={() => setShowDescriptionModal(true)}
+              />
               <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest whitespace-nowrap">Ref: {displayData.date}</span>
               {isHistoryMode && <div className="flex items-center gap-1.5 px-2 py-0.5 bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-100 rounded-md text-[8px] font-black uppercase shadow-sm"><Lock size={10} /> Arquivo Congelado</div>}
             </div>
@@ -1612,10 +1647,11 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
             isOpen={showDescriptionModal}
             onClose={() => setShowDescriptionModal(false)}
             description={project.description ?? ''}
+            responsavel={project.responsavel ?? ''}
             canEdit={canEditProject && !isProjectArchived}
-            onSave={async (html) => {
-              await projectsApi.update(project.id, { description: html } as any);
-              onUpdateProject({ description: html });
+            onSave={async (html, responsavel) => {
+              await projectsApi.update(project.id, { description: html, responsavel } as any);
+              onUpdateProject({ description: html, responsavel });
             }}
           />
         </>

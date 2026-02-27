@@ -502,6 +502,7 @@ export interface Project {
   progress?: number;
   name: string;
   description?: string;
+  responsavel?: string;
   companyName: string;
   companyCnpj: string;
   location: string;

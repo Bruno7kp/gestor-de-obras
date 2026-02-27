@@ -29,6 +29,7 @@ interface CreateProjectBody {
 interface UpdateProjectBody {
   name?: string;
   description?: string | null;
+  responsavel?: string | null;
   companyName?: string;
   companyCnpj?: string;
   location?: string;

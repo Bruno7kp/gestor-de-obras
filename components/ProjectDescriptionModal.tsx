@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { X, Save, FileText } from 'lucide-react';
+import { X, Save, FileText, User } from 'lucide-react';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 
@@ -7,7 +7,8 @@ interface ProjectDescriptionModalProps {
   isOpen: boolean;
   onClose: () => void;
   description: string;
-  onSave: (html: string) => Promise<void>;
+  responsavel: string;
+  onSave: (html: string, responsavel: string) => Promise<void>;
   canEdit: boolean;
 }
 
@@ -26,27 +27,35 @@ export const ProjectDescriptionModal: React.FC<ProjectDescriptionModalProps> = (
   isOpen,
   onClose,
   description,
+  responsavel,
   onSave,
   canEdit,
 }) => {
   const [draft, setDraft] = useState(description);
+  const [responsavelDraft, setResponsavelDraft] = useState(responsavel);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (isOpen) setDraft(description);
-  }, [isOpen, description]);
+    if (isOpen) {
+      setDraft(description);
+      setResponsavelDraft(responsavel);
+    }
+  }, [isOpen, description, responsavel]);
 
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
-      await onSave(draft);
+      await onSave(draft, responsavelDraft);
       onClose();
     } finally {
       setSaving(false);
     }
-  }, [draft, onSave, onClose]);
+  }, [draft, responsavelDraft, onSave, onClose]);
 
-  const hasChanges = useMemo(() => draft !== description, [draft, description]);
+  const hasChanges = useMemo(
+    () => draft !== description || responsavelDraft !== responsavel,
+    [draft, description, responsavelDraft, responsavel],
+  );
 
   const isEmpty = useMemo(() => {
     if (!description) return true;
@@ -92,6 +101,32 @@ export const ProjectDescriptionModal: React.FC<ProjectDescriptionModalProps> = (
 
           {/* Body */}
           <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+            {/* Responsável / Empreiteiro field */}
+            <div className="mb-4">
+              <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">
+                <User size={12} />
+                Responsável / Empreiteiro
+              </label>
+              {canEdit ? (
+                <input
+                  type="text"
+                  value={responsavelDraft}
+                  onChange={(e) => setResponsavelDraft(e.target.value)}
+                  placeholder="Nome do responsável ou empreiteiro…"
+                  className="w-full px-4 py-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 outline-none transition-all focus:border-indigo-500"
+                />
+              ) : (
+                <p className="px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200">
+                  {responsavel || <span className="text-slate-400 italic">Não definido</span>}
+                </p>
+              )}
+            </div>
+
+            {/* Description editor */}
+            <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">
+              <FileText size={12} />
+              Descrição
+            </label>
             {canEdit ? (
               <div className="project-description-editor">
                 <ReactQuill

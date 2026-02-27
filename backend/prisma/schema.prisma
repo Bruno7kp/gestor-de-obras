@@ -164,6 +164,7 @@ model Project {
   order                 Int                   @default(0)
   name                  String
   description           String?
+  responsavel           String?
   companyName           String
   companyCnpj           String
   location              String

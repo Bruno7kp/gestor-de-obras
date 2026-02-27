@@ -24,6 +24,7 @@ interface UpdateProjectInput {
   permissions: string[];
   name?: string;
   description?: string | null;
+  responsavel?: string | null;
   companyName?: string;
   companyCnpj?: string;
   location?: string;
@@ -584,6 +585,14 @@ export class ProjectsService {
       where: { id: input.id },
       data: {
         name: input.name ?? existing.name,
+        description:
+          input.description !== undefined
+            ? this.sanitizeHtml(input.description)
+            : existing.description,
+        responsavel:
+          input.responsavel !== undefined
+            ? (input.responsavel?.trim() || null)
+            : existing.responsavel,
         companyName: input.companyName ?? existing.companyName,
         companyCnpj: input.companyCnpj ?? existing.companyCnpj,
         location: input.location ?? existing.location,

@@ -102,6 +102,7 @@ export const normalizeProject = (project: any): Project => {
     progress: project.progress ?? undefined,
     name: project.name ?? 'Nova Obra',
     description: project.description ?? '',
+    responsavel: project.responsavel ?? '',
     companyName: project.companyName ?? '',
     companyCnpj: project.companyCnpj ?? '',
     location: project.location ?? '',
