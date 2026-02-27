@@ -418,7 +418,7 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
           </button>
         </div>
 
-        {/* ITEM LIST */}
+        {/* ITEM TABLE */}
         {loading ? (
           <div className="py-20 text-center">
             <RefreshCw size={24} className="animate-spin text-slate-400 mx-auto" />
@@ -429,135 +429,159 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
             <p className="text-sm font-black uppercase tracking-widest">{search ? 'Nenhum item encontrado' : 'Nenhum item cadastrado'}</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {filtered.map(item => {
-              const s = statusConfig[item.status] ?? statusConfig.NORMAL;
-              const isExpanded = expandedId === item.id;
-              return (
-                <div key={item.id} className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all overflow-hidden">
-                  {/* Item row */}
-                  <div className="p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4 cursor-pointer" onClick={() => toggleExpand(item.id)}>
-                    <div className="flex items-center gap-5">
-                      <div className={`p-4 rounded-2xl shrink-0 ${s.bg}`}>
-                        <Package size={24} className={s.text} />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-3">
-                          <h3 className="text-base font-black dark:text-white uppercase tracking-tight">{item.name}</h3>
-                          <span className={`px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${s.bg} ${s.text}`}>{s.label}</span>
-                        </div>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
-                          {financial.formatQuantity(item.currentQuantity)} {item.unit}
-                          <span className="mx-1.5">•</span>
-                          Mín: {item.minQuantity}
-                          {item.supplier && (
-                            <>
-                              <span className="mx-1.5">•</span>
-                              <Truck size={10} className="inline" /> {item.supplier.name}
-                            </>
-                          )}
-                        </p>
-                      </div>
-                    </div>
+          <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+            {/* Table header */}
+            <div className={`hidden lg:grid ${showPrices ? 'grid-cols-[1fr_80px_110px_100px_120px_auto]' : 'grid-cols-[1fr_80px_110px_100px_auto]'} gap-4 px-8 py-4 bg-slate-50/50 dark:bg-slate-800/50 items-center`}>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Material</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Unidade</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Disponível</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Status</span>
+              {showPrices && <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Preço Médio</span>}
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ações</span>
+            </div>
 
-                    <div className="flex items-center gap-6">
-                      {showPrices ? (
-                        <div className="text-right">
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Preço Médio</span>
+            {/* Table rows */}
+            <div className="divide-y divide-slate-100 dark:divide-slate-800">
+              {filtered.map(item => {
+                const s = statusConfig[item.status] ?? statusConfig.NORMAL;
+                const isExpanded = expandedId === item.id;
+                return (
+                  <div key={item.id}>
+                    <div
+                      className={`grid grid-cols-1 ${showPrices ? 'lg:grid-cols-[1fr_80px_110px_100px_120px_auto]' : 'lg:grid-cols-[1fr_80px_110px_100px_auto]'} gap-2 lg:gap-4 px-6 lg:px-8 py-4 items-center hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors cursor-pointer`}
+                      onClick={() => toggleExpand(item.id)}
+                    >
+                      {/* Material name */}
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{item.name}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {item.supplier && (
+                            <p className="text-[9px] text-slate-400 font-medium flex items-center gap-1">
+                              <Truck size={9} /> {item.supplier.name}
+                            </p>
+                          )}
+                          <span className="text-[9px] text-slate-400 font-medium">Mín: {item.minQuantity}</span>
+                        </div>
+                      </div>
+
+                      {/* Unit */}
+                      <div className="text-center">
+                        <span className="px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded text-[10px] font-black uppercase tracking-widest text-slate-500">
+                          {item.unit}
+                        </span>
+                      </div>
+
+                      {/* Quantity */}
+                      <div className="text-center">
+                        <span className={`text-sm font-black ${
+                          item.status === 'OUT_OF_STOCK' ? 'text-rose-500' :
+                          item.status === 'CRITICAL' ? 'text-amber-500' :
+                          'text-slate-700 dark:text-slate-200'
+                        }`}>
+                          {financial.formatQuantity(item.currentQuantity)}
+                        </span>
+                      </div>
+
+                      {/* Status */}
+                      <div className="flex justify-center">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${s.bg} ${s.text}`}>{s.label}</span>
+                      </div>
+
+                      {/* Price (financial mode) */}
+                      {showPrices && (
+                        <div className="text-center">
                           <p className="text-sm font-black text-indigo-600 dark:text-indigo-400">R$ {item.averagePrice.toFixed(2)}</p>
                           {item.lastPrice != null && (
-                            <p className="text-[9px] text-slate-400 font-bold">Última: R$ {item.lastPrice.toFixed(2)}</p>
+                            <p className="text-[9px] text-slate-400 font-bold">Últ: R$ {item.lastPrice.toFixed(2)}</p>
                           )}
                         </div>
-                      ) : (
-                        <div className="text-right text-sm text-slate-300 font-black tracking-widest">••••••</div>
                       )}
 
                       {/* Actions */}
-                      <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
                         {canWarehouseEdit && (
                           <>
-                            <button onClick={() => setEntryModal({ open: true, item })} className="p-3 bg-slate-50 dark:bg-slate-800 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-xl transition-all" title="Registrar Entrada (NF)">
-                              <ArrowDownCircle size={18} />
+                            <button onClick={() => setEntryModal({ open: true, item })} className="p-2 bg-slate-50 dark:bg-slate-800 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-all" title="Registrar Entrada (NF)">
+                              <ArrowDownCircle size={15} />
                             </button>
-                            <button onClick={() => setPurchaseModal({ open: true, item })} className="p-3 bg-slate-50 dark:bg-slate-800 text-purple-600 hover:text-purple-700 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-xl transition-all" title="Solicitar Compra">
-                              <ShoppingCart size={18} />
+                            <button onClick={() => setPurchaseModal({ open: true, item })} className="p-2 bg-slate-50 dark:bg-slate-800 text-purple-600 hover:text-purple-700 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-all" title="Solicitar Compra">
+                              <ShoppingCart size={15} />
                             </button>
-                            <button onClick={() => setItemModal({ open: true, item })} className="p-3 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition-all" title="Editar">
-                              <Edit2 size={18} />
+                            <button onClick={() => setItemModal({ open: true, item })} className="p-2 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-all" title="Editar">
+                              <Edit2 size={15} />
                             </button>
-                            <button onClick={() => setDeleteConfirm(item)} className="p-3 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all" title="Remover">
-                              <Trash2 size={18} />
+                            <button onClick={() => setDeleteConfirm(item)} className="p-2 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-all" title="Remover">
+                              <Trash2 size={15} />
                             </button>
                           </>
                         )}
-                        <div className="text-slate-300 ml-1">
-                          {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                        <div className="text-slate-300 ml-0.5">
+                          {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Expanded detail */}
-                  {isExpanded && (
-                    <div className="mx-6 lg:mx-8 mb-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-5 border border-slate-100 dark:border-slate-700 animate-in slide-in-from-top-2 duration-200">
-                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4 px-1">Últimas Movimentações</h4>
-                      {(!movements[item.id] || movements[item.id].length === 0) ? (
-                        <p className="text-center py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Nenhuma movimentação registrada</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {movements[item.id].map(m => (
-                            <div key={m.id} className="flex items-center justify-between bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
-                              <div className="flex items-center gap-3">
-                                <div className={`p-1.5 rounded-lg ${m.type === 'entry' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600' : 'bg-rose-50 dark:bg-rose-900/20 text-rose-600'}`}>
-                                  {m.type === 'entry' ? <ArrowDownCircle size={14} /> : <ArrowUpCircle size={14} />}
-                                </div>
-                                <div>
-                                  <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">
-                                    {m.type === 'entry' ? 'Entrada' : 'Saída'} de {financial.formatQuantity(m.quantity)} {item.unit}
-                                  </p>
-                                  <p className="text-[9px] text-slate-400 font-medium flex items-center gap-2 flex-wrap">
-                                    {m.originDestination}
-                                    {showPrices && m.unitPrice != null && <span>• R$ {m.unitPrice.toFixed(2)}/{item.unit}</span>}
-                                    {m.invoiceNumber && <span className="flex items-center gap-0.5"><FileText size={9} /> {m.invoiceNumber}</span>}
-                                  </p>
-                                </div>
-                              </div>
-                              <span className="text-[9px] text-slate-400 whitespace-nowrap">{new Date(m.date).toLocaleDateString('pt-BR')}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Price history (financial only) */}
-                      {showPrices && item.priceHistory && item.priceHistory.length > 0 && (
-                        <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-                          <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-3 px-1 flex items-center gap-1.5">
-                            <TrendingUp size={12} /> Histórico de Preços
-                          </h4>
+                    {/* Expanded detail */}
+                    {isExpanded && (
+                      <div className="mx-6 lg:mx-8 mb-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-5 border border-slate-100 dark:border-slate-700 animate-in slide-in-from-top-2 duration-200">
+                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4 px-1">Últimas Movimentações</h4>
+                        {(!movements[item.id] || movements[item.id].length === 0) ? (
+                          <p className="text-center py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Nenhuma movimentação registrada</p>
+                        ) : (
                           <div className="space-y-2">
-                            {item.priceHistory.map((p: PriceHistoryEntry) => (
-                              <div key={p.id} className="flex items-center justify-between bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                            {movements[item.id].map(m => (
+                              <div key={m.id} className="flex items-center justify-between bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
                                 <div className="flex items-center gap-3">
-                                  <div className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600">
-                                    <DollarSign size={14} />
+                                  <div className={`p-1.5 rounded-lg ${m.type === 'entry' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600' : 'bg-rose-50 dark:bg-rose-900/20 text-rose-600'}`}>
+                                    {m.type === 'entry' ? <ArrowDownCircle size={14} /> : <ArrowUpCircle size={14} />}
                                   </div>
                                   <div>
-                                    <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">R$ {p.price.toFixed(2)}</p>
-                                    {p.supplier && <p className="text-[9px] text-slate-400 font-medium">{p.supplier.name}</p>}
+                                    <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">
+                                      {m.type === 'entry' ? 'Entrada' : 'Saída'} de {financial.formatQuantity(m.quantity)} {item.unit}
+                                    </p>
+                                    <p className="text-[9px] text-slate-400 font-medium flex items-center gap-2 flex-wrap">
+                                      {m.originDestination}
+                                      {showPrices && m.unitPrice != null && <span>• R$ {m.unitPrice.toFixed(2)}/{item.unit}</span>}
+                                      {m.invoiceNumber && <span className="flex items-center gap-0.5"><FileText size={9} /> {m.invoiceNumber}</span>}
+                                    </p>
                                   </div>
                                 </div>
-                                <span className="text-[9px] text-slate-400">{new Date(p.date).toLocaleDateString('pt-BR')}</span>
+                                <span className="text-[9px] text-slate-400 whitespace-nowrap">{new Date(m.date).toLocaleDateString('pt-BR')}</span>
                               </div>
                             ))}
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                        )}
+
+                        {/* Price history (financial only) */}
+                        {showPrices && item.priceHistory && item.priceHistory.length > 0 && (
+                          <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-3 px-1 flex items-center gap-1.5">
+                              <TrendingUp size={12} /> Histórico de Preços
+                            </h4>
+                            <div className="space-y-2">
+                              {item.priceHistory.map((p: PriceHistoryEntry) => (
+                                <div key={p.id} className="flex items-center justify-between bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                                  <div className="flex items-center gap-3">
+                                    <div className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600">
+                                      <DollarSign size={14} />
+                                    </div>
+                                    <div>
+                                      <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">R$ {p.price.toFixed(2)}</p>
+                                      {p.supplier && <p className="text-[9px] text-slate-400 font-medium">{p.supplier.name}</p>}
+                                    </div>
+                                  </div>
+                                  <span className="text-[9px] text-slate-400">{new Date(p.date).toLocaleDateString('pt-BR')}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
