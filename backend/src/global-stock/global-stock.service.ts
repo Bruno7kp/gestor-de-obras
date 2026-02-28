@@ -52,6 +52,8 @@ interface FindAllMovementsInput {
   skip?: number;
   take?: number;
   projectId?: string;
+  search?: string;
+  globalStockItemId?: string;
 }
 
 interface FindItemMovementsInput {
@@ -410,7 +412,20 @@ export class GlobalStockService {
       // Filter by instance through the global stock item
       globalStockItem: { instanceId: input.instanceId },
       ...(input.projectId ? { projectId: input.projectId } : {}),
+      ...(input.globalStockItemId
+        ? { globalStockItemId: input.globalStockItemId }
+        : {}),
     };
+
+    if (input.search) {
+      const term = input.search;
+      where.OR = [
+        { globalStockItem: { name: { contains: term, mode: 'insensitive' } } },
+        { project: { name: { contains: term, mode: 'insensitive' } } },
+        { supplier: { name: { contains: term, mode: 'insensitive' } } },
+        { originDestination: { contains: term, mode: 'insensitive' } },
+      ];
+    }
 
     const [movements, total] = await Promise.all([
       this.prisma.globalStockMovement.findMany({

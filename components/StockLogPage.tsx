@@ -1,13 +1,17 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   ArrowDownCircle, ArrowUpCircle, History, Truck, FileText,
-  RefreshCw,
+  RefreshCw, Search, X,
 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { usePermissions } from '../hooks/usePermissions';
 import { useToast } from '../hooks/useToast';
 import { globalStockApi } from '../services/globalStockApi';
 import { financial } from '../utils/math';
+import { Pagination } from './Pagination';
 import type { GlobalStockMovement } from '../types';
+
+const PAGE_SIZE = 30;
 
 /* ------------------------------------------------------------------ */
 /*  Stock Log Page — Movimentações                                     */
@@ -15,18 +19,40 @@ import type { GlobalStockMovement } from '../types';
 export const StockLogPage: React.FC = () => {
   const { canView } = usePermissions();
   const toast = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const canFinancial = canView('global_stock_financial');
+
+  const itemIdParam = searchParams.get('itemId') || '';
+  const itemNameParam = searchParams.get('itemName') || '';
 
   const [movements, setMovements] = useState<GlobalStockMovement[]>([]);
   const [movementsTotal, setMovementsTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [logFilter, setLogFilter] = useState<'all' | 'physical' | 'financial'>('all');
+  const [page, setPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Debounce search input
+  useEffect(() => {
+    debounceRef.current = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(debounceRef.current);
+  }, [searchTerm]);
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const mv = await globalStockApi.listMovements({ take: 50 });
+      const mv = await globalStockApi.listMovements({
+        skip: (page - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
+        search: debouncedSearch || undefined,
+        globalStockItemId: itemIdParam || undefined,
+      });
       setMovements(mv.movements);
       setMovementsTotal(mv.total);
     } catch (e: any) {
@@ -35,15 +61,27 @@ export const StockLogPage: React.FC = () => {
       setLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [page, debouncedSearch, itemIdParam]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Reset page when logFilter changes (client-side)
+  useEffect(() => { setPage(1); }, [logFilter]);
 
   const filteredMovements = useMemo(() => {
     if (logFilter === 'all') return movements;
     if (logFilter === 'physical') return movements.filter(m => m.type === 'entry' || m.type === 'exit');
     return movements.filter(m => m.unitPrice != null);
   }, [movements, logFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(movementsTotal / PAGE_SIZE));
+
+  const clearItemFilter = () => {
+    searchParams.delete('itemId');
+    searchParams.delete('itemName');
+    setSearchParams(searchParams, { replace: true });
+    setPage(1);
+  };
 
   return (
     <div className="flex-1 overflow-y-auto p-6 sm:p-12 animate-in fade-in duration-500 bg-slate-50 dark:bg-slate-950 custom-scrollbar">
@@ -67,6 +105,22 @@ export const StockLogPage: React.FC = () => {
             </div>
           </div>
           <div className="flex-1" />
+          {/* Search */}
+          <div className="relative flex items-center">
+            <Search size={14} className="absolute left-3 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Buscar item, obra, fornecedor…"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="pl-9 pr-4 py-2.5 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 transition-all shadow-sm"
+            />
+            {searchTerm && (
+              <button onClick={() => setSearchTerm('')} className="absolute right-2 p-1 text-slate-400 hover:text-slate-600 transition-all">
+                <X size={12} />
+              </button>
+            )}
+          </div>
           <div className="flex items-center gap-3 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg">
               {[
@@ -90,6 +144,18 @@ export const StockLogPage: React.FC = () => {
             </button>
           </div>
         </div>
+
+        {/* Item filter badge */}
+        {itemIdParam && (
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-2xl text-xs font-bold text-indigo-700 dark:text-indigo-300">
+              <Search size={12} /> Filtrando por: {itemNameParam || 'Item'}
+              <button onClick={clearItemFilter} className="p-0.5 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all" title="Limpar filtro">
+                <X size={12} />
+              </button>
+            </span>
+          </div>
+        )}
 
         {/* CONTENT */}
         {loading ? (
@@ -135,6 +201,12 @@ export const StockLogPage: React.FC = () => {
                 </div>
               </div>
             ))}
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              totalItems={movementsTotal}
+            />
           </div>
         )}
       </div>

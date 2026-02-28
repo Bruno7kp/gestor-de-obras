@@ -172,6 +172,8 @@ export class GlobalStockController {
     @Query('skip') skip: string,
     @Query('take') take: string,
     @Query('projectId') projectId: string,
+    @Query('search') search: string,
+    @Query('globalStockItemId') globalStockItemId: string,
     @Req() req: AuthenticatedRequest,
   ) {
     return this.globalStockService.findAllMovements({
@@ -179,6 +181,8 @@ export class GlobalStockController {
       skip: skip ? parseInt(skip, 10) : 0,
       take: take ? parseInt(take, 10) : 50,
       projectId: projectId || undefined,
+      search: search || undefined,
+      globalStockItemId: globalStockItemId || undefined,
     });
   }
 

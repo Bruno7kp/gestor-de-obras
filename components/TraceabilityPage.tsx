@@ -5,6 +5,7 @@ import {
   Check, X, Clock, RefreshCw, DollarSign, Bell, User,
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
+import { Pagination } from './Pagination';
 import { usePermissions } from '../hooks/usePermissions';
 import { useToast } from '../hooks/useToast';
 import { stockRequestApi } from '../services/stockRequestApi';
@@ -278,6 +279,48 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
   const processedStockRequests = useMemo(() => stockRequests.filter(r => r.status !== 'PENDING'), [stockRequests]);
   const completedPurchases = useMemo(() => purchaseRequests.filter(r => r.status === 'COMPLETED' || r.status === 'CANCELLED'), [purchaseRequests]);
 
+  // -- Search & Pagination (client-side)
+  const HIST_PAGE_SIZE = 10;
+  const [histSearch, setHistSearch] = useState('');
+  const [processedPage, setProcessedPage] = useState(1);
+  const [completedPage, setCompletedPage] = useState(1);
+
+  // Reset pages when search changes
+  useEffect(() => { setProcessedPage(1); setCompletedPage(1); }, [histSearch]);
+
+  const filteredProcessed = useMemo(() => {
+    if (!histSearch) return processedStockRequests;
+    const q = histSearch.toLowerCase();
+    return processedStockRequests.filter(r =>
+      r.itemName.toLowerCase().includes(q) ||
+      (r.project?.name ?? '').toLowerCase().includes(q) ||
+      (r.approvedBy?.name ?? '').toLowerCase().includes(q) ||
+      (r.requestedBy?.name ?? '').toLowerCase().includes(q)
+    );
+  }, [processedStockRequests, histSearch]);
+
+  const filteredCompleted = useMemo(() => {
+    if (!histSearch) return completedPurchases;
+    const q = histSearch.toLowerCase();
+    return completedPurchases.filter(p =>
+      p.itemName.toLowerCase().includes(q) ||
+      (p.globalStockItem?.name ?? '').toLowerCase().includes(q) ||
+      (p.invoiceNumber ?? '').toLowerCase().includes(q) ||
+      (p.requestedBy?.name ?? '').toLowerCase().includes(q)
+    );
+  }, [completedPurchases, histSearch]);
+
+  const processedTotalPages = Math.max(1, Math.ceil(filteredProcessed.length / HIST_PAGE_SIZE));
+  const completedTotalPages = Math.max(1, Math.ceil(filteredCompleted.length / HIST_PAGE_SIZE));
+
+  const paginatedProcessed = useMemo(() =>
+    filteredProcessed.slice((processedPage - 1) * HIST_PAGE_SIZE, processedPage * HIST_PAGE_SIZE),
+  [filteredProcessed, processedPage]);
+
+  const paginatedCompleted = useMemo(() =>
+    filteredCompleted.slice((completedPage - 1) * HIST_PAGE_SIZE, completedPage * HIST_PAGE_SIZE),
+  [filteredCompleted, completedPage]);
+
   const kpis = useMemo(() => ({
     pendingRequests: pendingStockRequests.length,
     activePurchases: activePurchases.length,
@@ -417,6 +460,22 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
           <KpiCard label="Requisições Pendentes" value={kpis.pendingRequests} icon={<ClipboardList size={16} />} color="amber" />
           <KpiCard label="Compras Ativas" value={kpis.activePurchases} icon={<ShoppingCart size={16} />} color="purple" />
           <div className="flex-1" />
+          {/* Search (filters processadas/finalizadas) */}
+          <div className="relative flex items-center">
+            <Search size={14} className="absolute left-3 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Buscar item, obra, solicitante…"
+              value={histSearch}
+              onChange={e => setHistSearch(e.target.value)}
+              className="pl-9 pr-4 py-2.5 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 transition-all shadow-sm"
+            />
+            {histSearch && (
+              <button onClick={() => setHistSearch('')} className="absolute right-2 p-1 text-slate-400 hover:text-slate-600 transition-all">
+                <X size={12} />
+              </button>
+            )}
+          </div>
           <div className="flex items-center bg-white dark:bg-slate-900 p-1 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
             {tabs.map(t => (
               <button
@@ -521,13 +580,15 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
                 {/* Processed */}
                 <div>
                   <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4 px-1 flex items-center gap-2">
-                    <Check size={14} /> Processadas ({processedStockRequests.length})
+                    <Check size={14} /> Processadas ({filteredProcessed.length})
                   </h2>
-                  {processedStockRequests.length === 0 ? (
-                    <p className="text-center py-8 text-[10px] font-bold uppercase tracking-widest text-slate-400">Nenhuma requisição processada</p>
+                  {filteredProcessed.length === 0 ? (
+                    <p className="text-center py-8 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                      {histSearch ? 'Nenhum resultado encontrado' : 'Nenhuma requisição processada'}
+                    </p>
                   ) : (
                     <div className="space-y-3">
-                      {processedStockRequests.map(r => {
+                      {paginatedProcessed.map(r => {
                         const st = stockRequestStatusConfig[r.status] ?? stockRequestStatusConfig.PENDING;
                         return (
                           <div key={r.id} className="bg-white dark:bg-slate-900 p-5 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm transition-all">
@@ -562,6 +623,13 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
                           </div>
                         );
                       })}
+                      <Pagination
+                        currentPage={processedPage}
+                        totalPages={processedTotalPages}
+                        onPageChange={setProcessedPage}
+                        totalItems={filteredProcessed.length}
+                        label="Processadas"
+                      />
                     </div>
                   )}
                 </div>
@@ -632,13 +700,13 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
                 </div>
 
                 {/* Completed */}
-                {completedPurchases.length > 0 && (
+                {filteredCompleted.length > 0 && (
                   <div>
                     <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4 px-1 flex items-center gap-2">
-                      <Check size={14} /> Finalizadas ({completedPurchases.length})
+                      <Check size={14} /> Finalizadas ({filteredCompleted.length})
                     </h2>
                     <div className="space-y-3">
-                      {completedPurchases.map(p => {
+                      {paginatedCompleted.map(p => {
                         const ps = purchaseStatusConfig[p.status] ?? purchaseStatusConfig.COMPLETED;
                         return (
                           <div key={p.id} className="bg-white dark:bg-slate-900 p-5 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm transition-all opacity-75">
@@ -678,8 +746,18 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
                           </div>
                         );
                       })}
+                      <Pagination
+                        currentPage={completedPage}
+                        totalPages={completedTotalPages}
+                        onPageChange={setCompletedPage}
+                        totalItems={filteredCompleted.length}
+                        label="Finalizadas"
+                      />
                     </div>
                   </div>
+                )}
+                {filteredCompleted.length === 0 && histSearch && (
+                  <p className="text-center py-8 text-[10px] font-bold uppercase tracking-widest text-slate-400">Nenhum resultado encontrado</p>
                 )}
               </div>
             )}

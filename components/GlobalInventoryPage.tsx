@@ -2,8 +2,9 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Package, Plus, Search, ArrowDownCircle, ArrowUpCircle, AlertTriangle,
   ShoppingCart, FileText, Edit2, Trash2, ChevronDown, ChevronRight, ChevronLeft,
-  TrendingUp, RefreshCw, Boxes, DollarSign,
+  TrendingUp, RefreshCw, Boxes, DollarSign, ExternalLink,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { usePermissions } from '../hooks/usePermissions';
 import { useToast } from '../hooks/useToast';
 import { globalStockApi } from '../services/globalStockApi';
@@ -423,6 +424,8 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [movements, setMovements] = useState<Record<string, GlobalStockMovement[]>>({});
+  const [movementTotals, setMovementTotals] = useState<Record<string, number>>({});
+  const navigate = useNavigate();
 
   // Modals
   const [itemModal, setItemModal] = useState<{ open: boolean; item?: GlobalStockItem | null }>({ open: false });
@@ -525,8 +528,9 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
     setExpandedId(id);
     if (!movements[id]) {
       try {
-        const data = await globalStockApi.listItemMovements(id, 0, 10);
+        const data = await globalStockApi.listItemMovements(id, 0, 5);
         setMovements(prev => ({ ...prev, [id]: data.movements }));
+        setMovementTotals(prev => ({ ...prev, [id]: data.total }));
       } catch {}
     }
   };
@@ -720,6 +724,16 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
                               </div>
                             ))}
                           </div>
+                        )}
+
+                        {/* "Ver todas" link to stock-log filtered by item */}
+                        {(movementTotals[item.id] ?? 0) > 5 && (
+                          <button
+                            onClick={() => navigate(`/app/stock-log?itemId=${item.id}&itemName=${encodeURIComponent(item.name)}`)}
+                            className="mt-3 flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition-all w-fit"
+                          >
+                            <ExternalLink size={12} /> Ver todas ({movementTotals[item.id]}) movimentações
+                          </button>
                         )}
 
                         {/* Price history (financial only) */}

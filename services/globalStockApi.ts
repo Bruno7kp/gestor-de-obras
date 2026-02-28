@@ -117,11 +117,15 @@ export const globalStockApi = {
     skip?: number;
     take?: number;
     projectId?: string;
+    search?: string;
+    globalStockItemId?: string;
   }): Promise<{ movements: GlobalStockMovement[]; total: number }> {
     const query = new URLSearchParams();
     if (params?.skip) query.set('skip', String(params.skip));
     if (params?.take) query.set('take', String(params.take));
     if (params?.projectId) query.set('projectId', params.projectId);
+    if (params?.search) query.set('search', params.search);
+    if (params?.globalStockItemId) query.set('globalStockItemId', params.globalStockItemId);
 
     const res = await fetch(
       `${API_BASE}/global-stock/movements?${query.toString()}`,
