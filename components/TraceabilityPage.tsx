@@ -372,27 +372,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
   const allPendingStockRequests = useMemo(() => stockRequests.filter(r => r.status === 'PENDING'), [stockRequests]);
   const activePurchases = useMemo(() => purchaseRequests.filter(r => r.status === 'PENDING' || r.status === 'ORDERED'), [purchaseRequests]);
 
-  // Hide pending requests that have insufficient stock AND an active purchase for the same item.
-  // They reappear automatically once stock is sufficient (regardless of purchase completion).
-  const { pendingStockRequests, awaitingPurchaseRequests } = useMemo(() => {
-    const pending: StockRequest[] = [];
-    const awaiting: StockRequest[] = [];
-    for (const r of allPendingStockRequests) {
-      const item = r.globalStockItem;
-      const insufficientStock = item && item.currentQuantity < r.quantity;
-      if (insufficientStock) {
-        const hasActivePurchase = activePurchases.some(
-          p => p.globalStockItemId === r.globalStockItemId,
-        );
-        if (hasActivePurchase) {
-          awaiting.push(r);
-          continue;
-        }
-      }
-      pending.push(r);
-    }
-    return { pendingStockRequests: pending, awaitingPurchaseRequests: awaiting };
-  }, [allPendingStockRequests, activePurchases]);
+  const pendingStockRequests = allPendingStockRequests;
 
   const awaitingDeliveryRequests = useMemo(() => stockRequests.filter(r => r.status === 'APPROVED' || r.status === 'PARTIALLY_DELIVERED'), [stockRequests]);
   const processedStockRequests = useMemo(() => stockRequests.filter(r => r.status === 'DELIVERED' || r.status === 'REJECTED'), [stockRequests]);
@@ -695,14 +675,6 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
                   <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4 px-1 flex items-center gap-2">
                     <Clock size={14} /> Pendentes ({pendingStockRequests.length})
                   </h2>
-                  {awaitingPurchaseRequests.length > 0 && (
-                    <div className="mb-4 flex items-center gap-3 px-5 py-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800/40 rounded-2xl">
-                      <ShoppingCart size={16} className="text-purple-500 shrink-0" />
-                      <p className="text-[10px] font-bold text-purple-600 dark:text-purple-400">
-                        {awaitingPurchaseRequests.length} {awaitingPurchaseRequests.length === 1 ? 'requisição aguardando' : 'requisições aguardando'} compra — {awaitingPurchaseRequests.length === 1 ? 'voltará' : 'voltarão'} a aparecer quando o estoque for suficiente
-                      </p>
-                    </div>
-                  )}
                   {pendingStockRequests.length === 0 ? (
                     <p className="text-center py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Nenhuma requisição pendente</p>
                   ) : (
@@ -838,9 +810,11 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
                                   <button onClick={() => setDeliverModal(r)} className="flex items-center gap-1.5 px-5 py-2.5 bg-blue-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg shadow-blue-500/20 hover:scale-105 active:scale-95 transition-all">
                                     <Truck size={14} /> Enviar
                                   </button>
-                                  <button onClick={() => setPurchaseFromReq(r)} className="flex items-center gap-1.5 px-5 py-2.5 bg-purple-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg shadow-purple-500/20 hover:scale-105 active:scale-95 transition-all">
-                                    <ShoppingCart size={14} /> Solicitar Compra
-                                  </button>
+                                  {!activePurchase && (
+                                    <button onClick={() => setPurchaseFromReq(r)} className="flex items-center gap-1.5 px-5 py-2.5 bg-purple-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg shadow-purple-500/20 hover:scale-105 active:scale-95 transition-all">
+                                      <ShoppingCart size={14} /> Solicitar Compra
+                                    </button>
+                                  )}
                                 </div>
                               )}
                             </div>
