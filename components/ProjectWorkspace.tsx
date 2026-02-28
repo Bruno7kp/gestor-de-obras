@@ -1073,6 +1073,18 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     }
   }, [project.assets, onUpdateProject]);
 
+  const handleAssetUpdate = useCallback(async (id: string, data: Partial<ProjectAsset>) => {
+    const previous = project.assets;
+    const nextAssets = previous.map((a) => (a.id === id ? { ...a, ...data } : a));
+    onUpdateProject({ assets: nextAssets });
+    try {
+      await projectAssetsApi.update(id, data);
+    } catch (error) {
+      console.error('Erro ao atualizar arquivo:', error);
+      onUpdateProject({ assets: previous });
+    }
+  }, [project.assets, onUpdateProject]);
+
   const mergeBrandingPayload = (base: Partial<Project>, next: Partial<Project>) => ({
     ...base,
     ...next,
@@ -1455,7 +1467,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                 )}
                 {tab === 'journal' && <JournalView project={project} onUpdateJournal={(j) => onUpdateProject({ journal: j })} allWorkItems={displayData.items.filter(i => i.scope !== 'quantitativo')} isReadOnly={displayData.isReadOnly} />}
                 {tab === 'stock' && <SiteStockMovementView projectId={project.id} canEditModule={getLevel('stock') === 'edit'} isReadOnly={isHistoryMode || isProjectArchived} projectName={project.name} />}
-                {tab === 'documents' && <AssetManager assets={project.assets} onAdd={handleAssetAdd} onDelete={handleAssetDelete} isReadOnly={displayData.isReadOnly} />}
+                {tab === 'documents' && <AssetManager assets={project.assets} onAdd={handleAssetAdd} onUpdate={handleAssetUpdate} onDelete={handleAssetDelete} isReadOnly={displayData.isReadOnly} />}
                 {tab === 'branding' && <BrandingView project={project} onUpdateProject={handleBrandingUpdate} isReadOnly={displayData.isReadOnly} />}
               </div>
             </div>

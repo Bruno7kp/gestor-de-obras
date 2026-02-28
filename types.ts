@@ -140,6 +140,8 @@ export type ProjectAssetCategory =
   | 'PLANTA_BAIXA'
   | 'MEMORIAL'
   | 'ART'
+  | 'NOTA_FISCAL'
+  | 'MEDICAO'
   | 'DOCUMENTO_DIVERSO';
 
 export interface ProjectAsset {

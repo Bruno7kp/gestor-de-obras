@@ -37,6 +37,23 @@ export const projectAssetsApi = {
     return response.json();
   },
 
+  async update(id: string, data: Partial<ProjectAsset>): Promise<ProjectAsset> {
+    const response = await fetch(`${API_BASE}/project-assets/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      throw new Error('Falha ao atualizar arquivo');
+    }
+
+    return response.json();
+  },
+
   async remove(id: string) {
     const response = await fetch(`${API_BASE}/project-assets/${id}`, {
       method: 'DELETE',
