@@ -14,6 +14,8 @@ import { PurchaseRequestsService } from './purchase-requests.service';
 import { Roles } from '../auth/roles.decorator';
 import { HasPermission } from '../auth/permissions.decorator';
 import type { AuthenticatedRequest } from '../auth/auth.types';
+import { PrismaService } from '../prisma/prisma.service';
+import { resolveInstanceAccess } from '../common/instance-access.util';
 
 interface CreatePurchaseRequestBody {
   globalStockItemId: string;
@@ -33,7 +35,22 @@ interface CompleteBody {
 @UseGuards(AuthGuard('jwt'))
 @Roles('USER', 'ADMIN', 'SUPER_ADMIN')
 export class PurchaseRequestsController {
-  constructor(private readonly service: PurchaseRequestsService) {}
+  constructor(
+    private readonly service: PurchaseRequestsService,
+    private readonly prisma: PrismaService,
+  ) {}
+
+  private resolveInstance(
+    req: AuthenticatedRequest,
+    targetInstanceId?: string,
+  ) {
+    return resolveInstanceAccess(
+      this.prisma,
+      req.user.id,
+      req.user.instanceId,
+      targetInstanceId || undefined,
+    );
+  }
 
   @Get()
   @HasPermission(
@@ -42,18 +59,24 @@ export class PurchaseRequestsController {
     'global_stock_financial.view',
     'global_stock_financial.edit',
   )
-  findAll(@Query('status') status: string, @Req() req: AuthenticatedRequest) {
-    return this.service.findAll(req.user.instanceId, status || undefined);
+  async findAll(
+    @Query('status') status: string,
+    @Query('instanceId') targetInstanceId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const instanceId = await this.resolveInstance(req, targetInstanceId);
+    return this.service.findAll(instanceId, status || undefined);
   }
 
   @Post()
   @HasPermission('global_stock_warehouse.edit')
-  create(
-    @Body() body: CreatePurchaseRequestBody,
+  async create(
+    @Body() body: CreatePurchaseRequestBody & { instanceId?: string },
     @Req() req: AuthenticatedRequest,
   ) {
+    const instanceId = await this.resolveInstance(req, body.instanceId);
     return this.service.create({
-      instanceId: req.user.instanceId,
+      instanceId,
       userId: req.user.id,
       globalStockItemId: body.globalStockItemId,
       quantity: body.quantity,
@@ -65,24 +88,30 @@ export class PurchaseRequestsController {
 
   @Patch(':id/order')
   @HasPermission('global_stock_financial.edit')
-  markOrdered(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+  async markOrdered(
+    @Param('id') id: string,
+    @Query('instanceId') targetInstanceId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const instanceId = await this.resolveInstance(req, targetInstanceId);
     return this.service.markOrdered({
       id,
-      instanceId: req.user.instanceId,
+      instanceId,
       userId: req.user.id,
     });
   }
 
   @Patch(':id/complete')
   @HasPermission('global_stock_financial.edit')
-  complete(
+  async complete(
     @Param('id') id: string,
-    @Body() body: CompleteBody,
+    @Body() body: CompleteBody & { instanceId?: string },
     @Req() req: AuthenticatedRequest,
   ) {
+    const instanceId = await this.resolveInstance(req, body.instanceId);
     return this.service.complete({
       id,
-      instanceId: req.user.instanceId,
+      instanceId,
       userId: req.user.id,
       invoiceNumber: body.invoiceNumber,
       unitPrice: body.unitPrice,
@@ -92,10 +121,15 @@ export class PurchaseRequestsController {
 
   @Patch(':id/cancel')
   @HasPermission('global_stock_financial.edit')
-  cancel(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+  async cancel(
+    @Param('id') id: string,
+    @Query('instanceId') targetInstanceId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const instanceId = await this.resolveInstance(req, targetInstanceId);
     return this.service.cancel({
       id,
-      instanceId: req.user.instanceId,
+      instanceId,
       userId: req.user.id,
     });
   }

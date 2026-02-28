@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Package, Search, ArrowDownCircle, ArrowUpCircle, AlertTriangle,
   ShoppingCart, ClipboardList, Truck, FileText,
   Check, X, Clock, RefreshCw, DollarSign, Bell, User,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Globe,
 } from 'lucide-react';
 import { Pagination } from './Pagination';
 import { DateFilterPopover } from './DateFilterPopover';
-import { usePermissions } from '../hooks/usePermissions';
+import { useCrossInstanceStock } from '../hooks/useCrossInstanceStock';
 import { useToast } from '../hooks/useToast';
 import { stockRequestApi } from '../services/stockRequestApi';
 import { purchaseRequestApi } from '../services/purchaseRequestApi';
@@ -320,8 +321,13 @@ const DeliverModal: React.FC<{
 /*  Main Page                                                          */
 /* ------------------------------------------------------------------ */
 export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers }) => {
-  const { canView, canEdit } = usePermissions();
   const toast = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const externalInstanceId = searchParams.get('instanceId') || undefined;
+  const externalInstanceName = searchParams.get('instanceName') || undefined;
+
+  // Resolved permissions (cross-instance when external, home otherwise)
+  const { canView, canEdit } = useCrossInstanceStock(externalInstanceId);
 
   const canWarehouse = canView('global_stock_warehouse');
   const canWarehouseEdit = canEdit('global_stock_warehouse');
@@ -349,8 +355,8 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
   const loadData = useCallback(async () => {
     setLoading(true);
     const [srResult, prResult] = await Promise.allSettled([
-      canWarehouse ? stockRequestApi.list() : Promise.resolve([]),
-      (canWarehouse || canFinancial) ? purchaseRequestApi.list() : Promise.resolve([]),
+      canWarehouse ? stockRequestApi.list({ instanceId: externalInstanceId }) : Promise.resolve([]),
+      (canWarehouse || canFinancial) ? purchaseRequestApi.list(undefined, externalInstanceId) : Promise.resolve([]),
     ]);
     if (srResult.status === 'fulfilled') setStockRequests(srResult.value);
     else toast.error('Erro ao carregar requisições');
@@ -358,7 +364,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
     else toast.error('Erro ao carregar solicitações de compra');
     setLoading(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canWarehouse, canFinancial]);
+  }, [canWarehouse, canFinancial, externalInstanceId]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -466,7 +472,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
   // -- Handlers
   const handleApproveRequest = async (id: string) => {
     try {
-      const updated = await stockRequestApi.approve(id);
+      const updated = await stockRequestApi.approve(id, externalInstanceId);
       setStockRequests(prev => prev.map(r => r.id === id ? updated : r));
       toast.success('Requisição aprovada');
     } catch (e: any) {
@@ -477,7 +483,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
   const handleRejectRequest = async (reason?: string) => {
     if (!rejectModal.requestId) return;
     try {
-      const updated = await stockRequestApi.reject(rejectModal.requestId, reason);
+      const updated = await stockRequestApi.reject(rejectModal.requestId, reason, externalInstanceId);
       setStockRequests(prev => prev.map(r => r.id === rejectModal.requestId ? updated : r));
       setRejectModal({ open: false });
       toast.success('Requisição rejeitada');
@@ -495,11 +501,12 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
         priority: 'MEDIUM',
         notes: notes || undefined,
         stockRequestId: purchaseFromReq.id,
+        instanceId: externalInstanceId,
       });
       setPurchaseRequests(prev => [created, ...prev]);
       // Reload stock requests to refresh linkedPurchaseRequests
       if (canWarehouse) {
-        stockRequestApi.list().then(setStockRequests).catch(() => {});
+        stockRequestApi.list({ instanceId: externalInstanceId }).then(setStockRequests).catch(() => {});
       }
       setPurchaseFromReq(null);
       toast.success(`Solicitação de compra criada (${financial.formatQuantity(qty)} ${purchaseFromReq.globalStockItem?.unit ?? 'un'})`);
@@ -511,12 +518,12 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
   const handleDeliver = async (data: { quantity: number; notes?: string; createPurchaseForRemaining?: boolean }) => {
     if (!deliverModal) return;
     try {
-      const updated = await stockRequestApi.deliver(deliverModal.id, data);
+      const updated = await stockRequestApi.deliver(deliverModal.id, { ...data, instanceId: externalInstanceId });
       setStockRequests(prev => prev.map(r => r.id === deliverModal.id ? updated : r));
       setDeliverModal(null);
       toast.success(`Entrega registrada — ${financial.formatQuantity(data.quantity)} ${deliverModal.globalStockItem?.unit ?? 'un'}`);
       if (data.createPurchaseForRemaining) {
-        const pr = await purchaseRequestApi.list();
+        const pr = await purchaseRequestApi.list(undefined, externalInstanceId);
         setPurchaseRequests(pr);
       }
     } catch (e: any) {
@@ -526,7 +533,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
 
   const handleMarkOrdered = async (id: string) => {
     try {
-      const updated = await purchaseRequestApi.markOrdered(id);
+      const updated = await purchaseRequestApi.markOrdered(id, externalInstanceId);
       setPurchaseRequests(prev => prev.map(r => r.id === id ? updated : r));
       toast.success('Pedido marcado como realizado');
     } catch (e: any) {
@@ -537,7 +544,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
   const handleComplete = async (data: { unitPrice: number; invoiceNumber?: string; supplierId?: string }) => {
     if (!completeModal.purchase) return;
     try {
-      const updated = await purchaseRequestApi.complete(completeModal.purchase.id, data);
+      const updated = await purchaseRequestApi.complete(completeModal.purchase.id, { ...data, instanceId: externalInstanceId });
       setPurchaseRequests(prev => prev.map(r => r.id === updated.id ? updated : r));
       setCompleteModal({ open: false });
       toast.success('Entrega confirmada — estoque atualizado');
@@ -549,7 +556,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
   const handleCancelPurchase = async () => {
     if (!cancelConfirm) return;
     try {
-      const updated = await purchaseRequestApi.cancel(cancelConfirm);
+      const updated = await purchaseRequestApi.cancel(cancelConfirm, externalInstanceId);
       setPurchaseRequests(prev => prev.map(r => r.id === cancelConfirm ? updated : r));
       setCancelConfirm(null);
       toast.success('Solicitação cancelada');
@@ -590,10 +597,22 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
     <div className="flex-1 overflow-y-auto p-6 sm:p-12 animate-in fade-in duration-500 bg-slate-50 dark:bg-slate-950 custom-scrollbar">
       <div className="max-w-6xl mx-auto space-y-10">
 
+        {/* EXTERNAL INSTANCE BANNER */}
+        {externalInstanceId && (
+          <div className="flex items-center gap-3 px-6 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-2xl">
+            <Globe size={18} className="text-amber-600 shrink-0" />
+            <p className="flex-1 text-sm font-bold text-amber-700 dark:text-amber-300">
+              Visualizando rastreabilidade de <span className="font-black">{externalInstanceName ?? 'outra instância'}</span>
+            </p>
+          </div>
+        )}
+
         {/* HEADER */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <div>
-            <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">Rastreabilidade & Logística</h1>
+            <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">
+              Rastreabilidade & Logística{externalInstanceName ? ` — ${externalInstanceName}` : ''}
+            </h1>
             <p className="text-slate-500 dark:text-slate-400 font-medium">Acompanhe requisições, compras e movimentações.</p>
           </div>
           <div className="flex items-center gap-3">

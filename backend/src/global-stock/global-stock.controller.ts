@@ -15,6 +15,11 @@ import { GlobalStockService } from './global-stock.service';
 import { Roles } from '../auth/roles.decorator';
 import { HasPermission } from '../auth/permissions.decorator';
 import type { AuthenticatedRequest } from '../auth/auth.types';
+import { PrismaService } from '../prisma/prisma.service';
+import {
+  resolveInstanceAccess,
+  getAccessibleStockInstances,
+} from '../common/instance-access.util';
 
 interface CreateGlobalStockItemBody {
   name: string;
@@ -52,7 +57,34 @@ interface ReorderBody {
 @UseGuards(AuthGuard('jwt'))
 @Roles('USER', 'ADMIN', 'SUPER_ADMIN')
 export class GlobalStockController {
-  constructor(private readonly globalStockService: GlobalStockService) {}
+  constructor(
+    private readonly globalStockService: GlobalStockService,
+    private readonly prisma: PrismaService,
+  ) {}
+
+  /**
+   * Resolve the effective instanceId, supporting cross-instance access.
+   */
+  private resolveInstance(
+    req: AuthenticatedRequest,
+    targetInstanceId?: string,
+  ) {
+    return resolveInstanceAccess(
+      this.prisma,
+      req.user.id,
+      req.user.instanceId,
+      targetInstanceId || undefined,
+    );
+  }
+
+  @Get('accessible-instances')
+  getAccessibleInstances(@Req() req: AuthenticatedRequest) {
+    return getAccessibleStockInstances(
+      this.prisma,
+      req.user.id,
+      req.user.instanceId,
+    );
+  }
 
   @Get()
   @HasPermission(
@@ -63,18 +95,29 @@ export class GlobalStockController {
     'stock.view',
     'stock.edit',
   )
-  findAll(@Req() req: AuthenticatedRequest) {
-    return this.globalStockService.findAll(req.user.instanceId);
+  async findAll(
+    @Query('instanceId') targetInstanceId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const instanceId = await this.resolveInstance(req, targetInstanceId);
+    return this.globalStockService.findAllWithAccess({
+      userId: req.user.id,
+      homeInstanceId: req.user.instanceId,
+      resolvedInstanceId: instanceId,
+    });
   }
 
   @Post()
   @HasPermission('global_stock_warehouse.edit', 'global_stock_financial.edit')
-  create(
-    @Body() body: CreateGlobalStockItemBody,
+  async create(
+    @Body() body: CreateGlobalStockItemBody & { instanceId?: string },
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.globalStockService.create({
-      instanceId: req.user.instanceId,
+    const instanceId = await this.resolveInstance(req, body.instanceId);
+    return this.globalStockService.createWithAccess({
+      userId: req.user.id,
+      homeInstanceId: req.user.instanceId,
+      resolvedInstanceId: instanceId,
       name: body.name,
       unit: body.unit,
       minQuantity: body.minQuantity,
@@ -85,20 +128,25 @@ export class GlobalStockController {
 
   @Patch('reorder')
   @HasPermission('global_stock_warehouse.edit')
-  reorder(@Body() body: ReorderBody, @Req() req: AuthenticatedRequest) {
-    return this.globalStockService.reorder(req.user.instanceId, body.items);
+  async reorder(
+    @Body() body: ReorderBody & { instanceId?: string },
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const instanceId = await this.resolveInstance(req, body.instanceId);
+    return this.globalStockService.reorder(instanceId, body.items);
   }
 
   @Patch(':id')
   @HasPermission('global_stock_warehouse.edit', 'global_stock_financial.edit')
-  update(
+  async update(
     @Param('id') id: string,
-    @Body() body: UpdateGlobalStockItemBody,
+    @Body() body: UpdateGlobalStockItemBody & { instanceId?: string },
     @Req() req: AuthenticatedRequest,
   ) {
+    const instanceId = await this.resolveInstance(req, body.instanceId);
     return this.globalStockService.update({
       id,
-      instanceId: req.user.instanceId,
+      instanceId,
       name: body.name,
       unit: body.unit,
       minQuantity: body.minQuantity,
@@ -108,26 +156,37 @@ export class GlobalStockController {
 
   @Delete(':id')
   @HasPermission('global_stock_warehouse.edit', 'global_stock_financial.edit')
-  remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    return this.globalStockService.remove(id, req.user.instanceId);
+  async remove(
+    @Param('id') id: string,
+    @Query('instanceId') targetInstanceId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const instanceId = await this.resolveInstance(req, targetInstanceId);
+    return this.globalStockService.remove(id, instanceId);
   }
 
   @Get(':id/usage')
   @HasPermission('global_stock_warehouse.edit')
-  getUsageSummary(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    return this.globalStockService.getUsageSummary(id, req.user.instanceId);
+  async getUsageSummary(
+    @Param('id') id: string,
+    @Query('instanceId') targetInstanceId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const instanceId = await this.resolveInstance(req, targetInstanceId);
+    return this.globalStockService.getUsageSummary(id, instanceId);
   }
 
   @Post(':id/movements')
   @HasPermission('global_stock_warehouse.edit')
-  addMovement(
+  async addMovement(
     @Param('id') id: string,
-    @Body() body: AddGlobalMovementBody,
+    @Body() body: AddGlobalMovementBody & { instanceId?: string },
     @Req() req: AuthenticatedRequest,
   ) {
+    const instanceId = await this.resolveInstance(req, body.instanceId);
     return this.globalStockService.addMovement({
       globalStockItemId: id,
-      instanceId: req.user.instanceId,
+      instanceId,
       userId: req.user.id,
       type: body.type,
       quantity: body.quantity,
@@ -151,13 +210,15 @@ export class GlobalStockController {
     'stock.view',
     'stock.edit',
   )
-  getProjectConsumption(
+  async getProjectConsumption(
     @Param('projectId') projectId: string,
+    @Query('instanceId') targetInstanceId: string,
     @Req() req: AuthenticatedRequest,
   ) {
+    const instanceId = await this.resolveInstance(req, targetInstanceId);
     return this.globalStockService.getProjectConsumptionSummary(
       projectId,
-      req.user.instanceId,
+      instanceId,
     );
   }
 
@@ -168,7 +229,7 @@ export class GlobalStockController {
     'global_stock_financial.view',
     'global_stock_financial.edit',
   )
-  findAllMovements(
+  async findAllMovements(
     @Query('skip') skip: string,
     @Query('take') take: string,
     @Query('projectId') projectId: string,
@@ -176,10 +237,12 @@ export class GlobalStockController {
     @Query('globalStockItemId') globalStockItemId: string,
     @Query('dateStart') dateStart: string,
     @Query('dateEnd') dateEnd: string,
+    @Query('instanceId') targetInstanceId: string,
     @Req() req: AuthenticatedRequest,
   ) {
+    const instanceId = await this.resolveInstance(req, targetInstanceId);
     return this.globalStockService.findAllMovements({
-      instanceId: req.user.instanceId,
+      instanceId,
       skip: skip ? parseInt(skip, 10) : 0,
       take: take ? parseInt(take, 10) : 50,
       projectId: projectId || undefined,
@@ -197,15 +260,17 @@ export class GlobalStockController {
     'global_stock_financial.view',
     'global_stock_financial.edit',
   )
-  findItemMovements(
+  async findItemMovements(
     @Param('id') id: string,
     @Query('skip') skip: string,
     @Query('take') take: string,
+    @Query('instanceId') targetInstanceId: string,
     @Req() req: AuthenticatedRequest,
   ) {
+    const instanceId = await this.resolveInstance(req, targetInstanceId);
     return this.globalStockService.findItemMovements({
       globalStockItemId: id,
-      instanceId: req.user.instanceId,
+      instanceId,
       skip: skip ? parseInt(skip, 10) : 0,
       take: take ? parseInt(take, 10) : 20,
     });

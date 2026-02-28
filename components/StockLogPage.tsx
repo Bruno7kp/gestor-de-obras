@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   ArrowDownCircle, ArrowUpCircle, History, Truck, FileText,
-  RefreshCw, Search, X,
+  RefreshCw, Search, X, Globe,
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
-import { usePermissions } from '../hooks/usePermissions';
+import { useCrossInstanceStock } from '../hooks/useCrossInstanceStock';
 import { useToast } from '../hooks/useToast';
 import { globalStockApi } from '../services/globalStockApi';
 import { financial } from '../utils/math';
@@ -18,14 +18,17 @@ const PAGE_SIZE = 30;
 /*  Stock Log Page — Movimentações                                     */
 /* ------------------------------------------------------------------ */
 export const StockLogPage: React.FC = () => {
-  const { canView } = usePermissions();
   const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const canFinancial = canView('global_stock_financial');
-
   const itemIdParam = searchParams.get('itemId') || '';
   const itemNameParam = searchParams.get('itemName') || '';
+  const externalInstanceId = searchParams.get('instanceId') || undefined;
+  const externalInstanceName = searchParams.get('instanceName') || undefined;
+
+  // Resolved permissions (cross-instance when external, home otherwise)
+  const { canView } = useCrossInstanceStock(externalInstanceId);
+  const canFinancial = canView('global_stock_financial');
 
   const [movements, setMovements] = useState<GlobalStockMovement[]>([]);
   const [movementsTotal, setMovementsTotal] = useState(0);
@@ -57,6 +60,7 @@ export const StockLogPage: React.FC = () => {
         globalStockItemId: itemIdParam || undefined,
         dateStart: dateStart || undefined,
         dateEnd: dateEnd || undefined,
+        instanceId: externalInstanceId,
       });
       setMovements(mv.movements);
       setMovementsTotal(mv.total);
@@ -66,7 +70,7 @@ export const StockLogPage: React.FC = () => {
       setLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, debouncedSearch, itemIdParam, dateStart, dateEnd]);
+  }, [page, debouncedSearch, itemIdParam, dateStart, dateEnd, externalInstanceId]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -95,10 +99,22 @@ export const StockLogPage: React.FC = () => {
     <div className="flex-1 overflow-y-auto p-6 sm:p-12 animate-in fade-in duration-500 bg-slate-50 dark:bg-slate-950 custom-scrollbar">
       <div className="max-w-6xl mx-auto space-y-10">
 
+        {/* EXTERNAL INSTANCE BANNER */}
+        {externalInstanceId && (
+          <div className="flex items-center gap-3 px-6 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-2xl">
+            <Globe size={18} className="text-amber-600 shrink-0" />
+            <p className="flex-1 text-sm font-bold text-amber-700 dark:text-amber-300">
+              Visualizando movimentações de <span className="font-black">{externalInstanceName ?? 'outra instância'}</span>
+            </p>
+          </div>
+        )}
+
         {/* HEADER */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <div>
-            <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">Movimentações</h1>
+            <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">
+              Movimentações{externalInstanceName ? ` — ${externalInstanceName}` : ''}
+            </h1>
             <p className="text-slate-500 dark:text-slate-400 font-medium">Log de entradas e saídas do estoque global.</p>
           </div>
         </div>

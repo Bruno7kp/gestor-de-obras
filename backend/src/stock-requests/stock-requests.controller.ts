@@ -14,6 +14,8 @@ import { StockRequestsService } from './stock-requests.service';
 import { Roles } from '../auth/roles.decorator';
 import { HasPermission } from '../auth/permissions.decorator';
 import type { AuthenticatedRequest } from '../auth/auth.types';
+import { PrismaService } from '../prisma/prisma.service';
+import { resolveInstanceAccess } from '../common/instance-access.util';
 
 interface CreateStockRequestBody {
   projectId: string;
@@ -36,7 +38,22 @@ interface DeliverBody {
 @UseGuards(AuthGuard('jwt'))
 @Roles('USER', 'ADMIN', 'SUPER_ADMIN')
 export class StockRequestsController {
-  constructor(private readonly service: StockRequestsService) {}
+  constructor(
+    private readonly service: StockRequestsService,
+    private readonly prisma: PrismaService,
+  ) {}
+
+  private resolveInstance(
+    req: AuthenticatedRequest,
+    targetInstanceId?: string,
+  ) {
+    return resolveInstanceAccess(
+      this.prisma,
+      req.user.id,
+      req.user.instanceId,
+      targetInstanceId || undefined,
+    );
+  }
 
   @Get()
   @HasPermission(
@@ -45,13 +62,15 @@ export class StockRequestsController {
     'global_stock_warehouse.view',
     'global_stock_warehouse.edit',
   )
-  findAll(
+  async findAll(
     @Query('projectId') projectId: string,
     @Query('status') status: string,
+    @Query('instanceId') targetInstanceId: string,
     @Req() req: AuthenticatedRequest,
   ) {
+    const instanceId = await this.resolveInstance(req, targetInstanceId);
     return this.service.findAll({
-      instanceId: req.user.instanceId,
+      instanceId,
       userId: req.user.id,
       projectId: projectId || undefined,
       status: status || undefined,
@@ -60,12 +79,13 @@ export class StockRequestsController {
 
   @Post()
   @HasPermission('stock.edit')
-  create(
-    @Body() body: CreateStockRequestBody,
+  async create(
+    @Body() body: CreateStockRequestBody & { instanceId?: string },
     @Req() req: AuthenticatedRequest,
   ) {
+    const instanceId = await this.resolveInstance(req, body.instanceId);
     return this.service.create({
-      instanceId: req.user.instanceId,
+      instanceId,
       userId: req.user.id,
       projectId: body.projectId,
       globalStockItemId: body.globalStockItemId,
@@ -76,24 +96,30 @@ export class StockRequestsController {
 
   @Patch(':id/approve')
   @HasPermission('global_stock_warehouse.edit')
-  approve(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+  async approve(
+    @Param('id') id: string,
+    @Query('instanceId') targetInstanceId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const instanceId = await this.resolveInstance(req, targetInstanceId);
     return this.service.approve({
       id,
-      instanceId: req.user.instanceId,
+      instanceId,
       userId: req.user.id,
     });
   }
 
   @Patch(':id/reject')
   @HasPermission('global_stock_warehouse.edit')
-  reject(
+  async reject(
     @Param('id') id: string,
-    @Body() body: RejectBody,
+    @Body() body: RejectBody & { instanceId?: string },
     @Req() req: AuthenticatedRequest,
   ) {
+    const instanceId = await this.resolveInstance(req, body.instanceId);
     return this.service.reject({
       id,
-      instanceId: req.user.instanceId,
+      instanceId,
       userId: req.user.id,
       rejectionReason: body.rejectionReason,
     });
@@ -101,14 +127,15 @@ export class StockRequestsController {
 
   @Patch(':id/deliver')
   @HasPermission('global_stock_warehouse.edit')
-  deliver(
+  async deliver(
     @Param('id') id: string,
-    @Body() body: DeliverBody,
+    @Body() body: DeliverBody & { instanceId?: string },
     @Req() req: AuthenticatedRequest,
   ) {
+    const instanceId = await this.resolveInstance(req, body.instanceId);
     return this.service.deliver({
       id,
-      instanceId: req.user.instanceId,
+      instanceId,
       userId: req.user.id,
       quantity: body.quantity,
       notes: body.notes,
@@ -123,7 +150,12 @@ export class StockRequestsController {
     'global_stock_warehouse.view',
     'global_stock_warehouse.edit',
   )
-  findDeliveries(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    return this.service.findDeliveries(id, req.user.instanceId);
+  async findDeliveries(
+    @Param('id') id: string,
+    @Query('instanceId') targetInstanceId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const instanceId = await this.resolveInstance(req, targetInstanceId);
+    return this.service.findDeliveries(id, instanceId);
   }
 }

@@ -6,6 +6,7 @@ import { Project, ProjectGroup, CompanyCertificate, ExternalProject } from '../t
 import { biddingService } from '../services/biddingService';
 import { stockRequestApi } from '../services/stockRequestApi';
 import { purchaseRequestApi } from '../services/purchaseRequestApi';
+import { globalStockApi } from '../services/globalStockApi';
 import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 
@@ -93,6 +94,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // Traceability pending count
   const [traceabilityPending, setTraceabilityPending] = useState(0);
 
+  // Accessible external instances for stock (always fetch, independent of home perms)
+  const [accessibleStockInstances, setAccessibleStockInstances] = useState<{ instanceId: string; instanceName: string; permissions: string[] }[]>([]);
+
+  useEffect(() => {
+    globalStockApi.listAccessibleInstances()
+      .then(setAccessibleStockInstances)
+      .catch(() => {});
+  }, []);
+
   const fetchTraceabilityPending = useCallback(async () => {
     if (!canStockWarehouse && !canStockFinancial) return;
     try {
@@ -153,7 +163,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     externalProjects: ExternalProject[];
     activeProjectId: string | null;
     onOpenProject: (id: string) => void;
-  }> = ({ isOpen: sidebarOpen, externalProjects: extProjects, activeProjectId: activeId, onOpenProject: openProject }) => {
+    stockInstances: { instanceId: string; instanceName: string; permissions: string[] }[];
+  }> = ({ isOpen: sidebarOpen, externalProjects: extProjects, activeProjectId: activeId, onOpenProject: openProject, stockInstances }) => {
     const [expanded, setExpanded] = useState(() => {
       const saved = localStorage.getItem('promeasure_sidebar_shared_expanded');
       return saved !== null ? JSON.parse(saved) : true;
@@ -163,10 +174,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
       localStorage.setItem('promeasure_sidebar_shared_expanded', JSON.stringify(expanded));
     }, [expanded]);
 
-    // Group by instance
-    const byInstance = extProjects.reduce<Record<string, ExternalProject[]>>((acc, ep) => {
+    // Group projects by instance
+    const projectsByInstance = extProjects.reduce<Record<string, ExternalProject[]>>((acc, ep) => {
       if (!acc[ep.instanceName]) acc[ep.instanceName] = [];
       acc[ep.instanceName].push(ep);
+      return acc;
+    }, {});
+
+    // Build unified list of all external instance names (projects + stock)
+    const allInstanceNames = Array.from(new Set([
+      ...Object.keys(projectsByInstance),
+      ...stockInstances.map(s => s.instanceName),
+    ])).sort();
+
+    // Map stock instances by name for quick lookup
+    const stockByName = stockInstances.reduce<Record<string, typeof stockInstances[0]>>((acc, s) => {
+      acc[s.instanceName] = s;
       return acc;
     }, {});
 
@@ -194,38 +217,66 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
         {expanded && (
           <div className="space-y-1">
-            {Object.entries(byInstance).map(([instanceName, projects]) => (
-              <div key={instanceName}>
-                {sidebarOpen && (
+            {allInstanceNames.map(instanceName => {
+              const projects = projectsByInstance[instanceName] ?? [];
+              const stockInst = stockByName[instanceName];
+              return (
+                <div key={instanceName}>
+                  {sidebarOpen && (
                     <p className="px-3 py-1 text-[9px] font-bold text-slate-400 dark:text-slate-300 uppercase tracking-wider truncate">
-                    {instanceName}
-                  </p>
-                )}
-                {projects.map((ep) => (
-                  <button
-                    key={ep.projectId}
-                    onClick={() => openProject(ep.projectId)}
-                    className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${
-                      activeId === ep.projectId && location.pathname.startsWith('/app/projects')
-                        ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 font-bold'
-                        : 'text-slate-500 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
-                    } ${!sidebarOpen && 'justify-center'}`}
-                  >
-                    <Globe size={16} className="shrink-0 text-emerald-500" />
-                    {sidebarOpen && (
-                      <div className="flex items-start min-w-0 w-full gap-2">
-                        <div className="flex flex-col items-start min-w-0 flex-1">
-                          <span className="text-xs truncate w-full text-left">{ep.projectName}</span>
-                          <span className="text-[9px] text-slate-400 dark:text-slate-300 truncate w-full text-left">{ep.assignedRole.name}</span>
+                      {instanceName}
+                    </p>
+                  )}
+                  {/* Stock links for this instance */}
+                  {stockInst && (
+                    <div className="space-y-0.5">
+                      <NavItem
+                        active={location.pathname.startsWith('/app/global-stock') && new URLSearchParams(location.search).get('instanceId') === stockInst.instanceId}
+                        onClick={() => { navigate(`/app/global-stock?instanceId=${stockInst.instanceId}&instanceName=${encodeURIComponent(stockInst.instanceName)}`); setMobileOpen(false); }}
+                        icon={<Warehouse size={sidebarOpen ? 16 : 18}/>}
+                        label={sidebarOpen ? 'Estoque Global' : stockInst.instanceName}
+                      />
+                      <NavItem
+                        active={location.pathname.startsWith('/app/traceability') && new URLSearchParams(location.search).get('instanceId') === stockInst.instanceId}
+                        onClick={() => { navigate(`/app/traceability?instanceId=${stockInst.instanceId}&instanceName=${encodeURIComponent(stockInst.instanceName)}`); setMobileOpen(false); }}
+                        icon={<GitBranch size={sidebarOpen ? 16 : 18}/>}
+                        label={sidebarOpen ? 'Rastreabilidade' : ''}
+                      />
+                      <NavItem
+                        active={location.pathname.startsWith('/app/stock-log') && new URLSearchParams(location.search).get('instanceId') === stockInst.instanceId}
+                        onClick={() => { navigate(`/app/stock-log?instanceId=${stockInst.instanceId}&instanceName=${encodeURIComponent(stockInst.instanceName)}`); setMobileOpen(false); }}
+                        icon={<History size={sidebarOpen ? 16 : 18}/>}
+                        label={sidebarOpen ? 'Movimentações' : ''}
+                      />
+                    </div>
+                  )}
+                  {/* Project links for this instance */}
+                  {projects.map((ep) => (
+                    <button
+                      key={ep.projectId}
+                      onClick={() => openProject(ep.projectId)}
+                      className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${
+                        activeId === ep.projectId && location.pathname.startsWith('/app/projects')
+                          ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 font-bold'
+                          : 'text-slate-500 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                      } ${!sidebarOpen && 'justify-center'}`}
+                    >
+                      <Globe size={16} className="shrink-0 text-emerald-500" />
+                      {sidebarOpen && (
+                        <div className="flex items-start min-w-0 w-full gap-2">
+                          <div className="flex flex-col items-start min-w-0 flex-1">
+                            <span className="text-xs truncate w-full text-left">{ep.projectName}</span>
+                            <span className="text-[9px] text-slate-400 dark:text-slate-300 truncate w-full text-left">{ep.assignedRole.name}</span>
+                          </div>
+                          <ProjectNotificationBadge projectId={ep.projectId} />
                         </div>
-                        <ProjectNotificationBadge projectId={ep.projectId} />
-                      </div>
-                    )}
-                    {!sidebarOpen && <ProjectNotificationBadge projectId={ep.projectId} />}
-                  </button>
-                ))}
-              </div>
-            ))}
+                      )}
+                      {!sidebarOpen && <ProjectNotificationBadge projectId={ep.projectId} />}
+                    </button>
+                  ))}
+                </div>
+              );
+            })}
           </div>
         )}
       </>
@@ -315,12 +366,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 label={`Voltar para ${user?.instanceName || 'painel'}`}
               />
               {/* External Projects Section - always visible */}
-              {externalProjects.length > 0 && (
+              {(externalProjects.length > 0 || accessibleStockInstances.length > 0) && (
                 <ExternalProjectsSection
                   isOpen={isOpen}
                   externalProjects={externalProjects}
                   activeProjectId={activeProjectId}
                   onOpenProject={onOpenProject}
+                  stockInstances={accessibleStockInstances}
                 />
               )}
             </>
@@ -377,6 +429,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   label="Movimentações"
                 />
               )}
+
               
               {canSeeProjects && (
                 <div className="py-6 px-3 flex items-center justify-between">
@@ -408,13 +461,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
               )}
 
-              {/* External Projects Section */}
-              {externalProjects.length > 0 && (
+              {/* External Projects & Stock Section */}
+              {(externalProjects.length > 0 || accessibleStockInstances.length > 0) && (
                 <ExternalProjectsSection
                   isOpen={isOpen}
                   externalProjects={externalProjects}
                   activeProjectId={activeProjectId}
                   onOpenProject={onOpenProject}
+                  stockInstances={accessibleStockInstances}
                 />
               )}
             </>

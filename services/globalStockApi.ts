@@ -18,8 +18,25 @@ function normalizeItem(item: any): GlobalStockItem {
 }
 
 export const globalStockApi = {
-  async list(): Promise<GlobalStockItem[]> {
-    const res = await fetch(`${API_BASE}/global-stock`, {
+  /** List external instances where the user has global-stock permissions. */
+  async listAccessibleInstances(): Promise<
+    Array<{
+      instanceId: string;
+      instanceName: string;
+      permissions: string[];
+    }>
+  > {
+    const res = await fetch(`${API_BASE}/global-stock/accessible-instances`, {
+      method: 'GET',
+      credentials: 'include',
+    });
+    if (!res.ok) throw new Error('Falha ao carregar instâncias acessíveis');
+    return res.json();
+  },
+
+  async list(instanceId?: string): Promise<GlobalStockItem[]> {
+    const params = instanceId ? `?instanceId=${encodeURIComponent(instanceId)}` : '';
+    const res = await fetch(`${API_BASE}/global-stock${params}`, {
       method: 'GET',
       credentials: 'include',
     });
@@ -33,6 +50,7 @@ export const globalStockApi = {
     minQuantity?: number | null;
     initialPrice?: number;
     supplierId?: string;
+    instanceId?: string;
   }): Promise<GlobalStockItem> {
     const res = await fetch(`${API_BASE}/global-stock`, {
       method: 'POST',
@@ -51,6 +69,7 @@ export const globalStockApi = {
       unit?: string;
       minQuantity?: number | null;
       supplierId?: string | null;
+      instanceId?: string;
     },
   ): Promise<GlobalStockItem> {
     const res = await fetch(`${API_BASE}/global-stock/${id}`, {
@@ -63,21 +82,23 @@ export const globalStockApi = {
     return normalizeItem(await res.json());
   },
 
-  async remove(id: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/global-stock/${id}`, {
+  async remove(id: string, instanceId?: string): Promise<void> {
+    const params = instanceId ? `?instanceId=${encodeURIComponent(instanceId)}` : '';
+    const res = await fetch(`${API_BASE}/global-stock/${id}${params}`, {
       method: 'DELETE',
       credentials: 'include',
     });
     if (!res.ok) throw new Error('Falha ao remover item');
   },
 
-  async getUsageSummary(id: string): Promise<{
+  async getUsageSummary(id: string, instanceId?: string): Promise<{
     movementsCount: number;
     purchaseRequestsCount: number;
     stockRequestsCount: number;
     linkedProjects: Array<{ id: string; name: string }>;
   }> {
-    const res = await fetch(`${API_BASE}/global-stock/${id}/usage`, {
+    const params = instanceId ? `?instanceId=${encodeURIComponent(instanceId)}` : '';
+    const res = await fetch(`${API_BASE}/global-stock/${id}/usage${params}`, {
       method: 'GET',
       credentials: 'include',
     });
@@ -98,6 +119,7 @@ export const globalStockApi = {
       supplierId?: string;
       notes?: string;
       date?: string;
+      instanceId?: string;
     },
   ): Promise<GlobalStockItem> {
     const res = await fetch(`${API_BASE}/global-stock/${itemId}/movements`, {
@@ -121,6 +143,7 @@ export const globalStockApi = {
     globalStockItemId?: string;
     dateStart?: string;
     dateEnd?: string;
+    instanceId?: string;
   }): Promise<{ movements: GlobalStockMovement[]; total: number }> {
     const query = new URLSearchParams();
     if (params?.skip) query.set('skip', String(params.skip));
@@ -130,6 +153,7 @@ export const globalStockApi = {
     if (params?.globalStockItemId) query.set('globalStockItemId', params.globalStockItemId);
     if (params?.dateStart) query.set('dateStart', params.dateStart);
     if (params?.dateEnd) query.set('dateEnd', params.dateEnd);
+    if (params?.instanceId) query.set('instanceId', params.instanceId);
 
     const res = await fetch(
       `${API_BASE}/global-stock/movements?${query.toString()}`,
@@ -147,9 +171,12 @@ export const globalStockApi = {
     itemId: string,
     skip = 0,
     take = 20,
+    instanceId?: string,
   ): Promise<{ movements: GlobalStockMovement[]; total: number }> {
+    const query = new URLSearchParams({ skip: String(skip), take: String(take) });
+    if (instanceId) query.set('instanceId', instanceId);
     const res = await fetch(
-      `${API_BASE}/global-stock/${itemId}/movements?skip=${skip}&take=${take}`,
+      `${API_BASE}/global-stock/${itemId}/movements?${query.toString()}`,
       { method: 'GET', credentials: 'include' },
     );
     if (!res.ok) throw new Error('Falha ao carregar movimentações');
@@ -162,6 +189,7 @@ export const globalStockApi = {
 
   async getProjectConsumption(
     projectId: string,
+    instanceId?: string,
   ): Promise<
     Array<{
       itemId: string;
@@ -171,20 +199,21 @@ export const globalStockApi = {
       exit: number;
     }>
   > {
+    const params = instanceId ? `?instanceId=${encodeURIComponent(instanceId)}` : '';
     const res = await fetch(
-      `${API_BASE}/global-stock/project-consumption/${projectId}`,
+      `${API_BASE}/global-stock/project-consumption/${projectId}${params}`,
       { method: 'GET', credentials: 'include' },
     );
     if (!res.ok) throw new Error('Falha ao carregar resumo de consumo');
     return res.json();
   },
 
-  async reorder(items: Array<{ id: string; order: number }>): Promise<void> {
+  async reorder(items: Array<{ id: string; order: number }>, instanceId?: string): Promise<void> {
     const res = await fetch(`${API_BASE}/global-stock/reorder`, {
       method: 'PATCH',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items }),
+      body: JSON.stringify({ items, instanceId }),
     });
     if (!res.ok) throw new Error('Falha ao reordenar');
   },

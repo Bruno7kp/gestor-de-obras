@@ -3,9 +3,12 @@ import type { PurchaseRequest } from '../types';
 const API_BASE = (import.meta as any).env?.VITE_API_URL ?? '/api';
 
 export const purchaseRequestApi = {
-  async list(status?: string): Promise<PurchaseRequest[]> {
-    const query = status ? `?status=${encodeURIComponent(status)}` : '';
-    const res = await fetch(`${API_BASE}/purchase-requests${query}`, {
+  async list(status?: string, instanceId?: string): Promise<PurchaseRequest[]> {
+    const query = new URLSearchParams();
+    if (status) query.set('status', status);
+    if (instanceId) query.set('instanceId', instanceId);
+    const qs = query.toString();
+    const res = await fetch(`${API_BASE}/purchase-requests${qs ? `?${qs}` : ''}`, {
       method: 'GET',
       credentials: 'include',
     });
@@ -19,6 +22,7 @@ export const purchaseRequestApi = {
     priority?: 'LOW' | 'MEDIUM' | 'HIGH';
     notes?: string;
     stockRequestId?: string;
+    instanceId?: string;
   }): Promise<PurchaseRequest> {
     const res = await fetch(`${API_BASE}/purchase-requests`, {
       method: 'POST',
@@ -33,8 +37,9 @@ export const purchaseRequestApi = {
     return res.json();
   },
 
-  async markOrdered(id: string): Promise<PurchaseRequest> {
-    const res = await fetch(`${API_BASE}/purchase-requests/${id}/order`, {
+  async markOrdered(id: string, instanceId?: string): Promise<PurchaseRequest> {
+    const params = instanceId ? `?instanceId=${encodeURIComponent(instanceId)}` : '';
+    const res = await fetch(`${API_BASE}/purchase-requests/${id}/order${params}`, {
       method: 'PATCH',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -49,6 +54,7 @@ export const purchaseRequestApi = {
       invoiceNumber?: string;
       unitPrice: number;
       supplierId?: string;
+      instanceId?: string;
     },
   ): Promise<PurchaseRequest> {
     const res = await fetch(`${API_BASE}/purchase-requests/${id}/complete`, {
@@ -64,8 +70,9 @@ export const purchaseRequestApi = {
     return res.json();
   },
 
-  async cancel(id: string): Promise<PurchaseRequest> {
-    const res = await fetch(`${API_BASE}/purchase-requests/${id}/cancel`, {
+  async cancel(id: string, instanceId?: string): Promise<PurchaseRequest> {
+    const params = instanceId ? `?instanceId=${encodeURIComponent(instanceId)}` : '';
+    const res = await fetch(`${API_BASE}/purchase-requests/${id}/cancel${params}`, {
       method: 'PATCH',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },

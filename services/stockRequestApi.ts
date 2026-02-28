@@ -6,10 +6,12 @@ export const stockRequestApi = {
   async list(params?: {
     projectId?: string;
     status?: string;
+    instanceId?: string;
   }): Promise<StockRequest[]> {
     const query = new URLSearchParams();
     if (params?.projectId) query.set('projectId', params.projectId);
     if (params?.status) query.set('status', params.status);
+    if (params?.instanceId) query.set('instanceId', params.instanceId);
     const qs = query.toString();
 
     const res = await fetch(
@@ -25,6 +27,7 @@ export const stockRequestApi = {
     globalStockItemId: string;
     quantity: number;
     notes?: string;
+    instanceId?: string;
   }): Promise<StockRequest> {
     const res = await fetch(`${API_BASE}/stock-requests`, {
       method: 'POST',
@@ -39,8 +42,9 @@ export const stockRequestApi = {
     return res.json();
   },
 
-  async approve(id: string): Promise<StockRequest> {
-    const res = await fetch(`${API_BASE}/stock-requests/${id}/approve`, {
+  async approve(id: string, instanceId?: string): Promise<StockRequest> {
+    const params = instanceId ? `?instanceId=${encodeURIComponent(instanceId)}` : '';
+    const res = await fetch(`${API_BASE}/stock-requests/${id}/approve${params}`, {
       method: 'PATCH',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -55,12 +59,14 @@ export const stockRequestApi = {
   async reject(
     id: string,
     rejectionReason?: string,
+    instanceId?: string,
   ): Promise<StockRequest> {
-    const res = await fetch(`${API_BASE}/stock-requests/${id}/reject`, {
+    const params = instanceId ? `?instanceId=${encodeURIComponent(instanceId)}` : '';
+    const res = await fetch(`${API_BASE}/stock-requests/${id}/reject${params}`, {
       method: 'PATCH',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rejectionReason }),
+      body: JSON.stringify({ rejectionReason, instanceId }),
     });
     if (!res.ok) throw new Error('Falha ao rejeitar requisição');
     return res.json();
@@ -72,6 +78,7 @@ export const stockRequestApi = {
       quantity: number;
       notes?: string;
       createPurchaseForRemaining?: boolean;
+      instanceId?: string;
     },
   ): Promise<StockRequest> {
     const res = await fetch(`${API_BASE}/stock-requests/${id}/deliver`, {
@@ -87,8 +94,9 @@ export const stockRequestApi = {
     return res.json();
   },
 
-  async getDeliveries(id: string): Promise<StockRequestDelivery[]> {
-    const res = await fetch(`${API_BASE}/stock-requests/${id}/deliveries`, {
+  async getDeliveries(id: string, instanceId?: string): Promise<StockRequestDelivery[]> {
+    const params = instanceId ? `?instanceId=${encodeURIComponent(instanceId)}` : '';
+    const res = await fetch(`${API_BASE}/stock-requests/${id}/deliveries${params}`, {
       method: 'GET',
       credentials: 'include',
     });

@@ -1,6 +1,7 @@
 import {
   Injectable,
   BadRequestException,
+  ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
@@ -10,6 +11,11 @@ import type {
   Prisma,
   StockMovementType,
 } from '@prisma/client';
+import {
+  getCrossInstancePermissions,
+  GLOBAL_STOCK_VIEW_PERMISSIONS,
+  GLOBAL_STOCK_EDIT_PERMISSIONS,
+} from '../common/instance-access.util';
 
 // --- DTOs ---
 
@@ -122,6 +128,72 @@ export class GlobalStockService {
       where: { instanceId },
       include: this.itemInclude,
       orderBy: { order: 'asc' },
+    });
+  }
+
+  /**
+   * findAll with cross-instance permission check.
+   * If accessing a foreign instance, validates the user has at least
+   * one global-stock view permission via ProjectMember roles.
+   */
+  async findAllWithAccess(input: {
+    userId: string;
+    homeInstanceId: string;
+    resolvedInstanceId: string;
+  }) {
+    if (input.resolvedInstanceId !== input.homeInstanceId) {
+      const perms = await getCrossInstancePermissions(
+        this.prisma,
+        input.userId,
+        input.resolvedInstanceId,
+      );
+      const hasAccess = perms.some((p) =>
+        (GLOBAL_STOCK_VIEW_PERMISSIONS as readonly string[]).includes(p),
+      );
+      if (!hasAccess) {
+        throw new ForbiddenException(
+          'Sem permissão de estoque nesta instância',
+        );
+      }
+    }
+    return this.findAll(input.resolvedInstanceId);
+  }
+
+  /**
+   * create with cross-instance permission check.
+   */
+  async createWithAccess(input: {
+    userId: string;
+    homeInstanceId: string;
+    resolvedInstanceId: string;
+    name: string;
+    unit?: string;
+    minQuantity?: number | null;
+    initialPrice?: number;
+    supplierId?: string;
+  }) {
+    if (input.resolvedInstanceId !== input.homeInstanceId) {
+      const perms = await getCrossInstancePermissions(
+        this.prisma,
+        input.userId,
+        input.resolvedInstanceId,
+      );
+      const hasAccess = perms.some((p) =>
+        (GLOBAL_STOCK_EDIT_PERMISSIONS as readonly string[]).includes(p),
+      );
+      if (!hasAccess) {
+        throw new ForbiddenException(
+          'Sem permissão de edição de estoque nesta instância',
+        );
+      }
+    }
+    return this.create({
+      instanceId: input.resolvedInstanceId,
+      name: input.name,
+      unit: input.unit,
+      minQuantity: input.minQuantity,
+      initialPrice: input.initialPrice,
+      supplierId: input.supplierId,
     });
   }
 

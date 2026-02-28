@@ -2,11 +2,11 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Package, Plus, Search, ArrowDownCircle, ArrowUpCircle, AlertTriangle,
   ShoppingCart, FileText, Edit2, Trash2, ChevronDown, ChevronRight, ChevronLeft,
-  TrendingUp, RefreshCw, Boxes, DollarSign, ExternalLink,
+  TrendingUp, RefreshCw, Boxes, DollarSign, ExternalLink, Globe,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { usePermissions } from '../hooks/usePermissions';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useToast } from '../hooks/useToast';
+import { useCrossInstanceStock } from '../hooks/useCrossInstanceStock';
 import { globalStockApi } from '../services/globalStockApi';
 import { purchaseRequestApi } from '../services/purchaseRequestApi';
 import { financial } from '../utils/math';
@@ -278,9 +278,10 @@ const PurchaseRequestModal: React.FC<{
 /* ------------------------------------------------------------------ */
 const DeleteItemModal: React.FC<{
   item: GlobalStockItem;
+  instanceId?: string;
   onConfirm: () => void;
   onClose: () => void;
-}> = ({ item, onConfirm, onClose }) => {
+}> = ({ item, instanceId, onConfirm, onClose }) => {
   const [typed, setTyped] = useState('');
   const matches = typed.trim().toLowerCase() === item.name.trim().toLowerCase();
   const [usage, setUsage] = useState<{
@@ -292,11 +293,11 @@ const DeleteItemModal: React.FC<{
   const [loadingUsage, setLoadingUsage] = useState(true);
 
   useEffect(() => {
-    globalStockApi.getUsageSummary(item.id)
+    globalStockApi.getUsageSummary(item.id, instanceId)
       .then(setUsage)
       .catch(() => setUsage(null))
       .finally(() => setLoadingUsage(false));
-  }, [item.id]);
+  }, [item.id, instanceId]);
 
   const hasRelated = usage && (usage.movementsCount > 0 || usage.purchaseRequestsCount > 0 || usage.stockRequestsCount > 0);
 
@@ -401,8 +402,17 @@ const KpiCard = ({ label, value, icon, color }: { label: string; value: string |
 /*  Main Page                                                          */
 /* ------------------------------------------------------------------ */
 export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppliers }) => {
-  const { canView, canEdit } = usePermissions();
   const toast = useToast();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Cross-instance context from URL
+  const externalInstanceId = searchParams.get('instanceId') || undefined;
+  const externalInstanceName = searchParams.get('instanceName') || undefined;
+  const isExternalInstance = !!externalInstanceId;
+
+  // Resolved permissions (cross-instance when external, home otherwise)
+  const { canView, canEdit } = useCrossInstanceStock(externalInstanceId);
 
   const canWarehouse = canView('global_stock_warehouse');
   const canWarehouseEdit = canEdit('global_stock_warehouse');
@@ -425,7 +435,6 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [movements, setMovements] = useState<Record<string, GlobalStockMovement[]>>({});
   const [movementTotals, setMovementTotals] = useState<Record<string, number>>({});
-  const navigate = useNavigate();
 
   // Modals
   const [itemModal, setItemModal] = useState<{ open: boolean; item?: GlobalStockItem | null }>({ open: false });
@@ -436,7 +445,7 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
   const loadItems = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await globalStockApi.list();
+      const data = await globalStockApi.list(externalInstanceId);
       setItems(data);
     } catch (e: any) {
       toast.error(e.message);
@@ -444,7 +453,7 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
       setLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [externalInstanceId]);
 
   useEffect(() => { loadItems(); }, [loadItems]);
 
@@ -466,11 +475,11 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
     try {
       if (itemModal.item) {
         const { initialPrice: _, ...updateData } = data;
-        const updated = await globalStockApi.update(itemModal.item.id, updateData);
+        const updated = await globalStockApi.update(itemModal.item.id, { ...updateData, instanceId: externalInstanceId });
         setItems(prev => prev.map(i => i.id === updated.id ? updated : i));
         toast.success('Item atualizado');
       } else {
-        const created = await globalStockApi.create(data);
+        const created = await globalStockApi.create({ ...data, instanceId: externalInstanceId });
         setItems(prev => [created, ...prev]);
         toast.success('Item criado');
       }
@@ -483,7 +492,7 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
   const handleDeleteItem = async () => {
     if (!deleteConfirm) return;
     try {
-      await globalStockApi.remove(deleteConfirm.id);
+      await globalStockApi.remove(deleteConfirm.id, externalInstanceId);
       setItems(prev => prev.filter(i => i.id !== deleteConfirm.id));
       toast.success('Item removido');
     } catch (e: any) {
@@ -503,6 +512,7 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
         supplierId: data.supplierId,
         date: data.date,
         originDestination: 'Entrada NF',
+        instanceId: externalInstanceId,
       });
       setItems(prev => prev.map(i => i.id === updated.id ? updated : i));
       setEntryModal({ open: false });
@@ -515,7 +525,7 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
   const handleRequestPurchase = async (qty: number) => {
     if (!purchaseModal.item) return;
     try {
-      await purchaseRequestApi.create({ globalStockItemId: purchaseModal.item.id, quantity: qty });
+      await purchaseRequestApi.create({ globalStockItemId: purchaseModal.item.id, quantity: qty, instanceId: externalInstanceId });
       setPurchaseModal({ open: false });
       toast.success('Solicitação de compra criada');
     } catch (e: any) {
@@ -528,7 +538,7 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
     setExpandedId(id);
     if (!movements[id]) {
       try {
-        const data = await globalStockApi.listItemMovements(id, 0, 5);
+        const data = await globalStockApi.listItemMovements(id, 0, 5, externalInstanceId);
         setMovements(prev => ({ ...prev, [id]: data.movements }));
         setMovementTotals(prev => ({ ...prev, [id]: data.total }));
       } catch {}
@@ -547,10 +557,30 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
     <div className="flex-1 overflow-y-auto p-6 sm:p-12 animate-in fade-in duration-500 bg-slate-50 dark:bg-slate-950 custom-scrollbar">
       <div className="max-w-6xl mx-auto space-y-10">
 
+        {/* EXTERNAL INSTANCE BANNER */}
+        {isExternalInstance && externalInstanceName && (
+          <div className="flex items-center gap-3 px-5 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl">
+            <Globe size={16} className="text-amber-600 dark:text-amber-400 shrink-0" />
+            <div className="flex-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-400">
+                Estoque da instância: {externalInstanceName}
+              </p>
+              <p className="text-[9px] text-amber-600/70 dark:text-amber-400/70 font-medium mt-0.5">
+                Você está visualizando o estoque global de outra empresa.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* HEADER */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <div>
-            <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">Estoque Global</h1>
+            <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">
+              Estoque Global
+              {isExternalInstance && externalInstanceName && (
+                <span className="text-lg text-amber-600 dark:text-amber-400 ml-2">— {externalInstanceName}</span>
+              )}
+            </h1>
             <p className="text-slate-500 dark:text-slate-400 font-medium">Controle de materiais centralizado por instância.</p>
           </div>
           <div className="flex items-center gap-3">
@@ -729,7 +759,7 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
                         {/* "Ver todas" link to stock-log filtered by item */}
                         {(movementTotals[item.id] ?? 0) > 5 && (
                           <button
-                            onClick={() => navigate(`/app/stock-log?itemId=${item.id}&itemName=${encodeURIComponent(item.name)}`)}
+                            onClick={() => navigate(`/app/stock-log?itemId=${item.id}&itemName=${encodeURIComponent(item.name)}${externalInstanceId ? `&instanceId=${externalInstanceId}` : ''}`)}
                             className="mt-3 flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition-all w-fit"
                           >
                             <ExternalLink size={12} /> Ver todas ({movementTotals[item.id]}) movimentações
@@ -797,6 +827,7 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
       {deleteConfirm && (
         <DeleteItemModal
           item={deleteConfirm}
+          instanceId={externalInstanceId}
           onConfirm={handleDeleteItem}
           onClose={() => setDeleteConfirm(null)}
         />
