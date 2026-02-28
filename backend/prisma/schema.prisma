@@ -770,7 +770,7 @@ model PurchaseRequest {
   createdAt         DateTime                @default(now())
   updatedAt         DateTime                @updatedAt
   instance          Instance                @relation(fields: [instanceId], references: [id])
-  globalStockItem   GlobalStockItem         @relation(fields: [globalStockItemId], references: [id])
+  globalStockItem   GlobalStockItem         @relation(fields: [globalStockItemId], references: [id], onDelete: Cascade)
   requestedBy       User                    @relation("UserPurchaseRequestsCreated", fields: [requestedById], references: [id])
   processedBy       User?                   @relation("UserPurchaseRequestsProcessed", fields: [processedById], references: [id])
 
@@ -796,7 +796,7 @@ model StockRequest {
   updatedAt         DateTime           @updatedAt
   instance          Instance           @relation(fields: [instanceId], references: [id])
   project           Project            @relation(fields: [projectId], references: [id])
-  globalStockItem   GlobalStockItem    @relation(fields: [globalStockItemId], references: [id])
+  globalStockItem   GlobalStockItem    @relation(fields: [globalStockItemId], references: [id], onDelete: Cascade)
   requestedBy       User               @relation("UserStockRequestsCreated", fields: [requestedById], references: [id])
   approvedBy        User?              @relation("UserStockRequestsApproved", fields: [approvedById], references: [id])
 

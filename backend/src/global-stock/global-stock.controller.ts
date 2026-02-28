@@ -110,6 +110,12 @@ export class GlobalStockController {
     return this.globalStockService.remove(id, req.user.instanceId);
   }
 
+  @Get(':id/usage')
+  @HasPermission('global_stock_warehouse.edit')
+  getUsageSummary(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.globalStockService.getUsageSummary(id, req.user.instanceId);
+  }
+
   @Post(':id/movements')
   @HasPermission('global_stock_warehouse.edit')
   addMovement(

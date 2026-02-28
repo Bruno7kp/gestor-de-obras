@@ -166,6 +166,42 @@ export class GlobalStockService {
     });
   }
 
+  async getUsageSummary(id: string, instanceId: string) {
+    const item = await this.prisma.globalStockItem.findFirst({
+      where: { id, instanceId },
+    });
+    if (!item) throw new NotFoundException('Item não encontrado');
+
+    const [
+      movementsCount,
+      purchaseRequestsCount,
+      stockRequestsCount,
+      linkedProjects,
+    ] = await Promise.all([
+      this.prisma.globalStockMovement.count({
+        where: { globalStockItemId: id },
+      }),
+      this.prisma.purchaseRequest.count({
+        where: { globalStockItemId: id },
+      }),
+      this.prisma.stockRequest.count({
+        where: { globalStockItemId: id },
+      }),
+      this.prisma.stockRequest.findMany({
+        where: { globalStockItemId: id },
+        select: { project: { select: { id: true, name: true } } },
+        distinct: ['projectId'],
+      }),
+    ]);
+
+    return {
+      movementsCount,
+      purchaseRequestsCount,
+      stockRequestsCount,
+      linkedProjects: linkedProjects.map((r) => r.project),
+    };
+  }
+
   async remove(id: string, instanceId: string) {
     const item = await this.prisma.globalStockItem.findFirst({
       where: { id, instanceId },

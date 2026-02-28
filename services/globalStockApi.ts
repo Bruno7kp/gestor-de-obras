@@ -70,6 +70,20 @@ export const globalStockApi = {
     if (!res.ok) throw new Error('Falha ao remover item');
   },
 
+  async getUsageSummary(id: string): Promise<{
+    movementsCount: number;
+    purchaseRequestsCount: number;
+    stockRequestsCount: number;
+    linkedProjects: Array<{ id: string; name: string }>;
+  }> {
+    const res = await fetch(`${API_BASE}/global-stock/${id}/usage`, {
+      method: 'GET',
+      credentials: 'include',
+    });
+    if (!res.ok) throw new Error('Falha ao carregar informações de uso');
+    return res.json();
+  },
+
   async addMovement(
     itemId: string,
     input: {

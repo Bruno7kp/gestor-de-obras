@@ -235,6 +235,22 @@ const DeleteItemModal: React.FC<{
 }> = ({ item, onConfirm, onClose }) => {
   const [typed, setTyped] = useState('');
   const matches = typed.trim().toLowerCase() === item.name.trim().toLowerCase();
+  const [usage, setUsage] = useState<{
+    movementsCount: number;
+    purchaseRequestsCount: number;
+    stockRequestsCount: number;
+    linkedProjects: Array<{ id: string; name: string }>;
+  } | null>(null);
+  const [loadingUsage, setLoadingUsage] = useState(true);
+
+  useEffect(() => {
+    globalStockApi.getUsageSummary(item.id)
+      .then(setUsage)
+      .catch(() => setUsage(null))
+      .finally(() => setLoadingUsage(false));
+  }, [item.id]);
+
+  const hasRelated = usage && (usage.movementsCount > 0 || usage.purchaseRequestsCount > 0 || usage.stockRequestsCount > 0);
 
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
@@ -250,8 +266,38 @@ const DeleteItemModal: React.FC<{
         </div>
         <div className="px-8 py-6 space-y-4">
           <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-            Deseja realmente excluir <strong className="text-rose-600 dark:text-rose-400">{item.name}</strong> e todo seu histórico de movimentações? Esta ação não pode ser desfeita.
+            Deseja realmente excluir <strong className="text-rose-600 dark:text-rose-400">{item.name}</strong>? Esta ação não pode ser desfeita.
           </p>
+          {loadingUsage ? (
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <RefreshCw size={14} className="animate-spin" /> Verificando uso do item…
+            </div>
+          ) : hasRelated ? (
+            <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl p-4 space-y-2">
+              <p className="text-xs font-bold text-rose-700 dark:text-rose-300 uppercase tracking-wider">Os seguintes dados serão removidos:</p>
+              <ul className="text-xs text-rose-600 dark:text-rose-400 space-y-1 list-disc list-inside">
+                {usage.movementsCount > 0 && (
+                  <li>{usage.movementsCount} movimentaç{usage.movementsCount === 1 ? 'ão' : 'ões'}</li>
+                )}
+                {usage.purchaseRequestsCount > 0 && (
+                  <li>{usage.purchaseRequestsCount} solicitaç{usage.purchaseRequestsCount === 1 ? 'ão' : 'ões'} de compra</li>
+                )}
+                {usage.stockRequestsCount > 0 && (
+                  <li>{usage.stockRequestsCount} solicitaç{usage.stockRequestsCount === 1 ? 'ão' : 'ões'} de estoque</li>
+                )}
+              </ul>
+              {usage.linkedProjects.length > 0 && (
+                <div className="pt-2 border-t border-rose-200 dark:border-rose-800">
+                  <p className="text-[10px] font-bold text-rose-700 dark:text-rose-300 uppercase tracking-wider mb-1">Obras vinculadas:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {usage.linkedProjects.map(p => (
+                      <span key={p.id} className="inline-block px-2 py-0.5 bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-300 rounded-md text-[11px] font-semibold">{p.name}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : null}
           <div>
             <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">
               Digite <span className="text-rose-600 dark:text-rose-400">{item.name}</span> para confirmar
