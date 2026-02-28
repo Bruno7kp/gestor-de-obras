@@ -96,6 +96,7 @@ model User {
   purchaseRequestsProcessed PurchaseRequest[] @relation("UserPurchaseRequestsProcessed")
   stockRequestsCreated StockRequest[] @relation("UserStockRequestsCreated")
   stockRequestsApproved StockRequest[] @relation("UserStockRequestsApproved")
+  stockRequestDeliveries StockRequestDelivery[] @relation("UserStockRequestDeliveries")
   notificationRecipients NotificationRecipient[]
   notificationPreferences NotificationPreference[]
   notificationDeliveries NotificationDelivery[]
@@ -686,6 +687,8 @@ enum PurchaseRequestPriority {
 enum StockRequestStatus {
   PENDING
   APPROVED
+  PARTIALLY_DELIVERED
+  DELIVERED
   REJECTED
 }
 
@@ -767,15 +770,18 @@ model PurchaseRequest {
   completedAt       DateTime?
   invoiceNumber     String?
   unitPrice         Float?
+  stockRequestId    String?
   createdAt         DateTime                @default(now())
   updatedAt         DateTime                @updatedAt
   instance          Instance                @relation(fields: [instanceId], references: [id])
   globalStockItem   GlobalStockItem         @relation(fields: [globalStockItemId], references: [id], onDelete: Cascade)
   requestedBy       User                    @relation("UserPurchaseRequestsCreated", fields: [requestedById], references: [id])
   processedBy       User?                   @relation("UserPurchaseRequestsProcessed", fields: [processedById], references: [id])
+  stockRequest      StockRequest?           @relation(fields: [stockRequestId], references: [id])
 
   @@index([instanceId, status])
   @@index([globalStockItemId])
+  @@index([stockRequestId])
 }
 
 model StockRequest {
@@ -785,6 +791,7 @@ model StockRequest {
   globalStockItemId String
   itemName          String
   quantity          Float
+  quantityDelivered Float              @default(0)
   date              DateTime           @default(now())
   status            StockRequestStatus @default(PENDING)
   notes             String?
@@ -799,8 +806,24 @@ model StockRequest {
   globalStockItem   GlobalStockItem    @relation(fields: [globalStockItemId], references: [id], onDelete: Cascade)
   requestedBy       User               @relation("UserStockRequestsCreated", fields: [requestedById], references: [id])
   approvedBy        User?              @relation("UserStockRequestsApproved", fields: [approvedById], references: [id])
+  deliveries        StockRequestDelivery[]
+  linkedPurchaseRequests PurchaseRequest[]
 
   @@index([instanceId, status])
   @@index([projectId, status])
   @@index([globalStockItemId])
+}
+
+model StockRequestDelivery {
+  id              String       @id @default(uuid())
+  stockRequestId  String
+  quantity        Float
+  date            DateTime     @default(now())
+  notes           String?
+  createdById     String
+  createdAt       DateTime     @default(now())
+  stockRequest    StockRequest @relation(fields: [stockRequestId], references: [id], onDelete: Cascade)
+  createdBy       User         @relation("UserStockRequestDeliveries", fields: [createdById], references: [id])
+
+  @@index([stockRequestId])
 }

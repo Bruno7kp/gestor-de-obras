@@ -20,6 +20,7 @@ interface CreatePurchaseRequestBody {
   quantity: number;
   priority?: 'LOW' | 'MEDIUM' | 'HIGH';
   notes?: string;
+  stockRequestId?: string;
 }
 
 interface CompleteBody {
@@ -58,6 +59,7 @@ export class PurchaseRequestsController {
       quantity: body.quantity,
       priority: body.priority,
       notes: body.notes,
+      stockRequestId: body.stockRequestId,
     });
   }
 

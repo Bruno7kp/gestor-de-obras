@@ -31,6 +31,15 @@ interface RejectInput {
   rejectionReason?: string;
 }
 
+interface DeliverInput {
+  id: string;
+  instanceId: string;
+  userId: string;
+  quantity: number;
+  notes?: string;
+  createPurchaseForRemaining?: boolean;
+}
+
 interface FindAllInput {
   instanceId: string;
   userId: string;
@@ -63,6 +72,22 @@ export class StockRequestsService {
       },
       approvedBy: {
         select: { id: true, name: true, profileImage: true },
+      },
+      deliveries: {
+        orderBy: { createdAt: 'desc' as const },
+        include: {
+          createdBy: {
+            select: { id: true, name: true, profileImage: true },
+          },
+        },
+      },
+      linkedPurchaseRequests: {
+        select: {
+          id: true,
+          quantity: true,
+          status: true,
+          itemName: true,
+        },
       },
     };
   }
@@ -150,8 +175,6 @@ export class StockRequestsService {
     const request = await this.prisma.stockRequest.findFirst({
       where: { id: input.id, instanceId: input.instanceId },
       include: {
-        globalStockItem: true,
-        project: { select: { id: true, name: true } },
         requestedBy: { select: { id: true } },
       },
     });
@@ -162,14 +185,7 @@ export class StockRequestsService {
       );
     }
 
-    // Check stock availability
-    if (request.globalStockItem.currentQuantity < request.quantity) {
-      throw new BadRequestException(
-        `Estoque insuficiente. Disponível: ${request.globalStockItem.currentQuantity} ${request.globalStockItem.unit}`,
-      );
-    }
-
-    // Update request status
+    // Update request status — stock debit happens on deliver()
     const updated = await this.prisma.stockRequest.update({
       where: { id: input.id },
       data: {
@@ -180,16 +196,6 @@ export class StockRequestsService {
       include: this.requestInclude,
     });
 
-    // Create EXIT movement in global stock
-    await this.globalStockService.addExitFromRequest({
-      globalStockItemId: request.globalStockItemId,
-      instanceId: input.instanceId,
-      userId: input.userId,
-      quantity: request.quantity,
-      projectId: request.projectId,
-      projectName: request.project.name,
-    });
-
     // Notify the requester
     this.notificationsService
       .emit({
@@ -197,14 +203,196 @@ export class StockRequestsService {
         projectId: request.projectId,
         category: 'STOCK',
         eventType: 'stock_request_approved',
-        title: `Material aprovado: ${request.itemName}`,
-        body: `Sua requisição de ${request.quantity} de "${request.itemName}" foi aprovada`,
+        title: `Requisição aprovada: ${request.itemName}`,
+        body: `Sua requisição de ${request.quantity} de "${request.itemName}" foi aprovada e aguarda envio`,
         actorUserId: input.userId,
         specificUserIds: [request.requestedById],
       })
       .catch(() => {});
 
     return updated;
+  }
+
+  /**
+   * Deliver material (partial or full) for an approved stock request.
+   * Creates a StockRequestDelivery record, debits global stock,
+   * and optionally creates a PurchaseRequest for the remaining quantity.
+   */
+  async deliver(input: DeliverInput) {
+    const request = await this.prisma.stockRequest.findFirst({
+      where: { id: input.id, instanceId: input.instanceId },
+      include: {
+        globalStockItem: {
+          select: {
+            id: true,
+            name: true,
+            unit: true,
+            currentQuantity: true,
+            instanceId: true,
+          },
+        },
+        project: { select: { id: true, name: true } },
+        requestedBy: { select: { id: true } },
+      },
+    });
+    if (!request) throw new NotFoundException('Requisição não encontrada');
+
+    // Only allow deliveries on APPROVED or PARTIALLY_DELIVERED requests
+    if (
+      request.status !== 'APPROVED' &&
+      request.status !== 'PARTIALLY_DELIVERED'
+    ) {
+      throw new BadRequestException(
+        'Somente requisições aprovadas ou parcialmente entregues podem receber envios',
+      );
+    }
+
+    if (input.quantity <= 0) {
+      throw new BadRequestException('Quantidade deve ser maior que zero');
+    }
+
+    const remaining =
+      Math.round((request.quantity - request.quantityDelivered) * 10000) /
+      10000;
+    if (input.quantity > remaining) {
+      throw new BadRequestException(
+        `Quantidade excede o restante da solicitação. Faltam: ${remaining} ${request.globalStockItem.unit}`,
+      );
+    }
+
+    // Check stock availability
+    if (input.quantity > request.globalStockItem.currentQuantity) {
+      throw new BadRequestException(
+        `Estoque insuficiente. Disponível: ${request.globalStockItem.currentQuantity} ${request.globalStockItem.unit}`,
+      );
+    }
+
+    const newDelivered =
+      Math.round((request.quantityDelivered + input.quantity) * 10000) / 10000;
+    const isFullyDelivered = newDelivered >= request.quantity;
+
+    // Debit global stock
+    await this.globalStockService.addExitFromRequest({
+      globalStockItemId: request.globalStockItemId,
+      instanceId: input.instanceId,
+      userId: input.userId,
+      quantity: input.quantity,
+      projectId: request.projectId,
+      projectName: request.project.name,
+    });
+
+    // Create delivery record and update request
+    await this.prisma.$transaction([
+      this.prisma.stockRequestDelivery.create({
+        data: {
+          stockRequestId: input.id,
+          quantity: input.quantity,
+          notes: input.notes ?? null,
+          createdById: input.userId,
+        },
+      }),
+      this.prisma.stockRequest.update({
+        where: { id: input.id },
+        data: {
+          quantityDelivered: newDelivered,
+          status: isFullyDelivered ? 'DELIVERED' : 'PARTIALLY_DELIVERED',
+        },
+      }),
+    ]);
+
+    const remainingAfter =
+      Math.round((request.quantity - newDelivered) * 10000) / 10000;
+
+    // Optionally create a purchase request for the remaining quantity
+    if (
+      input.createPurchaseForRemaining &&
+      !isFullyDelivered &&
+      remainingAfter > 0
+    ) {
+      // Reload item to get fresh currentQuantity after EXIT
+      const freshItem = await this.prisma.globalStockItem.findUnique({
+        where: { id: request.globalStockItemId },
+        select: { currentQuantity: true },
+      });
+
+      await this.prisma.purchaseRequest.create({
+        data: {
+          instanceId: input.instanceId,
+          globalStockItemId: request.globalStockItemId,
+          itemName: request.itemName,
+          quantity: remainingAfter,
+          requestedById: input.userId,
+          stockRequestId: request.id,
+          priority:
+            freshItem && freshItem.currentQuantity <= 0 ? 'HIGH' : 'MEDIUM',
+          notes: `Compra para suprir requisição de "${request.project.name}" — faltam ${remainingAfter} ${request.globalStockItem.unit}`,
+        },
+      });
+
+      // Notify financial
+      this.notificationsService
+        .emit({
+          instanceId: input.instanceId,
+          category: 'STOCK',
+          eventType: 'purchase_requested',
+          title: `Solicitação de compra: ${request.itemName}`,
+          body: `${remainingAfter} ${request.globalStockItem.unit} de "${request.itemName}" para obra "${request.project.name}"`,
+          priority:
+            freshItem && freshItem.currentQuantity <= 0 ? 'high' : 'normal',
+          actorUserId: input.userId,
+          permissionCodes: [
+            'global_stock_financial.view',
+            'global_stock_financial.edit',
+          ],
+        })
+        .catch(() => {});
+    }
+
+    // Notify requester about delivery
+    this.notificationsService
+      .emit({
+        instanceId: input.instanceId,
+        projectId: request.projectId,
+        category: 'STOCK',
+        eventType: isFullyDelivered
+          ? 'stock_request_delivered'
+          : 'stock_request_partial_delivery',
+        title: isFullyDelivered
+          ? `Material entregue: ${request.itemName}`
+          : `Envio parcial: ${request.itemName}`,
+        body: isFullyDelivered
+          ? `Todos os ${request.quantity} ${request.globalStockItem.unit} de "${request.itemName}" foram entregues para "${request.project.name}"`
+          : `Entregues ${input.quantity} de ${request.quantity} ${request.globalStockItem.unit} de "${request.itemName}". Faltam: ${remainingAfter} ${request.globalStockItem.unit}`,
+        actorUserId: input.userId,
+        specificUserIds: [request.requestedById],
+      })
+      .catch(() => {});
+
+    // Return updated request with all includes
+    return this.prisma.stockRequest.findUnique({
+      where: { id: input.id },
+      include: this.requestInclude,
+    });
+  }
+
+  /**
+   * List deliveries for a stock request
+   */
+  async findDeliveries(stockRequestId: string, instanceId: string) {
+    const request = await this.prisma.stockRequest.findFirst({
+      where: { id: stockRequestId, instanceId },
+    });
+    if (!request) throw new NotFoundException('Requisição não encontrada');
+
+    return this.prisma.stockRequestDelivery.findMany({
+      where: { stockRequestId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        createdBy: {
+          select: { id: true, name: true, profileImage: true },
+        },
+      },
+    });
   }
 
   async reject(input: RejectInput) {

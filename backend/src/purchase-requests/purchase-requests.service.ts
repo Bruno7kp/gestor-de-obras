@@ -15,6 +15,7 @@ interface CreateInput {
   quantity: number;
   priority?: 'LOW' | 'MEDIUM' | 'HIGH';
   notes?: string;
+  stockRequestId?: string;
 }
 
 interface MarkOrderedInput {
@@ -56,6 +57,15 @@ export class PurchaseRequestsService {
       },
       processedBy: {
         select: { id: true, name: true, profileImage: true },
+      },
+      stockRequest: {
+        select: {
+          id: true,
+          projectId: true,
+          quantity: true,
+          quantityDelivered: true,
+          project: { select: { id: true, name: true } },
+        },
       },
     };
   }
@@ -101,6 +111,7 @@ export class PurchaseRequestsService {
         requestedById: input.userId,
         priority,
         notes: input.notes ?? null,
+        stockRequestId: input.stockRequestId ?? null,
       },
       include: this.requestInclude,
     });
@@ -166,7 +177,16 @@ export class PurchaseRequestsService {
   async complete(input: CompleteInput) {
     const request = await this.prisma.purchaseRequest.findFirst({
       where: { id: input.id, instanceId: input.instanceId },
-      include: { requestedBy: { select: { id: true } } },
+      include: {
+        requestedBy: { select: { id: true } },
+        stockRequest: {
+          select: {
+            id: true,
+            projectId: true,
+            project: { select: { name: true } },
+          },
+        },
+      },
     });
     if (!request) throw new NotFoundException('Solicitação não encontrada');
     if (request.status !== 'ORDERED') {
@@ -203,19 +223,25 @@ export class PurchaseRequestsService {
       supplierId: input.supplierId,
     });
 
-    // Notify financial users + requester
+    // Notify financial users + requester + warehouse (if linked to stock request)
+    const notifBody = request.stockRequest
+      ? `${request.quantity} de "${request.itemName}" disponíveis — requisição de "${request.stockRequest.project.name}" aguarda envio`
+      : `${request.quantity} de "${request.itemName}" entregues e registrados no estoque`;
+
     this.notificationsService
       .emit({
         instanceId: input.instanceId,
         category: 'STOCK',
         eventType: 'purchase_completed',
         title: `Material recebido: ${request.itemName}`,
-        body: `${request.quantity} de "${request.itemName}" entregues e registrados no estoque`,
+        body: notifBody,
         actorUserId: input.userId,
         specificUserIds: [request.requestedById],
         permissionCodes: [
           'global_stock_financial.view',
           'global_stock_financial.edit',
+          'global_stock_warehouse.view',
+          'global_stock_warehouse.edit',
         ],
       })
       .catch(() => {});

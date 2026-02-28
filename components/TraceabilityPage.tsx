@@ -208,6 +208,114 @@ const PurchaseFromRequestModal: React.FC<{
 };
 
 /* ------------------------------------------------------------------ */
+/*  Deliver Modal                                                      */
+/* ------------------------------------------------------------------ */
+const DeliverModal: React.FC<{
+  request: StockRequest;
+  onSave: (data: { quantity: number; notes?: string; createPurchaseForRemaining?: boolean }) => void;
+  onClose: () => void;
+}> = ({ request, onSave, onClose }) => {
+  const delivered = request.quantityDelivered ?? 0;
+  const remaining = Math.max(0, request.quantity - delivered);
+  const stockAvailable = request.globalStockItem?.currentQuantity ?? 0;
+  const maxDeliverable = Math.min(remaining, stockAvailable);
+  const [qtyDecimals, setQtyDecimals] = useState(MIN_DECIMALS);
+  const [quantity, setQuantity] = useState(() => financial.maskDecimal(String(Math.round(maxDeliverable * 100)), MIN_DECIMALS));
+  const [notes, setNotes] = useState('');
+  const [createPurchase, setCreatePurchase] = useState(false);
+  const parsedQty = financial.parseLocaleNumber(quantity);
+  const afterDelivery = delivered + parsedQty;
+  const willRemain = Math.max(0, request.quantity - afterDelivery);
+  const pctAfter = request.quantity > 0 ? Math.round((afterDelivery / request.quantity) * 100) : 0;
+
+  return (
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
+      <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800">
+          <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight">Registrar Envio</h3>
+          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+            {request.itemName} — {request.project?.name ?? 'Projeto'}
+          </p>
+        </div>
+        <div className="px-8 py-6 space-y-5">
+          {/* Info grid */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl">
+              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Solicitado</p>
+              <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{financial.formatQuantity(request.quantity)}</p>
+            </div>
+            <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl">
+              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Já Enviado</p>
+              <p className="text-sm font-bold text-blue-600">{financial.formatQuantity(delivered)}</p>
+            </div>
+            <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl">
+              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Disponível</p>
+              <p className={`text-sm font-bold ${stockAvailable >= remaining ? 'text-emerald-600' : 'text-amber-600'}`}>{financial.formatQuantity(stockAvailable)}</p>
+            </div>
+          </div>
+          {/* Quantity input */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Quantidade a enviar *</label>
+              <DecimalControls value={qtyDecimals} onChange={d => { setQtyDecimals(d); setQuantity(prev => prev ? financial.maskDecimal(prev.replace(/\D/g, ''), d) : prev); }} />
+            </div>
+            <input type="text" inputMode="decimal" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-blue-500 rounded-xl outline-none transition-all text-sm font-bold" value={quantity} onChange={e => setQuantity(financial.maskDecimal(e.target.value, qtyDecimals))} autoFocus />
+            {parsedQty > remaining && (
+              <p className="text-[9px] text-rose-500 font-bold mt-1">Quantidade excede o restante ({financial.formatQuantity(remaining)})</p>
+            )}
+            {parsedQty > stockAvailable && parsedQty <= remaining && (
+              <p className="text-[9px] text-rose-500 font-bold mt-1">Quantidade excede o estoque disponível ({financial.formatQuantity(stockAvailable)})</p>
+            )}
+          </div>
+          {/* Progress preview */}
+          {parsedQty > 0 && parsedQty <= remaining && (
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2">Progresso após envio</p>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                  <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${pctAfter}%` }} />
+                </div>
+                <span className="text-[9px] font-black text-blue-600 tabular-nums">{pctAfter}%</span>
+              </div>
+              {willRemain > 0 && (
+                <p className="text-[9px] text-slate-400 mt-1">Ainda restará {financial.formatQuantity(willRemain)} {request.globalStockItem?.unit ?? 'un'}</p>
+              )}
+            </div>
+          )}
+          {/* Notes */}
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Observação</label>
+            <textarea className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-blue-500 rounded-xl outline-none transition-all text-sm font-bold resize-none" rows={2} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Ex: Enviado via transporte próprio..." />
+          </div>
+          {/* Purchase checkbox */}
+          {willRemain > 0 && stockAvailable < remaining && (
+            <label className="flex items-start gap-3 p-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800/40 rounded-xl cursor-pointer">
+              <input type="checkbox" checked={createPurchase} onChange={e => setCreatePurchase(e.target.checked)} className="mt-0.5 accent-purple-600" />
+              <div>
+                <p className="text-[10px] font-black text-purple-700 dark:text-purple-300">Solicitar compra para o restante</p>
+                <p className="text-[9px] text-purple-500 dark:text-purple-400 mt-0.5">
+                  Será criada uma solicitação de compra de {financial.formatQuantity(willRemain)} {request.globalStockItem?.unit ?? 'un'}
+                </p>
+              </div>
+            </label>
+          )}
+        </div>
+        <div className="px-8 py-5 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
+          <button onClick={onClose} className="px-6 py-3 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 text-[10px] font-black uppercase tracking-widest transition-all">Cancelar</button>
+          <button
+            onClick={() => { if (parsedQty > 0 && parsedQty <= remaining) onSave({ quantity: parsedQty, notes: notes.trim() || undefined, createPurchaseForRemaining: createPurchase || undefined }); }}
+            disabled={parsedQty <= 0 || parsedQty > remaining || parsedQty > stockAvailable}
+            className="flex items-center gap-2 px-8 py-3 bg-blue-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-blue-500/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100"
+          >
+            <Truck size={16} /> Enviar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ------------------------------------------------------------------ */
 /*  Main Page                                                          */
 /* ------------------------------------------------------------------ */
 export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers }) => {
@@ -219,7 +327,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
   const canFinancial = canView('global_stock_financial');
   const canFinancialEdit = canEdit('global_stock_financial');
 
-  const [tab, setTab] = useState<Tab>(canWarehouse ? 'requests' : 'purchases');
+  const [tab, setTab] = useState<Tab>(!canWarehouse && canFinancial ? 'purchases' : 'requests');
   const [stockRequests, setStockRequests] = useState<StockRequest[]>([]);
   const [purchaseRequests, setPurchaseRequests] = useState<PurchaseRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -230,21 +338,19 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
   const [orderedConfirm, setOrderedConfirm] = useState<PurchaseRequest | null>(null);
   const [showDrawer, setShowDrawer] = useState(false);
   const [purchaseFromReq, setPurchaseFromReq] = useState<StockRequest | null>(null);
+  const [deliverModal, setDeliverModal] = useState<StockRequest | null>(null);
 
   const loadData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const [sr, pr] = await Promise.all([
-        canWarehouse ? stockRequestApi.list() : Promise.resolve([]),
-        purchaseRequestApi.list(),
-      ]);
-      setStockRequests(sr);
-      setPurchaseRequests(pr);
-    } catch (e: any) {
-      toast.error(e.message);
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true);
+    const [srResult, prResult] = await Promise.allSettled([
+      canWarehouse ? stockRequestApi.list() : Promise.resolve([]),
+      (canWarehouse || canFinancial) ? purchaseRequestApi.list() : Promise.resolve([]),
+    ]);
+    if (srResult.status === 'fulfilled') setStockRequests(srResult.value);
+    else toast.error('Erro ao carregar requisições');
+    if (prResult.status === 'fulfilled') setPurchaseRequests(prResult.value);
+    else toast.error('Erro ao carregar solicitações de compra');
+    setLoading(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canWarehouse, canFinancial]);
 
@@ -276,7 +382,8 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
     return { pendingStockRequests: pending, awaitingPurchaseRequests: awaiting };
   }, [allPendingStockRequests, activePurchases]);
 
-  const processedStockRequests = useMemo(() => stockRequests.filter(r => r.status !== 'PENDING'), [stockRequests]);
+  const awaitingDeliveryRequests = useMemo(() => stockRequests.filter(r => r.status === 'APPROVED' || r.status === 'PARTIALLY_DELIVERED'), [stockRequests]);
+  const processedStockRequests = useMemo(() => stockRequests.filter(r => r.status === 'DELIVERED' || r.status === 'REJECTED'), [stockRequests]);
   const completedPurchases = useMemo(() => purchaseRequests.filter(r => r.status === 'COMPLETED' || r.status === 'CANCELLED'), [purchaseRequests]);
 
   // -- Search & Pagination (client-side)
@@ -323,8 +430,9 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
 
   const kpis = useMemo(() => ({
     pendingRequests: pendingStockRequests.length,
+    awaitingDelivery: awaitingDeliveryRequests.length,
     activePurchases: activePurchases.length,
-  }), [pendingStockRequests, activePurchases]);
+  }), [pendingStockRequests, awaitingDeliveryRequests, activePurchases]);
 
   // -- Handlers
   const handleApproveRequest = async (id: string) => {
@@ -357,10 +465,31 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
         quantity: qty,
         priority: 'MEDIUM',
         notes: notes || undefined,
+        stockRequestId: purchaseFromReq.id,
       });
       setPurchaseRequests(prev => [created, ...prev]);
+      // Reload stock requests to refresh linkedPurchaseRequests
+      if (canWarehouse) {
+        stockRequestApi.list().then(setStockRequests).catch(() => {});
+      }
       setPurchaseFromReq(null);
       toast.success(`Solicitação de compra criada (${financial.formatQuantity(qty)} ${purchaseFromReq.globalStockItem?.unit ?? 'un'})`);
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  const handleDeliver = async (data: { quantity: number; notes?: string; createPurchaseForRemaining?: boolean }) => {
+    if (!deliverModal) return;
+    try {
+      const updated = await stockRequestApi.deliver(deliverModal.id, data);
+      setStockRequests(prev => prev.map(r => r.id === deliverModal.id ? updated : r));
+      setDeliverModal(null);
+      toast.success(`Entrega registrada — ${financial.formatQuantity(data.quantity)} ${deliverModal.globalStockItem?.unit ?? 'un'}`);
+      if (data.createPurchaseForRemaining) {
+        const pr = await purchaseRequestApi.list();
+        setPurchaseRequests(pr);
+      }
     } catch (e: any) {
       toast.error(e.message);
     }
@@ -411,6 +540,8 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
     PENDING: { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-400', label: 'Pendente' },
     APPROVED: { bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-700 dark:text-emerald-400', label: 'Aprovada' },
     REJECTED: { bg: 'bg-rose-100 dark:bg-rose-900/30', text: 'text-rose-700 dark:text-rose-400', label: 'Rejeitada' },
+    PARTIALLY_DELIVERED: { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-400', label: 'Entrega Parcial' },
+    DELIVERED: { bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-700 dark:text-emerald-400', label: 'Entregue' },
   };
 
   const purchaseStatusConfig: Record<string, { bg: string; text: string; label: string }> = {
@@ -446,9 +577,9 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
               title="Notificações pendentes"
             >
               <Bell size={16} className="text-amber-500" />
-              {(pendingStockRequests.length > 0 || activePurchases.length > 0) && (
+              {(pendingStockRequests.length > 0 || awaitingDeliveryRequests.length > 0 || activePurchases.length > 0) && (
                 <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black shadow-lg">
-                  {pendingStockRequests.length + activePurchases.length}
+                  {pendingStockRequests.length + awaitingDeliveryRequests.length + activePurchases.length}
                 </span>
               )}
             </button>
@@ -458,6 +589,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
         {/* KPI GRID + TABS */}
         <div className="flex flex-wrap items-stretch gap-3">
           <KpiCard label="Requisições Pendentes" value={kpis.pendingRequests} icon={<ClipboardList size={16} />} color="amber" />
+          <KpiCard label="Aguardando Envio" value={kpis.awaitingDelivery} icon={<Truck size={16} />} color="blue" />
           <KpiCard label="Compras Ativas" value={kpis.activePurchases} icon={<ShoppingCart size={16} />} color="purple" />
           <div className="flex-1" />
           {/* Search (filters processadas/finalizadas) */}
@@ -556,11 +688,6 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
                               </div>
                               {canWarehouseEdit && (
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  {item && item.currentQuantity < r.quantity && (
-                                    <button onClick={() => setPurchaseFromReq(r)} className="flex items-center gap-1.5 px-5 py-2.5 bg-purple-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg shadow-purple-500/20 hover:scale-105 active:scale-95 transition-all">
-                                      <ShoppingCart size={14} /> Solicitar Compra
-                                    </button>
-                                  )}
                                   <button onClick={() => setApproveConfirm(r)} className="flex items-center gap-1.5 px-5 py-2.5 bg-emerald-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all">
                                     <Check size={14} /> Aprovar
                                   </button>
@@ -576,6 +703,96 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
                     </div>
                   )}
                 </div>
+
+                {/* Awaiting Delivery */}
+                {awaitingDeliveryRequests.length > 0 && (
+                  <div>
+                    <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4 px-1 flex items-center gap-2">
+                      <Truck size={14} /> Aguardando Envio ({awaitingDeliveryRequests.length})
+                    </h2>
+                    <div className="space-y-3">
+                      {awaitingDeliveryRequests.map(r => {
+                        const item = r.globalStockItem;
+                        const delivered = r.quantityDelivered ?? 0;
+                        const remaining = Math.max(0, r.quantity - delivered);
+                        const pct = r.quantity > 0 ? Math.round((delivered / r.quantity) * 100) : 0;
+                        const st = stockRequestStatusConfig[r.status] ?? stockRequestStatusConfig.APPROVED;
+                        const activePurchase = r.linkedPurchaseRequests?.find(p => p.status === 'PENDING' || p.status === 'ORDERED');
+                        const hasEnoughStock = item != null && item.currentQuantity >= remaining;
+                        return (
+                          <div key={r.id} className="bg-white dark:bg-slate-900 p-5 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all">
+                            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                              <div className="flex items-center gap-4 flex-1 min-w-0">
+                                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-2xl shrink-0">
+                                  <Truck size={22} className="text-blue-600" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-3 flex-wrap">
+                                    <h3 className="text-sm font-black dark:text-white uppercase tracking-tight">{r.itemName}</h3>
+                                    <span className={`px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${st.bg} ${st.text}`}>{st.label}</span>
+                                    {hasEnoughStock && (
+                                      <span className="px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+                                        <Check size={9} /> Disponível para Retirada
+                                      </span>
+                                    )}
+                                    {activePurchase && (
+                                      <span className="px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 flex items-center gap-1">
+                                        <ShoppingCart size={9} /> Compra {activePurchase.status === 'ORDERED' ? 'pedido feito' : 'pendente'}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+                                    {financial.formatQuantity(r.quantity)} {item?.unit ?? 'un'}
+                                    <span className="mx-1.5">•</span>
+                                    {r.project?.name ?? 'Projeto'}
+                                    <span className="mx-1.5">•</span>
+                                    {r.requestedBy?.name ?? '—'}
+                                  </p>
+                                  {/* Progress bar */}
+                                  <div className="mt-2 flex items-center gap-3">
+                                    <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                      <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                                    </div>
+                                    <span className="text-[9px] font-black text-slate-500 tabular-nums whitespace-nowrap">
+                                      {financial.formatQuantity(delivered)} / {financial.formatQuantity(r.quantity)} ({pct}%)
+                                    </span>
+                                  </div>
+                                  {/* Delivery history */}
+                                  {r.deliveries && r.deliveries.length > 0 && (
+                                    <div className="mt-2 space-y-1">
+                                      {r.deliveries.map((d, i) => (
+                                        <p key={d.id ?? i} className="text-[9px] text-slate-400">
+                                          <ArrowUpCircle size={9} className="inline mr-1 text-blue-400" />
+                                          {financial.formatQuantity(d.quantity)} {item?.unit ?? 'un'} — {new Date(d.deliveredAt).toLocaleDateString('pt-BR')} por {d.createdBy?.name ?? '—'}
+                                          {d.notes && <span className="italic ml-1">({d.notes})</span>}
+                                        </p>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              {canWarehouseEdit && (
+                                <div className="flex items-center gap-2 flex-wrap shrink-0">
+                                  <div className="text-right mr-2">
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Restante</p>
+                                    <p className="text-sm font-black text-blue-600">{financial.formatQuantity(remaining)} {item?.unit ?? 'un'}</p>
+                                    {item && <p className={`text-[9px] mt-0.5 font-bold ${item.currentQuantity >= remaining ? 'text-emerald-500' : 'text-amber-500'}`}>Disponível: {financial.formatQuantity(item.currentQuantity)}</p>}
+                                  </div>
+                                  <button onClick={() => setDeliverModal(r)} className="flex items-center gap-1.5 px-5 py-2.5 bg-blue-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg shadow-blue-500/20 hover:scale-105 active:scale-95 transition-all">
+                                    <Truck size={14} /> Enviar
+                                  </button>
+                                  <button onClick={() => setPurchaseFromReq(r)} className="flex items-center gap-1.5 px-5 py-2.5 bg-purple-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg shadow-purple-500/20 hover:scale-105 active:scale-95 transition-all">
+                                    <ShoppingCart size={14} /> Solicitar Compra
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Processed */}
                 <div>
@@ -595,7 +812,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
                             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                               <div className="flex items-center gap-4">
                                 <div className={`p-3 rounded-2xl shrink-0 ${st.bg}`}>
-                                  {r.status === 'APPROVED' ? <Check size={20} className={st.text} /> : <X size={20} className={st.text} />}
+                                  {r.status === 'DELIVERED' ? <Check size={20} className={st.text} /> : <X size={20} className={st.text} />}
                                 </div>
                                 <div>
                                   <div className="flex items-center gap-3">
@@ -798,7 +1015,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
       <ConfirmModal
         isOpen={!!approveConfirm}
         title="Aprovar requisição"
-        message={approveConfirm ? `Aprovar requisição de ${financial.formatQuantity(approveConfirm.quantity)} ${approveConfirm.globalStockItem?.unit ?? 'un'} de "${approveConfirm.itemName}"? O material será debitado do estoque global.` : ''}
+        message={approveConfirm ? `Aprovar requisição de ${financial.formatQuantity(approveConfirm.quantity)} ${approveConfirm.globalStockItem?.unit ?? 'un'} de "${approveConfirm.itemName}"? O material ficará autorizado para envio.` : ''}
         confirmLabel="Aprovar"
         cancelLabel="Voltar"
         variant="success"
@@ -827,6 +1044,15 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
         />
       )}
 
+      {/* Deliver Modal */}
+      {deliverModal && (
+        <DeliverModal
+          request={deliverModal}
+          onSave={handleDeliver}
+          onClose={() => setDeliverModal(null)}
+        />
+      )}
+
       {/* Notifications Drawer */}
       {showDrawer && (
         <>
@@ -841,7 +1067,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
                 <div className="min-w-0">
                   <h3 className="text-sm font-black uppercase tracking-tight text-slate-800 dark:text-slate-100 truncate">Pendências</h3>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                    {pendingStockRequests.length + activePurchases.length} itens pendentes
+                    {pendingStockRequests.length + awaitingDeliveryRequests.length + activePurchases.length} itens pendentes
                   </p>
                 </div>
               </div>
@@ -888,6 +1114,42 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
                         )}
                       </button>
                     ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Awaiting Delivery */}
+              {canWarehouse && awaitingDeliveryRequests.length > 0 && (
+                <section>
+                  <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">
+                    <Truck size={14} /> Aguardando Envio ({awaitingDeliveryRequests.length})
+                  </h4>
+                  <div className="space-y-2">
+                    {awaitingDeliveryRequests.map(req => {
+                      const delivered = req.quantityDelivered ?? 0;
+                      const pct = req.quantity > 0 ? Math.round((delivered / req.quantity) * 100) : 0;
+                      return (
+                        <button
+                          key={req.id}
+                          onClick={() => { setTab('requests'); setShowDrawer(false); }}
+                          className="w-full text-left border border-slate-200 dark:border-slate-800 rounded-2xl p-4 border-l-4 border-l-blue-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">{req.itemName}</p>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                {financial.formatQuantity(req.quantity)} {req.globalStockItem?.unit || 'un'}
+                                {req.project?.name ? ` — ${req.project.name}` : ''}
+                              </p>
+                            </div>
+                            <span className="shrink-0 px-2 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-[9px] font-black uppercase tracking-widest">{pct}%</span>
+                          </div>
+                          <div className="mt-2 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                            <div className="h-full bg-blue-500 rounded-full" style={{ width: `${pct}%` }} />
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </section>
               )}
@@ -941,7 +1203,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
               )}
 
               {/* Empty state */}
-              {pendingStockRequests.length === 0 && activePurchases.length === 0 && (
+              {pendingStockRequests.length === 0 && awaitingDeliveryRequests.length === 0 && activePurchases.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-16 text-slate-400">
                   <Bell size={32} className="mb-3 opacity-40" />
                   <p className="text-xs font-bold">Nenhuma pendência no momento</p>

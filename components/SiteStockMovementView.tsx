@@ -4,7 +4,7 @@ import {
   Package, Search, ArrowUpCircle, ArrowDownCircle,
   AlertTriangle, RefreshCw, CheckCircle2,
   Send, Clock, XCircle, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
-  History, Boxes, Activity, FileText, Warehouse,
+  History, Boxes, Activity, FileText, Warehouse, Truck,
 } from 'lucide-react';
 import type { GlobalStockItem, GlobalStockMovement, StockRequest, StockRequestStatus } from '../types';
 import { globalStockApi } from '../services/globalStockApi';
@@ -26,12 +26,16 @@ const STATUS_LABELS: Record<StockRequestStatus, string> = {
   PENDING: 'Pendente',
   APPROVED: 'Aprovada',
   REJECTED: 'Rejeitada',
+  PARTIALLY_DELIVERED: 'Entrega Parcial',
+  DELIVERED: 'Entregue',
 };
 
 const STATUS_COLORS: Record<StockRequestStatus, string> = {
   PENDING: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
   APPROVED: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
   REJECTED: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
+  PARTIALLY_DELIVERED: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  DELIVERED: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
 };
 
 export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
@@ -149,8 +153,9 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
   const kpis = useMemo(() => {
     const pendingCount = requests.filter((r) => r.status === 'PENDING').length;
     const approvedCount = requests.filter((r) => r.status === 'APPROVED').length;
+    const awaitingDelivery = requests.filter((r) => r.status === 'APPROVED' || r.status === 'PARTIALLY_DELIVERED').length;
     const totalMov = movementTotal;
-    return { pendingCount, approvedCount, totalMov, catalogSize: catalog.length };
+    return { pendingCount, approvedCount, awaitingDelivery, totalMov, catalogSize: catalog.length };
   }, [requests, movementTotal, catalog]);
 
   /* ── handlers ── */
@@ -246,6 +251,15 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
             <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Aprovadas</p>
           </div>
         </div>
+        {kpis.awaitingDelivery > 0 && (
+          <div className="flex-1 min-w-[140px] flex items-center gap-2.5 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <Truck size={16} className="text-blue-500" />
+            <div className="leading-tight">
+              <p className="text-sm font-black text-slate-800 dark:text-white">{kpis.awaitingDelivery}</p>
+              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Aguardando Envio</p>
+            </div>
+          </div>
+        )}
         <div className="flex-1 min-w-[140px] flex items-center gap-2.5 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
           <Activity size={16} className="text-blue-500" />
           <div className="leading-tight">
@@ -370,7 +384,7 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
       {tab === 'requests' && (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
-            {(['ALL', 'PENDING', 'APPROVED', 'REJECTED'] as const).map((f) => (
+            {(['ALL', 'PENDING', 'APPROVED', 'PARTIALLY_DELIVERED', 'DELIVERED', 'REJECTED'] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => setRequestFilter(f)}
@@ -502,6 +516,35 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
                             <div className="col-span-2 md:col-span-3 bg-rose-50 dark:bg-rose-900/20 rounded-xl px-3 py-2">
                               <p className="text-[9px] font-black uppercase tracking-widest text-rose-500 mb-1">Motivo da rejeição</p>
                               <span className="text-rose-700 dark:text-rose-300 font-medium">{req.rejectionReason}</span>
+                            </div>
+                          )}
+
+                          {/* Delivery progress */}
+                          {(req.status === 'APPROVED' || req.status === 'PARTIALLY_DELIVERED' || req.status === 'DELIVERED') && (
+                            <div className="col-span-2 md:col-span-3">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2">Progresso de Envio</p>
+                              <div className="flex items-center gap-3 mb-2">
+                                <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-blue-500 rounded-full transition-all"
+                                    style={{ width: `${req.quantity > 0 ? Math.round(((req.quantityDelivered ?? 0) / req.quantity) * 100) : 0}%` }}
+                                  />
+                                </div>
+                                <span className="text-[9px] font-black text-slate-500 tabular-nums whitespace-nowrap">
+                                  {financial.formatQuantity(req.quantityDelivered ?? 0)} / {financial.formatQuantity(req.quantity)} {req.globalStockItem?.unit ?? 'un'}
+                                </span>
+                              </div>
+                              {req.deliveries && req.deliveries.length > 0 && (
+                                <div className="space-y-1 mt-1">
+                                  {req.deliveries.map((d, i) => (
+                                    <p key={d.id ?? i} className="text-[9px] text-slate-400">
+                                      <Truck size={9} className="inline mr-1 text-blue-400" />
+                                      {financial.formatQuantity(d.quantity)} {req.globalStockItem?.unit ?? 'un'} — {new Date(d.deliveredAt).toLocaleDateString('pt-BR')} por {d.createdBy?.name ?? '—'}
+                                      {d.notes && <span className="italic ml-1">({d.notes})</span>}
+                                    </p>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>

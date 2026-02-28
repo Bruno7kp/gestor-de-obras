@@ -26,6 +26,12 @@ interface RejectBody {
   rejectionReason?: string;
 }
 
+interface DeliverBody {
+  quantity: number;
+  notes?: string;
+  createPurchaseForRemaining?: boolean;
+}
+
 @Controller('stock-requests')
 @UseGuards(AuthGuard('jwt'))
 @Roles('USER', 'ADMIN', 'SUPER_ADMIN')
@@ -91,5 +97,33 @@ export class StockRequestsController {
       userId: req.user.id,
       rejectionReason: body.rejectionReason,
     });
+  }
+
+  @Patch(':id/deliver')
+  @HasPermission('global_stock_warehouse.edit')
+  deliver(
+    @Param('id') id: string,
+    @Body() body: DeliverBody,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.service.deliver({
+      id,
+      instanceId: req.user.instanceId,
+      userId: req.user.id,
+      quantity: body.quantity,
+      notes: body.notes,
+      createPurchaseForRemaining: body.createPurchaseForRemaining,
+    });
+  }
+
+  @Get(':id/deliveries')
+  @HasPermission(
+    'stock.view',
+    'stock.edit',
+    'global_stock_warehouse.view',
+    'global_stock_warehouse.edit',
+  )
+  findDeliveries(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.service.findDeliveries(id, req.user.instanceId);
   }
 }

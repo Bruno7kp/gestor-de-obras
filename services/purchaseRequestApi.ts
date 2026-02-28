@@ -18,6 +18,7 @@ export const purchaseRequestApi = {
     quantity: number;
     priority?: 'LOW' | 'MEDIUM' | 'HIGH';
     notes?: string;
+    stockRequestId?: string;
   }): Promise<PurchaseRequest> {
     const res = await fetch(`${API_BASE}/purchase-requests`, {
       method: 'POST',

@@ -496,7 +496,7 @@ export interface StockItem {
 export type GlobalStockStatus = 'NORMAL' | 'CRITICAL' | 'OUT_OF_STOCK';
 export type PurchaseRequestStatus = 'PENDING' | 'ORDERED' | 'COMPLETED' | 'CANCELLED';
 export type PurchaseRequestPriority = 'LOW' | 'MEDIUM' | 'HIGH';
-export type StockRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type StockRequestStatus = 'PENDING' | 'APPROVED' | 'PARTIALLY_DELIVERED' | 'DELIVERED' | 'REJECTED';
 
 export interface PriceHistoryEntry {
   id: string;
@@ -562,11 +562,30 @@ export interface PurchaseRequest {
   completedAt: string | null;
   invoiceNumber: string | null;
   unitPrice: number | null;
+  stockRequestId?: string | null;
   createdAt?: string;
   updatedAt?: string;
   globalStockItem?: { id: string; name: string; unit: string; currentQuantity: number };
   requestedBy?: { id: string; name: string; profileImage?: string | null };
   processedBy?: { id: string; name: string; profileImage?: string | null } | null;
+  stockRequest?: {
+    id: string;
+    projectId: string;
+    quantity: number;
+    quantityDelivered: number;
+    project?: { id: string; name: string };
+  } | null;
+}
+
+export interface StockRequestDelivery {
+  id: string;
+  stockRequestId: string;
+  quantity: number;
+  deliveredAt: string;
+  notes: string | null;
+  createdById: string;
+  createdAt: string;
+  createdBy?: { id: string; name: string; profileImage?: string | null };
 }
 
 export interface StockRequest {
@@ -576,6 +595,7 @@ export interface StockRequest {
   globalStockItemId: string;
   itemName: string;
   quantity: number;
+  quantityDelivered: number;
   date: string;
   status: StockRequestStatus;
   notes: string | null;
@@ -589,6 +609,8 @@ export interface StockRequest {
   project?: { id: string; name: string };
   requestedBy?: { id: string; name: string; profileImage?: string | null };
   approvedBy?: { id: string; name: string; profileImage?: string | null } | null;
+  deliveries?: StockRequestDelivery[];
+  linkedPurchaseRequests?: Array<{ id: string; quantity: number; status: PurchaseRequestStatus; itemName: string }>;
 }
 
 // --- PROJETO ---
