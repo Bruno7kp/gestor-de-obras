@@ -1,5 +1,5 @@
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Home, Cog, PlusCircle, Briefcase, Sun, Moon, Menu, HardHat, Folder, ChevronRight, ChevronLeft, ChevronDown, Landmark, Truck, Shield, User, LogOut, ChevronUp, Lock, Globe, Warehouse, GitBranch } from 'lucide-react';
 import { Project, ProjectGroup, CompanyCertificate, ExternalProject } from '../types';
@@ -50,6 +50,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const [accountOpen, setAccountOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement | null>(null);
+  const navRef = useRef<HTMLElement | null>(null);
+  const navScrollTop = useRef(0);
+
+  // Preserve sidebar scroll position across re-renders (e.g. switching projects)
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    if (nav && navScrollTop.current) {
+      nav.scrollTop = navScrollTop.current;
+    }
+  });
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -289,7 +299,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar">
+        <nav
+          ref={navRef}
+          onScroll={(e) => { navScrollTop.current = e.currentTarget.scrollTop; }}
+          className="flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar"
+        >
           {isActiveExternal ? (
             /* Minimal menu when viewing an external project */
             <>
