@@ -33,21 +33,28 @@ const DecimalControls: React.FC<{ value: number; onChange: (v: number) => void }
 /* ------------------------------------------------------------------ */
 const GlobalStockItemModal: React.FC<{
   item?: GlobalStockItem | null;
-  onSave: (data: { name: string; unit: string; minQuantity: number | null }) => void;
+  showFinancialField?: boolean;
+  onSave: (data: { name: string; unit: string; minQuantity: number | null; initialPrice?: number }) => void;
   onClose: () => void;
-}> = ({ item, onSave, onClose }) => {
+}> = ({ item, showFinancialField, onSave, onClose }) => {
   const [name, setName] = useState(item?.name ?? '');
   const [unit, setUnit] = useState(item?.unit ?? 'un');
   const [noMinQuantity, setNoMinQuantity] = useState(item?.minQuantity == null);
   const [minQtyDecimals, setMinQtyDecimals] = useState(MIN_DECIMALS);
   const [minQuantity, setMinQuantity] = useState(() => financial.maskDecimal(String(Math.round((item?.minQuantity ?? 0) * 100)), MIN_DECIMALS));
+  const [priceDecimals, setPriceDecimals] = useState(MIN_DECIMALS);
+  const [initialPrice, setInitialPrice] = useState('');
+
+  const isNew = !item;
 
   const handleSave = () => {
     if (!name.trim()) return;
+    const parsedPrice = financial.parseLocaleNumber(initialPrice);
     onSave({
       name: name.trim(),
       unit: unit.trim() || 'un',
       minQuantity: noMinQuantity ? null : financial.parseLocaleNumber(minQuantity),
+      ...(isNew && showFinancialField && parsedPrice > 0 ? { initialPrice: parsedPrice } : {}),
     });
   };
 
@@ -95,6 +102,26 @@ const GlobalStockItemModal: React.FC<{
               </label>
             </div>
           </div>
+          {/* Initial price — only for financial users on new items */}
+          {isNew && showFinancialField && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Preço Inicial (opcional)</label>
+                <DecimalControls value={priceDecimals} onChange={d => { setPriceDecimals(d); setInitialPrice(prev => prev ? financial.maskDecimal(prev.replace(/\D/g, ''), d) : prev); }} />
+              </div>
+              <input
+                type="text"
+                inputMode="decimal"
+                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-indigo-500 rounded-xl outline-none transition-all text-sm font-bold"
+                value={initialPrice}
+                onChange={e => setInitialPrice(financial.maskDecimal(e.target.value, priceDecimals))}
+                placeholder="R$ 0,00"
+              />
+              <p className="text-[9px] text-slate-400 mt-1.5 leading-snug">
+                Referência de custo com peso de 1 un. — será diluído conforme entradas com NF forem adicionadas.
+              </p>
+            </div>
+          )}
         </div>
         <div className="px-8 py-5 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
           <button onClick={onClose} className="px-6 py-3 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 text-[10px] font-black uppercase tracking-widest transition-all">Cancelar</button>
@@ -432,10 +459,11 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
   }, [items]);
 
   // -- Handlers --
-  const handleSaveItem = async (data: { name: string; unit: string; minQuantity: number | null }) => {
+  const handleSaveItem = async (data: { name: string; unit: string; minQuantity: number | null; initialPrice?: number }) => {
     try {
       if (itemModal.item) {
-        const updated = await globalStockApi.update(itemModal.item.id, data);
+        const { initialPrice: _, ...updateData } = data;
+        const updated = await globalStockApi.update(itemModal.item.id, updateData);
         setItems(prev => prev.map(i => i.id === updated.id ? updated : i));
         toast.success('Item atualizado');
       } else {
@@ -533,7 +561,7 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
                 </button>
               </div>
             )}
-            {canWarehouseEdit && (
+            {(canWarehouseEdit || canFinancialEdit) && (
               <button onClick={() => setItemModal({ open: true })} className="flex items-center gap-2 px-8 py-4 bg-indigo-600 text-white font-black uppercase tracking-widest text-[11px] rounded-2xl shadow-xl shadow-indigo-500/20 hover:scale-105 active:scale-95 transition-all">
                 <Plus size={18} /> Novo Item
               </button>
@@ -647,7 +675,7 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
                             <ArrowDownCircle size={15} />
                           </button>
                         )}
-                        {canWarehouseEdit && (
+                        {(canWarehouseEdit || canFinancialEdit) && (
                           <>
                             <button onClick={() => setPurchaseModal({ open: true, item })} className="p-2 bg-slate-50 dark:bg-slate-800 text-purple-600 hover:text-purple-700 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-all" title="Solicitar Compra">
                               <ShoppingCart size={15} />
@@ -735,6 +763,7 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
       {itemModal.open && (
         <GlobalStockItemModal
           item={itemModal.item}
+          showFinancialField={canFinancialEdit}
           onSave={handleSaveItem}
           onClose={() => setItemModal({ open: false })}
         />

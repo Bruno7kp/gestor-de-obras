@@ -18,6 +18,7 @@ interface CreateGlobalStockItemInput {
   name: string;
   unit?: string;
   minQuantity?: number | null;
+  initialPrice?: number;
   supplierId?: string;
 }
 
@@ -135,6 +136,14 @@ export class GlobalStockService {
         minQuantity: input.minQuantity === undefined ? 0 : input.minQuantity,
         supplierId: input.supplierId ?? null,
         order: 0,
+        // Initial price: weight of 1 unit so it doesn't dominate
+        // the weighted average as real NF entries come in.
+        ...(input.initialPrice && input.initialPrice > 0
+          ? {
+              averagePrice: Math.round(input.initialPrice * 10000) / 10000,
+              lastPrice: input.initialPrice,
+            }
+          : {}),
       },
       include: this.itemInclude,
     });

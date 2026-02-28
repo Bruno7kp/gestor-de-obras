@@ -31,6 +31,7 @@ export const globalStockApi = {
     name: string;
     unit?: string;
     minQuantity?: number | null;
+    initialPrice?: number;
     supplierId?: string;
   }): Promise<GlobalStockItem> {
     const res = await fetch(`${API_BASE}/global-stock`, {

@@ -20,6 +20,7 @@ interface CreateGlobalStockItemBody {
   name: string;
   unit?: string;
   minQuantity?: number | null;
+  initialPrice?: number;
   supplierId?: string;
 }
 
@@ -67,7 +68,7 @@ export class GlobalStockController {
   }
 
   @Post()
-  @HasPermission('global_stock_warehouse.edit')
+  @HasPermission('global_stock_warehouse.edit', 'global_stock_financial.edit')
   create(
     @Body() body: CreateGlobalStockItemBody,
     @Req() req: AuthenticatedRequest,
@@ -77,6 +78,7 @@ export class GlobalStockController {
       name: body.name,
       unit: body.unit,
       minQuantity: body.minQuantity,
+      initialPrice: body.initialPrice,
       supplierId: body.supplierId,
     });
   }
@@ -88,7 +90,7 @@ export class GlobalStockController {
   }
 
   @Patch(':id')
-  @HasPermission('global_stock_warehouse.edit')
+  @HasPermission('global_stock_warehouse.edit', 'global_stock_financial.edit')
   update(
     @Param('id') id: string,
     @Body() body: UpdateGlobalStockItemBody,
@@ -105,7 +107,7 @@ export class GlobalStockController {
   }
 
   @Delete(':id')
-  @HasPermission('global_stock_warehouse.edit')
+  @HasPermission('global_stock_warehouse.edit', 'global_stock_financial.edit')
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.globalStockService.remove(id, req.user.instanceId);
   }
