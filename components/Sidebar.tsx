@@ -91,6 +91,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const canStockFinancial = canView('global_stock_financial');
   const canSeeProjects = canView('projects_general') || canView('projects_specific');
 
+  // Collapsible state for "Obras Ativas"
+  const [obrasExpanded, setObrasExpanded] = useState(() => {
+    const saved = localStorage.getItem('promeasure_sidebar_obras_expanded');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+  useEffect(() => {
+    localStorage.setItem('promeasure_sidebar_obras_expanded', JSON.stringify(obrasExpanded));
+  }, [obrasExpanded]);
+
   // Traceability pending count
   const [traceabilityPending, setTraceabilityPending] = useState(0);
 
@@ -170,9 +179,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
       return saved !== null ? JSON.parse(saved) : true;
     });
 
+    // Per-instance collapse state
+    const [collapsedInstances, setCollapsedInstances] = useState<Set<string>>(() => {
+      const saved = localStorage.getItem('promeasure_sidebar_shared_collapsed_instances');
+      return saved ? new Set<string>(JSON.parse(saved)) : new Set<string>();
+    });
+
     useEffect(() => {
       localStorage.setItem('promeasure_sidebar_shared_expanded', JSON.stringify(expanded));
     }, [expanded]);
+
+    useEffect(() => {
+      localStorage.setItem('promeasure_sidebar_shared_collapsed_instances', JSON.stringify(Array.from(collapsedInstances)));
+    }, [collapsedInstances]);
+
+    const toggleInstance = (name: string) => {
+      setCollapsedInstances(prev => {
+        const next = new Set(prev);
+        next.has(name) ? next.delete(name) : next.add(name);
+        return next;
+      });
+    };
 
     // Group projects by instance
     const projectsByInstance = extProjects.reduce<Record<string, ExternalProject[]>>((acc, ep) => {
@@ -220,13 +247,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {allInstanceNames.map(instanceName => {
               const projects = projectsByInstance[instanceName] ?? [];
               const stockInst = stockByName[instanceName];
+              const isInstanceExpanded = !collapsedInstances.has(instanceName);
               return (
                 <div key={instanceName}>
-                  {sidebarOpen && (
-                    <p className="px-3 py-1 text-[9px] font-bold text-slate-400 dark:text-slate-300 uppercase tracking-wider truncate">
+                  {sidebarOpen ? (
+                    <button
+                      onClick={() => toggleInstance(instanceName)}
+                      className="w-full px-3 py-1 flex items-center gap-1 text-[9px] font-bold text-slate-400 dark:text-slate-300 uppercase tracking-wider truncate hover:text-slate-600 dark:hover:text-slate-100 transition-colors"
+                    >
+                      {isInstanceExpanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
                       {instanceName}
-                    </p>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => toggleInstance(instanceName)}
+                      className="w-full flex justify-center py-1 text-slate-400 hover:text-slate-600 transition-colors"
+                      title={instanceName}
+                    >
+                      <Globe size={14} />
+                    </button>
                   )}
+                  {isInstanceExpanded && (
+                    <>
                   {/* Stock links for this instance */}
                   {stockInst && (
                     <div className="space-y-0.5">
@@ -274,6 +316,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       {!sidebarOpen && <ProjectNotificationBadge projectId={ep.projectId} />}
                     </button>
                   ))}
+                    </>
+                  )}
                 </div>
               );
             })}
@@ -433,14 +477,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
               
               {canSeeProjects && (
                 <div className="py-6 px-3 flex items-center justify-between">
-                  {isOpen && <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Obras Ativas</h3>}
-                  {canCreateProject && (
+                  {isOpen ? (
+                    <button
+                      onClick={() => setObrasExpanded(!obrasExpanded)}
+                      className="flex items-center gap-1 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors"
+                    >
+                      {obrasExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                      Obras Ativas
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setObrasExpanded(!obrasExpanded)}
+                      className="mx-auto text-slate-400 hover:text-slate-600 transition-colors"
+                      title="Obras Ativas"
+                    >
+                      <Briefcase size={16} />
+                    </button>
+                  )}
+                  {canCreateProject && obrasExpanded && (
                     <button onClick={() => onCreateProject()} className={`text-indigo-500 hover:scale-110 transition-transform ${!isOpen && 'mx-auto'}`}><PlusCircle size={16}/></button>
                   )}
                 </div>
               )}
 
-              {canSeeProjects && (
+              {canSeeProjects && obrasExpanded && (
                 <div className="space-y-1">
                   {groups
                     .filter(g => !g.parentId)
