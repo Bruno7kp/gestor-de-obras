@@ -69,6 +69,12 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
   const [movementPage, setMovementPage] = useState(0);
   const PAGE_SIZE = 20;
 
+  // Consumption summary state
+  const [consumptionSummary, setConsumptionSummary] = useState<
+    Array<{ itemId: string; name: string; unit: string; entry: number; exit: number }>
+  >([]);
+  const [summarySearch, setSummarySearch] = useState('');
+
   // Expandable details
   const [expandedRequest, setExpandedRequest] = useState<string | null>(null);
 
@@ -88,6 +94,15 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
       setRequests(data);
     } catch {
       toast.error('Erro ao carregar requisições');
+    }
+  }, [projectId]);
+
+  const loadConsumptionSummary = useCallback(async () => {
+    try {
+      const data = await globalStockApi.getProjectConsumption(projectId);
+      setConsumptionSummary(data);
+    } catch {
+      toast.error('Erro ao carregar resumo de consumo');
     }
   }, [projectId]);
 
@@ -113,11 +128,11 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      await Promise.all([loadCatalog(), loadRequests(), loadMovements(0)]);
+      await Promise.all([loadCatalog(), loadRequests(), loadMovements(0), loadConsumptionSummary()]);
       setLoading(false);
     };
     load();
-  }, [loadCatalog, loadRequests, loadMovements]);
+  }, [loadCatalog, loadRequests, loadMovements, loadConsumptionSummary]);
 
   /* ── derived data ── */
   const filteredCatalog = useMemo(() => {
@@ -502,7 +517,89 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
 
       {/* ═════════════ CONSUMPTION HISTORY TAB ═════════════ */}
       {tab === 'history' && (
-        <div className="space-y-4">
+        <div className="space-y-6">
+          {/* ── Consumption Summary Table ── */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Visão geral · {consumptionSummary.length} {consumptionSummary.length !== 1 ? 'materiais' : 'material'}
+              </p>
+              <div className="flex items-center gap-2">
+                {consumptionSummary.length > 5 && (
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Filtrar material..."
+                      value={summarySearch}
+                      onChange={(e) => setSummarySearch(e.target.value)}
+                      className="w-44 pl-8 pr-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-indigo-500 rounded-lg outline-none transition-all text-[10px] font-bold"
+                    />
+                    <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  </div>
+                )}
+                <button
+                  onClick={loadConsumptionSummary}
+                  className="p-1.5 text-slate-400 hover:text-indigo-600 transition-all"
+                  title="Atualizar resumo"
+                >
+                  <RefreshCw size={12} />
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+              {consumptionSummary.length === 0 ? (
+                <div className="p-12 text-center">
+                  <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <Boxes size={24} className="text-slate-300" />
+                  </div>
+                  <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">
+                    Nenhum material consumido nesta obra
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {/* Header */}
+                  <div className="hidden lg:grid grid-cols-[1fr_80px_100px] gap-4 px-8 py-3 bg-slate-50/50 dark:bg-slate-800/50 items-center">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Material</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Unidade</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Consumido</span>
+                  </div>
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {consumptionSummary
+                      .filter((row) =>
+                        !summarySearch || row.name.toLowerCase().includes(summarySearch.toLowerCase()),
+                      )
+                      .map((row) => {
+                        const total = row.entry + row.exit;
+                        return (
+                          <div
+                            key={row.itemId}
+                            className="grid grid-cols-2 lg:grid-cols-[1fr_80px_100px] gap-2 lg:gap-4 px-6 lg:px-8 py-3 items-center hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors"
+                          >
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{row.name}</p>
+                            </div>
+                            <div className="text-center">
+                              <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                {row.unit}
+                              </span>
+                            </div>
+                            <div className="text-center">
+                              <span className="text-sm font-black text-slate-700 dark:text-slate-200">
+                                {financial.formatQuantity(total)}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* ── Movement Log ── */}
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
               {movementTotal} movimentaç{movementTotal !== 1 ? 'ões' : 'ão'} nesta obra

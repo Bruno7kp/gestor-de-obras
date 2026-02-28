@@ -471,4 +471,67 @@ export class GlobalStockService {
 
     return { totalItems, criticalItems, totalValue };
   }
+
+  /**
+   * Aggregated consumption totals per item for a specific project.
+   * Returns each item that had movements in that project, with entry/exit totals.
+   */
+  async getProjectConsumptionSummary(projectId: string, instanceId: string) {
+    // Get all movements for this project, grouped by item + type
+    const groups = await this.prisma.globalStockMovement.groupBy({
+      by: ['globalStockItemId', 'type'],
+      where: {
+        projectId,
+        globalStockItem: { instanceId },
+      },
+      _sum: { quantity: true },
+    });
+
+    // Collect unique item IDs
+    const itemIds = [...new Set(groups.map((g) => g.globalStockItemId))];
+    if (itemIds.length === 0) return [];
+
+    // Fetch item details
+    const items = await this.prisma.globalStockItem.findMany({
+      where: { id: { in: itemIds } },
+      select: { id: true, name: true, unit: true },
+    });
+    const itemMap = new Map(items.map((i) => [i.id, i]));
+
+    // Build summary per item
+    const summaryMap = new Map<
+      string,
+      {
+        itemId: string;
+        name: string;
+        unit: string;
+        entry: number;
+        exit: number;
+      }
+    >();
+
+    for (const g of groups) {
+      const item = itemMap.get(g.globalStockItemId);
+      if (!item) continue;
+      if (!summaryMap.has(g.globalStockItemId)) {
+        summaryMap.set(g.globalStockItemId, {
+          itemId: g.globalStockItemId,
+          name: item.name,
+          unit: item.unit,
+          entry: 0,
+          exit: 0,
+        });
+      }
+      const row = summaryMap.get(g.globalStockItemId)!;
+      if (g.type === 'ENTRY') {
+        row.entry = g._sum.quantity ?? 0;
+      } else {
+        row.exit = g._sum.quantity ?? 0;
+      }
+    }
+
+    return Array.from(summaryMap.values()).sort((a, b) =>
+      a.name.localeCompare(b.name, 'pt-BR'),
+    );
+  }
 }

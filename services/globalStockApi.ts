@@ -152,6 +152,25 @@ export const globalStockApi = {
     };
   },
 
+  async getProjectConsumption(
+    projectId: string,
+  ): Promise<
+    Array<{
+      itemId: string;
+      name: string;
+      unit: string;
+      entry: number;
+      exit: number;
+    }>
+  > {
+    const res = await fetch(
+      `${API_BASE}/global-stock/project-consumption/${projectId}`,
+      { method: 'GET', credentials: 'include' },
+    );
+    if (!res.ok) throw new Error('Falha ao carregar resumo de consumo');
+    return res.json();
+  },
+
   async reorder(items: Array<{ id: string; order: number }>): Promise<void> {
     const res = await fetch(`${API_BASE}/global-stock/reorder`, {
       method: 'PATCH',

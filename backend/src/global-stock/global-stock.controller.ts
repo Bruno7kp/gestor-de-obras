@@ -142,6 +142,25 @@ export class GlobalStockController {
     });
   }
 
+  @Get('project-consumption/:projectId')
+  @HasPermission(
+    'global_stock_warehouse.view',
+    'global_stock_warehouse.edit',
+    'global_stock_financial.view',
+    'global_stock_financial.edit',
+    'stock.view',
+    'stock.edit',
+  )
+  getProjectConsumption(
+    @Param('projectId') projectId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.globalStockService.getProjectConsumptionSummary(
+      projectId,
+      req.user.instanceId,
+    );
+  }
+
   @Get('movements')
   @HasPermission(
     'global_stock_warehouse.view',
