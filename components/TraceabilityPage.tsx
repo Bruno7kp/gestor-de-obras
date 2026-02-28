@@ -806,7 +806,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
                                       {r.deliveries.map((d, i) => (
                                         <p key={d.id ?? i} className="text-[9px] text-slate-400">
                                           <ArrowUpCircle size={9} className="inline mr-1 text-blue-400" />
-                                          {financial.formatQuantity(d.quantity)} {item?.unit ?? 'un'} — {new Date(d.deliveredAt).toLocaleDateString('pt-BR')} por {d.createdBy?.name ?? '—'}
+                                          {financial.formatQuantity(d.quantity)} {item?.unit ?? 'un'} — {new Date(d.date).toLocaleDateString('pt-BR')} por {d.createdBy?.name ?? '—'}
                                           {d.notes && <span className="italic ml-1">({d.notes})</span>}
                                         </p>
                                       ))}

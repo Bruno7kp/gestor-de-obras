@@ -581,7 +581,7 @@ export interface StockRequestDelivery {
   id: string;
   stockRequestId: string;
   quantity: number;
-  deliveredAt: string;
+  date: string;
   notes: string | null;
   createdById: string;
   createdAt: string;

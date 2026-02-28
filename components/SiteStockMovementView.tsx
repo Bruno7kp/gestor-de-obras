@@ -546,7 +546,7 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
                                   {req.deliveries.map((d, i) => (
                                     <p key={d.id ?? i} className="text-[9px] text-slate-400">
                                       <Truck size={9} className="inline mr-1 text-blue-400" />
-                                      {financial.formatQuantity(d.quantity)} {req.globalStockItem?.unit ?? 'un'} — {new Date(d.deliveredAt).toLocaleDateString('pt-BR')} por {d.createdBy?.name ?? '—'}
+                                      {financial.formatQuantity(d.quantity)} {req.globalStockItem?.unit ?? 'un'} — {new Date(d.date).toLocaleDateString('pt-BR')} por {d.createdBy?.name ?? '—'}
                                       {d.notes && <span className="italic ml-1">({d.notes})</span>}
                                     </p>
                                   ))}
