@@ -143,7 +143,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     activeProjectId: string | null;
     onOpenProject: (id: string) => void;
   }> = ({ isOpen: sidebarOpen, externalProjects: extProjects, activeProjectId: activeId, onOpenProject: openProject }) => {
-    const [expanded, setExpanded] = useState(true);
+    const [expanded, setExpanded] = useState(() => {
+      const saved = localStorage.getItem('promeasure_sidebar_shared_expanded');
+      return saved !== null ? JSON.parse(saved) : true;
+    });
+
+    useEffect(() => {
+      localStorage.setItem('promeasure_sidebar_shared_expanded', JSON.stringify(expanded));
+    }, [expanded]);
 
     // Group by instance
     const byInstance = extProjects.reduce<Record<string, ExternalProject[]>>((acc, ep) => {
