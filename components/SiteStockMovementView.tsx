@@ -43,7 +43,7 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
   const toast = useToast();
   const canEdit = canEditModule && !isReadOnly;
 
-  const [tab, setTab] = useState<TabKey>('catalog');
+  const [tab, setTab] = useState<TabKey>('history');
   const [loading, setLoading] = useState(true);
 
   // Catalog state
@@ -242,9 +242,9 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-2">
+        <TabBtn id="history" label="Consumo" icon={<History size={14} />} />
         <TabBtn id="catalog" label="Catálogo" icon={<Package size={14} />} />
         <TabBtn id="requests" label="Requisições" icon={<FileText size={14} />} badge={kpis.pendingCount} />
-        <TabBtn id="history" label="Consumo" icon={<History size={14} />} />
       </div>
 
       {/* ═════════════ CATALOG TAB ═════════════ */}
