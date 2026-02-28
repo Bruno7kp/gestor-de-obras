@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Package, Search, ArrowDownCircle, ArrowUpCircle, AlertTriangle,
-  ShoppingCart, ClipboardList, History, Truck, FileText,
+  ShoppingCart, ClipboardList, Truck, FileText,
   Check, X, Clock, RefreshCw, DollarSign, Bell, User,
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
@@ -9,16 +9,15 @@ import { usePermissions } from '../hooks/usePermissions';
 import { useToast } from '../hooks/useToast';
 import { stockRequestApi } from '../services/stockRequestApi';
 import { purchaseRequestApi } from '../services/purchaseRequestApi';
-import { globalStockApi } from '../services/globalStockApi';
 import { financial } from '../utils/math';
 import { ConfirmModal } from './ConfirmModal';
-import type { StockRequest, PurchaseRequest, GlobalStockMovement, Supplier } from '../types';
+import type { StockRequest, PurchaseRequest, Supplier } from '../types';
 
 interface TraceabilityPageProps {
   suppliers: Supplier[];
 }
 
-type Tab = 'requests' | 'purchases' | 'log';
+type Tab = 'requests' | 'purchases';
 
 const MIN_DECIMALS = 2;
 const MAX_DECIMALS = 6;
@@ -222,10 +221,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
   const [tab, setTab] = useState<Tab>('requests');
   const [stockRequests, setStockRequests] = useState<StockRequest[]>([]);
   const [purchaseRequests, setPurchaseRequests] = useState<PurchaseRequest[]>([]);
-  const [movements, setMovements] = useState<GlobalStockMovement[]>([]);
-  const [movementsTotal, setMovementsTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [logFilter, setLogFilter] = useState<'all' | 'physical' | 'financial'>('all');
   const [completeModal, setCompleteModal] = useState<{ open: boolean; purchase?: PurchaseRequest }>({ open: false });
   const [rejectModal, setRejectModal] = useState<{ open: boolean; requestId?: string }>({ open: false });
   const [cancelConfirm, setCancelConfirm] = useState<string | null>(null);
@@ -237,15 +233,12 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [sr, pr, mv] = await Promise.all([
+      const [sr, pr] = await Promise.all([
         canWarehouse ? stockRequestApi.list() : Promise.resolve([]),
         purchaseRequestApi.list(),
-        globalStockApi.listMovements({ take: 50 }),
       ]);
       setStockRequests(sr);
       setPurchaseRequests(pr);
-      setMovements(mv.movements);
-      setMovementsTotal(mv.total);
     } catch (e: any) {
       toast.error(e.message);
     } finally {
@@ -284,17 +277,11 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
 
   const processedStockRequests = useMemo(() => stockRequests.filter(r => r.status !== 'PENDING'), [stockRequests]);
   const completedPurchases = useMemo(() => purchaseRequests.filter(r => r.status === 'COMPLETED' || r.status === 'CANCELLED'), [purchaseRequests]);
-  const filteredMovements = useMemo(() => {
-    if (logFilter === 'all') return movements;
-    if (logFilter === 'physical') return movements.filter(m => m.type === 'entry' || m.type === 'exit');
-    return movements.filter(m => m.unitPrice != null);
-  }, [movements, logFilter]);
 
   const kpis = useMemo(() => ({
     pendingRequests: pendingStockRequests.length,
     activePurchases: activePurchases.length,
-    totalMovements: movementsTotal,
-  }), [pendingStockRequests, activePurchases, movementsTotal]);
+  }), [pendingStockRequests, activePurchases]);
 
   // -- Handlers
   const handleApproveRequest = async (id: string) => {
@@ -374,7 +361,6 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
   const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
     { key: 'requests', label: 'Requisições', icon: <ClipboardList size={14} /> },
     { key: 'purchases', label: 'Compras', icon: <ShoppingCart size={14} /> },
-    { key: 'log', label: 'Log', icon: <History size={14} /> },
   ];
 
   // -- Status styles
@@ -430,7 +416,6 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
         <div className="flex flex-wrap items-stretch gap-3">
           <KpiCard label="Requisições Pendentes" value={kpis.pendingRequests} icon={<ClipboardList size={16} />} color="amber" />
           <KpiCard label="Compras Ativas" value={kpis.activePurchases} icon={<ShoppingCart size={16} />} color="purple" />
-          <KpiCard label="Total Movimentações" value={kpis.totalMovements} icon={<History size={16} />} color="indigo" />
           <div className="flex-1" />
           <div className="flex items-center bg-white dark:bg-slate-900 p-1 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
             {tabs.map(t => (
@@ -699,72 +684,6 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
               </div>
             )}
 
-            {/* ========= LOG TAB ========= */}
-            {tab === 'log' && (
-              <div className="space-y-6">
-                {/* Filters */}
-                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-fit">
-                  {[
-                    { key: 'all' as const, label: 'Todas' },
-                    { key: 'physical' as const, label: 'Físicas' },
-                    { key: 'financial' as const, label: 'Financeiras' },
-                  ].map(f => (
-                    <button
-                      key={f.key}
-                      onClick={() => setLogFilter(f.key)}
-                      className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
-                        logFilter === f.key ? 'bg-white dark:bg-slate-900 shadow-sm text-slate-800 dark:text-white' : 'text-slate-400 hover:text-slate-600'
-                      }`}
-                    >
-                      {f.label}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Movement log */}
-                {filteredMovements.length === 0 ? (
-                  <p className="text-center py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Nenhuma movimentação registrada</p>
-                ) : (
-                  <div className="space-y-3">
-                    {filteredMovements.map(m => (
-                      <div key={m.id} className="bg-white dark:bg-slate-900 p-4 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all">
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="flex items-center gap-4">
-                            <div className={`p-2.5 rounded-xl shrink-0 ${m.type === 'entry' ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-rose-50 dark:bg-rose-900/20'}`}>
-                              {m.type === 'entry' ? <ArrowDownCircle size={18} className="text-emerald-600" /> : <ArrowUpCircle size={18} className="text-rose-600" />}
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-sm font-black dark:text-white">
-                                  {m.type === 'entry' ? 'Entrada' : 'Saída'}
-                                </span>
-                                <span className="text-[10px] font-bold text-slate-400">
-                                  {financial.formatQuantity(m.quantity)} {m.globalStockItem?.unit ?? 'un'}
-                                </span>
-                                {m.globalStockItem && (
-                                  <span className="px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-500">
-                                    {m.globalStockItem.name}
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-[9px] text-slate-400 font-medium flex items-center gap-2 flex-wrap mt-0.5">
-                                {m.originDestination}
-                                {m.project && <span>• {m.project.name}</span>}
-                                {m.supplier && <span className="flex items-center gap-0.5"><Truck size={9} /> {m.supplier.name}</span>}
-                                {canFinancial && m.unitPrice != null && <span>• R$ {m.unitPrice.toFixed(2)}/un</span>}
-                                {m.invoiceNumber && <span className="flex items-center gap-0.5"><FileText size={9} /> {m.invoiceNumber}</span>}
-                                {m.createdBy && <span>• {m.createdBy.name}</span>}
-                              </p>
-                            </div>
-                          </div>
-                          <span className="text-[9px] text-slate-400 whitespace-nowrap font-bold">{new Date(m.date).toLocaleDateString('pt-BR')}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
           </>
         )}
       </div>

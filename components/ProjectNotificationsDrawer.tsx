@@ -162,7 +162,7 @@ export const ProjectNotificationsDrawer: React.FC<ProjectNotificationsDrawerProp
                           onClick={() => onMarkRead(notification.id)}
                           className="text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-700"
                         >
-                          Marcar lida
+                          Marcar como lida
                         </button>
                       )}
                       <button

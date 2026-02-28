@@ -18,8 +18,10 @@ import { BiddingView } from './components/BiddingView';
 import { SupplierManager } from './components/SupplierManager';
 import { GlobalInventoryPage } from './components/GlobalInventoryPage';
 import { TraceabilityPage } from './components/TraceabilityPage';
+import { StockLogPage } from './components/StockLogPage';
 
 import { Menu } from 'lucide-react';
+import { usePermissions } from './hooks/usePermissions';
 
 const PROJECT_TABS: TabID[] = [
   'wbs',
@@ -149,6 +151,28 @@ const ProjectRoute: React.FC<ProjectRouteProps> = ({
       onDeleteNotification={onDeleteNotification}
     />
   );
+};
+
+/* ------------------------------------------------------------------ */
+/*  Permission-based redirects                                         */
+/* ------------------------------------------------------------------ */
+const DefaultRedirect: React.FC = () => {
+  const { canView } = usePermissions();
+  const canSeeProjects = canView('projects_general') || canView('projects_specific');
+  const canSeeStock = canView('global_stock_warehouse') || canView('global_stock_financial');
+
+  if (canSeeProjects) return <Navigate to="/app/dashboard" replace />;
+  if (canSeeStock) return <Navigate to="/app/stock-log" replace />;
+  return <Navigate to="/app/dashboard" replace />;
+};
+
+const DashboardGuard: React.FC<{ children: React.ReactElement }> = ({ children }) => {
+  const { canView } = usePermissions();
+  const canSeeProjects = canView('projects_general') || canView('projects_specific');
+  const canSeeStock = canView('global_stock_warehouse') || canView('global_stock_financial');
+
+  if (!canSeeProjects && canSeeStock) return <Navigate to="/app/stock-log" replace />;
+  return children;
 };
 
 const App: React.FC = () => {
@@ -409,6 +433,7 @@ const App: React.FC = () => {
     if (location.pathname.startsWith('/app/biddings')) return 'Setor de Licitações';
     if (location.pathname.startsWith('/app/suppliers')) return 'Base de Fornecedores';
     if (location.pathname.startsWith('/app/global-stock')) return 'Estoque Global';
+    if (location.pathname.startsWith('/app/stock-log')) return 'Movimentações';
     if (location.pathname.startsWith('/app/traceability')) return 'Rastreabilidade';
     if (location.pathname.startsWith('/app/settings')) return 'Configurações de Sistema';
     if (location.pathname.startsWith('/app/projects')) return 'Obra em Gestão';
@@ -439,10 +464,10 @@ const App: React.FC = () => {
           </span>
         </header>
         <Routes>
-          <Route path="/" element={<Navigate to="/app/dashboard" replace />} />
+          <Route path="/" element={<DefaultRedirect />} />
           <Route
             path="dashboard"
-            element={
+            element={<DashboardGuard>
               <DashboardView
                 projects={ownProjects}
                 groups={groups}
@@ -454,7 +479,8 @@ const App: React.FC = () => {
                 onBulkUpdate={bulkUpdate}
                 unreadNotificationsByProject={unreadNotificationsByProject}
               />
-            }
+            </DashboardGuard>
+          }
           />
           <Route
             path="biddings"
@@ -479,6 +505,10 @@ const App: React.FC = () => {
           <Route
             path="traceability"
             element={<TraceabilityPage suppliers={suppliers} />}
+          />
+          <Route
+            path="stock-log"
+            element={<StockLogPage />}
           />
           <Route
             path="settings/:tab?"
@@ -510,7 +540,7 @@ const App: React.FC = () => {
               />
             }
           />
-          <Route path="*" element={<Navigate to="/app/dashboard" replace />} />
+          <Route path="*" element={<DefaultRedirect />} />
         </Routes>
       </main>
     </div>

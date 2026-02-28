@@ -1,7 +1,7 @@
 
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, Cog, PlusCircle, Briefcase, Sun, Moon, Menu, HardHat, Folder, ChevronRight, ChevronLeft, ChevronDown, Landmark, Truck, Shield, User, LogOut, ChevronUp, Lock, Globe, Warehouse, GitBranch } from 'lucide-react';
+import { Home, Cog, PlusCircle, Briefcase, Sun, Moon, Menu, HardHat, Folder, ChevronRight, ChevronLeft, ChevronDown, Landmark, Truck, Shield, User, LogOut, ChevronUp, Lock, Globe, Warehouse, GitBranch, History } from 'lucide-react';
 import { Project, ProjectGroup, CompanyCertificate, ExternalProject } from '../types';
 import { biddingService } from '../services/biddingService';
 import { stockRequestApi } from '../services/stockRequestApi';
@@ -88,6 +88,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const canStockWarehouse = canView('global_stock_warehouse');
   const canStockFinancial = canView('global_stock_financial');
+  const canSeeProjects = canView('projects_general') || canView('projects_specific');
 
   // Traceability pending count
   const [traceabilityPending, setTraceabilityPending] = useState(0);
@@ -326,12 +327,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
           ) : (
             /* Normal menu for own-instance navigation */
             <>
-              <NavItem
-                active={location.pathname.startsWith('/app/dashboard') || location.pathname === '/app'}
-                onClick={() => { navigate('/app/dashboard'); setMobileOpen(false); }}
-                icon={<Home size={18}/>}
-                label="Dashboard"
-              />
+              {canSeeProjects && (
+                <NavItem
+                  active={location.pathname.startsWith('/app/dashboard') || location.pathname === '/app'}
+                  onClick={() => { navigate('/app/dashboard'); setMobileOpen(false); }}
+                  icon={<Home size={18}/>}
+                  label="Dashboard"
+                />
+              )}
               {canView('biddings') && (
                 <NavItem
                   active={location.pathname.startsWith('/app/biddings')}
@@ -366,32 +369,44 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   badgeCount={traceabilityPending}
                 />
               )}
+              {(canStockWarehouse || canStockFinancial) && (
+                <NavItem
+                  active={location.pathname.startsWith('/app/stock-log')}
+                  onClick={() => { navigate('/app/stock-log'); setMobileOpen(false); }}
+                  icon={<History size={18}/>}
+                  label="Movimentações"
+                />
+              )}
               
-              <div className="py-6 px-3 flex items-center justify-between">
-                {isOpen && <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Obras Ativas</h3>}
-                {canCreateProject && (
-                  <button onClick={() => onCreateProject()} className={`text-indigo-500 hover:scale-110 transition-transform ${!isOpen && 'mx-auto'}`}><PlusCircle size={16}/></button>
-                )}
-              </div>
+              {canSeeProjects && (
+                <div className="py-6 px-3 flex items-center justify-between">
+                  {isOpen && <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Obras Ativas</h3>}
+                  {canCreateProject && (
+                    <button onClick={() => onCreateProject()} className={`text-indigo-500 hover:scale-110 transition-transform ${!isOpen && 'mx-auto'}`}><PlusCircle size={16}/></button>
+                  )}
+                </div>
+              )}
 
-              <div className="space-y-1">
-                {groups
-                  .filter(g => !g.parentId)
-                  .slice()
-                  .sort(sortByOrder)
-                  .map(g => <GroupTreeItem key={g.id} group={g} depth={0} />)}
-                {projects
-                  .filter(p => !p.groupId)
-                  .slice()
-                  .sort(sortByOrder)
-                  .map(p => (
-                  <button key={p.id} onClick={() => onOpenProject(p.id)} className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${activeProjectId === p.id && location.pathname.startsWith('/app/projects') ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 font-bold' : 'text-slate-500 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'} ${!isOpen && 'justify-center'}`}>
-                    <Briefcase size={16} className="shrink-0" />
-                    {isOpen && <span className="text-xs truncate text-left">{p.name}</span>}
-                    <ProjectNotificationBadge projectId={p.id} />
-                  </button>
-                ))}
-              </div>
+              {canSeeProjects && (
+                <div className="space-y-1">
+                  {groups
+                    .filter(g => !g.parentId)
+                    .slice()
+                    .sort(sortByOrder)
+                    .map(g => <GroupTreeItem key={g.id} group={g} depth={0} />)}
+                  {projects
+                    .filter(p => !p.groupId)
+                    .slice()
+                    .sort(sortByOrder)
+                    .map(p => (
+                    <button key={p.id} onClick={() => onOpenProject(p.id)} className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${activeProjectId === p.id && location.pathname.startsWith('/app/projects') ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 font-bold' : 'text-slate-500 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'} ${!isOpen && 'justify-center'}`}>
+                      <Briefcase size={16} className="shrink-0" />
+                      {isOpen && <span className="text-xs truncate text-left">{p.name}</span>}
+                      <ProjectNotificationBadge projectId={p.id} />
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* External Projects Section */}
               {externalProjects.length > 0 && (
