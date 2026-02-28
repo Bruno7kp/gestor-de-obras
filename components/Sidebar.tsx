@@ -282,7 +282,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         active={location.pathname.startsWith('/app/traceability') && new URLSearchParams(location.search).get('instanceId') === stockInst.instanceId}
                         onClick={() => { navigate(`/app/traceability?instanceId=${stockInst.instanceId}&instanceName=${encodeURIComponent(stockInst.instanceName)}`); setMobileOpen(false); }}
                         icon={<GitBranch size={sidebarOpen ? 16 : 18}/>}
-                        label={sidebarOpen ? 'Rastreabilidade' : ''}
+                        label={sidebarOpen ? 'Logística' : ''}
                       />
                       <NavItem
                         active={location.pathname.startsWith('/app/stock-log') && new URLSearchParams(location.search).get('instanceId') === stockInst.instanceId}
@@ -461,7 +461,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   active={location.pathname.startsWith('/app/traceability')}
                   onClick={() => { navigate('/app/traceability'); setMobileOpen(false); }}
                   icon={<GitBranch size={18}/>}
-                  label="Rastreabilidade"
+                  label="Logística"
                   badgeCount={traceabilityPending}
                 />
               )}

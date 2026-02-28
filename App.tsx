@@ -434,7 +434,7 @@ const App: React.FC = () => {
     if (location.pathname.startsWith('/app/suppliers')) return 'Base de Fornecedores';
     if (location.pathname.startsWith('/app/global-stock')) return 'Estoque Global';
     if (location.pathname.startsWith('/app/stock-log')) return 'Movimentações';
-    if (location.pathname.startsWith('/app/traceability')) return 'Rastreabilidade';
+    if (location.pathname.startsWith('/app/traceability')) return 'Logística';
     if (location.pathname.startsWith('/app/settings')) return 'Configurações de Sistema';
     if (location.pathname.startsWith('/app/projects')) return 'Obra em Gestão';
     return 'Portal de Obras';

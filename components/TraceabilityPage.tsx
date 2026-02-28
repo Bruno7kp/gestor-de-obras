@@ -596,7 +596,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
           <div className="flex items-center gap-3 px-6 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-2xl">
             <Globe size={18} className="text-amber-600 shrink-0" />
             <p className="flex-1 text-sm font-bold text-amber-700 dark:text-amber-300">
-              Visualizando rastreabilidade de <span className="font-black">{externalInstanceName ?? 'outra instância'}</span>
+              Visualizando logística de <span className="font-black">{externalInstanceName ?? 'outra instância'}</span>
             </p>
           </div>
         )}
@@ -605,7 +605,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <div>
             <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">
-              Rastreabilidade & Logística{externalInstanceName ? ` — ${externalInstanceName}` : ''}
+              Logística{externalInstanceName ? ` — ${externalInstanceName}` : ''}
             </h1>
             <p className="text-slate-500 dark:text-slate-400 font-medium">Acompanhe requisições, compras e movimentações.</p>
           </div>
