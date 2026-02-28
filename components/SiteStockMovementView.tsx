@@ -12,6 +12,7 @@ import { stockRequestApi } from '../services/stockRequestApi';
 import { financial } from '../utils/math';
 import { useToast } from '../hooks/useToast';
 import { ConfirmModal } from './ConfirmModal';
+import { DateFilterPopover } from './DateFilterPopover';
 
 interface SiteStockMovementViewProps {
   projectId: string;
@@ -72,6 +73,8 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
   const [movementTotal, setMovementTotal] = useState(0);
   const [movementPage, setMovementPage] = useState(0);
   const PAGE_SIZE = 20;
+  const [movDateStart, setMovDateStart] = useState('');
+  const [movDateEnd, setMovDateEnd] = useState('');
 
   // Consumption summary state
   const [consumptionSummary, setConsumptionSummary] = useState<
@@ -116,6 +119,8 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
         projectId,
         skip: page * PAGE_SIZE,
         take: PAGE_SIZE,
+        dateStart: movDateStart || undefined,
+        dateEnd: movDateEnd || undefined,
       });
       if (page === 0) {
         setMovements(data.movements);
@@ -127,7 +132,7 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
     } catch {
       toast.error('Erro ao carregar histórico de movimentações');
     }
-  }, [projectId]);
+  }, [projectId, movDateStart, movDateEnd]);
 
   useEffect(() => {
     const load = async () => {
@@ -643,17 +648,25 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
           </div>
 
           {/* ── Movement Log ── */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
               {movementTotal} movimentaç{movementTotal !== 1 ? 'ões' : 'ão'} nesta obra
             </p>
-            <button
-              onClick={() => loadMovements(0)}
-              className="p-2 text-slate-400 hover:text-indigo-600 transition-all"
-              title="Atualizar"
-            >
-              <RefreshCw size={14} />
-            </button>
+            <div className="flex items-center gap-2">
+              <DateFilterPopover
+                dateStart={movDateStart}
+                dateEnd={movDateEnd}
+                onDateStartChange={setMovDateStart}
+                onDateEndChange={setMovDateEnd}
+              />
+              <button
+                onClick={() => loadMovements(0)}
+                className="p-2 text-slate-400 hover:text-indigo-600 transition-all"
+                title="Atualizar"
+              >
+                <RefreshCw size={14} />
+              </button>
+            </div>
           </div>
 
           <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">

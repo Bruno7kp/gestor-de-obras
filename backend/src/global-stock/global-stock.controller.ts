@@ -174,6 +174,8 @@ export class GlobalStockController {
     @Query('projectId') projectId: string,
     @Query('search') search: string,
     @Query('globalStockItemId') globalStockItemId: string,
+    @Query('dateStart') dateStart: string,
+    @Query('dateEnd') dateEnd: string,
     @Req() req: AuthenticatedRequest,
   ) {
     return this.globalStockService.findAllMovements({
@@ -183,6 +185,8 @@ export class GlobalStockController {
       projectId: projectId || undefined,
       search: search || undefined,
       globalStockItemId: globalStockItemId || undefined,
+      dateStart: dateStart || undefined,
+      dateEnd: dateEnd || undefined,
     });
   }
 

@@ -6,6 +6,7 @@ import {
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { Pagination } from './Pagination';
+import { DateFilterPopover } from './DateFilterPopover';
 import { usePermissions } from '../hooks/usePermissions';
 import { useToast } from '../hooks/useToast';
 import { stockRequestApi } from '../services/stockRequestApi';
@@ -394,33 +395,56 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
   // -- Search & Pagination (client-side)
   const HIST_PAGE_SIZE = 10;
   const [histSearch, setHistSearch] = useState('');
+  const [histDateStart, setHistDateStart] = useState('');
+  const [histDateEnd, setHistDateEnd] = useState('');
   const [processedPage, setProcessedPage] = useState(1);
   const [completedPage, setCompletedPage] = useState(1);
 
-  // Reset pages when search changes
-  useEffect(() => { setProcessedPage(1); setCompletedPage(1); }, [histSearch]);
+  // Reset pages when search/date changes
+  useEffect(() => { setProcessedPage(1); setCompletedPage(1); }, [histSearch, histDateStart, histDateEnd]);
+
+  const isWithinHistRange = useCallback((dateStr?: string) => {
+    if (!histDateStart && !histDateEnd) return true;
+    if (!dateStr) return false;
+    const d = dateStr.slice(0, 10);
+    if (histDateStart && d < histDateStart) return false;
+    if (histDateEnd && d > histDateEnd) return false;
+    return true;
+  }, [histDateStart, histDateEnd]);
 
   const filteredProcessed = useMemo(() => {
-    if (!histSearch) return processedStockRequests;
-    const q = histSearch.toLowerCase();
-    return processedStockRequests.filter(r =>
-      r.itemName.toLowerCase().includes(q) ||
-      (r.project?.name ?? '').toLowerCase().includes(q) ||
-      (r.approvedBy?.name ?? '').toLowerCase().includes(q) ||
-      (r.requestedBy?.name ?? '').toLowerCase().includes(q)
-    );
-  }, [processedStockRequests, histSearch]);
+    let list = processedStockRequests;
+    if (histDateStart || histDateEnd) {
+      list = list.filter(r => isWithinHistRange(r.date));
+    }
+    if (histSearch) {
+      const q = histSearch.toLowerCase();
+      list = list.filter(r =>
+        r.itemName.toLowerCase().includes(q) ||
+        (r.project?.name ?? '').toLowerCase().includes(q) ||
+        (r.approvedBy?.name ?? '').toLowerCase().includes(q) ||
+        (r.requestedBy?.name ?? '').toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [processedStockRequests, histSearch, histDateStart, histDateEnd, isWithinHistRange]);
 
   const filteredCompleted = useMemo(() => {
-    if (!histSearch) return completedPurchases;
-    const q = histSearch.toLowerCase();
-    return completedPurchases.filter(p =>
-      p.itemName.toLowerCase().includes(q) ||
-      (p.globalStockItem?.name ?? '').toLowerCase().includes(q) ||
-      (p.invoiceNumber ?? '').toLowerCase().includes(q) ||
-      (p.requestedBy?.name ?? '').toLowerCase().includes(q)
-    );
-  }, [completedPurchases, histSearch]);
+    let list = completedPurchases;
+    if (histDateStart || histDateEnd) {
+      list = list.filter(p => isWithinHistRange(p.completedAt || p.createdAt));
+    }
+    if (histSearch) {
+      const q = histSearch.toLowerCase();
+      list = list.filter(p =>
+        p.itemName.toLowerCase().includes(q) ||
+        (p.globalStockItem?.name ?? '').toLowerCase().includes(q) ||
+        (p.invoiceNumber ?? '').toLowerCase().includes(q) ||
+        (p.requestedBy?.name ?? '').toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [completedPurchases, histSearch, histDateStart, histDateEnd, isWithinHistRange]);
 
   const processedTotalPages = Math.max(1, Math.ceil(filteredProcessed.length / HIST_PAGE_SIZE));
   const completedTotalPages = Math.max(1, Math.ceil(filteredCompleted.length / HIST_PAGE_SIZE));
@@ -597,21 +621,30 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
           <KpiCard label="Aguardando Envio" value={kpis.awaitingDelivery} icon={<Truck size={16} />} color="blue" />
           <KpiCard label="Compras Ativas" value={kpis.activePurchases} icon={<ShoppingCart size={16} />} color="purple" />
           <div className="flex-1" />
-          {/* Search (filters processadas/finalizadas) */}
-          <div className="relative flex items-center">
-            <Search size={14} className="absolute left-3 text-slate-400 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Buscar item, obra, solicitante…"
-              value={histSearch}
-              onChange={e => setHistSearch(e.target.value)}
-              className="pl-9 pr-4 py-2.5 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 transition-all shadow-sm"
+          {/* Search + Date filter */}
+          <div className="flex items-center gap-2 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div className="relative flex items-center">
+              <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Buscar item, obra, solicitante…"
+                value={histSearch}
+                onChange={e => setHistSearch(e.target.value)}
+                className="pl-10 pr-4 py-2 w-48 bg-slate-100 dark:bg-slate-800 border-2 border-transparent focus:bg-white dark:focus:bg-slate-700 focus:border-indigo-500 rounded-xl outline-none transition-all text-xs font-bold"
+              />
+              {histSearch && (
+                <button onClick={() => setHistSearch('')} className="absolute right-1 p-0.5 text-slate-400 hover:text-slate-600 transition-all">
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+            <div className="w-px h-5 bg-slate-200 dark:bg-slate-700" />
+            <DateFilterPopover
+              dateStart={histDateStart}
+              dateEnd={histDateEnd}
+              onDateStartChange={setHistDateStart}
+              onDateEndChange={setHistDateEnd}
             />
-            {histSearch && (
-              <button onClick={() => setHistSearch('')} className="absolute right-2 p-1 text-slate-400 hover:text-slate-600 transition-all">
-                <X size={12} />
-              </button>
-            )}
           </div>
           <div className="flex items-center bg-white dark:bg-slate-900 p-1 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
             {tabs.map(t => (

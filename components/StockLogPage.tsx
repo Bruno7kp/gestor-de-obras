@@ -9,6 +9,7 @@ import { useToast } from '../hooks/useToast';
 import { globalStockApi } from '../services/globalStockApi';
 import { financial } from '../utils/math';
 import { Pagination } from './Pagination';
+import { DateFilterPopover } from './DateFilterPopover';
 import type { GlobalStockMovement } from '../types';
 
 const PAGE_SIZE = 30;
@@ -33,6 +34,8 @@ export const StockLogPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [dateStart, setDateStart] = useState('');
+  const [dateEnd, setDateEnd] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   // Debounce search input
@@ -52,6 +55,8 @@ export const StockLogPage: React.FC = () => {
         take: PAGE_SIZE,
         search: debouncedSearch || undefined,
         globalStockItemId: itemIdParam || undefined,
+        dateStart: dateStart || undefined,
+        dateEnd: dateEnd || undefined,
       });
       setMovements(mv.movements);
       setMovementsTotal(mv.total);
@@ -61,12 +66,15 @@ export const StockLogPage: React.FC = () => {
       setLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, debouncedSearch, itemIdParam]);
+  }, [page, debouncedSearch, itemIdParam, dateStart, dateEnd]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
   // Reset page when logFilter changes (client-side)
   useEffect(() => { setPage(1); }, [logFilter]);
+
+  // Reset page when date filters change
+  useEffect(() => { setPage(1); }, [dateStart, dateEnd]);
 
   const filteredMovements = useMemo(() => {
     if (logFilter === 'all') return movements;
@@ -105,21 +113,30 @@ export const StockLogPage: React.FC = () => {
             </div>
           </div>
           <div className="flex-1" />
-          {/* Search */}
-          <div className="relative flex items-center">
-            <Search size={14} className="absolute left-3 text-slate-400 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Buscar item, obra, fornecedor…"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="pl-9 pr-4 py-2.5 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 transition-all shadow-sm"
+          {/* Search + Date filter */}
+          <div className="flex items-center gap-2 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div className="relative flex items-center">
+              <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Buscar item, obra, fornecedor…"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 py-2 w-48 bg-slate-100 dark:bg-slate-800 border-2 border-transparent focus:bg-white dark:focus:bg-slate-700 focus:border-indigo-500 rounded-xl outline-none transition-all text-xs font-bold"
+              />
+              {searchTerm && (
+                <button onClick={() => setSearchTerm('')} className="absolute right-1 p-0.5 text-slate-400 hover:text-slate-600 transition-all">
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+            <div className="w-px h-5 bg-slate-200 dark:bg-slate-700" />
+            <DateFilterPopover
+              dateStart={dateStart}
+              dateEnd={dateEnd}
+              onDateStartChange={setDateStart}
+              onDateEndChange={setDateEnd}
             />
-            {searchTerm && (
-              <button onClick={() => setSearchTerm('')} className="absolute right-2 p-1 text-slate-400 hover:text-slate-600 transition-all">
-                <X size={12} />
-              </button>
-            )}
           </div>
           <div className="flex items-center gap-3 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg">

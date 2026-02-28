@@ -54,6 +54,8 @@ interface FindAllMovementsInput {
   projectId?: string;
   search?: string;
   globalStockItemId?: string;
+  dateStart?: string;
+  dateEnd?: string;
 }
 
 interface FindItemMovementsInput {
@@ -416,6 +418,18 @@ export class GlobalStockService {
         ? { globalStockItemId: input.globalStockItemId }
         : {}),
     };
+
+    // Date range filter
+    if (input.dateStart || input.dateEnd) {
+      const dateFilter: { gte?: Date; lte?: Date } = {};
+      if (input.dateStart) {
+        dateFilter.gte = new Date(`${input.dateStart}T00:00:00.000Z`);
+      }
+      if (input.dateEnd) {
+        dateFilter.lte = new Date(`${input.dateEnd}T23:59:59.999Z`);
+      }
+      where.date = dateFilter;
+    }
 
     if (input.search) {
       const term = input.search;
