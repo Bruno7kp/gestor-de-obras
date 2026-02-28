@@ -590,7 +590,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
                 {/* Active */}
                 <div>
                   <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4 px-1 flex items-center gap-2">
-                    <ShoppingCart size={14} /> Pipeline de Compras ({activePurchases.length})
+                    <ShoppingCart size={14} /> Solicitações de Compras ({activePurchases.length})
                   </h2>
                   {activePurchases.length === 0 ? (
                     <p className="text-center py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Nenhuma compra ativa</p>

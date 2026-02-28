@@ -33,11 +33,12 @@ const DecimalControls: React.FC<{ value: number; onChange: (v: number) => void }
 /* ------------------------------------------------------------------ */
 const GlobalStockItemModal: React.FC<{
   item?: GlobalStockItem | null;
-  onSave: (data: { name: string; unit: string; minQuantity: number }) => void;
+  onSave: (data: { name: string; unit: string; minQuantity: number | null }) => void;
   onClose: () => void;
 }> = ({ item, onSave, onClose }) => {
   const [name, setName] = useState(item?.name ?? '');
   const [unit, setUnit] = useState(item?.unit ?? 'un');
+  const [noMinQuantity, setNoMinQuantity] = useState(item?.minQuantity == null);
   const [minQtyDecimals, setMinQtyDecimals] = useState(MIN_DECIMALS);
   const [minQuantity, setMinQuantity] = useState(() => financial.maskDecimal(String(Math.round((item?.minQuantity ?? 0) * 100)), MIN_DECIMALS));
 
@@ -46,7 +47,7 @@ const GlobalStockItemModal: React.FC<{
     onSave({
       name: name.trim(),
       unit: unit.trim() || 'un',
-      minQuantity: financial.parseLocaleNumber(minQuantity),
+      minQuantity: noMinQuantity ? null : financial.parseLocaleNumber(minQuantity),
     });
   };
 
@@ -70,9 +71,28 @@ const GlobalStockItemModal: React.FC<{
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Qtd Mínima</label>
-                <DecimalControls value={minQtyDecimals} onChange={d => { setMinQtyDecimals(d); setMinQuantity(financial.maskDecimal(minQuantity.replace(/\D/g, ''), d)); }} />
+                {!noMinQuantity && (
+                  <DecimalControls value={minQtyDecimals} onChange={d => { setMinQtyDecimals(d); setMinQuantity(financial.maskDecimal(minQuantity.replace(/\D/g, ''), d)); }} />
+                )}
               </div>
-              <input type="text" inputMode="decimal" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-indigo-500 rounded-xl outline-none transition-all text-sm font-bold" value={minQuantity} onChange={e => setMinQuantity(financial.maskDecimal(e.target.value, minQtyDecimals))} />
+              {noMinQuantity ? (
+                <div className="w-full px-4 py-3 bg-slate-100 dark:bg-slate-800/60 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-400 text-center select-none">
+                  —
+                </div>
+              ) : (
+                <input type="text" inputMode="decimal" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-indigo-500 rounded-xl outline-none transition-all text-sm font-bold" value={minQuantity} onChange={e => setMinQuantity(financial.maskDecimal(e.target.value, minQtyDecimals))} />
+              )}
+              <label className="flex items-center gap-2 mt-2 cursor-pointer select-none group">
+                <input
+                  type="checkbox"
+                  checked={noMinQuantity}
+                  onChange={e => setNoMinQuantity(e.target.checked)}
+                  className="w-3.5 h-3.5 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                />
+                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors">
+                  Sem quantidade mínima
+                </span>
+              </label>
             </div>
           </div>
         </div>
@@ -412,7 +432,7 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
   }, [items]);
 
   // -- Handlers --
-  const handleSaveItem = async (data: { name: string; unit: string; minQuantity: number }) => {
+  const handleSaveItem = async (data: { name: string; unit: string; minQuantity: number | null }) => {
     try {
       if (itemModal.item) {
         const updated = await globalStockApi.update(itemModal.item.id, data);
@@ -584,7 +604,7 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
                       {/* Material name */}
                       <div className="min-w-0">
                         <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{item.name}</p>
-                        <span className="text-[9px] text-slate-400 font-medium mt-0.5 block">Mín: {item.minQuantity}</span>
+                        <span className="text-[9px] text-slate-400 font-medium mt-0.5 block">{item.minQuantity != null ? `Mín: ${item.minQuantity}` : 'Sem mín.'}</span>
                       </div>
 
                       {/* Unit */}

@@ -19,14 +19,14 @@ import type { AuthenticatedRequest } from '../auth/auth.types';
 interface CreateGlobalStockItemBody {
   name: string;
   unit?: string;
-  minQuantity?: number;
+  minQuantity?: number | null;
   supplierId?: string;
 }
 
 interface UpdateGlobalStockItemBody {
   name?: string;
   unit?: string;
-  minQuantity?: number;
+  minQuantity?: number | null;
   supplierId?: string | null;
 }
 

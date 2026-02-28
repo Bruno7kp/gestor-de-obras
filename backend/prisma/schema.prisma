@@ -695,7 +695,7 @@ model GlobalStockItem {
   name            String
   unit            String            @default("un")
   currentQuantity Float             @default(0)
-  minQuantity     Float             @default(0)
+  minQuantity     Float?
   averagePrice    Float             @default(0)
   lastPrice       Float?
   lastEntryDate   DateTime?

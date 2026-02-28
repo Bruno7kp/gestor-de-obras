@@ -30,7 +30,7 @@ export const globalStockApi = {
   async create(input: {
     name: string;
     unit?: string;
-    minQuantity?: number;
+    minQuantity?: number | null;
     supplierId?: string;
   }): Promise<GlobalStockItem> {
     const res = await fetch(`${API_BASE}/global-stock`, {
@@ -48,7 +48,7 @@ export const globalStockApi = {
     input: {
       name?: string;
       unit?: string;
-      minQuantity?: number;
+      minQuantity?: number | null;
       supplierId?: string | null;
     },
   ): Promise<GlobalStockItem> {

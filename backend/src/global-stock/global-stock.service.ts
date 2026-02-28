@@ -17,7 +17,7 @@ interface CreateGlobalStockItemInput {
   instanceId: string;
   name: string;
   unit?: string;
-  minQuantity?: number;
+  minQuantity?: number | null;
   supplierId?: string;
 }
 
@@ -26,7 +26,7 @@ interface UpdateGlobalStockItemInput {
   instanceId: string;
   name?: string;
   unit?: string;
-  minQuantity?: number;
+  minQuantity?: number | null;
   supplierId?: string | null;
 }
 
@@ -94,10 +94,11 @@ export class GlobalStockService {
    */
   private computeStatus(
     currentQuantity: number,
-    minQuantity: number,
+    minQuantity: number | null,
   ): GlobalStockStatus {
     if (currentQuantity <= 0) return 'OUT_OF_STOCK';
-    if (currentQuantity <= minQuantity) return 'CRITICAL';
+    if (minQuantity != null && currentQuantity <= minQuantity)
+      return 'CRITICAL';
     return 'NORMAL';
   }
 
@@ -131,7 +132,7 @@ export class GlobalStockService {
         instanceId: input.instanceId,
         name: input.name,
         unit: input.unit ?? 'un',
-        minQuantity: input.minQuantity ?? 0,
+        minQuantity: input.minQuantity === undefined ? 0 : input.minQuantity,
         supplierId: input.supplierId ?? null,
         order: 0,
       },
@@ -150,8 +151,11 @@ export class GlobalStockService {
     if (input.unit !== undefined) data.unit = input.unit;
     if (input.minQuantity !== undefined) {
       data.minQuantity = input.minQuantity;
-      // Recalculate status with new min
-      data.status = this.computeStatus(item.currentQuantity, input.minQuantity);
+      // Recalculate status with new min (null = no minimum)
+      data.status = this.computeStatus(
+        item.currentQuantity,
+        input.minQuantity ?? null,
+      );
     }
     if (input.supplierId !== undefined) {
       data.supplier = input.supplierId

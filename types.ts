@@ -511,7 +511,7 @@ export interface GlobalStockItem {
   name: string;
   unit: string;
   currentQuantity: number;
-  minQuantity: number;
+  minQuantity: number | null;
   averagePrice: number;
   lastPrice: number | null;
   lastEntryDate: string | null;
