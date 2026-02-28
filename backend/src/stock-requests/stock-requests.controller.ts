@@ -125,6 +125,21 @@ export class StockRequestsController {
     });
   }
 
+  @Patch(':id/cancel')
+  @HasPermission('global_stock_warehouse.edit')
+  async cancel(
+    @Param('id') id: string,
+    @Body() body: { instanceId?: string },
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const instanceId = await this.resolveInstance(req, body.instanceId);
+    return this.service.cancel({
+      id,
+      instanceId,
+      userId: req.user.id,
+    });
+  }
+
   @Patch(':id/deliver')
   @HasPermission('global_stock_warehouse.edit')
   async deliver(

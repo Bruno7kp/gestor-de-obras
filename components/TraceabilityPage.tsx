@@ -346,6 +346,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
   const [completeModal, setCompleteModal] = useState<{ open: boolean; purchase?: PurchaseRequest }>({ open: false });
   const [rejectModal, setRejectModal] = useState<{ open: boolean; requestId?: string }>({ open: false });
   const [cancelConfirm, setCancelConfirm] = useState<string | null>(null);
+  const [cancelStockReqConfirm, setCancelStockReqConfirm] = useState<StockRequest | null>(null);
   const [approveConfirm, setApproveConfirm] = useState<StockRequest | null>(null);
   const [orderedConfirm, setOrderedConfirm] = useState<PurchaseRequest | null>(null);
   const [showDrawer, setShowDrawer] = useState(false);
@@ -375,7 +376,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
   const pendingStockRequests = allPendingStockRequests;
 
   const awaitingDeliveryRequests = useMemo(() => stockRequests.filter(r => r.status === 'APPROVED' || r.status === 'PARTIALLY_DELIVERED'), [stockRequests]);
-  const processedStockRequests = useMemo(() => stockRequests.filter(r => r.status === 'DELIVERED' || r.status === 'REJECTED'), [stockRequests]);
+  const processedStockRequests = useMemo(() => stockRequests.filter(r => r.status === 'DELIVERED' || r.status === 'REJECTED' || r.status === 'CANCELLED'), [stockRequests]);
   const completedPurchases = useMemo(() => purchaseRequests.filter(r => r.status === 'COMPLETED' || r.status === 'CANCELLED'), [purchaseRequests]);
 
   // -- Search & Pagination (client-side)
@@ -455,6 +456,18 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
       const updated = await stockRequestApi.approve(id, externalInstanceId);
       setStockRequests(prev => prev.map(r => r.id === id ? updated : r));
       toast.success('Requisição aprovada');
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  const handleCancelStockRequest = async () => {
+    if (!cancelStockReqConfirm) return;
+    try {
+      const updated = await stockRequestApi.cancel(cancelStockReqConfirm.id, externalInstanceId);
+      setStockRequests(prev => prev.map(r => r.id === cancelStockReqConfirm.id ? updated : r));
+      setCancelStockReqConfirm(null);
+      toast.success('Envio cancelado');
     } catch (e: any) {
       toast.error(e.message);
     }
@@ -558,6 +571,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
     REJECTED: { bg: 'bg-rose-100 dark:bg-rose-900/30', text: 'text-rose-700 dark:text-rose-400', label: 'Rejeitada' },
     PARTIALLY_DELIVERED: { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-400', label: 'Entrega Parcial' },
     DELIVERED: { bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-700 dark:text-emerald-400', label: 'Entregue' },
+    CANCELLED: { bg: 'bg-slate-100 dark:bg-slate-900/30', text: 'text-slate-500 dark:text-slate-400', label: 'Cancelada' },
   };
 
   const purchaseStatusConfig: Record<string, { bg: string; text: string; label: string }> = {
@@ -815,6 +829,9 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
                                       <ShoppingCart size={14} /> Solicitar Compra
                                     </button>
                                   )}
+                                  <button onClick={() => setCancelStockReqConfirm(r)} className="p-2.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all" title="Cancelar envio">
+                                    <X size={14} />
+                                  </button>
                                 </div>
                               )}
                             </div>
@@ -1064,6 +1081,20 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
         variant="danger"
         onConfirm={handleCancelPurchase}
         onCancel={() => setCancelConfirm(null)}
+      />
+
+      {/* Cancel Stock Request Confirm */}
+      <ConfirmModal
+        isOpen={!!cancelStockReqConfirm}
+        title="Cancelar envio"
+        message={cancelStockReqConfirm
+          ? `Cancelar o envio de "${cancelStockReqConfirm.itemName}"?${cancelStockReqConfirm.quantityDelivered > 0 ? ` Os ${financial.formatQuantity(cancelStockReqConfirm.quantityDelivered)} ${cancelStockReqConfirm.globalStockItem?.unit ?? 'un'} já enviados serão mantidos, mas o restante não será entregue.` : ' O material não será enviado.'}`
+          : ''}
+        confirmLabel="Cancelar envio"
+        cancelLabel="Voltar"
+        variant="danger"
+        onConfirm={handleCancelStockRequest}
+        onCancel={() => setCancelStockReqConfirm(null)}
       />
 
       {/* Purchase from Request Modal */}

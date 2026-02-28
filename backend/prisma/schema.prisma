@@ -690,6 +690,7 @@ enum StockRequestStatus {
   PARTIALLY_DELIVERED
   DELIVERED
   REJECTED
+  CANCELLED
 }
 
 model GlobalStockItem {

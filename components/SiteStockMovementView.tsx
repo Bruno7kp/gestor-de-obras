@@ -29,6 +29,7 @@ const STATUS_LABELS: Record<StockRequestStatus, string> = {
   REJECTED: 'Rejeitada',
   PARTIALLY_DELIVERED: 'Entrega Parcial',
   DELIVERED: 'Entregue',
+  CANCELLED: 'Cancelada',
 };
 
 const STATUS_COLORS: Record<StockRequestStatus, string> = {
@@ -37,6 +38,7 @@ const STATUS_COLORS: Record<StockRequestStatus, string> = {
   REJECTED: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
   PARTIALLY_DELIVERED: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
   DELIVERED: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+  CANCELLED: 'bg-slate-100 text-slate-500 dark:bg-slate-900/30 dark:text-slate-400',
 };
 
 export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
@@ -389,7 +391,7 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
       {tab === 'requests' && (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
-            {(['ALL', 'PENDING', 'APPROVED', 'PARTIALLY_DELIVERED', 'DELIVERED', 'REJECTED'] as const).map((f) => (
+            {(['ALL', 'PENDING', 'APPROVED', 'PARTIALLY_DELIVERED', 'DELIVERED', 'REJECTED', 'CANCELLED'] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => setRequestFilter(f)}
@@ -525,7 +527,7 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
                           )}
 
                           {/* Delivery progress */}
-                          {(req.status === 'APPROVED' || req.status === 'PARTIALLY_DELIVERED' || req.status === 'DELIVERED') && (
+                          {(req.status === 'APPROVED' || req.status === 'PARTIALLY_DELIVERED' || req.status === 'DELIVERED' || req.status === 'CANCELLED') && (
                             <div className="col-span-2 md:col-span-3">
                               <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2">Progresso de Envio</p>
                               <div className="flex items-center gap-3 mb-2">

@@ -496,7 +496,7 @@ export interface StockItem {
 export type GlobalStockStatus = 'NORMAL' | 'CRITICAL' | 'OUT_OF_STOCK';
 export type PurchaseRequestStatus = 'PENDING' | 'ORDERED' | 'COMPLETED' | 'CANCELLED';
 export type PurchaseRequestPriority = 'LOW' | 'MEDIUM' | 'HIGH';
-export type StockRequestStatus = 'PENDING' | 'APPROVED' | 'PARTIALLY_DELIVERED' | 'DELIVERED' | 'REJECTED';
+export type StockRequestStatus = 'PENDING' | 'APPROVED' | 'PARTIALLY_DELIVERED' | 'DELIVERED' | 'REJECTED' | 'CANCELLED';
 
 export interface PriceHistoryEntry {
   id: string;

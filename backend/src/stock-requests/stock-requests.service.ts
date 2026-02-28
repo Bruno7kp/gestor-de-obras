@@ -31,6 +31,12 @@ interface RejectInput {
   rejectionReason?: string;
 }
 
+interface CancelInput {
+  id: string;
+  instanceId: string;
+  userId: string;
+}
+
 interface DeliverInput {
   id: string;
   instanceId: string;
@@ -393,6 +399,52 @@ export class StockRequestsService {
         },
       },
     });
+  }
+
+  async cancel(input: CancelInput) {
+    const request = await this.prisma.stockRequest.findFirst({
+      where: { id: input.id, instanceId: input.instanceId },
+      include: {
+        globalStockItem: { select: { name: true, unit: true } },
+        requestedBy: { select: { id: true } },
+      },
+    });
+    if (!request) throw new NotFoundException('Requisição não encontrada');
+    if (
+      request.status !== 'APPROVED' &&
+      request.status !== 'PARTIALLY_DELIVERED'
+    ) {
+      throw new BadRequestException(
+        'Somente requisições aprovadas ou com entrega parcial podem ser canceladas',
+      );
+    }
+
+    // Mark as CANCELLED — partial deliveries and their stock debits stay intact
+    const updated = await this.prisma.stockRequest.update({
+      where: { id: input.id },
+      data: { status: 'CANCELLED' },
+      include: this.requestInclude,
+    });
+
+    // Notify the requester
+    const deliveredInfo =
+      request.quantityDelivered > 0
+        ? ` (${request.quantityDelivered} ${request.globalStockItem?.unit ?? 'un'} já entregues serão mantidos)`
+        : '';
+    this.notificationsService
+      .emit({
+        instanceId: input.instanceId,
+        projectId: request.projectId,
+        category: 'STOCK',
+        eventType: 'stock_request_cancelled',
+        title: `Envio cancelado: ${request.itemName}`,
+        body: `O envio de "${request.itemName}" foi cancelado${deliveredInfo}`,
+        actorUserId: input.userId,
+        specificUserIds: [request.requestedById],
+      })
+      .catch(() => {});
+
+    return updated;
   }
 
   async reject(input: RejectInput) {

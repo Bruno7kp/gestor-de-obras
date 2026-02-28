@@ -103,4 +103,18 @@ export const stockRequestApi = {
     if (!res.ok) throw new Error('Falha ao carregar entregas');
     return res.json();
   },
+
+  async cancel(id: string, instanceId?: string): Promise<StockRequest> {
+    const res = await fetch(`${API_BASE}/stock-requests/${id}/cancel`, {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ instanceId }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Falha ao cancelar envio');
+    }
+    return res.json();
+  },
 };
