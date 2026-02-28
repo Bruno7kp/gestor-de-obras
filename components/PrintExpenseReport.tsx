@@ -10,24 +10,44 @@ interface PrintExpenseReportProps {
   expenses: ProjectExpense[];
   stats: any;
   printMode?: 'complete' | 'material' | 'labor';
+  dateStart?: string;
+  dateEnd?: string;
 }
 
-export const PrintExpenseReport: React.FC<PrintExpenseReportProps> = ({ project, expenses, stats, printMode = 'complete' }) => {
+export const PrintExpenseReport: React.FC<PrintExpenseReportProps> = ({ project, expenses, stats, printMode = 'complete', dateStart, dateEnd }) => {
   const theme = {
     ...DEFAULT_THEME,
     ...project.theme
   };
 
   const reportItems = useMemo(() => {
-    const onlyItems = expenses.filter((expense) => expense.itemType === 'item');
+    let onlyItems = expenses.filter((expense) => expense.itemType === 'item');
     if (printMode === 'material') {
-      return onlyItems.filter((expense) => expense.type === 'material');
+      onlyItems = onlyItems.filter((expense) => expense.type === 'material');
+    } else if (printMode === 'labor') {
+      onlyItems = onlyItems.filter((expense) => expense.type === 'labor');
     }
-    if (printMode === 'labor') {
-      return onlyItems.filter((expense) => expense.type === 'labor');
+    if (dateStart || dateEnd) {
+      onlyItems = onlyItems.filter((expense) => {
+        if (!expense.date) return false;
+        if (dateStart && expense.date < dateStart) return false;
+        if (dateEnd && expense.date > dateEnd) return false;
+        return true;
+      });
     }
     return onlyItems;
-  }, [expenses, printMode]);
+  }, [expenses, printMode, dateStart, dateEnd]);
+
+  const periodLabel = useMemo(() => {
+    if (!dateStart && !dateEnd) return null;
+    const fmt = (d: string) => {
+      const [y, m, day] = d.split('-');
+      return `${day}/${m}/${y}`;
+    };
+    if (dateStart && dateEnd) return `Período: ${fmt(dateStart)} a ${fmt(dateEnd)}`;
+    if (dateStart) return `A partir de: ${fmt(dateStart)}`;
+    return `Até: ${fmt(dateEnd!)}`;
+  }, [dateStart, dateEnd]);
 
   const reportStats = useMemo(() => expenseService.getExpenseStats(reportItems), [reportItems]);
 
@@ -138,6 +158,7 @@ export const PrintExpenseReport: React.FC<PrintExpenseReportProps> = ({ project,
             <h1 className="text-xl font-black uppercase leading-none" style={{ color: theme.primary }}>{project.companyName}</h1>
             <p className="text-[7pt] font-bold text-slate-500 uppercase mt-1">Relatório Consolidado de Fluxo Financeiro</p>
             <p className="text-[8pt] font-black mt-2 uppercase tracking-tight">{project.name}</p>
+            {periodLabel && <p className="text-[7pt] font-bold text-indigo-600 mt-1">{periodLabel}</p>}
           </div>
           <div className="text-right">
              <p className="text-[7pt] font-bold text-slate-400">Emissão: {new Date().toLocaleDateString('pt-BR')}</p>

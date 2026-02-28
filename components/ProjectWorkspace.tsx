@@ -174,6 +174,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const [deletingNotificationId, setDeletingNotificationId] = useState<string | null>(null);
   const [isExpensePrintModalOpen, setIsExpensePrintModalOpen] = useState(false);
   const [expensePrintMode, setExpensePrintMode] = useState<ExpensePrintMode>('complete');
+  const [expensePrintDateStart, setExpensePrintDateStart] = useState<string | undefined>(undefined);
+  const [expensePrintDateEnd, setExpensePrintDateEnd] = useState<string | undefined>(undefined);
   const [isSuppliesPrintModalOpen, setIsSuppliesPrintModalOpen] = useState(false);
   const [suppliesPrintMode, setSuppliesPrintMode] = useState<SuppliesPrintMode>('complete');
   const [suppliesPrintOnlyUnpaid, setSuppliesPrintOnlyUnpaid] = useState(false);
@@ -205,7 +207,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     onUpdateProject({ expenses: nextExpenses });
   }, [onUpdateProject]);
 
-  const handleRequestExpensePrint = useCallback(() => {
+  const handleRequestExpensePrint = useCallback((dateStart?: string, dateEnd?: string) => {
+    setExpensePrintDateStart(dateStart);
+    setExpensePrintDateEnd(dateEnd);
     setIsExpensePrintModalOpen(true);
   }, []);
 
@@ -1491,6 +1495,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                 expenses={project.expenses}
                 stats={expenseStats}
                 printMode={expensePrintMode}
+                dateStart={expensePrintDateStart}
+                dateEnd={expensePrintDateEnd}
               />
             )}
             {(tab === 'planning' || tab === 'supplies' || tab === 'schedule') && (

@@ -31,7 +31,7 @@ interface ExpenseManagerProps {
   measuredValue: number;
   onUpdateExpenses: (expenses: ProjectExpense[]) => void;
   isReadOnly?: boolean;
-  onRequestPrintReport?: () => void;
+  onRequestPrintReport?: (dateStart?: string, dateEnd?: string) => void;
 }
 
 export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
@@ -588,7 +588,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
           <button
             onClick={() => {
               if (onRequestPrintReport) {
-                onRequestPrintReport();
+                onRequestPrintReport(dateStart || undefined, dateEnd || undefined);
                 return;
               }
               window.print();
