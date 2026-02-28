@@ -219,7 +219,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
   const canFinancial = canView('global_stock_financial');
   const canFinancialEdit = canEdit('global_stock_financial');
 
-  const [tab, setTab] = useState<Tab>('requests');
+  const [tab, setTab] = useState<Tab>(canWarehouse ? 'requests' : 'purchases');
   const [stockRequests, setStockRequests] = useState<StockRequest[]>([]);
   const [purchaseRequests, setPurchaseRequests] = useState<PurchaseRequest[]>([]);
   const [loading, setLoading] = useState(true);
