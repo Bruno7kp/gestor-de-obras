@@ -20,7 +20,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ assets, onAdd, onUpd
   const [isUploading, setIsUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [renameAsset, setRenameAsset] = useState<{ id: string; stem: string; ext: string } | null>(null);
+  const [renameAsset, setRenameAsset] = useState<{ id: string; stem: string; ext: string; category: ProjectAssetCategory } | null>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<ProjectAssetCategory>('DOCUMENTO_DIVERSO');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -57,15 +57,15 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ assets, onAdd, onUpd
   const handleRename = () => {
     if (!renameAsset || !renameAsset.stem.trim()) return;
     const finalName = renameAsset.stem.trim() + renameAsset.ext;
-    onUpdate(renameAsset.id, { name: finalName });
+    onUpdate(renameAsset.id, { name: finalName, category: renameAsset.category });
     setRenameAsset(null);
   };
 
-  const openRenameModal = (asset: { id: string; name: string }) => {
+  const openRenameModal = (asset: ProjectAsset) => {
     const dotIndex = asset.name.lastIndexOf('.');
     const stem = dotIndex > 0 ? asset.name.slice(0, dotIndex) : asset.name;
     const ext = dotIndex > 0 ? asset.name.slice(dotIndex) : '';
-    setRenameAsset({ id: asset.id, stem, ext });
+    setRenameAsset({ id: asset.id, stem, ext, category: asset.category ?? 'DOCUMENTO_DIVERSO' });
   };
 
   const resetUploadModal = () => {
@@ -299,7 +299,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ assets, onAdd, onUpd
         <div className="fixed inset-0 z-[1800] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm" onClick={() => setRenameAsset(null)}>
           <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2rem] border border-slate-200 dark:border-slate-800 p-6 sm:p-8" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-black tracking-tight text-slate-800 dark:text-white">Renomear Documento</h3>
+              <h3 className="text-lg font-black tracking-tight text-slate-800 dark:text-white">Editar Documento</h3>
               <button onClick={() => setRenameAsset(null)} className="p-2 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all">
                 <X size={16} />
               </button>
@@ -322,6 +322,18 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ assets, onAdd, onUpd
                     </span>
                   )}
                 </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Categoria</label>
+                <select
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-3 text-xs font-bold outline-none focus:ring-4 focus:ring-indigo-500/10"
+                  value={renameAsset.category}
+                  onChange={(e) => setRenameAsset({ ...renameAsset, category: e.target.value as ProjectAssetCategory })}
+                >
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>{cat.label}</option>
+                  ))}
+                </select>
               </div>
               <div className="pt-2 flex items-center justify-end gap-3">
                 <button
