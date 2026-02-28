@@ -257,9 +257,32 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
   useEffect(() => { loadData(); }, [loadData]);
 
   // -- Derived data
-  const pendingStockRequests = useMemo(() => stockRequests.filter(r => r.status === 'PENDING'), [stockRequests]);
-  const processedStockRequests = useMemo(() => stockRequests.filter(r => r.status !== 'PENDING'), [stockRequests]);
+  const allPendingStockRequests = useMemo(() => stockRequests.filter(r => r.status === 'PENDING'), [stockRequests]);
   const activePurchases = useMemo(() => purchaseRequests.filter(r => r.status === 'PENDING' || r.status === 'ORDERED'), [purchaseRequests]);
+
+  // Hide pending requests that have insufficient stock AND an active purchase for the same item.
+  // They reappear automatically once stock is sufficient (regardless of purchase completion).
+  const { pendingStockRequests, awaitingPurchaseRequests } = useMemo(() => {
+    const pending: StockRequest[] = [];
+    const awaiting: StockRequest[] = [];
+    for (const r of allPendingStockRequests) {
+      const item = r.globalStockItem;
+      const insufficientStock = item && item.currentQuantity < r.quantity;
+      if (insufficientStock) {
+        const hasActivePurchase = activePurchases.some(
+          p => p.globalStockItemId === r.globalStockItemId,
+        );
+        if (hasActivePurchase) {
+          awaiting.push(r);
+          continue;
+        }
+      }
+      pending.push(r);
+    }
+    return { pendingStockRequests: pending, awaitingPurchaseRequests: awaiting };
+  }, [allPendingStockRequests, activePurchases]);
+
+  const processedStockRequests = useMemo(() => stockRequests.filter(r => r.status !== 'PENDING'), [stockRequests]);
   const completedPurchases = useMemo(() => purchaseRequests.filter(r => r.status === 'COMPLETED' || r.status === 'CANCELLED'), [purchaseRequests]);
   const filteredMovements = useMemo(() => {
     if (logFilter === 'all') return movements;
@@ -440,6 +463,14 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
                   <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4 px-1 flex items-center gap-2">
                     <Clock size={14} /> Pendentes ({pendingStockRequests.length})
                   </h2>
+                  {awaitingPurchaseRequests.length > 0 && (
+                    <div className="mb-4 flex items-center gap-3 px-5 py-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800/40 rounded-2xl">
+                      <ShoppingCart size={16} className="text-purple-500 shrink-0" />
+                      <p className="text-[10px] font-bold text-purple-600 dark:text-purple-400">
+                        {awaitingPurchaseRequests.length} {awaitingPurchaseRequests.length === 1 ? 'requisição aguardando' : 'requisições aguardando'} compra — {awaitingPurchaseRequests.length === 1 ? 'voltará' : 'voltarão'} a aparecer quando o estoque for suficiente
+                      </p>
+                    </div>
+                  )}
                   {pendingStockRequests.length === 0 ? (
                     <p className="text-center py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Nenhuma requisição pendente</p>
                   ) : (
