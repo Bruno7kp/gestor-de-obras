@@ -243,13 +243,35 @@ export class StockRequestsService {
     });
     if (!request) throw new NotFoundException('Requisição não encontrada');
 
-    // Only allow deliveries on APPROVED or PARTIALLY_DELIVERED requests
-    if (
+    // Auto-approve PENDING requests (skip manual approval step)
+    if (request.status === 'PENDING') {
+      await this.prisma.stockRequest.update({
+        where: { id: input.id },
+        data: {
+          status: 'APPROVED',
+          approvedById: input.userId,
+          approvedAt: new Date(),
+        },
+      });
+      // Emit approval notification for log/audit
+      this.notificationsService
+        .emit({
+          instanceId: input.instanceId,
+          projectId: request.projectId,
+          category: 'STOCK',
+          eventType: 'stock_request_approved',
+          title: `Requisição aprovada: ${request.itemName}`,
+          body: `Sua requisição de ${request.quantity} de "${request.itemName}" foi aprovada e aguarda envio`,
+          actorUserId: input.userId,
+          specificUserIds: [request.requestedById],
+        })
+        .catch(() => {});
+    } else if (
       request.status !== 'APPROVED' &&
       request.status !== 'PARTIALLY_DELIVERED'
     ) {
       throw new BadRequestException(
-        'Somente requisições aprovadas ou parcialmente entregues podem receber envios',
+        'Somente requisições pendentes, aprovadas ou parcialmente entregues podem receber envios',
       );
     }
 
@@ -410,12 +432,39 @@ export class StockRequestsService {
       },
     });
     if (!request) throw new NotFoundException('Requisição não encontrada');
+
+    // PENDING with no deliveries → treat as rejection
+    if (request.status === 'PENDING') {
+      const updated = await this.prisma.stockRequest.update({
+        where: { id: input.id },
+        data: {
+          status: 'REJECTED',
+          approvedById: input.userId,
+          approvedAt: new Date(),
+        },
+        include: this.requestInclude,
+      });
+      this.notificationsService
+        .emit({
+          instanceId: input.instanceId,
+          projectId: request.projectId,
+          category: 'STOCK',
+          eventType: 'stock_request_rejected',
+          title: `Material rejeitado: ${request.itemName}`,
+          body: `Sua requisição de "${request.itemName}" foi rejeitada`,
+          actorUserId: input.userId,
+          specificUserIds: [request.requestedById],
+        })
+        .catch(() => {});
+      return updated;
+    }
+
     if (
       request.status !== 'APPROVED' &&
       request.status !== 'PARTIALLY_DELIVERED'
     ) {
       throw new BadRequestException(
-        'Somente requisições aprovadas ou com entrega parcial podem ser canceladas',
+        'Somente requisições pendentes, aprovadas ou com entrega parcial podem ser canceladas',
       );
     }
 

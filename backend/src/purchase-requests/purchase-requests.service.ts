@@ -98,6 +98,43 @@ export class PurchaseRequestsService {
       throw new BadRequestException('Quantidade deve ser maior que zero');
     }
 
+    // Auto-approve linked stock request if still PENDING
+    if (input.stockRequestId) {
+      const stockRequest = await this.prisma.stockRequest.findFirst({
+        where: { id: input.stockRequestId, instanceId: input.instanceId },
+        select: {
+          id: true,
+          status: true,
+          projectId: true,
+          itemName: true,
+          quantity: true,
+          requestedById: true,
+        },
+      });
+      if (stockRequest && stockRequest.status === 'PENDING') {
+        await this.prisma.stockRequest.update({
+          where: { id: input.stockRequestId },
+          data: {
+            status: 'APPROVED',
+            approvedById: input.userId,
+            approvedAt: new Date(),
+          },
+        });
+        this.notificationsService
+          .emit({
+            instanceId: input.instanceId,
+            projectId: stockRequest.projectId,
+            category: 'STOCK',
+            eventType: 'stock_request_approved',
+            title: `Requisição aprovada: ${stockRequest.itemName}`,
+            body: `Sua requisição de ${stockRequest.quantity} de "${stockRequest.itemName}" foi aprovada e aguarda envio`,
+            actorUserId: input.userId,
+            specificUserIds: [stockRequest.requestedById],
+          })
+          .catch(() => {});
+      }
+    }
+
     // Auto-set high priority if completely out of stock
     const priority =
       input.priority ?? (item.currentQuantity <= 0 ? 'HIGH' : 'MEDIUM');
