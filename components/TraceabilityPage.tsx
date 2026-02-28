@@ -94,20 +94,20 @@ const CompleteModal: React.FC<{
 /* ------------------------------------------------------------------ */
 const KpiCard = ({ label, value, icon, color }: { label: string; value: string | number; icon: React.ReactNode; color: string }) => {
   const colors: Record<string, string> = {
-    indigo: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20',
-    emerald: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20',
-    amber: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20',
-    purple: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20',
-    blue: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20',
+    indigo: 'text-indigo-500',
+    emerald: 'text-emerald-500',
+    amber: 'text-amber-500',
+    purple: 'text-purple-500',
+    blue: 'text-blue-500',
   };
   const c = colors[color] ?? colors.indigo;
   return (
-    <div className="p-6 rounded-[2rem] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between h-32">
-      <div className="flex justify-between items-start">
-        <div className={`p-2 rounded-lg ${c}`}>{icon}</div>
-        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{label}</span>
+    <div className="flex-1 flex items-center gap-2.5 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+      <div className={c}>{icon}</div>
+      <div className="leading-tight">
+        <p className="text-sm font-black text-slate-800 dark:text-white">{value}</p>
+        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{label}</p>
       </div>
-      <p className={`text-xl font-black tracking-tighter ${c.split(' ')[0]}`}>{value}</p>
     </div>
   );
 };
@@ -426,26 +426,25 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
           </div>
         </div>
 
-        {/* KPI GRID */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <KpiCard label="Requisições Pendentes" value={kpis.pendingRequests} icon={<ClipboardList size={20} />} color="amber" />
-          <KpiCard label="Compras Ativas" value={kpis.activePurchases} icon={<ShoppingCart size={20} />} color="purple" />
-          <KpiCard label="Total Movimentações" value={kpis.totalMovements} icon={<History size={20} />} color="indigo" />
-        </div>
-
-        {/* TABS */}
-        <div className="flex bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          {tabs.map(t => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`flex-1 flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                tab === t.key ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              {t.icon} {t.label}
-            </button>
-          ))}
+        {/* KPI GRID + TABS */}
+        <div className="flex flex-wrap items-stretch gap-3">
+          <KpiCard label="Requisições Pendentes" value={kpis.pendingRequests} icon={<ClipboardList size={16} />} color="amber" />
+          <KpiCard label="Compras Ativas" value={kpis.activePurchases} icon={<ShoppingCart size={16} />} color="purple" />
+          <KpiCard label="Total Movimentações" value={kpis.totalMovements} icon={<History size={16} />} color="indigo" />
+          <div className="flex-1" />
+          <div className="flex items-center bg-white dark:bg-slate-900 p-1 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            {tabs.map(t => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                  tab === t.key ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                {t.icon} {t.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* TAB CONTENT */}

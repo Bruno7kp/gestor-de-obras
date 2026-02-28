@@ -327,34 +327,32 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, pro
           </div>
         </div>
 
-        {/* STATS GRID */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <StatCard label="Total Cadastrados" value={stats.total} icon={<Truck />} color="indigo" />
-          <StatCard label="Suprimentos Vinculados" value={stats.linkedSupplies} icon={<Boxes />} color="amber" />
-          <StatCard label="Materiais / Serviços" value={`${stats.byCategory.Material} / ${stats.byCategory.Serviço}`} icon={<Building2 />} color="emerald" />
-        </div>
-
-        {/* SEARCH & FILTERS */}
-        <div className="flex flex-col md:flex-row gap-4 items-center bg-white dark:bg-slate-900 p-4 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="relative flex-1 w-full">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input 
-              placeholder="Buscar por nome, CNPJ ou categoria..."
-              className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-sm outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-          </div>
-          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl shrink-0 overflow-x-auto no-scrollbar w-full md:w-auto">
-             {(['ALL', 'Material', 'Serviço', 'Locação'] as const).map(cat => (
-               <button 
-                 key={cat}
-                 onClick={() => setCategoryFilter(cat)}
-                 className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${categoryFilter === cat ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-               >
-                 {cat === 'ALL' ? 'Tudo' : cat}
-               </button>
-             ))}
+        {/* STATS GRID + SEARCH & FILTERS */}
+        <div className="flex flex-wrap items-stretch gap-3">
+          <StatCard label="Total Cadastrados" value={stats.total} icon={<Truck size={16} />} color="indigo" />
+          <StatCard label="Suprimentos Vinculados" value={stats.linkedSupplies} icon={<Boxes size={16} />} color="amber" />
+          <StatCard label="Materiais / Serviços" value={`${stats.byCategory.Material} / ${stats.byCategory.Serviço}`} icon={<Building2 size={16} />} color="emerald" />
+          <div className="flex items-center gap-3 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div className="relative">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+              <input
+                placeholder="Buscar fornecedor..."
+                className="pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-800 border-transparent focus:bg-white dark:focus:bg-slate-700 border-2 focus:border-indigo-500 rounded-xl outline-none transition-all text-xs font-bold w-48"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+            </div>
+            <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg shrink-0 overflow-x-auto no-scrollbar">
+              {(['ALL', 'Material', 'Serviço', 'Locação'] as const).map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setCategoryFilter(cat)}
+                  className={`px-3 py-1.5 rounded-md text-[9px] font-black uppercase tracking-widest transition-all ${categoryFilter === cat ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                  {cat === 'ALL' ? 'Tudo' : cat}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -536,17 +534,18 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, pro
 
 const StatCard = ({ label, value, icon, color }: any) => {
   const colors: any = {
-    indigo: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 border-indigo-100 dark:border-indigo-800',
-    amber: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-800',
-    emerald: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800'
+    indigo: 'text-indigo-500',
+    amber: 'text-amber-500',
+    emerald: 'text-emerald-500',
   };
+  const c = colors[color] ?? colors.indigo;
   return (
-    <div className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between h-32">
-      <div className="flex justify-between items-start">
-        <div className={`p-2 rounded-lg ${colors[color]}`}>{icon}</div>
-        <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">{label}</span>
+    <div className="flex-1 flex items-center gap-2.5 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+      <div className={c}>{icon}</div>
+      <div className="leading-tight">
+        <p className="text-sm font-black text-slate-800 dark:text-white">{value}</p>
+        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{label}</p>
       </div>
-      <p className={`text-xl font-black tracking-tighter ${colors[color].split(' ')[0]}`}>{value}</p>
     </div>
   );
 };

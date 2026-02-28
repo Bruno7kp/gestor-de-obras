@@ -283,25 +283,23 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
 
         {activeTab === 'pipeline' ? (
           <div className="space-y-8">
-            {/* KPI GRID */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <KpiCard label="Propostas Total" value={financial.formatBRL(stats.totalPipeline)} icon={<TrendingUp size={20}/>} color="indigo" />
-              <KpiCard label="Contratos Ganhos" value={financial.formatBRL(stats.wonValue)} icon={<CheckCircle2 size={20}/>} color="emerald" />
-              <KpiCard label="Em Aberto" value={financial.formatBRL(stats.openValue)} icon={<Clock size={20}/>} color="amber" />
-              <KpiCard label="Win Rate" value={`${stats.winRate.toFixed(1)}%`} icon={<Briefcase size={20}/>} color="blue" />
-            </div>
-
-            {/* ACTION BAR */}
-            <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-4 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm">
-               <div className="relative w-full max-w-md">
-                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                 <input placeholder="Buscar edital ou cliente..." className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs outline-none" value={search} onChange={e => setSearch(e.target.value)} />
-               </div>
-               {canEditBiddings && (
-                 <button onClick={handleAddBidding} className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg hover:scale-105 active:scale-95 transition-all">
-                    <Plus size={16} /> Nova Proposta
-                 </button>
-               )}
+            {/* KPI GRID + ACTION BAR */}
+            <div className="flex flex-wrap items-stretch gap-3">
+              <KpiCard label="Propostas Total" value={financial.formatBRL(stats.totalPipeline)} icon={<TrendingUp size={16}/>} color="indigo" />
+              <KpiCard label="Contratos Ganhos" value={financial.formatBRL(stats.wonValue)} icon={<CheckCircle2 size={16}/>} color="emerald" />
+              <KpiCard label="Em Aberto" value={financial.formatBRL(stats.openValue)} icon={<Clock size={16}/>} color="amber" />
+              <KpiCard label="Win Rate" value={`${stats.winRate.toFixed(1)}%`} icon={<Briefcase size={16}/>} color="blue" />
+              <div className="flex items-center gap-3 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                <div className="relative">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                  <input placeholder="Buscar edital ou cliente..." className="pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-800 border-transparent focus:bg-white dark:focus:bg-slate-700 border-2 focus:border-indigo-500 rounded-xl outline-none transition-all text-xs font-bold w-56" value={search} onChange={e => setSearch(e.target.value)} />
+                </div>
+                {canEditBiddings && (
+                  <button onClick={handleAddBidding} className="flex items-center gap-2 px-5 py-2 bg-indigo-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-indigo-500/20 hover:scale-105 active:scale-95 transition-all whitespace-nowrap">
+                    <Plus size={14} /> Nova Proposta
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* BIDDING LIST */}
@@ -477,19 +475,19 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
 
 const KpiCard = ({ label, value, icon, color }: any) => {
   const colors: any = {
-    indigo: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20',
-    emerald: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20',
-    amber: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20',
-    blue: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20',
+    indigo: 'text-indigo-500',
+    emerald: 'text-emerald-500',
+    amber: 'text-amber-500',
+    blue: 'text-blue-500',
   };
   const c = colors[color] ?? colors.indigo;
   return (
-    <div className="p-6 rounded-[2rem] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between h-32">
-       <div className="flex justify-between items-start">
-          <div className={`p-2 rounded-lg ${c}`}>{icon}</div>
-          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{label}</span>
-       </div>
-       <p className={`text-xl font-black tracking-tighter ${c.split(' ')[0]}`}>{value}</p>
+    <div className="flex-1 flex items-center gap-2.5 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+      <div className={c}>{icon}</div>
+      <div className="leading-tight">
+        <p className="text-sm font-black text-slate-800 dark:text-white">{value}</p>
+        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{label}</p>
+      </div>
     </div>
   );
 };
