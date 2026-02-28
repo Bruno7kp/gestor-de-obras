@@ -1,3 +1,7 @@
+-- AlterEnum: Add PARTIALLY_DELIVERED and DELIVERED to StockRequestStatus
+ALTER TYPE "StockRequestStatus" ADD VALUE 'PARTIALLY_DELIVERED';
+ALTER TYPE "StockRequestStatus" ADD VALUE 'DELIVERED';
+
 -- AlterTable: Add quantityDelivered to StockRequest
 ALTER TABLE "StockRequest" ADD COLUMN "quantityDelivered" DOUBLE PRECISION NOT NULL DEFAULT 0;
 
