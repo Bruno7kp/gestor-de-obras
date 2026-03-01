@@ -855,14 +855,17 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   }, [applyExpenses]);
 
   const handleExpenseDelete = useCallback(async (id: string) => {
-    const updatedExpenses = expensesRef.current.filter((expense) => expense.id !== id && expense.parentId !== id);
+    const previousExpenses = expensesRef.current;
+    const updatedExpenses = previousExpenses.filter((expense) => expense.id !== id && expense.parentId !== id);
     applyExpenses(updatedExpenses);
     try {
       await projectExpensesApi.remove(id);
     } catch (error) {
-      console.error('Erro ao excluir despesa:', error);
+      // Revert optimistic update
+      applyExpenses(previousExpenses);
+      toast.error(error instanceof Error ? error.message : 'Erro ao excluir despesa.');
     }
-  }, [applyExpenses]);
+  }, [applyExpenses, toast]);
 
   const handleExpensesReplace = useCallback(async (nextExpenses: ProjectExpense[]) => {
     const prevExpenses = expensesRef.current;

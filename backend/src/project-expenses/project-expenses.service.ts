@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import type { ExpenseStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { isLocalUpload, removeLocalUpload } from '../uploads/file.utils';
@@ -540,6 +540,7 @@ export class ProjectExpensesService {
     if (linkedForecast) {
       // Strip forecast-synced fields to prevent manual overwrites
       delete input.description;
+      delete input.entityName;
       delete input.unit;
       delete input.quantity;
       delete input.unitPrice;
@@ -551,9 +552,9 @@ export class ProjectExpensesService {
       delete input.paymentDate;
       delete input.date;
       delete input.deliveryDate;
-      delete input.paymentProof;
       delete input.type;
       delete input.itemType;
+      // paymentProof and invoiceDoc are editable from both sides
     }
 
     const nextStatus = input.status ?? existing.status;
@@ -716,6 +717,17 @@ export class ProjectExpensesService {
     });
 
     const ids = this.collectDescendants(allItems, id);
+
+    // Block deletion if ANY descendant (or the item itself) is forecast-linked
+    const linkedForecasts = await this.prisma.materialForecast.findMany({
+      where: { id: { in: ids } },
+      select: { id: true },
+    });
+    if (linkedForecasts.length > 0) {
+      throw new ForbiddenException(
+        `Não é possível excluir: ${linkedForecasts.length === 1 ? 'existe 1 item' : `existem ${linkedForecasts.length} itens`} controlado(s) por Suprimentos nesta hierarquia. Remova-os primeiro em Suprimentos.`,
+      );
+    }
 
     const attachments = await this.prisma.projectExpense.findMany({
       where: { id: { in: ids } },

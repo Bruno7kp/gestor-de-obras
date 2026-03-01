@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { ProjectExpense, ItemType, ExpenseType, ExpenseStatus, Supplier } from '../types';
 import { financial } from '../utils/math';
 import { ExpenseAttachmentZone } from './ExpenseAttachmentZone';
-import { X, Save, Truck, Users, Calculator, FolderTree, Landmark, ReceiptText, ClipboardCheck, Percent, Layers, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Save, Truck, Users, Calculator, FolderTree, Landmark, ReceiptText, ClipboardCheck, Percent, Layers, ChevronLeft, ChevronRight, Link2 } from 'lucide-react';
 
 const MIN_QUANTITY_DECIMALS = 2;
 const MAX_QUANTITY_DECIMALS = 6;
@@ -235,6 +235,15 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
           <button onClick={onClose} className="p-2 text-slate-400 hover:bg-slate-100 rounded-xl transition-all"><X size={20} /></button>
         </div>
 
+        {isSupplyLinked && (
+          <div className="mx-8 mt-4 flex items-center gap-3 px-5 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl">
+            <Link2 size={16} className="text-amber-600 shrink-0" />
+            <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-widest">
+              Item vinculado a Suprimentos — campos controlados pelo planejamento são somente leitura.
+            </p>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
           <div className="p-8 space-y-8 overflow-y-auto custom-scrollbar flex-1">
             {!editingItem && (
@@ -280,8 +289,8 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                         {!isLabor && <option value="DELIVERED">{isRevenue ? 'Faturado' : isIncome ? 'Transferido' : 'Entregue no Local'}</option>}
                       </select>
                       {isSupplyLinked && (
-                        <p className="mt-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                          Status controlado por suprimentos.
+                        <p className="mt-2 text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest flex items-center gap-1">
+                          <Link2 size={10} /> Controlado por suprimentos
                         </p>
                       )}
                     </div>
@@ -290,7 +299,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
 
                 <div className="mb-6">
                   <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">Descrição do Lançamento</label>
-                  <input required className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all" value={formData.description} onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))} placeholder="Ex: Cimento CP-II 50kg" />
+                  <input required className={`w-full px-6 py-4 rounded-2xl border-2 text-sm font-black outline-none transition-all ${isSupplyLinked ? 'border-amber-100 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-900/10 text-slate-500 cursor-not-allowed' : 'border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 focus:border-indigo-500'}`} value={formData.description} onChange={e => { if (!isSupplyLinked) setFormData(prev => ({ ...prev, description: e.target.value })); }} readOnly={isSupplyLinked} placeholder="Ex: Cimento CP-II 50kg" />
                 </div>
 
                 {!isCategory && (
@@ -298,7 +307,9 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                     <div className="grid grid-cols-2 gap-6 mb-6">
                       <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">Entidade / Fornecedor / MEI</label>
-                        {suppliers.length > 0 ? (
+                        {isSupplyLinked ? (
+                          <input className="w-full px-6 py-4 rounded-2xl border-2 border-amber-100 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-900/10 text-sm font-black outline-none text-slate-500 cursor-not-allowed transition-all" value={formData.entityName} readOnly />
+                        ) : suppliers.length > 0 ? (
                           <select
                             className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none appearance-none focus:border-indigo-500 transition-all"
                             value={formData.entityName || ''}
@@ -318,7 +329,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                       </div>
                       <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">Mês de Competência</label>
-                        <input type="date" className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all dark:[color-scheme:dark]" value={formData.date} onChange={e => setFormData(prev => ({ ...prev, date: e.target.value }))} />
+                        <input type="date" className={`w-full px-6 py-4 rounded-2xl border-2 text-sm font-black outline-none transition-all dark:[color-scheme:dark] ${isSupplyLinked ? 'border-amber-100 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-900/10 text-slate-500 cursor-not-allowed' : 'border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 focus:border-indigo-500'}`} value={formData.date} onChange={e => { if (!isSupplyLinked) setFormData(prev => ({ ...prev, date: e.target.value })); }} readOnly={isSupplyLinked} />
                       </div>
                     </div>
 
@@ -327,40 +338,42 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                         {!isOther && (
                           <div>
                             <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block text-center">Unidade</label>
-                            <input className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-black text-center uppercase outline-none focus:ring-2 focus:ring-indigo-500/20" value={formData.unit} onChange={e => setFormData(prev => ({ ...prev, unit: e.target.value }))} />
+                            <input className={`w-full px-4 py-3 rounded-xl border text-xs font-black text-center uppercase outline-none ${isSupplyLinked ? 'bg-amber-50/50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800 text-slate-500 cursor-not-allowed' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500/20'}`} value={formData.unit} onChange={e => { if (!isSupplyLinked) setFormData(prev => ({ ...prev, unit: e.target.value })); }} readOnly={isSupplyLinked} />
                           </div>
                         )}
                         {!isOther && (
                           <div>
                             <div className="flex items-center justify-between mb-2">
                               <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Qtd</label>
-                              <div className="inline-flex items-center gap-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg py-0.5 px-0.5">
-                                <button
-                                  type="button"
-                                  onClick={() => setQuantityDecimals((prev) => financial.clampDecimals(prev - 1, MIN_QUANTITY_DECIMALS, MAX_QUANTITY_DECIMALS))}
-                                  className="px-1.5 py-0.5 text-[9px] font-black text-slate-600 dark:text-slate-200 rounded-md hover:bg-white dark:hover:bg-slate-700"
-                                  title="Reduzir casas decimais"
-                                >
-                                  <ChevronLeft size={10} />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setQuantityDecimals((prev) => financial.clampDecimals(prev + 1, MIN_QUANTITY_DECIMALS, MAX_QUANTITY_DECIMALS))}
-                                  className="px-1.5 py-0.5 text-[9px] font-black text-slate-600 dark:text-slate-200 rounded-md hover:bg-white dark:hover:bg-slate-700"
-                                  title="Aumentar casas decimais"
-                                >
-                                  <ChevronRight size={10} />
-                                </button>
-                              </div>
+                              {!isSupplyLinked && (
+                                <div className="inline-flex items-center gap-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg py-0.5 px-0.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => setQuantityDecimals((prev) => financial.clampDecimals(prev - 1, MIN_QUANTITY_DECIMALS, MAX_QUANTITY_DECIMALS))}
+                                    className="px-1.5 py-0.5 text-[9px] font-black text-slate-600 dark:text-slate-200 rounded-md hover:bg-white dark:hover:bg-slate-700"
+                                    title="Reduzir casas decimais"
+                                  >
+                                    <ChevronLeft size={10} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setQuantityDecimals((prev) => financial.clampDecimals(prev + 1, MIN_QUANTITY_DECIMALS, MAX_QUANTITY_DECIMALS))}
+                                    className="px-1.5 py-0.5 text-[9px] font-black text-slate-600 dark:text-slate-200 rounded-md hover:bg-white dark:hover:bg-slate-700"
+                                    title="Aumentar casas decimais"
+                                  >
+                                    <ChevronRight size={10} />
+                                  </button>
+                                </div>
+                              )}
                             </div>
-                            <input inputMode="decimal" className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-black text-center outline-none focus:ring-2 focus:ring-indigo-500/20" value={strQty} onChange={e => handleNumericChange(e.target.value, setStrQty, 'qty')} />
+                            <input inputMode="decimal" className={`w-full px-4 py-3 rounded-xl border text-xs font-black text-center outline-none ${isSupplyLinked ? 'bg-amber-50/50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800 text-slate-500 cursor-not-allowed' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500/20'}`} value={strQty} onChange={e => { if (!isSupplyLinked) handleNumericChange(e.target.value, setStrQty, 'qty'); }} readOnly={isSupplyLinked} />
                           </div>
                         )}
                         <div>
                           <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block text-center">{isOther ? 'Valor' : 'Preço Unitário'}</label>
                           <div className="relative">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-300">R$</span>
-                            <input inputMode="decimal" className="w-full pl-8 pr-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-black text-right outline-none focus:ring-2 focus:ring-indigo-500/20" value={strPrice} onChange={e => handleNumericChange(e.target.value, setStrPrice, 'price')} />
+                            <input inputMode="decimal" className={`w-full pl-8 pr-4 py-3 rounded-xl border text-xs font-black text-right outline-none ${isSupplyLinked ? 'bg-amber-50/50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800 text-slate-500 cursor-not-allowed' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500/20'}`} value={strPrice} onChange={e => { if (!isSupplyLinked) handleNumericChange(e.target.value, setStrPrice, 'price'); }} readOnly={isSupplyLinked} />
                           </div>
                         </div>
                       </div>
@@ -369,11 +382,11 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                         <div className="col-span-2 grid grid-cols-2 gap-6">
                           <div>
                             <label className="text-[9px] font-black text-rose-500 uppercase mb-2 block text-center">Desconto (%)</label>
-                            <input inputMode="decimal" className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-900 text-xs font-black text-right text-rose-600 outline-none" value={strDiscountPercent} onChange={e => handleNumericChange(e.target.value, setStrDiscountPercent, 'discountPct')} />
+                            <input inputMode="decimal" className={`w-full px-4 py-3 rounded-xl border text-xs font-black text-right outline-none ${isSupplyLinked ? 'bg-amber-50/50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800 text-slate-500 cursor-not-allowed' : 'bg-white dark:bg-slate-900 border-rose-100 dark:border-rose-900 text-rose-600'}`} value={strDiscountPercent} onChange={e => { if (!isSupplyLinked) handleNumericChange(e.target.value, setStrDiscountPercent, 'discountPct'); }} readOnly={isSupplyLinked} />
                           </div>
                           <div>
                             <label className="text-[9px] font-black text-rose-500 uppercase mb-2 block text-center">Desconto (R$)</label>
-                            <input inputMode="decimal" className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-900 text-xs font-black text-right text-rose-600 outline-none" value={strDiscountValue} onChange={e => handleNumericChange(e.target.value, setStrDiscountValue, 'discountVal')} />
+                            <input inputMode="decimal" className={`w-full px-4 py-3 rounded-xl border text-xs font-black text-right outline-none ${isSupplyLinked ? 'bg-amber-50/50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800 text-slate-500 cursor-not-allowed' : 'bg-white dark:bg-slate-900 border-rose-100 dark:border-rose-900 text-rose-600'}`} value={strDiscountValue} onChange={e => { if (!isSupplyLinked) handleNumericChange(e.target.value, setStrDiscountValue, 'discountVal'); }} readOnly={isSupplyLinked} />
                           </div>
                         </div>
 
@@ -437,10 +450,16 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                     </label>
                     <input
                       type="date"
-                      className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-black outline-none focus:border-indigo-500 transition-all shadow-sm dark:[color-scheme:dark]"
+                      className={`w-full px-5 py-4 rounded-2xl border-2 text-xs font-black outline-none transition-all shadow-sm dark:[color-scheme:dark] ${isSupplyLinked ? 'border-amber-100 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-900/10 text-slate-500 cursor-not-allowed' : 'border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-indigo-500'}`}
                       value={formData.deliveryDate || ''}
-                      onChange={e => setFormData(prev => ({ ...prev, deliveryDate: e.target.value }))}
+                      onChange={e => { if (!isSupplyLinked) setFormData(prev => ({ ...prev, deliveryDate: e.target.value })); }}
+                      readOnly={isSupplyLinked}
                     />
+                    {isSupplyLinked && (
+                      <p className="mt-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                        <Link2 size={10} /> Controlado por suprimentos
+                      </p>
+                    )}
                   </div>
                 </div>
               )}

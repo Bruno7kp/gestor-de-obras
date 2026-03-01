@@ -118,7 +118,12 @@ export const projectExpensesApi = {
     });
 
     if (!response.ok) {
-      throw new Error('Falha ao excluir despesa');
+      let msg = 'Falha ao excluir despesa';
+      try {
+        const body = await response.json();
+        if (body.message) msg = typeof body.message === 'string' ? body.message : body.message[0];
+      } catch { /* ignore parse errors */ }
+      throw new Error(msg);
     }
   },
 };
