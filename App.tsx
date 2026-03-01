@@ -19,6 +19,7 @@ import { SupplierManager } from './components/SupplierManager';
 import { GlobalInventoryPage } from './components/GlobalInventoryPage';
 import { TraceabilityPage } from './components/TraceabilityPage';
 import { StockLogPage } from './components/StockLogPage';
+import { AuditPage } from './pages/AuditPage';
 
 import { Menu } from 'lucide-react';
 import { usePermissions } from './hooks/usePermissions';
@@ -435,6 +436,7 @@ const App: React.FC = () => {
     if (location.pathname.startsWith('/app/global-stock')) return 'Estoque Global';
     if (location.pathname.startsWith('/app/stock-log')) return 'Movimentações';
     if (location.pathname.startsWith('/app/traceability')) return 'Logística';
+    if (location.pathname.startsWith('/app/audit')) return 'Histórico de Alterações';
     if (location.pathname.startsWith('/app/settings')) return 'Configurações de Sistema';
     if (location.pathname.startsWith('/app/projects')) return 'Obra em Gestão';
     return 'Portal de Obras';
@@ -509,6 +511,10 @@ const App: React.FC = () => {
           <Route
             path="stock-log"
             element={<StockLogPage />}
+          />
+          <Route
+            path="audit"
+            element={<AuditPage />}
           />
           <Route
             path="settings/:tab?"

@@ -1,9 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 
 interface CreateBiddingInput {
   instanceId: string;
+  userId?: string;
   tenderNumber: string;
   clientName: string;
   object: string;
@@ -19,11 +21,15 @@ interface CreateBiddingInput {
 
 interface UpdateBiddingInput extends Partial<CreateBiddingInput> {
   id: string;
+  userId?: string;
 }
 
 @Injectable()
 export class BiddingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   findAll(instanceId: string) {
     return this.prisma.biddingProcess.findMany({
@@ -38,8 +44,8 @@ export class BiddingsService {
     });
   }
 
-  create(input: CreateBiddingInput) {
-    return this.prisma.biddingProcess.create({
+  async create(input: CreateBiddingInput) {
+    const created = await this.prisma.biddingProcess.create({
       data: {
         instanceId: input.instanceId,
         tenderNumber: input.tenderNumber,
@@ -53,8 +59,20 @@ export class BiddingsService {
         bdi: input.bdi,
         itemsSnapshot: (input.itemsSnapshot ?? []) as Prisma.InputJsonValue,
         assetsSnapshot: (input.assetsSnapshot ?? []) as Prisma.InputJsonValue,
+        createdById: input.userId ?? null,
       },
     });
+
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      userId: input.userId,
+      action: 'CREATE',
+      model: 'BiddingProcess',
+      entityId: created.id,
+      after: created as any,
+    });
+
+    return created;
   }
 
   async update(input: UpdateBiddingInput) {
@@ -77,17 +95,39 @@ export class BiddingsService {
         bdi: input.bdi ?? existing.bdi,
         itemsSnapshot: (input.itemsSnapshot ?? existing.itemsSnapshot) as Prisma.InputJsonValue,
         assetsSnapshot: (input.assetsSnapshot ?? existing.assetsSnapshot) as Prisma.InputJsonValue,
+        updatedById: input.userId ?? null,
       },
+    }).then(updated => {
+      void this.auditService.log({
+        instanceId: input.instanceId!,
+        userId: input.userId,
+        action: 'UPDATE',
+        model: 'BiddingProcess',
+        entityId: input.id,
+        before: existing as any,
+        after: updated as any,
+      });
+      return updated;
     });
   }
 
-  async remove(id: string, instanceId: string) {
+  async remove(id: string, instanceId: string, userId?: string) {
     const existing = await this.prisma.biddingProcess.findFirst({
       where: { id, instanceId },
     });
     if (!existing) throw new NotFoundException('Licitacao nao encontrada');
 
     await this.prisma.biddingProcess.delete({ where: { id } });
+
+    void this.auditService.log({
+      instanceId,
+      userId,
+      action: 'DELETE',
+      model: 'BiddingProcess',
+      entityId: id,
+      before: existing as any,
+    });
+
     return { deleted: 1 };
   }
 }

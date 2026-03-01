@@ -1,8 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 
 interface CreateSupplierInput {
   instanceId: string;
+  userId?: string;
   name: string;
   cnpj: string;
   contactName: string;
@@ -16,11 +18,15 @@ interface CreateSupplierInput {
 
 interface UpdateSupplierInput extends Partial<CreateSupplierInput> {
   id: string;
+  userId?: string;
 }
 
 @Injectable()
 export class SuppliersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   findAll(instanceId: string) {
     return this.prisma.supplier.findMany({
@@ -57,8 +63,8 @@ export class SuppliersService {
     });
   }
 
-  create(input: CreateSupplierInput) {
-    return this.prisma.supplier.create({
+  async create(input: CreateSupplierInput) {
+    const created = await this.prisma.supplier.create({
       data: {
         instanceId: input.instanceId,
         name: input.name,
@@ -70,8 +76,20 @@ export class SuppliersService {
         rating: input.rating,
         notes: input.notes || '',
         order: input.order ?? 0,
+        createdById: input.userId ?? null,
       },
     });
+
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      userId: input.userId,
+      action: 'CREATE',
+      model: 'Supplier',
+      entityId: created.id,
+      after: created as any,
+    });
+
+    return created;
   }
 
   async update(input: UpdateSupplierInput) {
@@ -92,11 +110,23 @@ export class SuppliersService {
         rating: input.rating ?? existing.rating,
         notes: input.notes ?? existing.notes,
         order: input.order ?? existing.order,
+        updatedById: input.userId ?? null,
       },
+    }).then(updated => {
+      void this.auditService.log({
+        instanceId: input.instanceId!,
+        userId: input.userId,
+        action: 'UPDATE',
+        model: 'Supplier',
+        entityId: input.id,
+        before: existing as any,
+        after: updated as any,
+      });
+      return updated;
     });
   }
 
-  async remove(id: string, instanceId: string) {
+  async remove(id: string, instanceId: string, userId?: string) {
     const existing = await this.prisma.supplier.findFirst({
       where: { id, instanceId },
     });
@@ -108,6 +138,16 @@ export class SuppliersService {
     });
 
     await this.prisma.supplier.delete({ where: { id } });
+
+    void this.auditService.log({
+      instanceId,
+      userId,
+      action: 'DELETE',
+      model: 'Supplier',
+      entityId: id,
+      before: existing as any,
+    });
+
     return { deleted: 1 };
   }
 }

@@ -35,6 +35,7 @@ model Instance {
   globalStockItems GlobalStockItem[]
   purchaseRequests PurchaseRequest[]
   stockRequests    StockRequest[]
+  auditLogs        AuditLog[]
 }
 
 model Subscription {
@@ -62,6 +63,9 @@ model GlobalSettings {
 
 model CompanyCertificate {
   id               String         @id @default(uuid())
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime?      @updatedAt
+  createdById      String?
   name             String
   issuer           String
   category         String         @default("OUTROS")
@@ -70,6 +74,7 @@ model CompanyCertificate {
   attachmentUrls   String[]       @default([])
   globalSettingsId String
   globalSettings   GlobalSettings @relation(fields: [globalSettingsId], references: [id])
+  createdBy        User?          @relation("UserCertificatesCreated", fields: [createdById], references: [id])
 }
 
 model User {
@@ -100,6 +105,32 @@ model User {
   notificationRecipients NotificationRecipient[]
   notificationPreferences NotificationPreference[]
   notificationDeliveries NotificationDelivery[]
+  // Audit: createdBy relations
+  createdProjects         Project[]           @relation("UserProjectsCreated")
+  createdProjectExpenses  ProjectExpense[]    @relation("UserProjectExpensesCreated")
+  createdWorkItems        WorkItem[]          @relation("UserWorkItemsCreated")
+  createdSuppliers        Supplier[]          @relation("UserSuppliersCreated")
+  createdBiddings         BiddingProcess[]    @relation("UserBiddingsCreated")
+  createdWorkforceMembers WorkforceMember[]   @relation("UserWorkforceMembersCreated")
+  createdLaborContracts   LaborContract[]     @relation("UserLaborContractsCreated")
+  createdMilestones       Milestone[]         @relation("UserMilestonesCreated")
+  createdMeasurements     MeasurementSnapshot[] @relation("UserMeasurementsCreated")
+  createdCertificates     CompanyCertificate[] @relation("UserCertificatesCreated")
+  createdProjectGroups    ProjectGroup[]      @relation("UserProjectGroupsCreated")
+  createdStockItems       StockItem[]         @relation("UserStockItemsCreated")
+  createdGlobalStockItems GlobalStockItem[]   @relation("UserGlobalStockItemsCreated")
+  // Audit: updatedBy relations
+  updatedProjects         Project[]           @relation("UserProjectsUpdated")
+  updatedProjectExpenses  ProjectExpense[]    @relation("UserProjectExpensesUpdated")
+  updatedWorkItems        WorkItem[]          @relation("UserWorkItemsUpdated")
+  updatedSuppliers        Supplier[]          @relation("UserSuppliersUpdated")
+  updatedBiddings         BiddingProcess[]    @relation("UserBiddingsUpdated")
+  updatedWorkforceMembers WorkforceMember[]   @relation("UserWorkforceMembersUpdated")
+  updatedLaborContracts   LaborContract[]     @relation("UserLaborContractsUpdated")
+  updatedStockItems       StockItem[]         @relation("UserStockItemsUpdated")
+  updatedGlobalStockItems GlobalStockItem[]   @relation("UserGlobalStockItemsUpdated")
+  // Audit log
+  auditLogs               AuditLog[]          @relation("UserAuditLogs")
 }
 
 model Role {
@@ -154,21 +185,27 @@ model ProjectMember {
 }
 
 model ProjectGroup {
-  id         String         @id @default(uuid())
-  createdAt  DateTime       @default(now())
-  parentId   String?
-  name       String
-  order      Int
-  instanceId String
-  instance   Instance       @relation(fields: [instanceId], references: [id])
-  parent     ProjectGroup?  @relation("ProjectGroupParent", fields: [parentId], references: [id])
-  children   ProjectGroup[] @relation("ProjectGroupParent")
-  projects   Project[]
+  id          String         @id @default(uuid())
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime?      @updatedAt
+  parentId    String?
+  name        String
+  order       Int
+  instanceId  String
+  createdById String?
+  instance    Instance       @relation(fields: [instanceId], references: [id])
+  parent      ProjectGroup?  @relation("ProjectGroupParent", fields: [parentId], references: [id])
+  children    ProjectGroup[] @relation("ProjectGroupParent")
+  projects    Project[]
+  createdBy   User?          @relation("UserProjectGroupsCreated", fields: [createdById], references: [id])
 }
 
 model Project {
   id                    String                @id @default(uuid())
   createdAt             DateTime              @default(now())
+  updatedAt             DateTime?             @updatedAt
+  createdById           String?
+  updatedById           String?
   groupId               String?
   order                 Int                   @default(0)
   name                  String
@@ -207,6 +244,8 @@ model Project {
   stockItems            StockItem[]
   globalStockMovements  GlobalStockMovement[]
   stockRequests         StockRequest[]
+  createdBy             User?                 @relation("UserProjectsCreated", fields: [createdById], references: [id])
+  updatedBy             User?                 @relation("UserProjectsUpdated", fields: [updatedById], references: [id])
 }
 
 model Notification {
@@ -311,6 +350,8 @@ model PDFTheme {
 
 model WorkItem {
   id                   String    @id @default(uuid())
+  createdById          String?
+  updatedById          String?
   parentId             String?
   name                 String
   type                 String
@@ -341,6 +382,8 @@ model WorkItem {
   responsibilities     WorkItemResponsibility[]
   laborContractsLegacy LaborContract[] @relation("LaborContractLinkedWorkItem")
   laborContractLinks   LaborContractWorkItem[]
+  createdBy            User?          @relation("UserWorkItemsCreated", fields: [createdById], references: [id])
+  updatedBy            User?          @relation("UserWorkItemsUpdated", fields: [updatedById], references: [id])
 }
 
 model WorkItemResponsibility {
@@ -359,8 +402,10 @@ model MeasurementSnapshot {
   date              String
   itemsSnapshot     Json
   totals            Json
+  createdById       String?
   projectId         String
   project           Project  @relation(fields: [projectId], references: [id])
+  createdBy         User?    @relation("UserMeasurementsCreated", fields: [createdById], references: [id])
 }
 
 model ProjectAsset {
@@ -379,6 +424,10 @@ model ProjectAsset {
 
 model ProjectExpense {
   id                 String          @id @default(uuid())
+  createdAt          DateTime?       @default(now())
+  updatedAt          DateTime?       @updatedAt
+  createdById        String?
+  updatedById        String?
   parentId           String?
   type               String
   itemType           String
@@ -406,6 +455,8 @@ model ProjectExpense {
   project            Project         @relation(fields: [projectId], references: [id])
   parent             ProjectExpense? @relation("ProjectExpenseParent", fields: [parentId], references: [id])
   children           ProjectExpense[] @relation("ProjectExpenseParent")
+  createdBy          User?            @relation("UserProjectExpensesCreated", fields: [createdById], references: [id])
+  updatedBy          User?            @relation("UserProjectExpensesUpdated", fields: [updatedById], references: [id])
 }
 
 model ProjectPlanning {
@@ -491,8 +542,11 @@ model Milestone {
   title            String
   date             String
   isCompleted      Boolean
+  createdById      String?
+  updatedById      String?
   projectPlanningId String
   projectPlanning  ProjectPlanning @relation(fields: [projectPlanningId], references: [id])
+  createdBy        User?          @relation("UserMilestonesCreated", fields: [createdById], references: [id])
 }
 
 model ProjectJournal {
@@ -521,18 +575,24 @@ model JournalEntry {
 }
 
 model Supplier {
-  id         String  @id @default(uuid())
-  name       String
-  cnpj       String
+  id          String   @id @default(uuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime? @updatedAt
+  createdById String?
+  updatedById String?
+  name        String
+  cnpj        String
   contactName String
-  email      String
-  phone      String
-  category   String
-  rating     Int
-  notes      String
-  order      Int
-  instanceId String
-  instance   Instance @relation(fields: [instanceId], references: [id])
+  email       String
+  phone       String
+  category    String
+  rating      Int
+  notes       String
+  order       Int
+  instanceId  String
+  instance    Instance @relation(fields: [instanceId], references: [id])
+  createdBy   User?    @relation("UserSuppliersCreated", fields: [createdById], references: [id])
+  updatedBy   User?    @relation("UserSuppliersUpdated", fields: [updatedById], references: [id])
   forecasts  MaterialForecast[]
   supplyGroups SupplyGroup[]
   globalStockItems GlobalStockItem[]
@@ -542,6 +602,10 @@ model Supplier {
 
 model BiddingProcess {
   id              String   @id @default(uuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime? @updatedAt
+  createdById     String?
+  updatedById     String?
   tenderNumber    String
   clientName      String
   object          String
@@ -555,10 +619,16 @@ model BiddingProcess {
   assetsSnapshot  Json
   instanceId      String
   instance        Instance @relation(fields: [instanceId], references: [id])
+  createdBy       User?    @relation("UserBiddingsCreated", fields: [createdById], references: [id])
+  updatedBy       User?    @relation("UserBiddingsUpdated", fields: [updatedById], references: [id])
 }
 
 model WorkforceMember {
   id               String   @id @default(uuid())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime? @updatedAt
+  createdById      String?
+  updatedById      String?
   nome             String
   cpf_cnpj         String
   empresa_vinculada String
@@ -566,6 +636,8 @@ model WorkforceMember {
   cargo            String
   projectId        String
   project          Project  @relation(fields: [projectId], references: [id])
+  createdBy        User?    @relation("UserWorkforceMembersCreated", fields: [createdById], references: [id])
+  updatedBy        User?    @relation("UserWorkforceMembersUpdated", fields: [updatedById], references: [id])
   documentos       StaffDocument[]
   responsabilidades WorkItemResponsibility[]
   laborContracts   LaborContract[]
@@ -573,6 +645,10 @@ model WorkforceMember {
 
 model LaborContract {
   id              String        @id @default(uuid())
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime?     @updatedAt
+  createdById     String?
+  updatedById     String?
   tipo            String
   descricao       String
   associadoId     String
@@ -588,6 +664,8 @@ model LaborContract {
   project         Project       @relation(fields: [projectId], references: [id])
   associado       WorkforceMember @relation(fields: [associadoId], references: [id])
   linkedWorkItem  WorkItem?     @relation("LaborContractLinkedWorkItem", fields: [linkedWorkItemId], references: [id])
+  createdBy       User?         @relation("UserLaborContractsCreated", fields: [createdById], references: [id])
+  updatedBy       User?         @relation("UserLaborContractsUpdated", fields: [updatedById], references: [id])
   linkedWorkItems LaborContractWorkItem[]
   pagamentos      LaborPayment[]
 }
@@ -641,7 +719,11 @@ model StockItem {
   order           Int             @default(0)
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
+  createdById     String?
+  updatedById     String?
   project         Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy       User?           @relation("UserStockItemsCreated", fields: [createdById], references: [id])
+  updatedBy       User?           @relation("UserStockItemsUpdated", fields: [updatedById], references: [id])
   movements       StockMovement[]
 
   @@index([projectId])
@@ -708,8 +790,12 @@ model GlobalStockItem {
   order           Int               @default(0)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
+  createdById     String?
+  updatedById     String?
   instance        Instance          @relation(fields: [instanceId], references: [id])
   supplier        Supplier?         @relation(fields: [supplierId], references: [id])
+  createdBy       User?             @relation("UserGlobalStockItemsCreated", fields: [createdById], references: [id])
+  updatedBy       User?             @relation("UserGlobalStockItemsUpdated", fields: [updatedById], references: [id])
   priceHistory    PriceHistory[]
   movements       GlobalStockMovement[]
   purchaseRequests PurchaseRequest[]
@@ -827,4 +913,26 @@ model StockRequestDelivery {
   createdBy       User         @relation("UserStockRequestDeliveries", fields: [createdById], references: [id])
 
   @@index([stockRequestId])
+}
+
+// --- LOG DE AUDITORIA ---
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  instanceId String
+  userId     String?
+  projectId  String?
+  action     String           // CREATE | UPDATE | DELETE
+  model      String           // Nome do model (e.g. "Project", "ProjectExpense")
+  entityId   String           // ID da entidade afetada
+  changes    Json?            // { campo: { from: valorAnterior, to: valorNovo } }
+  metadata   Json?            // Dados extras (IP, contexto, etc)
+  createdAt  DateTime @default(now())
+  instance   Instance @relation(fields: [instanceId], references: [id])
+  user       User?    @relation("UserAuditLogs", fields: [userId], references: [id])
+
+  @@index([instanceId, model, entityId])
+  @@index([instanceId, createdAt])
+  @@index([projectId, createdAt])
+  @@index([userId])
 }

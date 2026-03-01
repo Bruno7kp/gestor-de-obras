@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import {
   ensureProjectAccess,
   ensureProjectWritable,
@@ -57,7 +58,10 @@ interface ReorderInput {
 
 @Injectable()
 export class StockService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   private get movementInclude() {
     return {
@@ -133,18 +137,31 @@ export class StockService {
       data: { order: { increment: 1 } },
     });
 
-    return this.prisma.stockItem.create({
+    const created = await this.prisma.stockItem.create({
       data: {
         projectId: input.projectId,
         name: input.name,
         unit: input.unit ?? 'un',
         minQuantity: input.minQuantity ?? 0,
         order: 0,
+        createdById: input.userId ?? null,
       },
       include: {
         movements: { include: this.movementInclude },
       },
     });
+
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      userId: input.userId,
+      projectId: input.projectId,
+      action: 'CREATE',
+      model: 'StockItem',
+      entityId: created.id,
+      after: created as any,
+    });
+
+    return created;
   }
 
   async update(input: UpdateStockItemInput) {
@@ -177,6 +194,9 @@ export class StockService {
     if (input.name !== undefined) data.name = input.name;
     if (input.unit !== undefined) data.unit = input.unit;
     if (input.minQuantity !== undefined) data.minQuantity = input.minQuantity;
+    data.updatedById = input.userId ?? null;
+
+    const before = await this.prisma.stockItem.findUnique({ where: { id: input.id } });
 
     return this.prisma.stockItem.update({
       where: { id: input.id },
@@ -188,6 +208,18 @@ export class StockService {
           include: this.movementInclude,
         },
       },
+    }).then(updated => {
+      void this.auditService.log({
+        instanceId: input.instanceId,
+        userId: input.userId,
+        projectId: projectId,
+        action: 'UPDATE',
+        model: 'StockItem',
+        entityId: input.id,
+        before: before as any,
+        after: updated as any,
+      });
+      return updated;
     });
   }
 
@@ -208,8 +240,21 @@ export class StockService {
         }),
     );
 
-    // Cascade delete handles movements
-    return this.prisma.stockItem.delete({ where: { id } });
+    const before = await this.prisma.stockItem.findUnique({ where: { id } });
+
+    const deleted = await this.prisma.stockItem.delete({ where: { id } });
+
+    void this.auditService.log({
+      instanceId,
+      userId,
+      projectId: before?.projectId,
+      action: 'DELETE',
+      model: 'StockItem',
+      entityId: id,
+      before: before as any,
+    });
+
+    return deleted;
   }
 
   async addMovement(input: AddMovementInput) {

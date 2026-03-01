@@ -59,6 +59,7 @@ export class SuppliersController {
     return this.suppliersService.create({
       ...body,
       instanceId: req.user.instanceId,
+      userId: req.user.id,
     });
   }
 
@@ -73,12 +74,13 @@ export class SuppliersController {
       ...body,
       id,
       instanceId: req.user.instanceId,
+      userId: req.user.id,
     });
   }
 
   @Delete(':id')
   @HasPermission('suppliers.edit')
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    return this.suppliersService.remove(id, req.user.instanceId);
+    return this.suppliersService.remove(id, req.user.instanceId, req.user.id);
   }
 }

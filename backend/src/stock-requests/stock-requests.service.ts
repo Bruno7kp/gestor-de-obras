@@ -7,6 +7,7 @@ import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { GlobalStockService } from '../global-stock/global-stock.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { AuditService } from '../audit/audit.service';
 import { ensureProjectAccess } from '../common/project-access.util';
 
 interface CreateInput {
@@ -59,6 +60,7 @@ export class StockRequestsService {
     private readonly prisma: PrismaService,
     private readonly globalStockService: GlobalStockService,
     private readonly notificationsService: NotificationsService,
+    private readonly auditService: AuditService,
   ) {}
 
   private get requestInclude() {
@@ -157,6 +159,16 @@ export class StockRequestsService {
       include: this.requestInclude,
     });
 
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      userId: input.userId,
+      projectId: input.projectId,
+      action: 'CREATE',
+      model: 'StockRequest',
+      entityId: request.id,
+      after: JSON.parse(JSON.stringify(request)) as Record<string, unknown>,
+    });
+
     // Notify warehouse users
     this.notificationsService
       .emit({
@@ -191,6 +203,11 @@ export class StockRequestsService {
       );
     }
 
+    const before = JSON.parse(JSON.stringify(request)) as Record<
+      string,
+      unknown
+    >;
+
     // Update request status — stock debit happens on deliver()
     const updated = await this.prisma.stockRequest.update({
       where: { id: input.id },
@@ -200,6 +217,21 @@ export class StockRequestsService {
         approvedAt: new Date(),
       },
       include: this.requestInclude,
+    });
+
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      userId: input.userId,
+      projectId: request.projectId,
+      action: 'UPDATE',
+      model: 'StockRequest',
+      entityId: input.id,
+      before,
+      after: JSON.parse(JSON.stringify(updated)) as Record<string, unknown>,
+      metadata: { statusChange: 'PENDING → APPROVED' } as Record<
+        string,
+        unknown
+      >,
     });
 
     // Notify the requester
@@ -242,6 +274,11 @@ export class StockRequestsService {
       },
     });
     if (!request) throw new NotFoundException('Requisição não encontrada');
+
+    const before = JSON.parse(JSON.stringify(request)) as Record<
+      string,
+      unknown
+    >;
 
     // Auto-approve PENDING requests (skip manual approval step)
     if (request.status === 'PENDING') {
@@ -397,10 +434,30 @@ export class StockRequestsService {
       .catch(() => {});
 
     // Return updated request with all includes
-    return this.prisma.stockRequest.findUnique({
+    const finalRequest = await this.prisma.stockRequest.findUnique({
       where: { id: input.id },
       include: this.requestInclude,
     });
+
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      userId: input.userId,
+      projectId: request.projectId,
+      action: 'UPDATE',
+      model: 'StockRequest',
+      entityId: input.id,
+      before,
+      after: JSON.parse(JSON.stringify(finalRequest)) as Record<
+        string,
+        unknown
+      >,
+      metadata: {
+        statusChange: `${request.status} → ${finalRequest?.status}`,
+        quantityDelivered: input.quantity,
+      } as Record<string, unknown>,
+    });
+
+    return finalRequest;
   }
 
   /**
@@ -433,6 +490,11 @@ export class StockRequestsService {
     });
     if (!request) throw new NotFoundException('Requisição não encontrada');
 
+    const before = JSON.parse(JSON.stringify(request)) as Record<
+      string,
+      unknown
+    >;
+
     // PENDING with no deliveries → treat as rejection
     if (request.status === 'PENDING') {
       const updated = await this.prisma.stockRequest.update({
@@ -443,6 +505,20 @@ export class StockRequestsService {
           approvedAt: new Date(),
         },
         include: this.requestInclude,
+      });
+      void this.auditService.log({
+        instanceId: input.instanceId,
+        userId: input.userId,
+        projectId: request.projectId,
+        action: 'UPDATE',
+        model: 'StockRequest',
+        entityId: input.id,
+        before,
+        after: JSON.parse(JSON.stringify(updated)) as Record<string, unknown>,
+        metadata: { statusChange: 'PENDING → REJECTED' } as Record<
+          string,
+          unknown
+        >,
       });
       this.notificationsService
         .emit({
@@ -473,6 +549,21 @@ export class StockRequestsService {
       where: { id: input.id },
       data: { status: 'CANCELLED' },
       include: this.requestInclude,
+    });
+
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      userId: input.userId,
+      projectId: request.projectId,
+      action: 'UPDATE',
+      model: 'StockRequest',
+      entityId: input.id,
+      before,
+      after: JSON.parse(JSON.stringify(updated)) as Record<string, unknown>,
+      metadata: { statusChange: `${request.status} → CANCELLED` } as Record<
+        string,
+        unknown
+      >,
     });
 
     // Notify the requester
@@ -510,6 +601,11 @@ export class StockRequestsService {
       );
     }
 
+    const before = JSON.parse(JSON.stringify(request)) as Record<
+      string,
+      unknown
+    >;
+
     const updated = await this.prisma.stockRequest.update({
       where: { id: input.id },
       data: {
@@ -519,6 +615,21 @@ export class StockRequestsService {
         rejectionReason: input.rejectionReason ?? null,
       },
       include: this.requestInclude,
+    });
+
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      userId: input.userId,
+      projectId: request.projectId,
+      action: 'UPDATE',
+      model: 'StockRequest',
+      entityId: input.id,
+      before,
+      after: JSON.parse(JSON.stringify(updated)) as Record<string, unknown>,
+      metadata: {
+        statusChange: 'PENDING → REJECTED',
+        rejectionReason: input.rejectionReason,
+      } as Record<string, unknown>,
     });
 
     // Notify the requester

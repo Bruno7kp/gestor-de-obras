@@ -7,6 +7,7 @@ import {
   ensureProjectWritable,
 } from '../common/project-access.util';
 import { NotificationsService } from '../notifications/notifications.service';
+import { AuditService } from '../audit/audit.service';
 
 type TxClient = Prisma.TransactionClient;
 
@@ -116,6 +117,7 @@ export class PlanningService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly auditService: AuditService,
   ) {}
 
   private normalizeRelationId(value?: string | null): string | null {
@@ -600,6 +602,16 @@ export class PlanningService {
       status: createdTask.status,
     });
 
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      userId: input.userId,
+      projectId: input.projectId,
+      action: 'CREATE',
+      model: 'PlanningTask',
+      entityId: createdTask.id,
+      after: createdTask as any,
+    });
+
     return createdTask;
   }
 
@@ -652,6 +664,17 @@ export class PlanningService {
       include: this.taskInclude,
     });
 
+    void this.auditService.log({
+      instanceId,
+      userId,
+      projectId: task.projectPlanning.projectId,
+      action: 'UPDATE',
+      model: 'PlanningTask',
+      entityId: id,
+      before: task as any,
+      after: updatedTask as any,
+    });
+
     if (statusChanged) {
       await this.emitTaskStatusChangedNotification({
         instanceId,
@@ -686,6 +709,16 @@ export class PlanningService {
     await this.ensurePlanningWritable(task.projectPlanningId);
 
     await this.prisma.planningTask.delete({ where: { id } });
+
+    void this.auditService.log({
+      instanceId,
+      userId,
+      action: 'DELETE',
+      model: 'PlanningTask',
+      entityId: id,
+      before: task as any,
+    });
+
     return { deleted: 1 };
   }
 
@@ -1260,6 +1293,16 @@ export class PlanningService {
       }).catch(() => undefined);
     }
 
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      userId: input.userId,
+      projectId: input.projectId,
+      action: 'CREATE',
+      model: 'MaterialForecast',
+      entityId: created.id,
+      after: created as any,
+    });
+
     return { ...created, syncedExpense };
   }
 
@@ -1384,6 +1427,17 @@ export class PlanningService {
       }
     }
 
+    void this.auditService.log({
+      instanceId,
+      userId,
+      projectId: planning?.projectId,
+      action: 'UPDATE',
+      model: 'MaterialForecast',
+      entityId: id,
+      before: forecast as any,
+      after: updated as any,
+    });
+
     return { ...updated, syncedExpense };
   }
 
@@ -1441,6 +1495,16 @@ export class PlanningService {
     });
 
     await this.cleanupUploadsIfOrphaned(candidateUploads);
+
+    void this.auditService.log({
+      instanceId,
+      userId,
+      action: 'DELETE',
+      model: 'MaterialForecast',
+      entityId: id,
+      before: forecast as any,
+    });
+
     return { deleted: 1, deletedExpenseId: id };
   }
 
@@ -1464,7 +1528,19 @@ export class PlanningService {
         title: input.title,
         date: input.date,
         isCompleted: input.isCompleted,
+        createdById: input.userId ?? null,
       },
+    }).then(created => {
+      void this.auditService.log({
+        instanceId: input.instanceId,
+        userId: input.userId,
+        projectId: input.projectId,
+        action: 'CREATE',
+        model: 'Milestone',
+        entityId: created.id,
+        after: created as any,
+      });
+      return created;
     });
   }
 
@@ -1495,7 +1571,19 @@ export class PlanningService {
         title: data.title ?? milestone.title,
         date: data.date ?? milestone.date,
         isCompleted: data.isCompleted ?? milestone.isCompleted,
+        updatedById: userId ?? null,
       },
+    }).then(updated => {
+      void this.auditService.log({
+        instanceId,
+        userId,
+        action: 'UPDATE',
+        model: 'Milestone',
+        entityId: id,
+        before: milestone as any,
+        after: updated as any,
+      });
+      return updated;
     });
   }
 
@@ -1637,6 +1725,16 @@ export class PlanningService {
     await this.ensurePlanningWritable(milestone.projectPlanningId);
 
     await this.prisma.milestone.delete({ where: { id } });
+
+    void this.auditService.log({
+      instanceId,
+      userId,
+      action: 'DELETE',
+      model: 'Milestone',
+      entityId: id,
+      before: milestone as any,
+    });
+
     return { deleted: 1 };
   }
 }

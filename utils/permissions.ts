@@ -13,7 +13,7 @@ export type PermissionModule =
   | 'wbs' | 'blueprint' | 'technical_analysis' | 'financial_flow' | 'supplies' | 'workforce' 
   | 'planning' | 'schedule' | 'journal' | 'notifications' | 'documents' | 'stock' 
   | 'global_stock_warehouse' | 'global_stock_financial'
-  | 'project_settings' | 'period_close' | 'global_settings';
+  | 'project_settings' | 'period_close' | 'global_settings' | 'audit';
 
 export const PERMISSION_MODULES: Array<{ key: PermissionModule; label: string }> = [
   { key: 'biddings', label: 'Licitações' },
@@ -37,6 +37,7 @@ export const PERMISSION_MODULES: Array<{ key: PermissionModule; label: string }>
   { key: 'project_settings', label: 'Ajustes do projeto' },
   { key: 'period_close', label: 'Encerramento de Período' },
   { key: 'global_settings', label: 'Configurações gerais' },
+  { key: 'audit', label: 'Auditoria' },
 ];
 
 /**
@@ -127,6 +128,9 @@ export const PERMISSIONS = {
   // Global Settings
   GLOBAL_SETTINGS_VIEW: 'global_settings.view',
   GLOBAL_SETTINGS_EDIT: 'global_settings.edit',
+
+  // Audit Log
+  AUDIT_VIEW: 'audit.view',
 } as const;
 
 /**

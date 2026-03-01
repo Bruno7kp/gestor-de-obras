@@ -31,6 +31,7 @@ import { StockModule } from './stock/stock.module';
 import { GlobalStockModule } from './global-stock/global-stock.module';
 import { PurchaseRequestsModule } from './purchase-requests/purchase-requests.module';
 import { StockRequestsModule } from './stock-requests/stock-requests.module';
+import { AuditModule } from './audit/audit.module';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { StockRequestsModule } from './stock-requests/stock-requests.module';
     GlobalStockModule,
     PurchaseRequestsModule,
     StockRequestsModule,
+    AuditModule,
   ],
   controllers: [AppController],
   providers: [

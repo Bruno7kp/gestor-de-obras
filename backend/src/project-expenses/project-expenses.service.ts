@@ -8,6 +8,7 @@ import {
 } from '../common/project-access.util';
 import { NotificationsService } from '../notifications/notifications.service';
 import { JournalService } from '../journal/journal.service';
+import { AuditService } from '../audit/audit.service';
 
 interface CreateExpenseInput {
   id?: string;
@@ -73,6 +74,7 @@ export class ProjectExpensesService {
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
     private readonly journalService: JournalService,
+    private readonly auditService: AuditService,
   ) {}
 
   private async canRemoveUpload(url?: string | null) {
@@ -483,7 +485,18 @@ export class ProjectExpensesService {
         issValue: input.issValue ?? null,
         issPercentage: input.issPercentage ?? null,
         linkedWorkItemId: input.linkedWorkItemId || null,
+        createdById: input.userId ?? null,
       },
+    });
+
+    this.auditService.log({
+      instanceId: input.instanceId,
+      userId: input.userId,
+      projectId: input.projectId,
+      action: 'CREATE',
+      model: 'ProjectExpense',
+      entityId: created.id,
+      after: created,
     });
 
     if (created.status === 'PAID' || created.status === 'DELIVERED') {
@@ -586,8 +599,22 @@ export class ProjectExpensesService {
         issValue: input.issValue ?? existing.issValue,
         issPercentage: input.issPercentage ?? existing.issPercentage,
         linkedWorkItemId: input.linkedWorkItemId ?? existing.linkedWorkItemId,
+        updatedById: input.userId ?? null,
       },
     });
+
+    if (input.instanceId) {
+      this.auditService.log({
+        instanceId: input.instanceId,
+        userId: input.userId,
+        projectId: updated.projectId,
+        action: 'UPDATE',
+        model: 'ProjectExpense',
+        entityId: updated.id,
+        before: existing,
+        after: updated,
+      });
+    }
 
     if (
       input.instanceId &&
@@ -744,6 +771,16 @@ export class ProjectExpensesService {
     });
 
     await this.cleanupUploadsIfOrphaned(candidateUploads);
+
+    this.auditService.log({
+      instanceId,
+      userId,
+      projectId: target.projectId,
+      action: 'DELETE',
+      model: 'ProjectExpense',
+      entityId: id,
+      metadata: { deletedIds: ids },
+    });
 
     return { deleted: ids.length };
   }

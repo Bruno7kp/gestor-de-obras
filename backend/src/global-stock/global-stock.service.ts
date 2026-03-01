@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { AuditService } from '../audit/audit.service';
 import type {
   GlobalStockStatus,
   Prisma,
@@ -21,6 +22,7 @@ import {
 
 interface CreateGlobalStockItemInput {
   instanceId: string;
+  userId?: string;
   name: string;
   unit?: string;
   minQuantity?: number | null;
@@ -31,6 +33,7 @@ interface CreateGlobalStockItemInput {
 interface UpdateGlobalStockItemInput {
   id: string;
   instanceId: string;
+  userId?: string;
   name?: string;
   unit?: string;
   minQuantity?: number | null;
@@ -76,6 +79,7 @@ export class GlobalStockService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly auditService: AuditService,
   ) {}
 
   private get itemInclude() {
@@ -189,6 +193,7 @@ export class GlobalStockService {
     }
     return this.create({
       instanceId: input.resolvedInstanceId,
+      userId: input.userId,
       name: input.name,
       unit: input.unit,
       minQuantity: input.minQuantity,
@@ -204,7 +209,7 @@ export class GlobalStockService {
       data: { order: { increment: 1 } },
     });
 
-    return this.prisma.globalStockItem.create({
+    const created = await this.prisma.globalStockItem.create({
       data: {
         instanceId: input.instanceId,
         name: input.name,
@@ -212,6 +217,7 @@ export class GlobalStockService {
         minQuantity: input.minQuantity === undefined ? 0 : input.minQuantity,
         supplierId: input.supplierId ?? null,
         order: 0,
+        createdById: input.userId ?? null,
         // Initial price: weight of 1 unit so it doesn't dominate
         // the weighted average as real NF entries come in.
         ...(input.initialPrice && input.initialPrice > 0
@@ -223,6 +229,17 @@ export class GlobalStockService {
       },
       include: this.itemInclude,
     });
+
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      userId: input.userId,
+      action: 'CREATE',
+      model: 'GlobalStockItem',
+      entityId: created.id,
+      after: JSON.parse(JSON.stringify(created)) as Record<string, unknown>,
+    });
+
+    return created;
   }
 
   async update(input: UpdateGlobalStockItemInput) {
@@ -248,11 +265,28 @@ export class GlobalStockService {
         : { disconnect: true };
     }
 
-    return this.prisma.globalStockItem.update({
-      where: { id: input.id },
-      data,
-      include: this.itemInclude,
-    });
+    data.updatedBy = input.userId
+      ? { connect: { id: input.userId } }
+      : undefined;
+
+    return this.prisma.globalStockItem
+      .update({
+        where: { id: input.id },
+        data,
+        include: this.itemInclude,
+      })
+      .then((updated) => {
+        void this.auditService.log({
+          instanceId: input.instanceId,
+          userId: input.userId,
+          action: 'UPDATE',
+          model: 'GlobalStockItem',
+          entityId: input.id,
+          before: JSON.parse(JSON.stringify(item)) as Record<string, unknown>,
+          after: JSON.parse(JSON.stringify(updated)) as Record<string, unknown>,
+        });
+        return updated;
+      });
   }
 
   async getUsageSummary(id: string, instanceId: string) {
@@ -291,13 +325,24 @@ export class GlobalStockService {
     };
   }
 
-  async remove(id: string, instanceId: string) {
+  async remove(id: string, instanceId: string, userId?: string) {
     const item = await this.prisma.globalStockItem.findFirst({
       where: { id, instanceId },
     });
     if (!item) throw new NotFoundException('Item não encontrado');
 
-    return this.prisma.globalStockItem.delete({ where: { id } });
+    const deleted = await this.prisma.globalStockItem.delete({ where: { id } });
+
+    void this.auditService.log({
+      instanceId,
+      userId,
+      action: 'DELETE',
+      model: 'GlobalStockItem',
+      entityId: id,
+      before: JSON.parse(JSON.stringify(item)) as Record<string, unknown>,
+    });
+
+    return deleted;
   }
 
   async reorder(

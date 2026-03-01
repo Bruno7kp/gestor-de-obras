@@ -147,6 +147,7 @@ export class GlobalStockController {
     return this.globalStockService.update({
       id,
       instanceId,
+      userId: req.user.id,
       name: body.name,
       unit: body.unit,
       minQuantity: body.minQuantity,
@@ -162,7 +163,7 @@ export class GlobalStockController {
     @Req() req: AuthenticatedRequest,
   ) {
     const instanceId = await this.resolveInstance(req, targetInstanceId);
-    return this.globalStockService.remove(id, instanceId);
+    return this.globalStockService.remove(id, instanceId, req.user.id);
   }
 
   @Get(':id/usage')

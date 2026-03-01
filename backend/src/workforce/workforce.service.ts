@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import { removeLocalUpload, removeLocalUploads } from '../uploads/file.utils';
 import {
   ensureProjectAccess,
@@ -32,7 +33,10 @@ interface UpdateWorkforceInput extends Partial<CreateWorkforceInput> {
 
 @Injectable()
 export class WorkforceService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   private async ensureProject(
     projectId: string,
@@ -90,6 +94,7 @@ export class WorkforceService {
         empresa_vinculada: input.empresa_vinculada,
         foto: input.foto ?? null,
         cargo: input.cargo,
+        createdById: input.userId ?? null,
       },
     });
 
@@ -118,6 +123,17 @@ export class WorkforceService {
     return this.prisma.workforceMember.findUnique({
       where: { id: member.id },
       include: { documentos: true, responsabilidades: true },
+    }).then(result => {
+      void this.auditService.log({
+        instanceId: input.instanceId,
+        userId: input.userId,
+        projectId: input.projectId,
+        action: 'CREATE',
+        model: 'WorkforceMember',
+        entityId: member.id,
+        after: member as any,
+      });
+      return result;
     });
   }
 
@@ -138,7 +154,20 @@ export class WorkforceService {
           input.empresa_vinculada ?? existing.empresa_vinculada,
         foto: input.foto ?? existing.foto,
         cargo: input.cargo ?? existing.cargo,
+        updatedById: input.userId ?? null,
       },
+    }).then(updated => {
+      void this.auditService.log({
+        instanceId: input.instanceId,
+        userId: input.userId,
+        projectId: existing.projectId,
+        action: 'UPDATE',
+        model: 'WorkforceMember',
+        entityId: input.id,
+        before: existing as any,
+        after: updated as any,
+      });
+      return updated;
     });
   }
 
@@ -254,6 +283,17 @@ export class WorkforceService {
       where: { workforceMemberId: id },
     });
     await this.prisma.workforceMember.delete({ where: { id } });
+
+    void this.auditService.log({
+      instanceId,
+      userId,
+      projectId: member.projectId,
+      action: 'DELETE',
+      model: 'WorkforceMember',
+      entityId: id,
+      before: member as any,
+    });
+
     return { deleted: 1 };
   }
 }

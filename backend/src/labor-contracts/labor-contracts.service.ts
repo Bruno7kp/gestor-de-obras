@@ -7,6 +7,7 @@ import {
   ensureProjectWritable,
 } from '../common/project-access.util';
 import { NotificationsService } from '../notifications/notifications.service';
+import { AuditService } from '../audit/audit.service';
 
 interface LaborPaymentInput {
   id?: string;
@@ -45,6 +46,7 @@ export class LaborContractsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly auditService: AuditService,
   ) {}
 
   private async emitLaborContractCreatedNotification(
@@ -258,6 +260,7 @@ export class LaborContractsService {
           linkedWorkItemId: linkedWorkItemIds[0] || null,
           observacoes: input.observacoes || null,
           ordem: normalizedOrder,
+          createdById: input.userId ?? null,
         },
       });
 
@@ -298,6 +301,16 @@ export class LaborContractsService {
     });
 
     if (created) {
+      void this.auditService.log({
+        instanceId: input.instanceId,
+        userId: input.userId,
+        projectId: input.projectId,
+        action: 'CREATE',
+        model: 'LaborContract',
+        entityId: created.id,
+        after: created as any,
+      });
+
       await this.emitLaborContractCreatedNotification(input.instanceId, {
         id: created.id,
         projectId: created.projectId,
@@ -358,6 +371,7 @@ export class LaborContractsService {
           linkedWorkItemId: nextLinkedWorkItemId,
           observacoes: input.observacoes ?? existing.observacoes,
           ordem: normalizedOrder,
+          updatedById: input.userId ?? null,
         },
       });
 
@@ -420,6 +434,17 @@ export class LaborContractsService {
     });
 
     if (updated) {
+      void this.auditService.log({
+        instanceId: input.instanceId,
+        userId: input.userId,
+        projectId: updated.projectId,
+        action: 'UPDATE',
+        model: 'LaborContract',
+        entityId: updated.id,
+        before: existing as any,
+        after: updated as any,
+      });
+
       await this.emitLaborContractStatusChangedNotification(
         input.instanceId,
         {
@@ -574,6 +599,16 @@ export class LaborContractsService {
       where: { laborContractId: existing.id },
     });
     await this.prisma.laborContract.delete({ where: { id: existing.id } });
+
+    void this.auditService.log({
+      instanceId,
+      userId,
+      projectId: existing.projectId,
+      action: 'DELETE',
+      model: 'LaborContract',
+      entityId: id,
+      before: existing as any,
+    });
 
     return { deleted: 1 };
   }

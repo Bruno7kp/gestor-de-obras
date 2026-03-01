@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import { removeLocalUpload, removeLocalUploads } from '../uploads/file.utils';
 
 interface CreateProjectInput {
@@ -15,6 +16,7 @@ interface CreateProjectInput {
   bdi?: number;
   groupId?: string | null;
   instanceId: string;
+  userId?: string;
 }
 
 interface UpdateProjectInput {
@@ -67,7 +69,10 @@ interface UpdateProjectLifecycleInput {
 
 @Injectable()
 export class ProjectsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   /**
    * Sanitize HTML allowing only safe tags for project descriptions.
@@ -469,7 +474,7 @@ export class ProjectsService {
 
     const nextOrder = (lastProject?.order ?? -1) + 1;
 
-    return this.prisma.project.create({
+    const created = await this.prisma.project.create({
       data: {
         name: input.name,
         companyName: input.companyName,
@@ -487,8 +492,21 @@ export class ProjectsService {
         instanceId: input.instanceId,
         groupId: input.groupId ?? null,
         order: nextOrder,
+        createdById: input.userId ?? null,
       },
     });
+
+    this.auditService.log({
+      instanceId: input.instanceId,
+      userId: input.userId,
+      projectId: created.id,
+      action: 'CREATE',
+      model: 'Project',
+      entityId: created.id,
+      after: created,
+    });
+
+    return created;
   }
 
   async update(input: UpdateProjectInput) {
@@ -581,7 +599,7 @@ export class ProjectsService {
       });
     }
 
-    return this.prisma.project.update({
+    const updated = await this.prisma.project.update({
       where: { id: input.id },
       data: {
         name: input.name ?? existing.name,
@@ -615,8 +633,22 @@ export class ProjectsService {
         printCards: input.config?.printCards ?? existing.printCards,
         printSubtotals: input.config?.printSubtotals ?? existing.printSubtotals,
         showSignatures: input.config?.showSignatures ?? existing.showSignatures,
+        updatedById: input.userId ?? null,
       },
     });
+
+    this.auditService.log({
+      instanceId: input.instanceId,
+      userId: input.userId,
+      projectId: updated.id,
+      action: 'UPDATE',
+      model: 'Project',
+      entityId: updated.id,
+      before: existing,
+      after: updated,
+    });
+
+    return updated;
   }
 
   async remove(
@@ -776,7 +808,19 @@ export class ProjectsService {
     await this.prisma.projectMember.deleteMany({ where: { projectId: id } });
     await this.prisma.pDFTheme.deleteMany({ where: { projectId: id } });
 
-    return this.prisma.project.delete({ where: { id } });
+    const deleted = await this.prisma.project.delete({ where: { id } });
+
+    this.auditService.log({
+      instanceId,
+      userId,
+      projectId: id,
+      action: 'DELETE',
+      model: 'Project',
+      entityId: id,
+      before: existing,
+    });
+
+    return deleted;
   }
 
   /**

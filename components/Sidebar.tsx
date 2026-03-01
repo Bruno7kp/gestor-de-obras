@@ -590,6 +590,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <Cog size={16} />
                     <span className="text-xs font-black uppercase tracking-widest">Configuracoes</span>
                   </button>
+                  {canView('audit') && (
+                    <button
+                      onClick={() => {
+                        setAccountOpen(false);
+                        setMobileOpen(false);
+                        navigate('/app/audit');
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-slate-600 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+                      role="menuitem"
+                    >
+                      <History size={16} />
+                      <span className="text-xs font-black uppercase tracking-widest">Auditoria</span>
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       toggleDarkMode();

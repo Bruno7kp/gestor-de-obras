@@ -53,6 +53,7 @@ export class BiddingsController {
     return this.biddingsService.create({
       ...body,
       instanceId: req.user.instanceId,
+      userId: req.user.id,
     });
   }
 
@@ -67,12 +68,13 @@ export class BiddingsController {
       ...body,
       id,
       instanceId: req.user.instanceId,
+      userId: req.user.id,
     });
   }
 
   @Delete(':id')
   @HasPermission('biddings.edit')
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    return this.biddingsService.remove(id, req.user.instanceId);
+    return this.biddingsService.remove(id, req.user.instanceId, req.user.id);
   }
 }

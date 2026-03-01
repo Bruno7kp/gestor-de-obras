@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import {
   ensureProjectAccess,
   ensureProjectWritable,
@@ -23,7 +24,10 @@ interface UpdateSnapshotInput extends Partial<CreateSnapshotInput> {
 
 @Injectable()
 export class MeasurementSnapshotsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   private async ensureProject(
     projectId: string,
@@ -66,7 +70,19 @@ export class MeasurementSnapshotsService {
         date: input.date,
         itemsSnapshot: input.itemsSnapshot as Prisma.InputJsonValue,
         totals: input.totals as Prisma.InputJsonValue,
+        createdById: input.userId ?? null,
       },
+    }).then(created => {
+      void this.auditService.log({
+        instanceId: input.instanceId,
+        userId: input.userId,
+        projectId: input.projectId,
+        action: 'CREATE',
+        model: 'MeasurementSnapshot',
+        entityId: created.id,
+        after: created as any,
+      });
+      return created;
     });
   }
 
@@ -97,6 +113,18 @@ export class MeasurementSnapshotsService {
           existing.itemsSnapshot) as Prisma.InputJsonValue,
         totals: (input.totals ?? existing.totals) as Prisma.InputJsonValue,
       },
+    }).then(updated => {
+      void this.auditService.log({
+        instanceId: input.instanceId!,
+        userId: input.userId,
+        projectId: existing.projectId,
+        action: 'UPDATE',
+        model: 'MeasurementSnapshot',
+        entityId: input.id,
+        before: existing as any,
+        after: updated as any,
+      });
+      return updated;
     });
   }
 
@@ -115,6 +143,17 @@ export class MeasurementSnapshotsService {
     await ensureProjectWritable(this.prisma, existing.projectId);
 
     await this.prisma.measurementSnapshot.delete({ where: { id } });
+
+    void this.auditService.log({
+      instanceId,
+      userId,
+      projectId: existing.projectId,
+      action: 'DELETE',
+      model: 'MeasurementSnapshot',
+      entityId: id,
+      before: existing as any,
+    });
+
     return { deleted: 1 };
   }
 }

@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import {
   ensureProjectAccess,
   ensureProjectWritable,
@@ -48,6 +49,7 @@ export class WorkItemsService {
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
     private readonly journalService: JournalService,
+    private readonly auditService: AuditService,
   ) {}
 
   private async emitWorkItemJournalEntry(
@@ -98,7 +100,7 @@ export class WorkItemsService {
 
   async create(input: CreateWorkItemInput) {
     await this.ensureProject(input.projectId, input.instanceId, input.userId, true);
-    return this.prisma.workItem.create({
+    const created = await this.prisma.workItem.create({
       data: {
         id: input.id,
         projectId: input.projectId,
@@ -125,8 +127,21 @@ export class WorkItemsService {
         accumulatedPercentage: input.accumulatedPercentage ?? 0,
         balanceQuantity: input.balanceQuantity ?? 0,
         balanceTotal: input.balanceTotal ?? 0,
+        createdById: input.userId ?? null,
       },
     });
+
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      userId: input.userId,
+      projectId: input.projectId,
+      action: 'CREATE',
+      model: 'WorkItem',
+      entityId: created.id,
+      after: created as any,
+    });
+
+    return created;
   }
 
   async replaceAll(
@@ -321,7 +336,19 @@ export class WorkItemsService {
           input.accumulatedPercentage ?? existing.accumulatedPercentage,
         balanceQuantity: input.balanceQuantity ?? existing.balanceQuantity,
         balanceTotal: input.balanceTotal ?? existing.balanceTotal,
+        updatedById: input.userId ?? null,
       },
+    });
+
+    void this.auditService.log({
+      instanceId: input.instanceId!,
+      userId: input.userId,
+      projectId: existing.projectId,
+      action: 'UPDATE',
+      model: 'WorkItem',
+      entityId: input.id,
+      before: existing as any,
+      after: updated as any,
     });
 
     const crossedCompletion =
@@ -416,6 +443,17 @@ export class WorkItemsService {
 
     await this.prisma.workItem.deleteMany({
       where: { id: { in: ids } },
+    });
+
+    void this.auditService.log({
+      instanceId,
+      userId,
+      projectId: target.projectId,
+      action: 'DELETE',
+      model: 'WorkItem',
+      entityId: id,
+      before: target as any,
+      metadata: { deletedIds: ids },
     });
 
     return { deleted: ids.length };

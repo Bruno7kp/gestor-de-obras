@@ -75,6 +75,7 @@ async function main() {
     { code: 'blueprint.edit', description: 'Edit blueprint quantities' },
     { code: 'period_close.view', description: 'View period history' },
     { code: 'period_close.edit', description: 'Close/reopen measurement periods' },
+    { code: 'audit.view', description: 'View audit log' },
   ];
 
   const createdPermissions = await Promise.all(

@@ -7,6 +7,7 @@ import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { GlobalStockService } from '../global-stock/global-stock.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { AuditService } from '../audit/audit.service';
 
 interface CreateInput {
   instanceId: string;
@@ -45,6 +46,7 @@ export class PurchaseRequestsService {
     private readonly prisma: PrismaService,
     private readonly globalStockService: GlobalStockService,
     private readonly notificationsService: NotificationsService,
+    private readonly auditService: AuditService,
   ) {}
 
   private get requestInclude() {
@@ -153,6 +155,15 @@ export class PurchaseRequestsService {
       include: this.requestInclude,
     });
 
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      userId: input.userId,
+      action: 'CREATE',
+      model: 'PurchaseRequest',
+      entityId: request.id,
+      after: JSON.parse(JSON.stringify(request)) as Record<string, unknown>,
+    });
+
     // Notify financial users
     this.notificationsService
       .emit({
@@ -185,6 +196,11 @@ export class PurchaseRequestsService {
       );
     }
 
+    const before = JSON.parse(JSON.stringify(request)) as Record<
+      string,
+      unknown
+    >;
+
     const updated = await this.prisma.purchaseRequest.update({
       where: { id: input.id },
       data: {
@@ -193,6 +209,20 @@ export class PurchaseRequestsService {
         orderedAt: new Date(),
       },
       include: this.requestInclude,
+    });
+
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      userId: input.userId,
+      action: 'UPDATE',
+      model: 'PurchaseRequest',
+      entityId: input.id,
+      before,
+      after: JSON.parse(JSON.stringify(updated)) as Record<string, unknown>,
+      metadata: { statusChange: 'PENDING → ORDERED' } as Record<
+        string,
+        unknown
+      >,
     });
 
     // Notify the requester
@@ -236,6 +266,11 @@ export class PurchaseRequestsService {
       throw new BadRequestException('Preço unitário deve ser maior que zero');
     }
 
+    const before = JSON.parse(JSON.stringify(request)) as Record<
+      string,
+      unknown
+    >;
+
     // Update the purchase request
     const updated = await this.prisma.purchaseRequest.update({
       where: { id: input.id },
@@ -247,6 +282,20 @@ export class PurchaseRequestsService {
         processedById: input.userId,
       },
       include: this.requestInclude,
+    });
+
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      userId: input.userId,
+      action: 'UPDATE',
+      model: 'PurchaseRequest',
+      entityId: input.id,
+      before,
+      after: JSON.parse(JSON.stringify(updated)) as Record<string, unknown>,
+      metadata: {
+        statusChange: 'ORDERED → COMPLETED',
+        unitPrice: input.unitPrice,
+      } as Record<string, unknown>,
     });
 
     // Automatically create an ENTRY in global stock
@@ -295,7 +344,12 @@ export class PurchaseRequestsService {
       throw new BadRequestException('Solicitação já finalizada');
     }
 
-    return this.prisma.purchaseRequest.update({
+    const before = JSON.parse(JSON.stringify(request)) as Record<
+      string,
+      unknown
+    >;
+
+    const updated = await this.prisma.purchaseRequest.update({
       where: { id: input.id },
       data: {
         status: 'CANCELLED',
@@ -303,5 +357,21 @@ export class PurchaseRequestsService {
       },
       include: this.requestInclude,
     });
+
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      userId: input.userId,
+      action: 'UPDATE',
+      model: 'PurchaseRequest',
+      entityId: input.id,
+      before,
+      after: JSON.parse(JSON.stringify(updated)) as Record<string, unknown>,
+      metadata: { statusChange: `${request.status} → CANCELLED` } as Record<
+        string,
+        unknown
+      >,
+    });
+
+    return updated;
   }
 }

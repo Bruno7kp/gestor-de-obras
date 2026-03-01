@@ -652,3 +652,34 @@ export interface Project {
     showSignatures: boolean;
   };
 }
+
+// ═══════════════════════════════════════════════════════════════
+//  Audit Log
+// ═══════════════════════════════════════════════════════════════
+
+export interface AuditLogChange {
+  field: string;
+  from?: unknown;
+  to?: unknown;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  instanceId: string;
+  userId: string | null;
+  projectId: string | null;
+  action: 'CREATE' | 'UPDATE' | 'DELETE';
+  model: string;
+  entityId: string;
+  changes: AuditLogChange[] | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  user?: { id: string; name: string; profileImage?: string | null };
+}
+
+export interface AuditLogListResponse {
+  data: AuditLogEntry[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
