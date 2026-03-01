@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ChevronDown, ChevronRight, Clock, Filter, History, Loader2, Plus, Pencil, Trash2, User } from 'lucide-react';
+import { ChevronDown, ChevronRight, Filter, History, Loader2, Plus, Pencil, Trash2, User } from 'lucide-react';
 import type { AuditLogEntry, AuditLogChange, UserAccount } from '../types';
 import { auditApi } from '../services/auditApi';
 import { usersApi } from '../services/usersApi';
@@ -19,7 +19,7 @@ const MODEL_LABELS: Record<string, string> = {
   StockMovement: 'Movimentação de estoque',
   GlobalStockItem: 'Estoque geral',
   PlanningTask: 'Tarefa',
-  MaterialForecast: 'Previsão',
+  MaterialForecast: 'Suprimentos',
   Milestone: 'Marco',
   SupplyGroup: 'Grupo de insumos',
   ProjectPlanning: 'Planejamento',
@@ -167,89 +167,164 @@ const ChangeDiffRow: React.FC<{ change: AuditLogChange }> = ({ change }) => (
   </div>
 );
 
-/* ── Single audit entry card ──────────────────────────────── */
+/* ── Compact metadata summary ─────────────────────────────── */
+function metadataSummary(entry: AuditLogEntry): string | null {
+  if (!entry.metadata || Object.keys(entry.metadata).length === 0) return null;
+  if (entry.action === 'DELETE' && entry.metadata.deletedIds) {
+    return `${(entry.metadata.deletedIds as string[]).length} itens removidos em cascata`;
+  }
+  if (entry.metadata.batch) {
+    const op = (entry.metadata.operation as string) ?? 'batch';
+    const count = entry.metadata.count as number | undefined;
+    return `${op}${count ? ` (${count} itens)` : ''}`;
+  }
+  return null;
+}
+
+/** Try to derive a human-readable label for the affected entity */
+function entityLabel(entry: AuditLogEntry): string {
+  // 1. Look inside changes for a 'name' or 'description' field
+  if (Array.isArray(entry.changes)) {
+    for (const c of entry.changes) {
+      if (c.field === 'name' || c.field === 'description') {
+        const val = c.to ?? c.from;
+        if (typeof val === 'string' && val.length > 0) {
+          return val.length > 40 ? val.slice(0, 37) + '…' : val;
+        }
+      }
+    }
+  }
+  // 2. Check metadata for common name fields
+  if (entry.metadata) {
+    for (const key of ['name', 'entityName', 'description', 'wbs'] as const) {
+      const val = entry.metadata[key];
+      if (typeof val === 'string' && val.length > 0) {
+        return val.length > 40 ? val.slice(0, 37) + '…' : val;
+      }
+    }
+  }
+  // 3. Fallback: short entity ID
+  if (entry.entityId) {
+    return entry.entityId.length > 12 ? entry.entityId.slice(0, 8) + '…' : entry.entityId;
+  }
+  return '';
+}
+
+/* ── Single audit entry row (compact, expandable) ─────────── */
 const AuditCard: React.FC<{ entry: AuditLogEntry }> = ({ entry }) => {
   const [expanded, setExpanded] = useState(false);
   const config = ACTION_CONFIG[entry.action] ?? ACTION_CONFIG.UPDATE;
   const modelLabel = MODEL_LABELS[entry.model] ?? entry.model;
   const hasChanges = entry.changes && entry.changes.length > 0;
+  const hasDetails = hasChanges || (entry.metadata && Object.keys(entry.metadata).length > 0);
+  const meta = metadataSummary(entry);
 
   return (
-    <article className="border border-slate-200 dark:border-slate-800 rounded-2xl p-4 transition-all hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900">
-      {/* Header: action badge + model + timestamp */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${config.badge}`}>
-            {config.icon}
-            {config.label}
+    <article
+      className={`border border-slate-200 dark:border-slate-800 rounded-xl transition-all bg-white dark:bg-slate-900 ${
+        expanded ? 'border-indigo-200 dark:border-indigo-800 shadow-sm' : 'hover:border-slate-300 dark:hover:border-slate-700'
+      }`}
+    >
+      {/* Compact row — always visible */}
+      <button
+        type="button"
+        onClick={() => hasDetails && setExpanded(!expanded)}
+        className={`w-full flex items-center gap-2 px-3 py-2 text-left ${
+          hasDetails ? 'cursor-pointer' : 'cursor-default'
+        }`}
+      >
+        {/* Expand chevron */}
+        <span className="shrink-0 w-4 text-slate-400">
+          {hasDetails ? (
+            expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />
+          ) : null}
+        </span>
+
+        {/* Action badge */}
+        <span className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${config.badge}`}>
+          {config.icon}
+          {config.label}
+        </span>
+
+        {/* Model */}
+        <span className="shrink-0 text-[10px] font-bold text-slate-600 dark:text-slate-300">
+          {modelLabel}
+        </span>
+
+        {/* Entity name / id */}
+        {entityLabel(entry) && (
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate max-w-[200px] shrink" title={entry.entityId}>
+            · {entityLabel(entry)}
           </span>
-          <span className="inline-flex px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-            {modelLabel}
+        )}
+
+        {/* Changes count or meta hint */}
+        {hasChanges && (
+          <span className="text-[10px] text-indigo-500 dark:text-indigo-400 font-semibold shrink-0">
+            · {entry.changes!.length} {entry.changes!.length === 1 ? 'campo' : 'campos'}
           </span>
-        </div>
-        <span className="text-[10px] text-slate-400 font-semibold whitespace-nowrap flex items-center gap-1">
-          <Clock size={10} />
+        )}
+        {meta && !hasChanges && (
+          <span className="text-[10px] text-slate-400 italic truncate shrink-0">
+            · {meta}
+          </span>
+        )}
+
+        {/* Spacer */}
+        <span className="flex-1" />
+
+        {/* User avatar */}
+        {entry.user ? (
+          entry.user.profileImage ? (
+            <img
+              src={entry.user.profileImage}
+              alt={entry.user.name}
+              className="w-4 h-4 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0"
+            />
+          ) : (
+            <span className="w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-700 text-[7px] font-black flex items-center justify-center text-slate-600 dark:text-slate-200 shrink-0">
+              {getInitials(entry.user.name)}
+            </span>
+          )
+        ) : null}
+
+        {/* User name */}
+        <span className="text-[10px] font-medium text-slate-400 truncate max-w-[100px] shrink-0 hidden sm:inline">
+          {entry.user?.name ?? 'Sistema'}
+        </span>
+
+        {/* Timestamp */}
+        <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap shrink-0 ml-1">
           {relativeTime(entry.createdAt)}
         </span>
-      </div>
+      </button>
 
-      {/* User */}
-      <div className="mt-3 flex items-center gap-2">
-        {entry.user ? (
-          <>
-            {entry.user.profileImage ? (
-              <img
-                src={entry.user.profileImage}
-                alt={entry.user.name}
-                className="w-5 h-5 rounded-full object-cover border border-slate-200 dark:border-slate-700"
-              />
-            ) : (
-              <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-200 text-[9px] font-black flex items-center justify-center">
-                {getInitials(entry.user.name)}
-              </div>
-            )}
-            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 truncate">
-              {entry.user.name}
-            </span>
-          </>
-        ) : (
-          <span className="text-[11px] font-semibold text-slate-400 italic">Sistema</span>
-        )}
-      </div>
-
-      {/* Changes (collapsible) */}
-      {hasChanges && (
-        <div className="mt-3">
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 transition-colors"
-          >
-            {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-            {entry.changes!.length} {entry.changes!.length === 1 ? 'campo alterado' : 'campos alterados'}
-          </button>
-          {expanded && (
-            <div className="mt-2 pl-1 border-l-2 border-slate-200 dark:border-slate-700 ml-1">
+      {/* Expanded details */}
+      {expanded && (
+        <div className="px-3 pb-2.5 pt-0 ml-6 border-t border-slate-100 dark:border-slate-800">
+          {/* Changes list */}
+          {hasChanges && (
+            <div className="mt-1.5 pl-2 border-l-2 border-slate-200 dark:border-slate-700">
               {entry.changes!.map((c, i) => (
                 <ChangeDiffRow key={i} change={c} />
               ))}
             </div>
           )}
+
+          {/* Metadata */}
+          {entry.metadata && Object.keys(entry.metadata).length > 0 && !hasChanges && (
+            <p className="mt-1.5 text-[10px] text-slate-400 italic break-all">
+              {JSON.stringify(entry.metadata).slice(0, 200)}
+            </p>
+          )}
+
+          {/* Full timestamp + user on mobile */}
+          <div className="mt-1.5 flex items-center gap-3 text-[10px] text-slate-400">
+            <span>{new Date(entry.createdAt).toLocaleString('pt-BR')}</span>
+            <span className="sm:hidden">{entry.user?.name ?? 'Sistema'}</span>
+          </div>
         </div>
       )}
-
-      {/* Metadata hint */}
-      {entry.metadata && Object.keys(entry.metadata).length > 0 && !hasChanges && (
-        <p className="mt-2 text-[10px] text-slate-400 italic">
-          {entry.action === 'DELETE' && entry.metadata.deletedIds
-            ? `${(entry.metadata.deletedIds as string[]).length} itens removidos em cascata`
-            : JSON.stringify(entry.metadata).slice(0, 120)}
-        </p>
-      )}
-
-      {/* Full timestamp */}
-      <p className="mt-2 text-[10px] text-slate-400">
-        {new Date(entry.createdAt).toLocaleString('pt-BR')}
-      </p>
     </article>
   );
 };
@@ -265,7 +340,7 @@ export const AuditPage: React.FC = () => {
   const [userFilter, setUserFilter] = useState<string | null>(null);
   const [knownModels, setKnownModels] = useState<string[]>([]);
   const [users, setUsers] = useState<UserAccount[]>([]);
-  const PAGE_SIZE = 30;
+  const PAGE_SIZE = 50;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   // Load users + distinct models for filter dropdowns
@@ -393,7 +468,7 @@ export const AuditPage: React.FC = () => {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-        <div className="max-w-3xl mx-auto space-y-3">
+        <div className="max-w-4xl mx-auto space-y-1">
           {loading && entries.length === 0 ? (
             <div className="flex items-center justify-center py-20 gap-2 text-sm text-slate-500 dark:text-slate-400">
               <Loader2 size={18} className="animate-spin" />
