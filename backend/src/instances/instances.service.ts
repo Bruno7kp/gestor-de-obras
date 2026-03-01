@@ -2,6 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RolesService } from '../roles/roles.service';
 import { UsersService } from '../users/users.service';
+import { AuditService } from '../audit/audit.service';
 import { removeLocalUploads } from '../uploads/file.utils';
 
 interface CreateInstanceInput {
@@ -25,6 +26,7 @@ export class InstancesService {
     private readonly prisma: PrismaService,
     private readonly rolesService: RolesService,
     private readonly usersService: UsersService,
+    private readonly auditService: AuditService,
   ) {}
 
   async create(input: CreateInstanceInput) {
@@ -34,7 +36,9 @@ export class InstancesService {
     });
 
     if (existingInstance) {
-      throw new BadRequestException(`Já existe uma instância com o nome "${input.name}"`);
+      throw new BadRequestException(
+        `Já existe uma instância com o nome "${input.name}"`,
+      );
     }
 
     const instance = await this.prisma.instance.create({
@@ -59,9 +63,9 @@ export class InstancesService {
 
         // Assign Gestor Principal role to the user
         const gestorPrincipalRole = await this.prisma.role.findFirst({
-          where: { 
-            instanceId: instance.id, 
-            name: 'Gestor Principal' 
+          where: {
+            instanceId: instance.id,
+            name: 'Gestor Principal',
           },
         });
 
@@ -78,7 +82,7 @@ export class InstancesService {
             await this.prisma.role.findMany({
               where: { instanceId: instance.id },
               select: { id: true, name: true },
-            })
+            }),
           );
         }
       } catch (error) {
@@ -89,6 +93,14 @@ export class InstancesService {
         throw error;
       }
     }
+
+    void this.auditService.log({
+      instanceId: instance.id,
+      action: 'CREATE',
+      model: 'Instance',
+      entityId: instance.id,
+      after: JSON.parse(JSON.stringify(instance)) as Record<string, unknown>,
+    });
 
     return instance;
   }
@@ -109,21 +121,39 @@ export class InstancesService {
     // If name is being updated, check for duplicates
     if (input.name) {
       const existingInstance = await this.prisma.instance.findFirst({
-        where: { 
+        where: {
           name: input.name,
           NOT: { id },
         },
       });
 
       if (existingInstance) {
-        throw new BadRequestException(`Já existe uma instância com o nome "${input.name}"`);
+        throw new BadRequestException(
+          `Já existe uma instância com o nome "${input.name}"`,
+        );
       }
     }
 
-    return this.prisma.instance.update({
-      where: { id },
-      data: input,
-    });
+    const before = await this.prisma.instance.findUnique({ where: { id } });
+
+    return this.prisma.instance
+      .update({
+        where: { id },
+        data: input,
+      })
+      .then((updated) => {
+        void this.auditService.log({
+          instanceId: id,
+          action: 'UPDATE',
+          model: 'Instance',
+          entityId: id,
+          before: before
+            ? (JSON.parse(JSON.stringify(before)) as Record<string, unknown>)
+            : undefined,
+          after: JSON.parse(JSON.stringify(updated)) as Record<string, unknown>,
+        });
+        return updated;
+      });
   }
 
   async delete(id: string) {
@@ -134,15 +164,36 @@ export class InstancesService {
     });
 
     if (instances.length > 0 && instances[0].id === id) {
-      throw new BadRequestException('A instância principal não pode ser deletada');
+      throw new BadRequestException(
+        'A instância principal não pode ser deletada',
+      );
     }
+
+    const instanceBefore = await this.prisma.instance.findUnique({
+      where: { id },
+    });
+
+    void this.auditService.log({
+      instanceId: id,
+      action: 'DELETE',
+      model: 'Instance',
+      entityId: id,
+      before: instanceBefore
+        ? (JSON.parse(JSON.stringify(instanceBefore)) as Record<
+            string,
+            unknown
+          >)
+        : undefined,
+    });
 
     // Delete in cascade to avoid foreign key conflicts
     try {
-      const projectIds = (await this.prisma.project.findMany({
-        where: { instanceId: id },
-        select: { id: true },
-      })).map(p => p.id);
+      const projectIds = (
+        await this.prisma.project.findMany({
+          where: { instanceId: id },
+          select: { id: true },
+        })
+      ).map((p) => p.id);
 
       // Collect all file URLs to delete
       const filesToDelete: Array<string | null> = [];
@@ -152,7 +203,7 @@ export class InstancesService {
         where: { projectId: { in: projectIds } },
         select: { data: true },
       });
-      filesToDelete.push(...projectAssets.map(a => a.data));
+      filesToDelete.push(...projectAssets.map((a) => a.data));
 
       // 2. Collect StaffDocument files
       const staffDocs = await this.prisma.staffDocument.findMany({
@@ -161,34 +212,34 @@ export class InstancesService {
         },
         select: { arquivoUrl: true },
       });
-      filesToDelete.push(...staffDocs.map(d => d.arquivoUrl));
+      filesToDelete.push(...staffDocs.map((d) => d.arquivoUrl));
 
       // 3. Collect WorkforceMember photos
       const workforceMembers = await this.prisma.workforceMember.findMany({
         where: { projectId: { in: projectIds } },
         select: { foto: true },
       });
-      filesToDelete.push(...workforceMembers.map(w => w.foto));
+      filesToDelete.push(...workforceMembers.map((w) => w.foto));
 
       // 4. Collect User profile images
       const users = await this.prisma.user.findMany({
         where: { instanceId: id },
         select: { profileImage: true },
       });
-      filesToDelete.push(...users.map(u => u.profileImage));
+      filesToDelete.push(...users.map((u) => u.profileImage));
 
       // 5. Collect JournalEntry photos
       const journals = await this.prisma.projectJournal.findMany({
         where: { projectId: { in: projectIds } },
         select: { id: true },
       });
-      const journalIds = journals.map(j => j.id);
-      
+      const journalIds = journals.map((j) => j.id);
+
       const journalEntries = await this.prisma.journalEntry.findMany({
         where: { projectJournalId: { in: journalIds } },
         select: { photoUrls: true },
       });
-      
+
       for (const entry of journalEntries) {
         if (entry.photoUrls && Array.isArray(entry.photoUrls)) {
           filesToDelete.push(...entry.photoUrls);

@@ -196,31 +196,35 @@ export class StockService {
     if (input.minQuantity !== undefined) data.minQuantity = input.minQuantity;
     data.updatedById = input.userId ?? null;
 
-    const before = await this.prisma.stockItem.findUnique({ where: { id: input.id } });
-
-    return this.prisma.stockItem.update({
+    const before = await this.prisma.stockItem.findUnique({
       where: { id: input.id },
-      data,
-      include: {
-        movements: {
-          orderBy: { date: 'desc' },
-          take: 10,
-          include: this.movementInclude,
-        },
-      },
-    }).then(updated => {
-      void this.auditService.log({
-        instanceId: input.instanceId,
-        userId: input.userId,
-        projectId: projectId,
-        action: 'UPDATE',
-        model: 'StockItem',
-        entityId: input.id,
-        before: before as any,
-        after: updated as any,
-      });
-      return updated;
     });
+
+    return this.prisma.stockItem
+      .update({
+        where: { id: input.id },
+        data,
+        include: {
+          movements: {
+            orderBy: { date: 'desc' },
+            take: 10,
+            include: this.movementInclude,
+          },
+        },
+      })
+      .then((updated) => {
+        void this.auditService.log({
+          instanceId: input.instanceId,
+          userId: input.userId,
+          projectId: projectId,
+          action: 'UPDATE',
+          model: 'StockItem',
+          entityId: input.id,
+          before: before as any,
+          after: updated as any,
+        });
+        return updated;
+      });
   }
 
   async remove(id: string, instanceId: string, userId?: string) {
@@ -301,7 +305,9 @@ export class StockService {
           notes: input.notes ?? '',
           date: input.date
             ? new Date(
-                input.date.includes('T') ? input.date : `${input.date}T12:00:00Z`,
+                input.date.includes('T')
+                  ? input.date
+                  : `${input.date}T12:00:00Z`,
               )
             : new Date(),
         },
@@ -372,13 +378,18 @@ export class StockService {
       data.responsible = input.responsible;
     }
 
+    const before = JSON.parse(JSON.stringify(movement)) as Record<
+      string,
+      unknown
+    >;
+
     return this.prisma.$transaction(async (tx) => {
       await tx.stockMovement.update({
         where: { id: input.movementId },
         data,
       });
 
-      return tx.stockItem.update({
+      const result = await tx.stockItem.update({
         where: { id: movement.stockItemId },
         data: {
           currentQuantity: { increment: adjustment },
@@ -391,6 +402,19 @@ export class StockService {
           },
         },
       });
+
+      void this.auditService.log({
+        instanceId: project.instanceId,
+        userId: input.userId,
+        projectId: project.id,
+        action: 'UPDATE',
+        model: 'StockMovement',
+        entityId: input.movementId,
+        before,
+        after: { ...data, quantity: newQuantity } as Record<string, unknown>,
+      });
+
+      return result;
     });
   }
 
@@ -425,7 +449,7 @@ export class StockService {
     return this.prisma.$transaction(async (tx) => {
       await tx.stockMovement.delete({ where: { id: movementId } });
 
-      return tx.stockItem.update({
+      const result = await tx.stockItem.update({
         where: { id: movement.stockItemId },
         data: {
           currentQuantity: { increment: reverseDelta },
@@ -438,6 +462,18 @@ export class StockService {
           },
         },
       });
+
+      void this.auditService.log({
+        instanceId: project.instanceId,
+        userId,
+        projectId: project.id,
+        action: 'DELETE',
+        model: 'StockMovement',
+        entityId: movementId,
+        before: JSON.parse(JSON.stringify(movement)) as Record<string, unknown>,
+      });
+
+      return result;
     });
   }
 

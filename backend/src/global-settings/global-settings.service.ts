@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import { removeLocalUploads } from '../uploads/file.utils';
 
 interface UpdateGlobalSettingsInput {
@@ -23,7 +24,10 @@ interface CreateCertificateInput {
 
 @Injectable()
 export class GlobalSettingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   private normalizeAttachmentUrls(value: unknown): string[] {
     if (Array.isArray(value)) {
@@ -120,18 +124,33 @@ export class GlobalSettingsService {
 
     if (!existing) throw new NotFoundException('Settings nao encontrados');
 
-    return this.prisma.globalSettings.update({
-      where: { id: existing.id },
-      data: {
-        defaultCompanyName:
-          input.defaultCompanyName ?? existing.defaultCompanyName,
-        companyCnpj: input.companyCnpj ?? existing.companyCnpj,
-        userName: input.userName ?? existing.userName,
-        language: input.language ?? existing.language,
-        currencySymbol: input.currencySymbol ?? existing.currencySymbol,
-      },
-      include: { certificates: true },
-    });
+    return this.prisma.globalSettings
+      .update({
+        where: { id: existing.id },
+        data: {
+          defaultCompanyName:
+            input.defaultCompanyName ?? existing.defaultCompanyName,
+          companyCnpj: input.companyCnpj ?? existing.companyCnpj,
+          userName: input.userName ?? existing.userName,
+          language: input.language ?? existing.language,
+          currencySymbol: input.currencySymbol ?? existing.currencySymbol,
+        },
+        include: { certificates: true },
+      })
+      .then((updated) => {
+        void this.auditService.log({
+          instanceId: input.instanceId,
+          action: 'UPDATE',
+          model: 'GlobalSettings',
+          entityId: existing.id,
+          before: JSON.parse(JSON.stringify(existing)) as Record<
+            string,
+            unknown
+          >,
+          after: JSON.parse(JSON.stringify(updated)) as Record<string, unknown>,
+        });
+        return updated;
+      });
   }
 
   async addCertificate(input: CreateCertificateInput) {
@@ -161,7 +180,17 @@ export class GlobalSettingsService {
       where: { id: created.id },
     });
 
-    return refreshed ?? created;
+    const result = refreshed ?? created;
+
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      action: 'CREATE',
+      model: 'CompanyCertificate',
+      entityId: result.id,
+      after: JSON.parse(JSON.stringify(result)) as Record<string, unknown>,
+    });
+
+    return result;
   }
 
   async updateCertificate(
@@ -219,7 +248,22 @@ export class GlobalSettingsService {
     });
 
     await this.cleanupCertificateUploadsIfOrphaned(removedUrls);
-    return refreshed ?? updated;
+
+    const result = refreshed ?? updated;
+
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      action: 'UPDATE',
+      model: 'CompanyCertificate',
+      entityId: id,
+      before: JSON.parse(JSON.stringify(existingCertificate)) as Record<
+        string,
+        unknown
+      >,
+      after: JSON.parse(JSON.stringify(result)) as Record<string, unknown>,
+    });
+
+    return result;
   }
 
   async removeCertificate(id: string, instanceId: string) {
@@ -236,6 +280,18 @@ export class GlobalSettingsService {
 
     await this.prisma.companyCertificate.delete({ where: { id } });
     await this.cleanupCertificateUploadsIfOrphaned(attachmentUrls);
+
+    void this.auditService.log({
+      instanceId,
+      action: 'DELETE',
+      model: 'CompanyCertificate',
+      entityId: id,
+      before: JSON.parse(JSON.stringify(settings.certificates[0])) as Record<
+        string,
+        unknown
+      >,
+    });
+
     return { deleted: 1 };
   }
 }

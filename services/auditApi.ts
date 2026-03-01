@@ -38,4 +38,12 @@ export const auditApi = {
     if (!res.ok) throw new Error('Entrada de auditoria não encontrada');
     return res.json();
   },
+
+  async distinctModels(): Promise<string[]> {
+    const res = await fetch(`${API_BASE}/audit/models`, {
+      credentials: 'include',
+    });
+    if (!res.ok) return [];
+    return res.json();
+  },
 };

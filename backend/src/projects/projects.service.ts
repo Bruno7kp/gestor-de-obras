@@ -85,30 +85,44 @@ export class ProjectsService {
     if (!trimmed || trimmed === '<p><br></p>') return null;
 
     const allowedTags = new Set([
-      'p', 'br', 'strong', 'b', 'em', 'i', 'a', 'ul', 'ol', 'li',
+      'p',
+      'br',
+      'strong',
+      'b',
+      'em',
+      'i',
+      'a',
+      'ul',
+      'ol',
+      'li',
     ]);
 
-    return trimmed.replace(/<\/?([a-zA-Z][a-zA-Z0-9]*)\b([^>]*)?\/?>/g, (match, tag, attrs) => {
-      const lowerTag = (tag as string).toLowerCase();
-      if (!allowedTags.has(lowerTag)) return '';
-      if (lowerTag === 'a' && attrs) {
-        const hrefMatch = (attrs as string).match(/href\s*=\s*"([^"]*)"/i);
-        const targetMatch = (attrs as string).match(/target\s*=\s*"([^"]*)"/i);
-        const safeAttrs: string[] = [];
-        if (hrefMatch) {
-          const href = hrefMatch[1];
-          if (/^https?:\/\//i.test(href)) {
-            safeAttrs.push(`href="${href}"`);
+    return trimmed.replace(
+      /<\/?([a-zA-Z][a-zA-Z0-9]*)\b([^>]*)?\/?>/g,
+      (match, tag, attrs) => {
+        const lowerTag = (tag as string).toLowerCase();
+        if (!allowedTags.has(lowerTag)) return '';
+        if (lowerTag === 'a' && attrs) {
+          const hrefMatch = (attrs as string).match(/href\s*=\s*"([^"]*)"/i);
+          const targetMatch = (attrs as string).match(
+            /target\s*=\s*"([^"]*)"/i,
+          );
+          const safeAttrs: string[] = [];
+          if (hrefMatch) {
+            const href = hrefMatch[1];
+            if (/^https?:\/\//i.test(href)) {
+              safeAttrs.push(`href="${href}"`);
+            }
           }
+          safeAttrs.push('target="_blank"');
+          safeAttrs.push('rel="noopener noreferrer"');
+          return `<a ${safeAttrs.join(' ')}>`;
         }
-        safeAttrs.push('target="_blank"');
-        safeAttrs.push('rel="noopener noreferrer"');
-        return `<a ${safeAttrs.join(' ')}>`;
-      }
-      if (match.startsWith('</')) return `</${lowerTag}>`;
-      if (match.endsWith('/>')) return `<${lowerTag} />`;
-      return `<${lowerTag}>`;
-    });
+        if (match.startsWith('</')) return `</${lowerTag}>`;
+        if (match.endsWith('/>')) return `<${lowerTag} />`;
+        return `<${lowerTag}>`;
+      },
+    );
   }
 
   private async canManageProjectLifecycle(
@@ -210,9 +224,11 @@ export class ProjectsService {
 
     return projects.map((project) => {
       const totals = aggregateMap.get(project.id);
-      const contractTotal = project.contractTotalOverride ?? totals?._sum.contractTotal ?? 0;
+      const contractTotal =
+        project.contractTotalOverride ?? totals?._sum.contractTotal ?? 0;
       const accumulatedTotal = totals?._sum.accumulatedTotal ?? 0;
-      const progress = contractTotal > 0 ? (accumulatedTotal / contractTotal) * 100 : 0;
+      const progress =
+        contractTotal > 0 ? (accumulatedTotal / contractTotal) * 100 : 0;
       return { ...project, progress };
     });
   }
@@ -355,10 +371,18 @@ export class ProjectsService {
         planning: {
           include: {
             tasks: {
-              include: { createdBy: { select: { id: true, name: true, profileImage: true } } },
+              include: {
+                createdBy: {
+                  select: { id: true, name: true, profileImage: true },
+                },
+              },
             },
             forecasts: {
-              include: { createdBy: { select: { id: true, name: true, profileImage: true } } },
+              include: {
+                createdBy: {
+                  select: { id: true, name: true, profileImage: true },
+                },
+              },
             },
             milestones: true,
           },
@@ -367,7 +391,9 @@ export class ProjectsService {
           include: {
             entries: {
               include: {
-                createdBy: { select: { id: true, name: true, profileImage: true } },
+                createdBy: {
+                  select: { id: true, name: true, profileImage: true },
+                },
               },
             },
           },
@@ -377,7 +403,11 @@ export class ProjectsService {
           include: {
             pagamentos: {
               orderBy: { data: 'asc' },
-              include: { createdBy: { select: { id: true, name: true, profileImage: true } } },
+              include: {
+                createdBy: {
+                  select: { id: true, name: true, profileImage: true },
+                },
+              },
             },
             linkedWorkItems: { select: { workItemId: true } },
           },
@@ -397,7 +427,9 @@ export class ProjectsService {
           expenses: true,
           assets: {
             include: {
-              createdBy: { select: { id: true, name: true, profileImage: true } },
+              createdBy: {
+                select: { id: true, name: true, profileImage: true },
+              },
             },
           },
           theme: true,
@@ -428,10 +460,18 @@ export class ProjectsService {
           planning: {
             include: {
               tasks: {
-                include: { createdBy: { select: { id: true, name: true, profileImage: true } } },
+                include: {
+                  createdBy: {
+                    select: { id: true, name: true, profileImage: true },
+                  },
+                },
               },
               forecasts: {
-                include: { createdBy: { select: { id: true, name: true, profileImage: true } } },
+                include: {
+                  createdBy: {
+                    select: { id: true, name: true, profileImage: true },
+                  },
+                },
               },
               milestones: true,
             },
@@ -440,7 +480,9 @@ export class ProjectsService {
             include: {
               entries: {
                 include: {
-                  createdBy: { select: { id: true, name: true, profileImage: true } },
+                  createdBy: {
+                    select: { id: true, name: true, profileImage: true },
+                  },
                 },
               },
             },
@@ -450,7 +492,11 @@ export class ProjectsService {
             include: {
               pagamentos: {
                 orderBy: { data: 'asc' },
-                include: { createdBy: { select: { id: true, name: true, profileImage: true } } },
+                include: {
+                  createdBy: {
+                    select: { id: true, name: true, profileImage: true },
+                  },
+                },
               },
               linkedWorkItems: { select: { workItemId: true } },
             },
@@ -609,7 +655,7 @@ export class ProjectsService {
             : existing.description,
         responsavel:
           input.responsavel !== undefined
-            ? (input.responsavel?.trim() || null)
+            ? input.responsavel?.trim() || null
             : existing.responsavel,
         companyName: input.companyName ?? existing.companyName,
         companyCnpj: input.companyCnpj ?? existing.companyCnpj,
@@ -907,13 +953,34 @@ export class ProjectsService {
     if (shouldArchive && project.isArchived) return project;
     if (!shouldArchive && !project.isArchived) return project;
 
-    return this.prisma.project.update({
+    const before = JSON.parse(JSON.stringify(project)) as Record<
+      string,
+      unknown
+    >;
+
+    const updated = await this.prisma.project.update({
       where: { id: project.id },
       data: {
         isArchived: shouldArchive,
         archivedAt: shouldArchive ? new Date() : null,
       },
     });
+
+    void this.auditService.log({
+      instanceId: project.instanceId,
+      userId: input.userId,
+      projectId: project.id,
+      action: 'UPDATE',
+      model: 'Project',
+      entityId: project.id,
+      before,
+      after: JSON.parse(JSON.stringify(updated)) as Record<string, unknown>,
+      metadata: {
+        statusChange: shouldArchive ? 'active → archived' : 'archived → active',
+      } as Record<string, unknown>,
+    });
+
+    return updated;
   }
 
   /**
@@ -982,10 +1049,18 @@ export class ProjectsService {
         planning: {
           include: {
             tasks: {
-              include: { createdBy: { select: { id: true, name: true, profileImage: true } } },
+              include: {
+                createdBy: {
+                  select: { id: true, name: true, profileImage: true },
+                },
+              },
             },
             forecasts: {
-              include: { createdBy: { select: { id: true, name: true, profileImage: true } } },
+              include: {
+                createdBy: {
+                  select: { id: true, name: true, profileImage: true },
+                },
+              },
             },
             milestones: true,
           },
@@ -994,7 +1069,9 @@ export class ProjectsService {
           include: {
             entries: {
               include: {
-                createdBy: { select: { id: true, name: true, profileImage: true } },
+                createdBy: {
+                  select: { id: true, name: true, profileImage: true },
+                },
               },
             },
           },
@@ -1004,7 +1081,11 @@ export class ProjectsService {
           include: {
             pagamentos: {
               orderBy: { data: 'asc' },
-              include: { createdBy: { select: { id: true, name: true, profileImage: true } } },
+              include: {
+                createdBy: {
+                  select: { id: true, name: true, profileImage: true },
+                },
+              },
             },
             linkedWorkItems: { select: { workItemId: true } },
           },

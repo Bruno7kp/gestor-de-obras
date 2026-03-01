@@ -6,6 +6,7 @@ import {
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { AuditService } from '../audit/audit.service';
 
 interface CreateUserInput {
   name: string;
@@ -55,6 +56,7 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mailService: MailService,
+    private readonly auditService: AuditService,
   ) {}
 
   async create(input: CreateUserInput) {
@@ -71,6 +73,18 @@ export class UsersService {
     });
 
     await this.mailService.sendWelcomeEmail(user.email, user.name);
+
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      action: 'CREATE',
+      model: 'User',
+      entityId: user.id,
+      after: {
+        name: user.name,
+        email: user.email,
+        status: user.status,
+      } as Record<string, unknown>,
+    });
 
     return user;
   }
@@ -151,6 +165,19 @@ export class UsersService {
       },
     });
 
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      userId: input.userId,
+      action: 'UPDATE',
+      model: 'User',
+      entityId: input.userId,
+      metadata: {
+        operation: 'assignRole',
+        roleId: input.roleId,
+        roleName: role.name,
+      } as Record<string, unknown>,
+    });
+
     return this.prisma.user.findUnique({
       where: { id: input.userId },
       select: {
@@ -197,6 +224,18 @@ export class UsersService {
       });
     }
 
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      userId: input.userId,
+      action: 'UPDATE',
+      model: 'User',
+      entityId: input.userId,
+      metadata: {
+        operation: 'setRoles',
+        roleIds: input.roleIds,
+      } as Record<string, unknown>,
+    });
+
     return this.prisma.user.findUnique({
       where: { id: input.userId },
       select: {
@@ -231,7 +270,7 @@ export class UsersService {
 
     if (!existing) throw new NotFoundException('Usuario nao encontrado');
 
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id: input.userId },
       data: {
         name: input.name ?? existing.name,
@@ -252,6 +291,24 @@ export class UsersService {
         roles: { include: { role: true } },
       },
     });
+
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      userId: input.userId,
+      action: 'UPDATE',
+      model: 'User',
+      entityId: input.userId,
+      before: {
+        name: existing.name,
+        email: existing.email,
+      } as Record<string, unknown>,
+      after: {
+        name: updated.name,
+        email: updated.email,
+      } as Record<string, unknown>,
+    });
+
+    return updated;
   }
 
   async updatePassword(input: UpdatePasswordInput) {
@@ -275,6 +332,15 @@ export class UsersService {
     await this.prisma.user.update({
       where: { id: input.userId },
       data: { passwordHash: newHash },
+    });
+
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      userId: input.userId,
+      action: 'UPDATE',
+      model: 'User',
+      entityId: input.userId,
+      metadata: { operation: 'passwordChange' } as Record<string, unknown>,
     });
 
     return { ok: true };
@@ -316,20 +382,39 @@ export class UsersService {
       updateData.passwordHash = await bcrypt.hash(input.password, 10);
     }
 
-    return this.prisma.user.update({
-      where: { id: input.userId },
-      data: updateData,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        status: true,
-        createdAt: true,
-        instanceId: true,
-        profileImage: true,
-        roles: { include: { role: true } },
-      },
-    });
+    return this.prisma.user
+      .update({
+        where: { id: input.userId },
+        data: updateData,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          status: true,
+          createdAt: true,
+          instanceId: true,
+          profileImage: true,
+          roles: { include: { role: true } },
+        },
+      })
+      .then((updated) => {
+        void this.auditService.log({
+          instanceId: input.instanceId,
+          userId: input.userId,
+          action: 'UPDATE',
+          model: 'User',
+          entityId: input.userId,
+          before: {
+            name: existing.name,
+            email: existing.email,
+          } as Record<string, unknown>,
+          after: {
+            name: updated.name,
+            email: updated.email,
+          } as Record<string, unknown>,
+        });
+        return updated;
+      });
   }
 
   async toggleStatus(userId: string, instanceId: string) {
@@ -341,19 +426,32 @@ export class UsersService {
 
     const newStatus = existing.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
 
-    return this.prisma.user.update({
-      where: { id: userId },
-      data: { status: newStatus },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        status: true,
-        createdAt: true,
-        instanceId: true,
-        profileImage: true,
-        roles: { include: { role: true } },
-      },
-    });
+    return this.prisma.user
+      .update({
+        where: { id: userId },
+        data: { status: newStatus },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          status: true,
+          createdAt: true,
+          instanceId: true,
+          profileImage: true,
+          roles: { include: { role: true } },
+        },
+      })
+      .then((updated) => {
+        void this.auditService.log({
+          instanceId,
+          action: 'UPDATE',
+          model: 'User',
+          entityId: userId,
+          before: { status: existing.status } as Record<string, unknown>,
+          after: { status: newStatus } as Record<string, unknown>,
+          metadata: { operation: 'toggleStatus' } as Record<string, unknown>,
+        });
+        return updated;
+      });
   }
 }

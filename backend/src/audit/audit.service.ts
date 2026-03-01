@@ -91,14 +91,25 @@ export class AuditService {
     };
   }
 
-  /** Single audit entry detail */
-  async findById(id: string) {
-    return this.prisma.auditLog.findUnique({
-      where: { id },
+  /** Single audit entry detail (instance-scoped) */
+  async findById(id: string, instanceId: string) {
+    return this.prisma.auditLog.findFirst({
+      where: { id, instanceId },
       include: {
         user: { select: { id: true, name: true, profileImage: true } },
       },
     });
+  }
+
+  /** Return distinct model names that have audit entries for this instance */
+  async distinctModels(instanceId: string): Promise<string[]> {
+    const rows = await this.prisma.auditLog.findMany({
+      where: { instanceId },
+      distinct: ['model'],
+      select: { model: true },
+      orderBy: { model: 'asc' },
+    });
+    return rows.map((r) => r.model);
   }
 
   // ─── Private helpers ───────────────────────────────────

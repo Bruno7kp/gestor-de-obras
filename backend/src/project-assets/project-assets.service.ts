@@ -6,6 +6,7 @@ import {
   ensureProjectWritable,
 } from '../common/project-access.util';
 import { NotificationsService } from '../notifications/notifications.service';
+import { AuditService } from '../audit/audit.service';
 
 interface CreateAssetInput {
   id?: string;
@@ -32,6 +33,7 @@ export class ProjectAssetsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly auditService: AuditService,
   ) {}
 
   private async emitAssetCreatedNotification(input: {
@@ -122,7 +124,12 @@ export class ProjectAssetsService {
   }
 
   async create(input: CreateAssetInput) {
-    await this.ensureProject(input.projectId, input.instanceId, input.userId, true);
+    await this.ensureProject(
+      input.projectId,
+      input.instanceId,
+      input.userId,
+      true,
+    );
     const createdAsset = await this.prisma.projectAsset.create({
       data: {
         id: input.id,
@@ -154,6 +161,19 @@ export class ProjectAssetsService {
       },
     });
 
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      userId: input.userId,
+      projectId: input.projectId,
+      action: 'CREATE',
+      model: 'ProjectAsset',
+      entityId: createdAsset.id,
+      after: JSON.parse(JSON.stringify(createdAsset)) as Record<
+        string,
+        unknown
+      >,
+    });
+
     return createdAsset;
   }
 
@@ -176,6 +196,11 @@ export class ProjectAssetsService {
     if (!existing) throw new NotFoundException('Arquivo nao encontrado');
 
     await ensureProjectWritable(this.prisma, existing.projectId);
+
+    const before = JSON.parse(JSON.stringify(existing)) as Record<
+      string,
+      unknown
+    >;
 
     const updatedAsset = await this.prisma.projectAsset.update({
       where: { id: input.id },
@@ -206,6 +231,20 @@ export class ProjectAssetsService {
       },
     });
 
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      userId: input.userId,
+      projectId: existing.projectId,
+      action: 'UPDATE',
+      model: 'ProjectAsset',
+      entityId: input.id,
+      before,
+      after: JSON.parse(JSON.stringify(updatedAsset)) as Record<
+        string,
+        unknown
+      >,
+    });
+
     return updatedAsset;
   }
 
@@ -225,6 +264,17 @@ export class ProjectAssetsService {
 
     await removeLocalUpload(existing.data);
     await this.prisma.projectAsset.delete({ where: { id } });
+
+    void this.auditService.log({
+      instanceId,
+      userId,
+      projectId: existing.projectId,
+      action: 'DELETE',
+      model: 'ProjectAsset',
+      entityId: id,
+      before: JSON.parse(JSON.stringify(existing)) as Record<string, unknown>,
+    });
+
     return { deleted: 1 };
   }
 }

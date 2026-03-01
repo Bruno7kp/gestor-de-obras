@@ -191,8 +191,12 @@ export class LaborContractsService {
     await Promise.all(ids.map((id) => this.ensureWorkItem(id, projectId)));
   }
 
-  private normalizeLinkedWorkItemIds(linkedWorkItemIds?: string[], linkedWorkItemId?: string) {
-    const ids = linkedWorkItemIds ?? (linkedWorkItemId ? [linkedWorkItemId] : []);
+  private normalizeLinkedWorkItemIds(
+    linkedWorkItemIds?: string[],
+    linkedWorkItemId?: string,
+  ) {
+    const ids =
+      linkedWorkItemIds ?? (linkedWorkItemId ? [linkedWorkItemId] : []);
     return Array.from(new Set(ids.filter(Boolean)));
   }
 
@@ -201,7 +205,10 @@ export class LaborContractsService {
     linkedWorkItemId?: string;
   }): string[] | undefined {
     if (input.linkedWorkItemIds !== undefined) {
-      return this.normalizeLinkedWorkItemIds(input.linkedWorkItemIds, undefined);
+      return this.normalizeLinkedWorkItemIds(
+        input.linkedWorkItemIds,
+        undefined,
+      );
     }
     if (input.linkedWorkItemId !== undefined) {
       return this.normalizeLinkedWorkItemIds(undefined, input.linkedWorkItemId);
@@ -209,9 +216,17 @@ export class LaborContractsService {
     return undefined;
   }
 
-  private getPaymentTotals(pagamentos: LaborPaymentInput[], valorTotal: number) {
+  private getPaymentTotals(
+    pagamentos: LaborPaymentInput[],
+    valorTotal: number,
+  ) {
     const valorPago = pagamentos.reduce((sum, p) => sum + (p.valor || 0), 0);
-    const status = valorPago === 0 ? 'pendente' : valorPago >= valorTotal ? 'pago' : 'parcial';
+    const status =
+      valorPago === 0
+        ? 'pendente'
+        : valorPago >= valorTotal
+          ? 'pago'
+          : 'parcial';
     return { valorPago, status };
   }
 
@@ -223,7 +238,9 @@ export class LaborContractsService {
       include: {
         pagamentos: {
           orderBy: { data: 'asc' },
-          include: { createdBy: { select: { id: true, name: true, profileImage: true } } },
+          include: {
+            createdBy: { select: { id: true, name: true, profileImage: true } },
+          },
         },
         linkedWorkItems: { select: { workItemId: true } },
       },
@@ -231,7 +248,12 @@ export class LaborContractsService {
   }
 
   async create(input: CreateLaborContractInput) {
-    await this.ensureProject(input.projectId, input.instanceId, input.userId, true);
+    await this.ensureProject(
+      input.projectId,
+      input.instanceId,
+      input.userId,
+      true,
+    );
     await this.ensureWorkforceMember(input.associadoId, input.projectId);
     const linkedWorkItemIds = this.normalizeLinkedWorkItemIds(
       input.linkedWorkItemIds,
@@ -245,7 +267,7 @@ export class LaborContractsService {
     const totals = this.getPaymentTotals(pagamentos, input.valorTotal);
     const normalizedOrder = this.normalizeOrder(input.ordem);
 
-    const created = await this.prisma.$transaction(async prisma => {
+    const created = await this.prisma.$transaction(async (prisma) => {
       const contract = await prisma.laborContract.create({
         data: {
           projectId: input.projectId,
@@ -276,14 +298,14 @@ export class LaborContractsService {
 
       if (pagamentos.length) {
         await prisma.laborPayment.createMany({
-          data: pagamentos.map(p => ({
-              id: p.id,
+          data: pagamentos.map((p) => ({
+            id: p.id,
             data: p.data,
             valor: p.valor,
             descricao: p.descricao,
             comprovante: p.comprovante || null,
             laborContractId: contract.id,
-              createdById: p.createdById ?? input.userId ?? null,
+            createdById: p.createdById ?? input.userId ?? null,
           })),
         });
       }
@@ -293,7 +315,11 @@ export class LaborContractsService {
         include: {
           pagamentos: {
             orderBy: { data: 'asc' },
-            include: { createdBy: { select: { id: true, name: true, profileImage: true } } },
+            include: {
+              createdBy: {
+                select: { id: true, name: true, profileImage: true },
+              },
+            },
           },
           linkedWorkItems: { select: { workItemId: true } },
         },
@@ -311,13 +337,17 @@ export class LaborContractsService {
         after: created as any,
       });
 
-      await this.emitLaborContractCreatedNotification(input.instanceId, {
-        id: created.id,
-        projectId: created.projectId,
-        descricao: created.descricao,
-        valorTotal: created.valorTotal,
-        associadoId: created.associadoId,
-      }, input.userId);
+      await this.emitLaborContractCreatedNotification(
+        input.instanceId,
+        {
+          id: created.id,
+          projectId: created.projectId,
+          descricao: created.descricao,
+          valorTotal: created.valorTotal,
+          associadoId: created.associadoId,
+        },
+        input.userId,
+      );
     }
 
     return created;
@@ -329,7 +359,10 @@ export class LaborContractsService {
     });
     if (!existing && input.userId) {
       existing = await this.prisma.laborContract.findFirst({
-        where: { id: input.id, project: { members: { some: { userId: input.userId } } } },
+        where: {
+          id: input.id,
+          project: { members: { some: { userId: input.userId } } },
+        },
       });
     }
 
@@ -348,7 +381,9 @@ export class LaborContractsService {
 
     const pagamentos = input.pagamentos;
     const valorTotal = input.valorTotal ?? existing.valorTotal;
-    const totals = pagamentos ? this.getPaymentTotals(pagamentos, valorTotal) : null;
+    const totals = pagamentos
+      ? this.getPaymentTotals(pagamentos, valorTotal)
+      : null;
     const normalizedOrder = this.normalizeOrder(input.ordem ?? existing.ordem);
     const nextLinkedWorkItemId = linkedWorkItemIds
       ? linkedWorkItemIds[0] || null
@@ -356,7 +391,7 @@ export class LaborContractsService {
 
     const previousStatus = existing.status;
 
-    const updated = await this.prisma.$transaction(async prisma => {
+    const updated = await this.prisma.$transaction(async (prisma) => {
       const updated = await prisma.laborContract.update({
         where: { id: existing.id },
         data: {
@@ -396,7 +431,9 @@ export class LaborContractsService {
           where: { laborContractId: updated.id },
           select: { id: true, createdById: true },
         });
-        const createdByMap = new Map(existingPayments.map(p => [p.id, p.createdById] as const));
+        const createdByMap = new Map(
+          existingPayments.map((p) => [p.id, p.createdById] as const),
+        );
 
         await prisma.laborPayment.deleteMany({
           where: { laborContractId: updated.id },
@@ -404,9 +441,11 @@ export class LaborContractsService {
 
         if (pagamentos.length) {
           await prisma.laborPayment.createMany({
-            data: pagamentos.map(p => {
+            data: pagamentos.map((p) => {
               const paymentId = p.id ?? null;
-              const existingCreatedById = paymentId ? createdByMap.get(paymentId) : null;
+              const existingCreatedById = paymentId
+                ? createdByMap.get(paymentId)
+                : null;
               return {
                 id: p.id,
                 data: p.data,
@@ -414,7 +453,8 @@ export class LaborContractsService {
                 descricao: p.descricao,
                 comprovante: p.comprovante || null,
                 laborContractId: updated.id,
-                createdById: existingCreatedById ?? p.createdById ?? input.userId ?? null,
+                createdById:
+                  existingCreatedById ?? p.createdById ?? input.userId ?? null,
               };
             }),
           });
@@ -426,7 +466,11 @@ export class LaborContractsService {
         include: {
           pagamentos: {
             orderBy: { data: 'asc' },
-            include: { createdBy: { select: { id: true, name: true, profileImage: true } } },
+            include: {
+              createdBy: {
+                select: { id: true, name: true, profileImage: true },
+              },
+            },
           },
           linkedWorkItems: { select: { workItemId: true } },
         },
@@ -497,6 +541,20 @@ export class LaborContractsService {
           comprovante: payment.comprovante || null,
         },
       });
+
+      void this.auditService.log({
+        instanceId,
+        userId,
+        projectId: existing.projectId,
+        action: 'UPDATE',
+        model: 'LaborPayment',
+        entityId: currentPayment.id,
+        after: {
+          data: payment.data,
+          valor: payment.valor,
+          descricao: payment.descricao,
+        } as Record<string, unknown>,
+      });
     } else {
       await this.prisma.laborPayment.create({
         data: {
@@ -508,6 +566,21 @@ export class LaborContractsService {
           laborContractId: existing.id,
           createdById: payment.createdById ?? userId ?? null,
         },
+      });
+
+      void this.auditService.log({
+        instanceId,
+        userId,
+        projectId: existing.projectId,
+        action: 'CREATE',
+        model: 'LaborPayment',
+        entityId: paymentId,
+        after: {
+          data: payment.data,
+          valor: payment.valor,
+          descricao: payment.descricao,
+          laborContractId: existing.id,
+        } as Record<string, unknown>,
       });
     }
 
@@ -531,7 +604,9 @@ export class LaborContractsService {
       include: {
         pagamentos: {
           orderBy: { data: 'asc' },
-          include: { createdBy: { select: { id: true, name: true, profileImage: true } } },
+          include: {
+            createdBy: { select: { id: true, name: true, profileImage: true } },
+          },
         },
         linkedWorkItems: { select: { workItemId: true } },
       },
@@ -590,7 +665,7 @@ export class LaborContractsService {
       select: { comprovante: true },
     });
 
-    await removeLocalUploads(payments.map(payment => payment.comprovante));
+    await removeLocalUploads(payments.map((payment) => payment.comprovante));
 
     await this.prisma.laborPayment.deleteMany({
       where: { laborContractId: existing.id },

@@ -6,6 +6,7 @@ import {
   ensureProjectWritable,
 } from '../common/project-access.util';
 import { NotificationsService } from '../notifications/notifications.service';
+import { AuditService } from '../audit/audit.service';
 
 interface CreateJournalEntryInput {
   id?: string;
@@ -29,6 +30,7 @@ export class JournalService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly auditService: AuditService,
   ) {}
 
   private getJournalCategoryLabel(category: string) {
@@ -147,7 +149,12 @@ export class JournalService {
   }
 
   async createEntry(input: CreateJournalEntryInput) {
-    await this.ensureProject(input.projectId, input.instanceId, input.userId, true);
+    await this.ensureProject(
+      input.projectId,
+      input.instanceId,
+      input.userId,
+      true,
+    );
     const journal = await this.ensureJournal(input.projectId);
     if (!journal) {
       throw new NotFoundException('Diario da obra nao encontrado');
@@ -186,6 +193,19 @@ export class JournalService {
         category: createdEntry.category,
         type: createdEntry.type,
       },
+    });
+
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      userId: input.userId,
+      projectId: input.projectId,
+      action: 'CREATE',
+      model: 'JournalEntry',
+      entityId: createdEntry.id,
+      after: JSON.parse(JSON.stringify(createdEntry)) as Record<
+        string,
+        unknown
+      >,
     });
 
     return createdEntry;
@@ -240,6 +260,8 @@ export class JournalService {
 
     await ensureProjectWritable(this.prisma, entry.projectJournal.projectId);
 
+    const before = JSON.parse(JSON.stringify(entry)) as Record<string, unknown>;
+
     const updatedEntry = await this.prisma.journalEntry.update({
       where: { id },
       data: {
@@ -282,6 +304,20 @@ export class JournalService {
       },
     });
 
+    void this.auditService.log({
+      instanceId,
+      userId,
+      projectId: entry.projectJournal.projectId,
+      action: 'UPDATE',
+      model: 'JournalEntry',
+      entityId: id,
+      before,
+      after: JSON.parse(JSON.stringify(updatedEntry)) as Record<
+        string,
+        unknown
+      >,
+    });
+
     return updatedEntry;
   }
 
@@ -313,6 +349,17 @@ export class JournalService {
 
     await removeLocalUploads(entry.photoUrls ?? []);
     await this.prisma.journalEntry.delete({ where: { id } });
+
+    void this.auditService.log({
+      instanceId,
+      userId,
+      projectId: entry.projectJournal.projectId,
+      action: 'DELETE',
+      model: 'JournalEntry',
+      entityId: id,
+      before: JSON.parse(JSON.stringify(entry)) as Record<string, unknown>,
+    });
+
     return { deleted: 1 };
   }
 }

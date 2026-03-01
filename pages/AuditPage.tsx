@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ChevronDown, ChevronRight, Clock, Filter, History, Loader2, Plus, Pencil, Trash2 } from 'lucide-react';
-import type { AuditLogEntry, AuditLogChange } from '../types';
+import { ChevronDown, ChevronRight, Clock, Filter, History, Loader2, Plus, Pencil, Trash2, User } from 'lucide-react';
+import type { AuditLogEntry, AuditLogChange, UserAccount } from '../types';
 import { auditApi } from '../services/auditApi';
+import { usersApi } from '../services/usersApi';
+import { Pagination } from '../components/Pagination';
 
 /* ── Model labels (PT-BR) ─────────────────────────────────── */
 const MODEL_LABELS: Record<string, string> = {
@@ -12,15 +14,29 @@ const MODEL_LABELS: Record<string, string> = {
   BiddingProcess: 'Cotação',
   WorkforceMember: 'Mão de obra',
   LaborContract: 'Contrato',
+  LaborPayment: 'Pagamento',
   StockItem: 'Estoque (obra)',
+  StockMovement: 'Movimentação de estoque',
   GlobalStockItem: 'Estoque geral',
   PlanningTask: 'Tarefa',
   MaterialForecast: 'Previsão',
   Milestone: 'Marco',
+  SupplyGroup: 'Grupo de insumos',
+  ProjectPlanning: 'Planejamento',
   MeasurementSnapshot: 'Medição',
   ProjectAsset: 'Documento',
   StockRequest: 'Requisição',
   PurchaseRequest: 'Compra',
+  StaffDocument: 'Documento de funcionário',
+  WorkItemResponsibility: 'Responsabilidade',
+  JournalEntry: 'Diário de obra',
+  ProjectMember: 'Membro do projeto',
+  Role: 'Perfil de acesso',
+  User: 'Usuário',
+  Instance: 'Instância',
+  ProjectGroup: 'Grupo de obras',
+  GlobalSettings: 'Config. gerais',
+  CompanyCertificate: 'Certificado',
 };
 
 const ACTION_CONFIG: Record<string, { label: string; icon: React.ReactNode; badge: string }> = {
@@ -246,29 +262,28 @@ export const AuditPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState<ActionFilter>('TODOS');
   const [modelFilter, setModelFilter] = useState<string | null>(null);
+  const [userFilter, setUserFilter] = useState<string | null>(null);
   const [knownModels, setKnownModels] = useState<string[]>([]);
+  const [users, setUsers] = useState<UserAccount[]>([]);
   const PAGE_SIZE = 30;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  // Load users + distinct models for filter dropdowns
+  useEffect(() => {
+    usersApi.list().then(setUsers).catch(() => {});
+    auditApi.distinctModels().then(setKnownModels).catch(() => {});
+  }, []);
 
   const fetchData = useCallback(
-    async (pageNum: number, action?: ActionFilter, model?: string | null) => {
+    async (pageNum: number, action?: ActionFilter, model?: string | null, userId?: string | null) => {
       setLoading(true);
       try {
         const params: Record<string, string | number> = { page: pageNum, pageSize: PAGE_SIZE };
         if (action && action !== 'TODOS') params.action = action;
         if (model) params.model = model;
+        if (userId) params.userId = userId;
         const res = await auditApi.list(params as any);
-        if (pageNum === 1) {
-          setEntries(res.data);
-          // Only update known models from unfiltered results
-          if (!model) {
-            setKnownModels((prev) => {
-              const merged = new Set([...prev, ...res.data.map((e) => e.model)]);
-              return Array.from(merged).sort();
-            });
-          }
-        } else {
-          setEntries((prev) => [...prev, ...res.data]);
-        }
+        setEntries(res.data);
         setTotal(res.total);
       } catch {
         // silently fail
@@ -282,16 +297,16 @@ export const AuditPage: React.FC = () => {
   // Load on mount / filter change
   useEffect(() => {
     setPage(1);
-    void fetchData(1, filter, modelFilter);
-  }, [filter, modelFilter, fetchData]);
+    void fetchData(1, filter, modelFilter, userFilter);
+  }, [filter, modelFilter, userFilter, fetchData]);
 
-  const handleLoadMore = useCallback(() => {
-    const next = page + 1;
-    setPage(next);
-    void fetchData(next, filter, modelFilter);
-  }, [page, filter, modelFilter, fetchData]);
-
-  const hasMore = entries.length < total;
+  const handlePageChange = useCallback(
+    (newPage: number) => {
+      setPage(newPage);
+      void fetchData(newPage, filter, modelFilter, userFilter);
+    },
+    [filter, modelFilter, userFilter, fetchData],
+  );
 
   return (
     <div className="flex-1 flex flex-col h-full bg-slate-50 dark:bg-slate-950 overflow-hidden">
@@ -333,34 +348,46 @@ export const AuditPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Model filter */}
-          {knownModels.length > 1 && (
-            <div className="flex flex-wrap gap-1.5">
-              <button
-                onClick={() => setModelFilter(null)}
-                className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${
-                  !modelFilter
-                    ? 'bg-slate-700 text-white dark:bg-slate-200 dark:text-slate-900'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 hover:text-slate-700'
-                }`}
-              >
-                Todos
-              </button>
-              {knownModels.map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setModelFilter(m)}
-                  className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${
-                    modelFilter === m
-                      ? 'bg-slate-700 text-white dark:bg-slate-200 dark:text-slate-900'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 hover:text-slate-700'
-                  }`}
+          {/* User + Model filters */}
+          <div className="flex items-center gap-3 flex-wrap">
+            {users.length > 0 && (
+              <div className="flex items-center gap-2">
+                <User size={14} className="text-slate-400 shrink-0" />
+                <select
+                  value={userFilter ?? ''}
+                  onChange={(e) => setUserFilter(e.target.value || null)}
+                  className="px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-0 outline-none cursor-pointer appearance-none pr-6 hover:bg-slate-200 dark:hover:bg-slate-700"
+                  style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'10\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%2394a3b8\' stroke-width=\'3\'%3E%3Cpath d=\'M6 9l6 6 6-6\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center' }}
                 >
-                  {MODEL_LABELS[m] ?? m}
-                </button>
-              ))}
-            </div>
-          )}
+                  <option value="">Todos os usuários</option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {knownModels.length > 1 && (
+              <div className="flex items-center gap-2">
+                <Filter size={14} className="text-slate-400 shrink-0" />
+                <select
+                  value={modelFilter ?? ''}
+                  onChange={(e) => setModelFilter(e.target.value || null)}
+                  className="px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-0 outline-none cursor-pointer appearance-none pr-6 hover:bg-slate-200 dark:hover:bg-slate-700"
+                  style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'10\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%2394a3b8\' stroke-width=\'3\'%3E%3Cpath d=\'M6 9l6 6 6-6\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center' }}
+                >
+                  <option value="">Todos os tipos</option>
+                  {knownModels.map((m) => (
+                    <option key={m} value={m}>
+                      {MODEL_LABELS[m] ?? m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -381,19 +408,13 @@ export const AuditPage: React.FC = () => {
               {entries.map((entry) => (
                 <AuditCard key={entry.id} entry={entry} />
               ))}
-              {hasMore && (
-                <button
-                  onClick={handleLoadMore}
-                  disabled={loading}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50"
-                >
-                  {loading ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : (
-                    'Carregar mais'
-                  )}
-                </button>
-              )}
+              <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                totalItems={total}
+                label="Histórico"
+              />
             </>
           )}
         </div>

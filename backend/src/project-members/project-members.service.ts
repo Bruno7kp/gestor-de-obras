@@ -4,6 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 
 interface AddMemberByEmailInput {
   projectId: string;
@@ -46,7 +47,10 @@ const MEMBER_INCLUDE = {
 
 @Injectable()
 export class ProjectMembersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   async listMembers(projectId: string, instanceId: string, userId?: string) {
     // First check if project belongs to user's instance
@@ -125,7 +129,9 @@ export class ProjectMembersService {
         assignedRole: {
           id: m.assignedRole.id,
           name: m.assignedRole.name,
-          permissions: m.assignedRole.permissions.map((rp) => rp.permission.code),
+          permissions: m.assignedRole.permissions.map(
+            (rp) => rp.permission.code,
+          ),
         },
       })),
       generalAccessUsers,
@@ -205,6 +211,22 @@ export class ProjectMembersService {
       include: MEMBER_INCLUDE,
     });
 
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      userId: input.addedById,
+      projectId: input.projectId,
+      action: 'CREATE',
+      model: 'ProjectMember',
+      entityId: created.id,
+      after: {
+        userId: user.id,
+        email: user.email,
+        name: user.name,
+        roleId: resolvedRoleId,
+        isExternal: !isInternal,
+      } as Record<string, unknown>,
+    });
+
     return {
       id: created.id,
       roleId: created.roleId,
@@ -244,6 +266,15 @@ export class ProjectMembersService {
       where: {
         userId_projectId: { userId, projectId },
       },
+    });
+
+    void this.auditService.log({
+      instanceId,
+      projectId,
+      action: 'DELETE',
+      model: 'ProjectMember',
+      entityId: member.id,
+      before: { userId, projectId } as Record<string, unknown>,
     });
 
     return { success: true };
@@ -290,6 +321,16 @@ export class ProjectMembersService {
       },
       data: { roleId: input.roleId },
       include: MEMBER_INCLUDE,
+    });
+
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      projectId: input.projectId,
+      action: 'UPDATE',
+      model: 'ProjectMember',
+      entityId: member.id,
+      before: { roleId: member.roleId } as Record<string, unknown>,
+      after: { roleId: input.roleId } as Record<string, unknown>,
     });
 
     return {

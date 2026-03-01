@@ -84,7 +84,12 @@ export class WorkforceService {
   }
 
   async create(input: CreateWorkforceInput) {
-    await this.ensureProject(input.projectId, input.instanceId, input.userId, true);
+    await this.ensureProject(
+      input.projectId,
+      input.instanceId,
+      input.userId,
+      true,
+    );
 
     const member = await this.prisma.workforceMember.create({
       data: {
@@ -120,21 +125,23 @@ export class WorkforceService {
       });
     }
 
-    return this.prisma.workforceMember.findUnique({
-      where: { id: member.id },
-      include: { documentos: true, responsabilidades: true },
-    }).then(result => {
-      void this.auditService.log({
-        instanceId: input.instanceId,
-        userId: input.userId,
-        projectId: input.projectId,
-        action: 'CREATE',
-        model: 'WorkforceMember',
-        entityId: member.id,
-        after: member as any,
+    return this.prisma.workforceMember
+      .findUnique({
+        where: { id: member.id },
+        include: { documentos: true, responsabilidades: true },
+      })
+      .then((result) => {
+        void this.auditService.log({
+          instanceId: input.instanceId,
+          userId: input.userId,
+          projectId: input.projectId,
+          action: 'CREATE',
+          model: 'WorkforceMember',
+          entityId: member.id,
+          after: member as any,
+        });
+        return result;
       });
-      return result;
-    });
   }
 
   async update(input: UpdateWorkforceInput) {
@@ -145,30 +152,32 @@ export class WorkforceService {
       true,
     );
 
-    return this.prisma.workforceMember.update({
-      where: { id: existing.id },
-      data: {
-        nome: input.nome ?? existing.nome,
-        cpf_cnpj: input.cpf_cnpj ?? existing.cpf_cnpj,
-        empresa_vinculada:
-          input.empresa_vinculada ?? existing.empresa_vinculada,
-        foto: input.foto ?? existing.foto,
-        cargo: input.cargo ?? existing.cargo,
-        updatedById: input.userId ?? null,
-      },
-    }).then(updated => {
-      void this.auditService.log({
-        instanceId: input.instanceId,
-        userId: input.userId,
-        projectId: existing.projectId,
-        action: 'UPDATE',
-        model: 'WorkforceMember',
-        entityId: input.id,
-        before: existing as any,
-        after: updated as any,
+    return this.prisma.workforceMember
+      .update({
+        where: { id: existing.id },
+        data: {
+          nome: input.nome ?? existing.nome,
+          cpf_cnpj: input.cpf_cnpj ?? existing.cpf_cnpj,
+          empresa_vinculada:
+            input.empresa_vinculada ?? existing.empresa_vinculada,
+          foto: input.foto ?? existing.foto,
+          cargo: input.cargo ?? existing.cargo,
+          updatedById: input.userId ?? null,
+        },
+      })
+      .then((updated) => {
+        void this.auditService.log({
+          instanceId: input.instanceId,
+          userId: input.userId,
+          projectId: existing.projectId,
+          action: 'UPDATE',
+          model: 'WorkforceMember',
+          entityId: input.id,
+          before: existing as any,
+          after: updated as any,
+        });
+        return updated;
       });
-      return updated;
-    });
   }
 
   async addDocument(
@@ -223,6 +232,16 @@ export class WorkforceService {
 
     await removeLocalUpload(doc.arquivoUrl);
     await this.prisma.staffDocument.delete({ where: { id: documentId } });
+
+    void this.auditService.log({
+      instanceId,
+      userId,
+      action: 'DELETE',
+      model: 'StaffDocument',
+      entityId: documentId,
+      before: JSON.parse(JSON.stringify(doc)) as Record<string, unknown>,
+    });
+
     return { deleted: 1 };
   }
 
@@ -254,6 +273,16 @@ export class WorkforceService {
         workItemId,
       },
     });
+
+    void this.auditService.log({
+      instanceId,
+      userId,
+      action: 'DELETE',
+      model: 'WorkItemResponsibility',
+      entityId: `${id}:${workItemId}`,
+      before: { workforceMemberId: id, workItemId } as Record<string, unknown>,
+    });
+
     return { deleted: 1 };
   }
 

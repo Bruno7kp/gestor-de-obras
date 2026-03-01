@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import { DEFAULT_ROLES, buildPermissionCodes } from './default-roles';
 
 interface CreateRoleInput {
@@ -21,7 +22,10 @@ interface AddPermissionInput {
 
 @Injectable()
 export class RolesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   findAll(instanceId: string) {
     return this.prisma.role.findMany({
@@ -32,13 +36,23 @@ export class RolesService {
   }
 
   async create(input: CreateRoleInput) {
-    return this.prisma.role.create({
+    const created = await this.prisma.role.create({
       data: {
         name: input.name,
         description: input.description || null,
         instanceId: input.instanceId,
       },
     });
+
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      action: 'CREATE',
+      model: 'Role',
+      entityId: created.id,
+      after: JSON.parse(JSON.stringify(created)) as Record<string, unknown>,
+    });
+
+    return created;
   }
 
   async update(input: UpdateRoleInput) {
@@ -47,13 +61,28 @@ export class RolesService {
     });
     if (!existing) throw new NotFoundException('Role nao encontrada');
 
-    return this.prisma.role.update({
-      where: { id: input.id },
-      data: {
-        name: input.name ?? existing.name,
-        description: input.description ?? existing.description,
-      },
-    });
+    return this.prisma.role
+      .update({
+        where: { id: input.id },
+        data: {
+          name: input.name ?? existing.name,
+          description: input.description ?? existing.description,
+        },
+      })
+      .then((updated) => {
+        void this.auditService.log({
+          instanceId: input.instanceId!,
+          action: 'UPDATE',
+          model: 'Role',
+          entityId: input.id,
+          before: JSON.parse(JSON.stringify(existing)) as Record<
+            string,
+            unknown
+          >,
+          after: JSON.parse(JSON.stringify(updated)) as Record<string, unknown>,
+        });
+        return updated;
+      });
   }
 
   async remove(id: string, instanceId: string) {
@@ -72,6 +101,18 @@ export class RolesService {
     });
 
     await this.prisma.role.delete({ where: { id } });
+
+    void this.auditService.log({
+      instanceId,
+      action: 'DELETE',
+      model: 'Role',
+      entityId: id,
+      before: {
+        name: existing.name,
+        description: existing.description,
+      } as Record<string, unknown>,
+    });
+
     return { deleted: 1 };
   }
 
@@ -133,6 +174,14 @@ export class RolesService {
     });
     if (!role) throw new NotFoundException('Role nao encontrada');
 
+    const beforeRole = await this.prisma.role.findUnique({
+      where: { id: roleId },
+      include: { permissions: { include: { permission: true } } },
+    });
+    const beforeCodes = (beforeRole?.permissions ?? []).map(
+      (rp) => rp.permission.code,
+    );
+
     const uniqueCodes = Array.from(new Set(codes));
     if (uniqueCodes.length === 0) {
       await this.prisma.rolePermission.deleteMany({ where: { roleId } });
@@ -179,10 +228,27 @@ export class RolesService {
       ),
     );
 
-    return this.prisma.role.findUnique({
-      where: { id: roleId },
-      include: { permissions: { include: { permission: true } } },
-    });
+    return this.prisma.role
+      .findUnique({
+        where: { id: roleId },
+        include: { permissions: { include: { permission: true } } },
+      })
+      .then((result) => {
+        void this.auditService.log({
+          instanceId,
+          action: 'UPDATE',
+          model: 'Role',
+          entityId: roleId,
+          before: { permissions: beforeCodes } as Record<string, unknown>,
+          after: {
+            permissions: (result?.permissions ?? []).map(
+              (rp) => rp.permission.code,
+            ),
+          } as Record<string, unknown>,
+          metadata: { operation: 'setPermissions' } as Record<string, unknown>,
+        });
+        return result;
+      });
   }
 
   async seedDefaultRoles(instanceId: string) {

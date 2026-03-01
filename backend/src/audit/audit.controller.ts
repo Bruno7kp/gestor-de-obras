@@ -33,9 +33,15 @@ export class AuditController {
     });
   }
 
+  @Get('models')
+  @HasPermission('audit.view')
+  distinctModels(@Req() req: AuthenticatedRequest) {
+    return this.auditService.distinctModels(req.user.instanceId);
+  }
+
   @Get(':id')
   @HasPermission('audit.view')
-  async findById(@Param('id') id: string) {
-    return this.auditService.findById(id);
+  async findById(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
+    return this.auditService.findById(id, req.user.instanceId);
   }
 }
