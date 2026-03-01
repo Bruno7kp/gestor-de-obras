@@ -67,7 +67,7 @@ async function bootstrap() {
   app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads' });
 
   const prismaService = app.get(PrismaService);
-  await prismaService.enableShutdownHooks(app);
+  prismaService.enableShutdownHooks(app);
   await app.listen(process.env.PORT ?? 3000);
 }
-bootstrap();
+void bootstrap();

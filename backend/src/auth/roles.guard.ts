@@ -3,6 +3,7 @@ import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from './roles.decorator';
 import { PERMISSIONS_KEY } from './permissions.decorator';
 import { PrismaService } from '../prisma/prisma.service';
+import type { AuthUser } from './auth.types';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -12,21 +13,24 @@ export class RolesGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const requiredRoles = this.reflector.getAllAndOverride<string[]>(ROLES_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const requiredRoles = this.reflector.getAllAndOverride<string[]>(
+      ROLES_KEY,
+      [context.getHandler(), context.getClass()],
+    );
 
-    const requiredPermissions = this.reflector.getAllAndOverride<string[]>(PERMISSIONS_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const requiredPermissions = this.reflector.getAllAndOverride<string[]>(
+      PERMISSIONS_KEY,
+      [context.getHandler(), context.getClass()],
+    );
 
-    if ((!requiredRoles || requiredRoles.length === 0) && (!requiredPermissions || requiredPermissions.length === 0)) {
+    if (
+      (!requiredRoles || requiredRoles.length === 0) &&
+      (!requiredPermissions || requiredPermissions.length === 0)
+    ) {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<{ user?: AuthUser }>();
     const user = request.user;
 
     if (!user) {
@@ -37,7 +41,9 @@ export class RolesGuard implements CanActivate {
     // Check roles if required
     if (requiredRoles && requiredRoles.length > 0) {
       const roles = Array.isArray(user.roles) ? user.roles : [];
-      const hasRequiredRole = requiredRoles.some(role => roles.includes(role));
+      const hasRequiredRole = requiredRoles.some((role) =>
+        roles.includes(role),
+      );
       if (!hasRequiredRole) {
         return false;
       }
@@ -45,8 +51,12 @@ export class RolesGuard implements CanActivate {
 
     // Check permissions if required (at least one permission must match)
     if (requiredPermissions && requiredPermissions.length > 0) {
-      const permissions = Array.isArray(user.permissions) ? user.permissions : [];
-      const hasRequiredPermission = requiredPermissions.some(perm => permissions.includes(perm));
+      const permissions = Array.isArray(user.permissions)
+        ? user.permissions
+        : [];
+      const hasRequiredPermission = requiredPermissions.some((perm) =>
+        permissions.includes(perm),
+      );
 
       if (!hasRequiredPermission) {
         // Fallback: check if the user is a member of any project with the required permission.

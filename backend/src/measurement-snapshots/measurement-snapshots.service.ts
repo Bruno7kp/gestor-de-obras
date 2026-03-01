@@ -50,7 +50,12 @@ export class MeasurementSnapshotsService {
   }
 
   async create(input: CreateSnapshotInput) {
-    await this.ensureProject(input.projectId, input.instanceId, input.userId, true);
+    await this.ensureProject(
+      input.projectId,
+      input.instanceId,
+      input.userId,
+      true,
+    );
 
     const existing = await this.prisma.measurementSnapshot.findFirst({
       where: {
@@ -63,27 +68,29 @@ export class MeasurementSnapshotsService {
       return existing;
     }
 
-    return this.prisma.measurementSnapshot.create({
-      data: {
-        projectId: input.projectId,
-        measurementNumber: input.measurementNumber,
-        date: input.date,
-        itemsSnapshot: input.itemsSnapshot as Prisma.InputJsonValue,
-        totals: input.totals as Prisma.InputJsonValue,
-        createdById: input.userId ?? null,
-      },
-    }).then(created => {
-      void this.auditService.log({
-        instanceId: input.instanceId,
-        userId: input.userId,
-        projectId: input.projectId,
-        action: 'CREATE',
-        model: 'MeasurementSnapshot',
-        entityId: created.id,
-        after: created as any,
+    return this.prisma.measurementSnapshot
+      .create({
+        data: {
+          projectId: input.projectId,
+          measurementNumber: input.measurementNumber,
+          date: input.date,
+          itemsSnapshot: input.itemsSnapshot as Prisma.InputJsonValue,
+          totals: input.totals as Prisma.InputJsonValue,
+          createdById: input.userId ?? null,
+        },
+      })
+      .then((created) => {
+        void this.auditService.log({
+          instanceId: input.instanceId,
+          userId: input.userId,
+          projectId: input.projectId,
+          action: 'CREATE',
+          model: 'MeasurementSnapshot',
+          entityId: created.id,
+          after: created as Record<string, unknown>,
+        });
+        return created;
       });
-      return created;
-    });
   }
 
   async update(input: UpdateSnapshotInput) {
@@ -103,29 +110,31 @@ export class MeasurementSnapshotsService {
 
     await ensureProjectWritable(this.prisma, existing.projectId);
 
-    return this.prisma.measurementSnapshot.update({
-      where: { id: input.id },
-      data: {
-        measurementNumber:
-          input.measurementNumber ?? existing.measurementNumber,
-        date: input.date ?? existing.date,
-        itemsSnapshot: (input.itemsSnapshot ??
-          existing.itemsSnapshot) as Prisma.InputJsonValue,
-        totals: (input.totals ?? existing.totals) as Prisma.InputJsonValue,
-      },
-    }).then(updated => {
-      void this.auditService.log({
-        instanceId: input.instanceId!,
-        userId: input.userId,
-        projectId: existing.projectId,
-        action: 'UPDATE',
-        model: 'MeasurementSnapshot',
-        entityId: input.id,
-        before: existing as any,
-        after: updated as any,
+    return this.prisma.measurementSnapshot
+      .update({
+        where: { id: input.id },
+        data: {
+          measurementNumber:
+            input.measurementNumber ?? existing.measurementNumber,
+          date: input.date ?? existing.date,
+          itemsSnapshot: (input.itemsSnapshot ??
+            existing.itemsSnapshot) as Prisma.InputJsonValue,
+          totals: (input.totals ?? existing.totals) as Prisma.InputJsonValue,
+        },
+      })
+      .then((updated) => {
+        void this.auditService.log({
+          instanceId: input.instanceId!,
+          userId: input.userId,
+          projectId: existing.projectId,
+          action: 'UPDATE',
+          model: 'MeasurementSnapshot',
+          entityId: input.id,
+          before: existing as Record<string, unknown>,
+          after: updated as Record<string, unknown>,
+        });
+        return updated;
       });
-      return updated;
-    });
   }
 
   async remove(id: string, instanceId: string, userId?: string) {
@@ -151,7 +160,7 @@ export class MeasurementSnapshotsService {
       action: 'DELETE',
       model: 'MeasurementSnapshot',
       entityId: id,
-      before: existing as any,
+      before: existing as Record<string, unknown>,
     });
 
     return { deleted: 1 };

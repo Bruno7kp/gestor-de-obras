@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import type { ExpenseStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { isLocalUpload, removeLocalUpload } from '../uploads/file.utils';
@@ -80,7 +84,13 @@ export class ProjectExpensesService {
   private async canRemoveUpload(url?: string | null) {
     if (!isLocalUpload(url)) return false;
 
-    const [forecastPayment, expensePayment, expenseInvoice, groupPayment, groupInvoice] = await Promise.all([
+    const [
+      forecastPayment,
+      expensePayment,
+      expenseInvoice,
+      groupPayment,
+      groupInvoice,
+    ] = await Promise.all([
       this.prisma.materialForecast.count({ where: { paymentProof: url } }),
       this.prisma.projectExpense.count({ where: { paymentProof: url } }),
       this.prisma.projectExpense.count({ where: { invoiceDoc: url } }),
@@ -89,12 +99,18 @@ export class ProjectExpensesService {
     ]);
 
     return (
-      forecastPayment + expensePayment + expenseInvoice + groupPayment + groupInvoice ===
+      forecastPayment +
+        expensePayment +
+        expenseInvoice +
+        groupPayment +
+        groupInvoice ===
       0
     );
   }
 
-  private async cleanupUploadsIfOrphaned(urls: Array<string | null | undefined>) {
+  private async cleanupUploadsIfOrphaned(
+    urls: Array<string | null | undefined>,
+  ) {
     const unique = Array.from(new Set(urls.filter(Boolean))) as string[];
     for (const url of unique) {
       if (await this.canRemoveUpload(url)) {
@@ -183,7 +199,9 @@ export class ProjectExpensesService {
         category: 'FINANCIAL',
         eventType: 'EXPENSE_PAID',
         priority: 'high',
-        title: supplyGroupId ? 'Liquidação Financeira do Lote' : 'Liquidação Financeira',
+        title: supplyGroupId
+          ? 'Liquidação Financeira do Lote'
+          : 'Liquidação Financeira',
         body: supplyGroupId
           ? `Pagamento confirmado para ${supplyGroupLabel}. Valor total deste item: R$ ${expense.amount.toFixed(2)}. Credor: ${expense.entityName || 'Não informado'}.`
           : `Pagamento confirmado para ${expense.description}. Valor: R$ ${expense.amount.toFixed(2)}. Credor: ${expense.entityName || 'Não informado'}.`,
@@ -209,7 +227,9 @@ export class ProjectExpensesService {
         category: 'SUPPLIES',
         eventType: 'EXPENSE_DELIVERED',
         priority: 'normal',
-        title: supplyGroupId ? 'Recebimento de Lote de Material' : 'Recebimento de Material',
+        title: supplyGroupId
+          ? 'Recebimento de Lote de Material'
+          : 'Recebimento de Material',
         body: supplyGroupId
           ? `Entrega do ${supplyGroupLabel} confirmada no canteiro.`
           : `Entrega confirmada no canteiro: ${expense.description}.`,
@@ -267,7 +287,9 @@ export class ProjectExpensesService {
     });
   }
 
-  async getMaterialSuggestions(input: MaterialSuggestionInput): Promise<MaterialSuggestion[]> {
+  async getMaterialSuggestions(
+    input: MaterialSuggestionInput,
+  ): Promise<MaterialSuggestion[]> {
     const query = input.query?.trim();
     if (!query || query.length < 2) return [];
 
@@ -308,16 +330,20 @@ export class ProjectExpensesService {
         },
         select: { projectId: true },
       });
-      memberships.forEach((membership) => scopedProjectIds.add(membership.projectId));
+      memberships.forEach((membership) =>
+        scopedProjectIds.add(membership.projectId),
+      );
     }
 
     const projectIds = Array.from(scopedProjectIds);
 
     const supplierNameFilter = input.supplierId
-      ? (await this.prisma.supplier.findUnique({
-          where: { id: input.supplierId },
-          select: { name: true },
-        }))?.name
+      ? (
+          await this.prisma.supplier.findUnique({
+            where: { id: input.supplierId },
+            select: { name: true },
+          })
+        )?.name
       : undefined;
 
     const [expenses, forecasts] = await Promise.all([
@@ -328,7 +354,12 @@ export class ProjectExpensesService {
           itemType: 'item',
           description: { contains: query, mode: 'insensitive' },
           ...(supplierNameFilter
-            ? { entityName: { contains: supplierNameFilter, mode: 'insensitive' } }
+            ? {
+                entityName: {
+                  contains: supplierNameFilter,
+                  mode: 'insensitive',
+                },
+              }
             : {}),
         },
         select: {
@@ -372,7 +403,10 @@ export class ProjectExpensesService {
       const normalizedLabel = this.normalizeText(label);
       if (!normalizedLabel.includes(normalizedQuery)) continue;
 
-      const date = forecast.deliveryDate || forecast.purchaseDate || forecast.estimatedDate;
+      const date =
+        forecast.deliveryDate ||
+        forecast.purchaseDate ||
+        forecast.estimatedDate;
       const existing = bucket.get(normalizedLabel);
 
       if (!existing) {
@@ -398,19 +432,27 @@ export class ProjectExpensesService {
         usageCount: existing.usageCount + 1,
         calculationMemory:
           nextDate >= existingDate
-            ? (forecast.calculationMemory || existing.calculationMemory)
-            : (existing.calculationMemory || forecast.calculationMemory || undefined),
+            ? forecast.calculationMemory || existing.calculationMemory
+            : existing.calculationMemory ||
+              forecast.calculationMemory ||
+              undefined,
         unit: existing.unit || forecast.unit || undefined,
-        lastUnitPrice: nextDate >= existingDate ? forecast.unitPrice : existing.lastUnitPrice,
+        lastUnitPrice:
+          nextDate >= existingDate
+            ? forecast.unitPrice
+            : existing.lastUnitPrice,
         supplierId: existing.supplierId || forecast.supplierId || undefined,
-        supplierName: existing.supplierName || forecast.supplier?.name || undefined,
+        supplierName:
+          existing.supplierName || forecast.supplier?.name || undefined,
         lastDate: nextDate >= existingDate ? date : existing.lastDate,
         source: existing.source === 'expense' ? 'mixed' : 'forecast',
       });
     }
 
     for (const expense of expenses) {
-      const label = this.extractExpenseMaterialDescription(expense.description || '');
+      const label = this.extractExpenseMaterialDescription(
+        expense.description || '',
+      );
       if (!label) continue;
       const normalizedLabel = this.normalizeText(label);
       if (!normalizedLabel.includes(normalizedQuery)) continue;
@@ -436,7 +478,8 @@ export class ProjectExpensesService {
         ...existing,
         usageCount: existing.usageCount + 1,
         unit: existing.unit || expense.unit || undefined,
-        lastUnitPrice: nextDate >= existingDate ? expense.unitPrice : existing.lastUnitPrice,
+        lastUnitPrice:
+          nextDate >= existingDate ? expense.unitPrice : existing.lastUnitPrice,
         supplierName: existing.supplierName || expense.entityName || undefined,
         lastDate: nextDate >= existingDate ? expense.date : existing.lastDate,
         source: existing.source === 'forecast' ? 'mixed' : 'expense',
@@ -455,7 +498,12 @@ export class ProjectExpensesService {
   }
 
   async create(input: CreateExpenseInput) {
-    await this.ensureProject(input.projectId, input.instanceId, input.userId, true);
+    await this.ensureProject(
+      input.projectId,
+      input.instanceId,
+      input.userId,
+      true,
+    );
     const fallbackStatus: ExpenseStatus = input.isPaid ? 'PAID' : 'PENDING';
 
     const created = await this.prisma.projectExpense.create({
@@ -500,14 +548,18 @@ export class ProjectExpensesService {
     });
 
     if (created.status === 'PAID' || created.status === 'DELIVERED') {
-      void this.emitExpenseStatusNotification(input.instanceId, {
-        id: created.id,
-        projectId: created.projectId,
-        status: created.status,
-        description: created.description,
-        amount: created.amount,
-        entityName: created.entityName,
-      }, input.userId).catch(() => undefined);
+      void this.emitExpenseStatusNotification(
+        input.instanceId,
+        {
+          id: created.id,
+          projectId: created.projectId,
+          status: created.status,
+          description: created.description,
+          amount: created.amount,
+          entityName: created.entityName,
+        },
+        input.userId,
+      ).catch(() => undefined);
 
       void this.emitExpenseJournalEntry(input.instanceId, {
         projectId: created.projectId,
@@ -575,7 +627,8 @@ export class ProjectExpensesService {
     const updated = await this.prisma.projectExpense.update({
       where: { id: input.id },
       data: {
-        parentId: input.parentId === undefined ? existing.parentId : input.parentId,
+        parentId:
+          input.parentId === undefined ? existing.parentId : input.parentId,
         type: input.type ?? existing.type,
         itemType: input.itemType ?? existing.itemType,
         wbs: input.wbs ?? existing.wbs,
@@ -621,14 +674,18 @@ export class ProjectExpensesService {
       existing.status !== nextStatus &&
       (nextStatus === 'PAID' || nextStatus === 'DELIVERED')
     ) {
-      void this.emitExpenseStatusNotification(input.instanceId, {
-        id: updated.id,
-        projectId: updated.projectId,
-        status: updated.status,
-        description: updated.description,
-        amount: updated.amount,
-        entityName: updated.entityName,
-      }, input.userId).catch(() => undefined);
+      void this.emitExpenseStatusNotification(
+        input.instanceId,
+        {
+          id: updated.id,
+          projectId: updated.projectId,
+          status: updated.status,
+          description: updated.description,
+          amount: updated.amount,
+          entityName: updated.entityName,
+        },
+        input.userId,
+      ).catch(() => undefined);
 
       void this.emitExpenseJournalEntry(input.instanceId, {
         projectId: updated.projectId,
@@ -711,6 +768,21 @@ export class ProjectExpensesService {
     } else {
       await this.prisma.projectExpense.createMany({ data: createData });
     }
+
+    void this.auditService.log({
+      instanceId,
+      userId,
+      projectId,
+      action: 'CREATE',
+      model: 'ProjectExpense',
+      entityId: projectId,
+      metadata: {
+        batch: true,
+        operation: replaceTypes?.length ? 'batchInsertReplace' : 'batchInsert',
+        count: expenses.length,
+        replaceTypes: replaceTypes || undefined,
+      },
+    });
 
     return { created: expenses.length };
   }

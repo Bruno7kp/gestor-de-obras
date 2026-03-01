@@ -86,7 +86,7 @@ export class SuppliersService {
       action: 'CREATE',
       model: 'Supplier',
       entityId: created.id,
-      after: created as any,
+      after: created as Record<string, unknown>,
     });
 
     return created;
@@ -98,32 +98,66 @@ export class SuppliersService {
     });
     if (!existing) throw new NotFoundException('Fornecedor nao encontrado');
 
-    return this.prisma.supplier.update({
-      where: { id: input.id },
-      data: {
-        name: input.name ?? existing.name,
-        cnpj: input.cnpj ?? existing.cnpj,
-        contactName: input.contactName ?? existing.contactName,
-        email: input.email ?? existing.email,
-        phone: input.phone ?? existing.phone,
-        category: input.category ?? existing.category,
-        rating: input.rating ?? existing.rating,
-        notes: input.notes ?? existing.notes,
-        order: input.order ?? existing.order,
-        updatedById: input.userId ?? null,
-      },
-    }).then(updated => {
-      void this.auditService.log({
-        instanceId: input.instanceId!,
-        userId: input.userId,
-        action: 'UPDATE',
-        model: 'Supplier',
-        entityId: input.id,
-        before: existing as any,
-        after: updated as any,
+    return this.prisma.supplier
+      .update({
+        where: { id: input.id },
+        data: {
+          name: input.name ?? existing.name,
+          cnpj: input.cnpj ?? existing.cnpj,
+          contactName: input.contactName ?? existing.contactName,
+          email: input.email ?? existing.email,
+          phone: input.phone ?? existing.phone,
+          category: input.category ?? existing.category,
+          rating: input.rating ?? existing.rating,
+          notes: input.notes ?? existing.notes,
+          order: input.order ?? existing.order,
+          updatedById: input.userId ?? null,
+        },
+      })
+      .then((updated) => {
+        void this.auditService.log({
+          instanceId: input.instanceId!,
+          userId: input.userId,
+          action: 'UPDATE',
+          model: 'Supplier',
+          entityId: input.id,
+          before: existing as Record<string, unknown>,
+          after: updated as Record<string, unknown>,
+        });
+        return updated;
       });
-      return updated;
+  }
+
+  async batchReorder(
+    items: Array<{ id: string; order: number }>,
+    instanceId: string,
+    userId?: string,
+  ) {
+    if (items.length === 0) return [];
+
+    const txOps = items.map((item) =>
+      this.prisma.supplier.updateMany({
+        where: { id: item.id, instanceId },
+        data: { order: item.order, updatedById: userId ?? null },
+      }),
+    );
+
+    await this.prisma.$transaction(txOps);
+
+    void this.auditService.log({
+      instanceId,
+      userId,
+      action: 'UPDATE',
+      model: 'Supplier',
+      entityId: instanceId,
+      metadata: {
+        batch: true,
+        operation: 'reorder',
+        count: items.length,
+      },
     });
+
+    return { updated: items.length };
   }
 
   async remove(id: string, instanceId: string, userId?: string) {
@@ -145,7 +179,7 @@ export class SuppliersService {
       action: 'DELETE',
       model: 'Supplier',
       entityId: id,
-      before: existing as any,
+      before: existing as Record<string, unknown>,
     });
 
     return { deleted: 1 };

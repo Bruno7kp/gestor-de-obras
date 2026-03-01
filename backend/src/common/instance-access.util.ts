@@ -144,15 +144,13 @@ export async function getAccessibleStockInstances(
     }
   }
 
-  const stockPerms = [...GLOBAL_STOCK_VIEW_PERMISSIONS];
+  const stockPerms: string[] = [...GLOBAL_STOCK_VIEW_PERMISSIONS];
 
   return Array.from(instanceMap.entries())
     .filter(([, v]) => stockPerms.some((p) => v.perms.has(p)))
     .map(([id, v]) => ({
       instanceId: id,
       instanceName: v.name,
-      permissions: Array.from(v.perms).filter((p) =>
-        stockPerms.includes(p as any),
-      ),
+      permissions: Array.from(v.perms).filter((p) => stockPerms.includes(p)),
     }));
 }

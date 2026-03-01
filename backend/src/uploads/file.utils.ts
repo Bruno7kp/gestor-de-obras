@@ -18,7 +18,9 @@ export async function removeLocalUpload(url?: string | null) {
   return true;
 }
 
-export async function removeLocalUploads(urls: Array<string | null | undefined>) {
+export async function removeLocalUploads(
+  urls: Array<string | null | undefined>,
+) {
   const unique = new Set<string>();
 
   for (const url of urls) {

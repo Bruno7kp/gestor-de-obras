@@ -138,7 +138,7 @@ export class WorkforceService {
           action: 'CREATE',
           model: 'WorkforceMember',
           entityId: member.id,
-          after: member as any,
+          after: member as Record<string, unknown>,
         });
         return result;
       });
@@ -173,8 +173,8 @@ export class WorkforceService {
           action: 'UPDATE',
           model: 'WorkforceMember',
           entityId: input.id,
-          before: existing as any,
-          after: updated as any,
+          before: existing as Record<string, unknown>,
+          after: updated as Record<string, unknown>,
         });
         return updated;
       });
@@ -320,7 +320,7 @@ export class WorkforceService {
       action: 'DELETE',
       model: 'WorkforceMember',
       entityId: id,
-      before: member as any,
+      before: member as Record<string, unknown>,
     });
 
     return { deleted: 1 };

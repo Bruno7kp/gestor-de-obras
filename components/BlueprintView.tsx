@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
 import { Project, WorkItem, ItemType } from '../types';
 import { treeService } from '../services/treeService';
 import { financial } from '../utils/math';
@@ -150,22 +150,52 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
     });
   };
 
-  // --- API sync ---
-  const syncItemUpdate = async (id: string, patch: Partial<WorkItem>) => {
+  // --- API sync (debounce accumulator for cell edits) ---
+  const pendingUpdatesRef = useRef<Map<string, Partial<WorkItem>>>(new Map());
+  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flushPendingUpdates = useCallback(async () => {
+    const pending = pendingUpdatesRef.current;
+    if (pending.size === 0) return;
+    const updates = Array.from(pending.entries()).map(([id, patch]) => ({ id, ...patch }));
+    pendingUpdatesRef.current = new Map();
     const snapshot = getScrollSnapshot();
     try {
-      await workItemsApi.update(id, patch);
+      await workItemsApi.batchUpdate(project.id, updates, 'cellEdit');
     } catch (error) {
-      console.error('Erro ao salvar item:', error);
+      console.error('Erro ao salvar itens:', error);
     } finally {
       restoreScrollSnapshot(snapshot);
     }
+  }, [project.id]);
+
+  useEffect(() => {
+    return () => {
+      if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
+      const pending = pendingUpdatesRef.current;
+      if (pending.size > 0) {
+        const updates = Array.from(pending.entries()).map(([id, patch]) => ({ id, ...patch }));
+        pendingUpdatesRef.current = new Map();
+        void workItemsApi.batchUpdate(project.id, updates, 'cellEdit');
+      }
+    };
+  }, [project.id]);
+
+  const syncItemUpdate = async (id: string, patch: Partial<WorkItem>) => {
+    const existing = pendingUpdatesRef.current.get(id) || {};
+    pendingUpdatesRef.current.set(id, { ...existing, ...patch });
+    if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
+    flushTimerRef.current = setTimeout(() => void flushPendingUpdates(), 500);
   };
 
-  const syncItemsBulk = async (updates: { id: string; patch: Partial<WorkItem> }[]) => {
+  const syncItemsBulk = async (updates: { id: string; patch: Partial<WorkItem> }[], operation?: string) => {
     const snapshot = getScrollSnapshot();
     try {
-      await Promise.all(updates.map(update => workItemsApi.update(update.id, update.patch)));
+      await workItemsApi.batchUpdate(
+        project.id,
+        updates.map(u => ({ id: u.id, ...u.patch })),
+        operation,
+      );
     } catch (error) {
       console.error('Erro ao salvar itens:', error);
     } finally {
@@ -325,7 +355,7 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
       .filter(Boolean) as { id: string; patch: Partial<WorkItem> }[];
 
     if (updates.length > 0) {
-      syncItemsBulk(updates);
+      syncItemsBulk(updates, 'reorder');
     }
   };
 

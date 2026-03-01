@@ -1,4 +1,10 @@
-import { Controller, Post, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -27,7 +33,7 @@ export class UploadsController {
         },
       }),
       limits: { fileSize: 20 * 1024 * 1024 },
-    })
+    }),
   )
   upload(@UploadedFile() file: Express.Multer.File) {
     return {

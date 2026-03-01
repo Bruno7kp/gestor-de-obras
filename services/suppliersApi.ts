@@ -67,6 +67,19 @@ export const suppliersApi = {
     return response.json();
   },
 
+  async batchReorder(items: Array<{ id: string; order: number }>): Promise<void> {
+    const response = await fetch(`${API_BASE}/suppliers/batch-reorder`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ items }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Falha ao reordenar fornecedores');
+    }
+  },
+
   async remove(id: string): Promise<void> {
     const response = await fetch(`${API_BASE}/suppliers/${id}`, {
       method: 'DELETE',

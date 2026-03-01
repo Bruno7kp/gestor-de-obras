@@ -334,7 +334,7 @@ export class LaborContractsService {
         action: 'CREATE',
         model: 'LaborContract',
         entityId: created.id,
-        after: created as any,
+        after: created as Record<string, unknown>,
       });
 
       await this.emitLaborContractCreatedNotification(
@@ -485,8 +485,8 @@ export class LaborContractsService {
         action: 'UPDATE',
         model: 'LaborContract',
         entityId: updated.id,
-        before: existing as any,
-        after: updated as any,
+        before: existing as Record<string, unknown>,
+        after: updated as Record<string, unknown>,
       });
 
       await this.emitLaborContractStatusChangedNotification(
@@ -682,7 +682,7 @@ export class LaborContractsService {
       action: 'DELETE',
       model: 'LaborContract',
       entityId: id,
-      before: existing as any,
+      before: existing as Record<string, unknown>,
     });
 
     return { deleted: 1 };

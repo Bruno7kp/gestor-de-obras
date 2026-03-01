@@ -158,7 +158,7 @@ export class StockService {
       action: 'CREATE',
       model: 'StockItem',
       entityId: created.id,
-      after: created as any,
+      after: created as Record<string, unknown>,
     });
 
     return created;
@@ -220,8 +220,8 @@ export class StockService {
           action: 'UPDATE',
           model: 'StockItem',
           entityId: input.id,
-          before: before as any,
-          after: updated as any,
+          before: before as Record<string, unknown>,
+          after: updated as Record<string, unknown>,
         });
         return updated;
       });
@@ -255,7 +255,7 @@ export class StockService {
       action: 'DELETE',
       model: 'StockItem',
       entityId: id,
-      before: before as any,
+      before: before as Record<string, unknown>,
     });
 
     return deleted;

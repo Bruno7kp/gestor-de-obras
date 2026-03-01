@@ -69,7 +69,7 @@ export class BiddingsService {
       action: 'CREATE',
       model: 'BiddingProcess',
       entityId: created.id,
-      after: created as any,
+      after: created as Record<string, unknown>,
     });
 
     return created;
@@ -81,34 +81,38 @@ export class BiddingsService {
     });
     if (!existing) throw new NotFoundException('Licitacao nao encontrada');
 
-    return this.prisma.biddingProcess.update({
-      where: { id: input.id },
-      data: {
-        tenderNumber: input.tenderNumber ?? existing.tenderNumber,
-        clientName: input.clientName ?? existing.clientName,
-        object: input.object ?? existing.object,
-        openingDate: input.openingDate ?? existing.openingDate,
-        expirationDate: input.expirationDate ?? existing.expirationDate,
-        estimatedValue: input.estimatedValue ?? existing.estimatedValue,
-        ourProposalValue: input.ourProposalValue ?? existing.ourProposalValue,
-        status: input.status ?? existing.status,
-        bdi: input.bdi ?? existing.bdi,
-        itemsSnapshot: (input.itemsSnapshot ?? existing.itemsSnapshot) as Prisma.InputJsonValue,
-        assetsSnapshot: (input.assetsSnapshot ?? existing.assetsSnapshot) as Prisma.InputJsonValue,
-        updatedById: input.userId ?? null,
-      },
-    }).then(updated => {
-      void this.auditService.log({
-        instanceId: input.instanceId!,
-        userId: input.userId,
-        action: 'UPDATE',
-        model: 'BiddingProcess',
-        entityId: input.id,
-        before: existing as any,
-        after: updated as any,
+    return this.prisma.biddingProcess
+      .update({
+        where: { id: input.id },
+        data: {
+          tenderNumber: input.tenderNumber ?? existing.tenderNumber,
+          clientName: input.clientName ?? existing.clientName,
+          object: input.object ?? existing.object,
+          openingDate: input.openingDate ?? existing.openingDate,
+          expirationDate: input.expirationDate ?? existing.expirationDate,
+          estimatedValue: input.estimatedValue ?? existing.estimatedValue,
+          ourProposalValue: input.ourProposalValue ?? existing.ourProposalValue,
+          status: input.status ?? existing.status,
+          bdi: input.bdi ?? existing.bdi,
+          itemsSnapshot: (input.itemsSnapshot ??
+            existing.itemsSnapshot) as Prisma.InputJsonValue,
+          assetsSnapshot: (input.assetsSnapshot ??
+            existing.assetsSnapshot) as Prisma.InputJsonValue,
+          updatedById: input.userId ?? null,
+        },
+      })
+      .then((updated) => {
+        void this.auditService.log({
+          instanceId: input.instanceId!,
+          userId: input.userId,
+          action: 'UPDATE',
+          model: 'BiddingProcess',
+          entityId: input.id,
+          before: existing as Record<string, unknown>,
+          after: updated as Record<string, unknown>,
+        });
+        return updated;
       });
-      return updated;
-    });
   }
 
   async remove(id: string, instanceId: string, userId?: string) {
@@ -125,7 +129,7 @@ export class BiddingsService {
       action: 'DELETE',
       model: 'BiddingProcess',
       entityId: id,
-      before: existing as any,
+      before: existing as Record<string, unknown>,
     });
 
     return { deleted: 1 };

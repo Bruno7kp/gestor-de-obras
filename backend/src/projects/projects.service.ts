@@ -104,9 +104,8 @@ export class ProjectsService {
         if (!allowedTags.has(lowerTag)) return '';
         if (lowerTag === 'a' && attrs) {
           const hrefMatch = (attrs as string).match(/href\s*=\s*"([^"]*)"/i);
-          const targetMatch = (attrs as string).match(
-            /target\s*=\s*"([^"]*)"/i,
-          );
+          // target attribute is always overridden with _blank below
+          void (attrs as string).match(/target\s*=\s*"([^"]*)"/i);
           const safeAttrs: string[] = [];
           if (hrefMatch) {
             const href = hrefMatch[1];

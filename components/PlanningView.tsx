@@ -1337,7 +1337,8 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                   type="number"
                                   step="any"
                                   className="w-16 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg px-2 py-1 text-center text-[11px] font-black outline-none focus:border-indigo-500 transition-all dark:text-slate-200"
-                                  value={f.quantityNeeded}
+                                  defaultValue={f.quantityNeeded}
+                                  key={`${f.id}-qty-${f.quantityNeeded}`}
                                   onBlur={(e) => {
                                     applyInlineForecastUpdate(
                                       f,
@@ -1346,12 +1347,6 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                       },
                                       true,
                                     );
-                                  }}
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    applyInlineForecastUpdate(f, {
-                                      quantityNeeded: financial.normalizeQuantity(parseFloat(val) || 0),
-                                    }, true);
                                   }}
                                 />
                               </td>

@@ -133,6 +133,54 @@ export const workItemsApi = {
     return response.json();
   },
 
+  async batchUpdate(
+    projectId: string,
+    updates: Array<{ id: string } & Partial<WorkItemPayload>>,
+    operation?: string,
+  ): Promise<WorkItem[]> {
+    // Chunk large payloads to avoid request size limits
+    const CHUNK_SIZE = 100;
+    if (updates.length <= CHUNK_SIZE) {
+      const response = await fetch(`${API_BASE}/work-items/batch-update`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ projectId, updates, operation }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Falha ao atualizar itens em lote');
+      }
+
+      return response.json();
+    }
+
+    // Send in chunks sequentially
+    const results: WorkItem[] = [];
+    for (let i = 0; i < updates.length; i += CHUNK_SIZE) {
+      const chunk = updates.slice(i, i + CHUNK_SIZE);
+      const response = await fetch(`${API_BASE}/work-items/batch-update`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          projectId,
+          updates: chunk,
+          operation: operation ? `${operation}:${Math.floor(i / CHUNK_SIZE) + 1}` : undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Falha ao atualizar itens em lote');
+      }
+
+      const data = await response.json();
+      results.push(...(Array.isArray(data) ? data : []));
+    }
+
+    return results;
+  },
+
   async remove(id: string): Promise<void> {
     const response = await fetch(`${API_BASE}/work-items/${id}`, {
       method: 'DELETE',

@@ -38,7 +38,10 @@ export class ProjectGroupsController {
   }
 
   @Post()
-  create(@Body() body: CreateProjectGroupBody, @Req() req: AuthenticatedRequest) {
+  create(
+    @Body() body: CreateProjectGroupBody,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.projectGroupsService.create({
       ...body,
       instanceId: req.user.instanceId,

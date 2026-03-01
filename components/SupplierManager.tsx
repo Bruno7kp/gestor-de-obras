@@ -161,7 +161,7 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, pro
       const changed = updated.filter((item) => item.order !== previous.find((p) => p.id === item.id)?.order);
 
       try {
-        await Promise.all(changed.map((item) => suppliersApi.update(item.id, { order: item.order })));
+        await suppliersApi.batchReorder(changed.map((item) => ({ id: item.id, order: item.order })));
       } catch (error) {
         console.error('Erro ao reordenar fornecedores:', error);
         onUpdateSuppliers(previous);

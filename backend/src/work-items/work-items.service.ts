@@ -88,9 +88,14 @@ export class WorkItemsService {
     }
   }
 
-  async findAll(projectId: string, instanceId: string, userId?: string, scope?: string) {
+  async findAll(
+    projectId: string,
+    instanceId: string,
+    userId?: string,
+    scope?: string,
+  ) {
     await this.ensureProject(projectId, instanceId, userId);
-    const where: any = { projectId };
+    const where: { projectId: string; scope?: string } = { projectId };
     if (scope) where.scope = scope;
     return this.prisma.workItem.findMany({
       where,
@@ -99,7 +104,12 @@ export class WorkItemsService {
   }
 
   async create(input: CreateWorkItemInput) {
-    await this.ensureProject(input.projectId, input.instanceId, input.userId, true);
+    await this.ensureProject(
+      input.projectId,
+      input.instanceId,
+      input.userId,
+      true,
+    );
     const created = await this.prisma.workItem.create({
       data: {
         id: input.id,
@@ -138,7 +148,7 @@ export class WorkItemsService {
       action: 'CREATE',
       model: 'WorkItem',
       entityId: created.id,
-      after: created as any,
+      after: created as Record<string, unknown>,
     });
 
     return created;
@@ -203,6 +213,21 @@ export class WorkItemsService {
         if (chunk.length === 0) continue;
         await tx.workItem.createMany({ data: chunk });
       }
+    });
+
+    void this.auditService.log({
+      instanceId,
+      userId,
+      projectId,
+      action: 'CREATE',
+      model: 'WorkItem',
+      entityId: projectId,
+      metadata: {
+        batch: true,
+        operation: 'replaceAll',
+        scope: effectiveScope,
+        count: items.length,
+      },
     });
 
     return { created: items.length };
@@ -276,7 +301,164 @@ export class WorkItemsService {
       }
     }
 
+    void this.auditService.log({
+      instanceId,
+      userId,
+      projectId,
+      action: 'CREATE',
+      model: 'WorkItem',
+      entityId: projectId,
+      metadata: {
+        batch: true,
+        operation: replaceFlag ? 'batchInsertReplace' : 'batchInsert',
+        scope: effectiveScope,
+        count: items.length,
+      },
+    });
+
     return { created: items.length };
+  }
+
+  async batchUpdate(
+    projectId: string,
+    updates: UpdateWorkItemInput[],
+    instanceId: string,
+    userId?: string,
+    operation?: string,
+  ) {
+    if (updates.length === 0) return [];
+
+    await this.ensureProject(projectId, instanceId, userId, true);
+
+    // Load all items being updated in a single query
+    const ids = updates.map((u) => u.id);
+    const existingItems = await this.prisma.workItem.findMany({
+      where: { id: { in: ids }, projectId },
+    });
+
+    const existingMap = new Map(existingItems.map((item) => [item.id, item]));
+
+    // Build update operations
+    const txOps = updates
+      .filter((u) => existingMap.has(u.id))
+      .map((input) => {
+        const existing = existingMap.get(input.id)!;
+        return this.prisma.workItem.update({
+          where: { id: input.id },
+          data: {
+            parentId:
+              input.parentId === undefined ? existing.parentId : input.parentId,
+            name: input.name ?? existing.name,
+            type: input.type ?? existing.type,
+            wbs: input.wbs ?? existing.wbs,
+            order: input.order ?? existing.order,
+            unit: input.unit ?? existing.unit,
+            cod: input.cod ?? existing.cod,
+            fonte: input.fonte ?? existing.fonte,
+            contractQuantity:
+              input.contractQuantity ?? existing.contractQuantity,
+            unitPrice: input.unitPrice ?? existing.unitPrice,
+            unitPriceNoBdi: input.unitPriceNoBdi ?? existing.unitPriceNoBdi,
+            contractTotal: input.contractTotal ?? existing.contractTotal,
+            previousQuantity:
+              input.previousQuantity ?? existing.previousQuantity,
+            previousTotal: input.previousTotal ?? existing.previousTotal,
+            currentQuantity: input.currentQuantity ?? existing.currentQuantity,
+            currentTotal: input.currentTotal ?? existing.currentTotal,
+            currentPercentage:
+              input.currentPercentage ?? existing.currentPercentage,
+            accumulatedQuantity:
+              input.accumulatedQuantity ?? existing.accumulatedQuantity,
+            accumulatedTotal:
+              input.accumulatedTotal ?? existing.accumulatedTotal,
+            accumulatedPercentage:
+              input.accumulatedPercentage ?? existing.accumulatedPercentage,
+            balanceQuantity: input.balanceQuantity ?? existing.balanceQuantity,
+            balanceTotal: input.balanceTotal ?? existing.balanceTotal,
+            updatedById: userId ?? null,
+          },
+        });
+      });
+
+    // Execute all updates in a single transaction (chunked to avoid parameter limits)
+    const chunks = this.chunkItems(txOps, 50);
+    const results: Array<{
+      id: string;
+      wbs: string;
+      name: string;
+      type: string;
+    }> = [];
+    for (const chunk of chunks) {
+      const chunkResults = await this.prisma.$transaction(chunk);
+      results.push(
+        ...chunkResults.map((r) => ({
+          id: r.id,
+          wbs: r.wbs,
+          name: r.name,
+          type: r.type,
+        })),
+      );
+    }
+
+    // Single summary audit log for the entire batch
+    void this.auditService.log({
+      instanceId,
+      userId,
+      projectId,
+      action: 'UPDATE',
+      model: 'WorkItem',
+      entityId: projectId,
+      metadata: {
+        batch: true,
+        operation: operation || 'batchUpdate',
+        count: results.length,
+        itemIds: ids,
+      },
+    });
+
+    // Detect completion crossings and emit notifications/journal
+    for (const input of updates) {
+      const existing = existingMap.get(input.id);
+      if (!existing || existing.type !== 'item') continue;
+      const nextAccumulated =
+        input.accumulatedPercentage ?? existing.accumulatedPercentage;
+      if (existing.accumulatedPercentage < 100 && nextAccumulated >= 100) {
+        const updated = results.find((r) => r.id === input.id);
+        if (!updated) continue;
+
+        void this.notificationsService
+          .emit({
+            instanceId,
+            projectId,
+            category: 'PROGRESS',
+            eventType: 'WORKITEM_COMPLETED',
+            priority: 'normal',
+            title: `Marco de Execução: ${updated.wbs}`,
+            body: `O serviço "${updated.name}" foi concluído fisicamente (100% acumulado).`,
+            dedupeKey: `workitem:${updated.id}:COMPLETED`,
+            permissionCodes: [
+              'wbs.view',
+              'wbs.edit',
+              'planning.view',
+              'planning.edit',
+            ],
+            includeProjectMembers: true,
+            metadata: {
+              workItemId: updated.id,
+              wbs: updated.wbs,
+            },
+          })
+          .catch(() => undefined);
+
+        void this.emitWorkItemJournalEntry(instanceId, {
+          projectId,
+          wbs: updated.wbs,
+          name: updated.name,
+        }).catch(() => undefined);
+      }
+    }
+
+    return results;
   }
 
   async update(input: UpdateWorkItemInput) {
@@ -311,7 +493,8 @@ export class WorkItemsService {
     const updated = await this.prisma.workItem.update({
       where: { id: input.id },
       data: {
-        parentId: input.parentId === undefined ? existing.parentId : input.parentId,
+        parentId:
+          input.parentId === undefined ? existing.parentId : input.parentId,
         name: input.name ?? existing.name,
         type: input.type ?? existing.type,
         wbs: input.wbs ?? existing.wbs,
@@ -347,8 +530,8 @@ export class WorkItemsService {
       action: 'UPDATE',
       model: 'WorkItem',
       entityId: input.id,
-      before: existing as any,
-      after: updated as any,
+      before: existing as Record<string, unknown>,
+      after: updated as Record<string, unknown>,
     });
 
     const crossedCompletion =
@@ -367,7 +550,12 @@ export class WorkItemsService {
           title: `Marco de Execução: ${updated.wbs}`,
           body: `O serviço "${updated.name}" foi concluído fisicamente (100% acumulado).`,
           dedupeKey: `workitem:${updated.id}:COMPLETED`,
-          permissionCodes: ['wbs.view', 'wbs.edit', 'planning.view', 'planning.edit'],
+          permissionCodes: [
+            'wbs.view',
+            'wbs.edit',
+            'planning.view',
+            'planning.edit',
+          ],
           includeProjectMembers: true,
           metadata: {
             workItemId: updated.id,
@@ -452,7 +640,7 @@ export class WorkItemsService {
       action: 'DELETE',
       model: 'WorkItem',
       entityId: id,
-      before: target as any,
+      before: target as Record<string, unknown>,
       metadata: { deletedIds: ids },
     });
 

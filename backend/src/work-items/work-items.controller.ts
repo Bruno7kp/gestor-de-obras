@@ -96,7 +96,12 @@ export class WorkItemsController {
   @HasPermission('wbs.edit', 'blueprint.edit')
   async batch(
     @Body()
-    body: { projectId: string; items: CreateWorkItemBody[]; replace?: boolean; scope?: string },
+    body: {
+      projectId: string;
+      items: CreateWorkItemBody[];
+      replace?: boolean;
+      scope?: string;
+    },
     @Req() req: AuthenticatedRequest,
   ): Promise<{ created: number }> {
     return this.workItemsService.batchInsert(
@@ -106,6 +111,30 @@ export class WorkItemsController {
       req.user.instanceId,
       req.user.id,
       body.scope,
+    );
+  }
+
+  @Patch('batch-update')
+  @HasPermission('wbs.edit', 'blueprint.edit')
+  async batchUpdate(
+    @Body()
+    body: {
+      projectId: string;
+      updates: Array<{ id: string } & UpdateWorkItemBody>;
+      operation?: string;
+    },
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.workItemsService.batchUpdate(
+      body.projectId,
+      body.updates.map((u) => ({
+        ...u,
+        instanceId: req.user.instanceId,
+        userId: req.user.id,
+      })),
+      req.user.instanceId,
+      req.user.id,
+      body.operation,
     );
   }
 

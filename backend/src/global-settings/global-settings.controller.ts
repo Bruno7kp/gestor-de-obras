@@ -54,7 +54,7 @@ export class GlobalSettingsController {
       if (!trimmed) return [];
 
       try {
-        const parsed = JSON.parse(trimmed);
+        const parsed: unknown = JSON.parse(trimmed);
         if (Array.isArray(parsed)) {
           return parsed
             .filter((item): item is string => typeof item === 'string')
@@ -107,9 +107,7 @@ export class GlobalSettingsController {
     @Body() body: CreateCertificateBody,
     @Req() req: AuthenticatedRequest,
   ) {
-    const parsedAttachmentUrls = this.parseAttachmentUrls(
-      (body as any).attachmentUrls,
-    );
+    const parsedAttachmentUrls = this.parseAttachmentUrls(body.attachmentUrls);
 
     return this.settingsService.addCertificate({
       ...body,
@@ -124,9 +122,7 @@ export class GlobalSettingsController {
     @Body() body: UpdateCertificateBody,
     @Req() req: AuthenticatedRequest,
   ) {
-    const parsedAttachmentUrls = this.parseAttachmentUrls(
-      (body as any).attachmentUrls,
-    );
+    const parsedAttachmentUrls = this.parseAttachmentUrls(body.attachmentUrls);
 
     return this.settingsService.updateCertificate(id, {
       ...body,

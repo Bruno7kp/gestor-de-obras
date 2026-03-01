@@ -63,6 +63,19 @@ export class SuppliersController {
     });
   }
 
+  @Patch('batch-reorder')
+  @HasPermission('suppliers.edit')
+  batchReorder(
+    @Body() body: { items: Array<{ id: string; order: number }> },
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.suppliersService.batchReorder(
+      body.items,
+      req.user.instanceId,
+      req.user.id,
+    );
+  }
+
   @Patch(':id')
   @HasPermission('suppliers.edit')
   update(

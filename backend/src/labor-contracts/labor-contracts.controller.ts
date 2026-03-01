@@ -48,12 +48,22 @@ export class LaborContractsController {
   constructor(private readonly laborContractsService: LaborContractsService) {}
 
   @Get()
-  findAll(@Query('projectId') projectId: string, @Req() req: AuthenticatedRequest) {
-    return this.laborContractsService.findAll(projectId, req.user.instanceId, req.user.id);
+  findAll(
+    @Query('projectId') projectId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.laborContractsService.findAll(
+      projectId,
+      req.user.instanceId,
+      req.user.id,
+    );
   }
 
   @Post()
-  create(@Body() body: CreateLaborContractBody, @Req() req: AuthenticatedRequest) {
+  create(
+    @Body() body: CreateLaborContractBody,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.laborContractsService.create({
       ...body,
       instanceId: req.user.instanceId,
@@ -91,6 +101,10 @@ export class LaborContractsController {
 
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    return this.laborContractsService.remove(id, req.user.instanceId, req.user.id);
+    return this.laborContractsService.remove(
+      id,
+      req.user.instanceId,
+      req.user.id,
+    );
   }
 }

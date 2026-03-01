@@ -1,4 +1,4 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 // Bypass auth guard for debug endpoints

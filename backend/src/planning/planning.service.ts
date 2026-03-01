@@ -538,7 +538,10 @@ export class PlanningService {
     }>,
     projectId: string,
   ) {
-    const results: Array<{ id: string; expense: any | null }> = [];
+    const results: Array<{
+      id: string;
+      expense: Record<string, unknown> | null;
+    }> = [];
     for (const forecast of forecasts) {
       const expense = await this.syncExpenseForForecast(
         tx,
@@ -662,7 +665,7 @@ export class PlanningService {
       action: 'CREATE',
       model: 'PlanningTask',
       entityId: createdTask.id,
-      after: createdTask as any,
+      after: createdTask as Record<string, unknown>,
     });
 
     return createdTask;
@@ -724,8 +727,8 @@ export class PlanningService {
       action: 'UPDATE',
       model: 'PlanningTask',
       entityId: id,
-      before: task as any,
-      after: updatedTask as any,
+      before: task as Record<string, unknown>,
+      after: updatedTask as Record<string, unknown>,
     });
 
     if (statusChanged) {
@@ -769,7 +772,7 @@ export class PlanningService {
       action: 'DELETE',
       model: 'PlanningTask',
       entityId: id,
-      before: task as any,
+      before: task as Record<string, unknown>,
     });
 
     return { deleted: 1 };
@@ -879,7 +882,10 @@ export class PlanningService {
         });
 
         // Sync expenses for all forecasts if group is ordered/delivered
-        let expenses: Array<{ id: string; expense: any | null }> = [];
+        let expenses: Array<{
+          id: string;
+          expense: Record<string, unknown> | null;
+        }> = [];
         if (input.status === 'ordered' || input.status === 'delivered') {
           const forecasts = await tx.materialForecast.findMany({
             where: { supplyGroupId: createdGroup.id },
@@ -1145,10 +1151,15 @@ export class PlanningService {
       });
 
       // Sync expenses for newly added items if group is non-pending
-      let expenses: Array<{ id: string; expense: any | null }> = [];
+      let expenses: Array<{
+        id: string;
+        expense: Record<string, unknown> | null;
+      }> = [];
       if (group.status === 'ordered' || group.status === 'delivered') {
         const newItemIds = items.filter((i) => i.id).map((i) => i.id!);
-        let newForecasts;
+        let newForecasts: Awaited<
+          ReturnType<typeof tx.materialForecast.findMany>
+        > = [];
         if (newItemIds.length > 0) {
           newForecasts = await tx.materialForecast.findMany({
             where: { id: { in: newItemIds } },
@@ -1323,7 +1334,10 @@ export class PlanningService {
         });
 
         // Sync expenses for converted forecasts if non-pending
-        let expenses: Array<{ id: string; expense: any | null }> = [];
+        let expenses: Array<{
+          id: string;
+          expense: Record<string, unknown> | null;
+        }> = [];
         if (input.status === 'ordered' || input.status === 'delivered') {
           const updatedForecasts = await tx.materialForecast.findMany({
             where: { supplyGroupId: createdGroup.id },
@@ -1469,7 +1483,7 @@ export class PlanningService {
       action: 'CREATE',
       model: 'MaterialForecast',
       entityId: created.id,
-      after: created as any,
+      after: created as Record<string, unknown>,
     });
 
     return { ...created, syncedExpense };
@@ -1635,8 +1649,8 @@ export class PlanningService {
       action: 'UPDATE',
       model: 'MaterialForecast',
       entityId: id,
-      before: forecast as any,
-      after: updated as any,
+      before: forecast as Record<string, unknown>,
+      after: updated as Record<string, unknown>,
     });
 
     return { ...updated, syncedExpense };
@@ -1705,7 +1719,7 @@ export class PlanningService {
       action: 'DELETE',
       model: 'MaterialForecast',
       entityId: id,
-      before: forecast as any,
+      before: forecast as Record<string, unknown>,
     });
 
     return { deleted: 1, deletedExpenseId: id };
@@ -1748,7 +1762,7 @@ export class PlanningService {
           action: 'CREATE',
           model: 'Milestone',
           entityId: created.id,
-          after: created as any,
+          after: created as Record<string, unknown>,
         });
         return created;
       });
@@ -1792,8 +1806,8 @@ export class PlanningService {
           action: 'UPDATE',
           model: 'Milestone',
           entityId: id,
-          before: milestone as any,
-          after: updated as any,
+          before: milestone as Record<string, unknown>,
+          after: updated as Record<string, unknown>,
         });
         return updated;
       });
@@ -1959,7 +1973,7 @@ export class PlanningService {
       action: 'DELETE',
       model: 'Milestone',
       entityId: id,
-      before: milestone as any,
+      before: milestone as Record<string, unknown>,
     });
 
     return { deleted: 1 };

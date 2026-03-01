@@ -72,7 +72,10 @@ export class UsersController {
   }
 
   @Patch('me/password')
-  updatePassword(@Body() body: UpdatePasswordBody, @Req() req: AuthenticatedRequest) {
+  updatePassword(
+    @Body() body: UpdatePasswordBody,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.usersService.updatePassword({
       userId: req.user.id,
       instanceId: req.user.instanceId,
@@ -120,8 +123,14 @@ export class UsersController {
     const roleIds = Array.isArray(body.roleIds) ? body.roleIds : [];
 
     if (req.user.id === id) {
-      const names = await this.usersService.resolveRoleNames(roleIds, req.user.instanceId);
-      const keepAdmin = names.includes('ADMIN') || names.includes('SUPER_ADMIN') || names.includes('Gestor Principal');
+      const names = await this.usersService.resolveRoleNames(
+        roleIds,
+        req.user.instanceId,
+      );
+      const keepAdmin =
+        names.includes('ADMIN') ||
+        names.includes('SUPER_ADMIN') ||
+        names.includes('Gestor Principal');
       if (!keepAdmin) {
         throw new ForbiddenException('Admin nao pode alterar a propria role');
       }

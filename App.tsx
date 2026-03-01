@@ -379,28 +379,29 @@ const App: React.FC = () => {
       }
 
       try {
-        await Promise.all(
-          updated.items.map(item =>
-            workItemsApi.update(item.id, {
-              parentId: item.parentId,
-              order: item.order,
-              wbs: item.wbs,
-              contractQuantity: item.contractQuantity,
-              unitPrice: item.unitPrice,
-              unitPriceNoBdi: item.unitPriceNoBdi,
-              contractTotal: item.contractTotal,
-              previousQuantity: item.previousQuantity,
-              previousTotal: item.previousTotal,
-              currentQuantity: item.currentQuantity,
-              currentTotal: item.currentTotal,
-              currentPercentage: item.currentPercentage,
-              accumulatedQuantity: item.accumulatedQuantity,
-              accumulatedTotal: item.accumulatedTotal,
-              accumulatedPercentage: item.accumulatedPercentage,
-              balanceQuantity: item.balanceQuantity,
-              balanceTotal: item.balanceTotal,
-            }),
-          ),
+        await workItemsApi.batchUpdate(
+          activeProject.id,
+          updated.items.map(item => ({
+            id: item.id,
+            parentId: item.parentId,
+            order: item.order,
+            wbs: item.wbs,
+            contractQuantity: item.contractQuantity,
+            unitPrice: item.unitPrice,
+            unitPriceNoBdi: item.unitPriceNoBdi,
+            contractTotal: item.contractTotal,
+            previousQuantity: item.previousQuantity,
+            previousTotal: item.previousTotal,
+            currentQuantity: item.currentQuantity,
+            currentTotal: item.currentTotal,
+            currentPercentage: item.currentPercentage,
+            accumulatedQuantity: item.accumulatedQuantity,
+            accumulatedTotal: item.accumulatedTotal,
+            accumulatedPercentage: item.accumulatedPercentage,
+            balanceQuantity: item.balanceQuantity,
+            balanceTotal: item.balanceTotal,
+          })),
+          'closeMeasurement',
         );
       } catch (error) {
         console.error('Erro ao atualizar itens apos fechamento:', error);

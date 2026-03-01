@@ -18,33 +18,60 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
 
     super({ adapter });
 
-    const middlewareApi = (this as any).$use;
+    const middlewareApi = (
+      this as unknown as {
+        $use?: (
+          cb: (
+            params: {
+              action: string;
+              model?: string;
+              args?: Record<string, unknown>;
+            },
+            next: (params: unknown) => Promise<unknown>,
+          ) => Promise<unknown>,
+        ) => void;
+      }
+    ).$use;
     if (typeof middlewareApi !== 'function') {
       return;
     }
 
-    middlewareApi.call(this, async (params: any, next: any) => {
-      const isWriteAction = [
-        'create',
-        'createMany',
-        'update',
-        'updateMany',
-        'upsert',
-        'delete',
-        'deleteMany',
-      ].includes(params.action);
+    middlewareApi.call(
+      this,
+      async (
+        params: {
+          action: string;
+          model?: string;
+          args?: Record<string, unknown>;
+        },
+        next: (params: unknown) => Promise<unknown>,
+      ) => {
+        const isWriteAction = [
+          'create',
+          'createMany',
+          'update',
+          'updateMany',
+          'upsert',
+          'delete',
+          'deleteMany',
+        ].includes(params.action);
 
-      if (!isWriteAction || !params.model || params.model === 'Project') {
+        if (!isWriteAction || !params.model || params.model === 'Project') {
+          return next(params);
+        }
+
+        const projectIds = await this.resolveProjectIdsFromMutation(
+          params.model,
+          params.action,
+          params.args,
+        );
+        if (projectIds.length > 0) {
+          await this.assertProjectsWritable(projectIds);
+        }
+
         return next(params);
-      }
-
-      const projectIds = await this.resolveProjectIdsFromMutation(params.model, params.action, params.args);
-      if (projectIds.length > 0) {
-        await this.assertProjectsWritable(projectIds);
-      }
-
-      return next(params);
-    });
+      },
+    );
   }
 
   private async assertProjectsWritable(projectIds: string[]) {
@@ -63,24 +90,28 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     }
   }
 
-  private normalizeDataArray(data: unknown): Array<Record<string, any>> {
-    if (Array.isArray(data)) return data as Array<Record<string, any>>;
-    if (data && typeof data === 'object') return [data as Record<string, any>];
+  private normalizeDataArray(data: unknown): Array<Record<string, unknown>> {
+    if (Array.isArray(data)) return data as Array<Record<string, unknown>>;
+    if (data && typeof data === 'object')
+      return [data as Record<string, unknown>];
     return [];
   }
 
   private async resolveProjectIdsFromMutation(
     model: string,
-    action: string,
-    args: any,
+    _action: string,
+    args: Record<string, unknown> | undefined,
   ): Promise<string[]> {
-    const fromData = (key: string) =>
+    const fromData = (key: string): string[] =>
       this.normalizeDataArray(args?.data)
         .map((row) => row?.[key])
-        .filter(Boolean);
+        .filter((v): v is string => typeof v === 'string');
 
-    const fromUniqueId = async (finder: (id: string) => Promise<string | null>) => {
-      const id = args?.where?.id;
+    const fromUniqueId = async (
+      finder: (id: string) => Promise<string | null>,
+    ) => {
+      const where = args?.where as Record<string, unknown> | undefined;
+      const id = where?.id;
       if (!id || typeof id !== 'string') return [];
       const projectId = await finder(id);
       return projectId ? [projectId] : [];
@@ -104,42 +135,66 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     switch (model) {
       case 'WorkItem':
         return fromUniqueId(async (id) => {
-          const row = await this.workItem.findUnique({ where: { id }, select: { projectId: true } });
+          const row = await this.workItem.findUnique({
+            where: { id },
+            select: { projectId: true },
+          });
           return row?.projectId ?? null;
         });
       case 'ProjectAsset':
         return fromUniqueId(async (id) => {
-          const row = await this.projectAsset.findUnique({ where: { id }, select: { projectId: true } });
+          const row = await this.projectAsset.findUnique({
+            where: { id },
+            select: { projectId: true },
+          });
           return row?.projectId ?? null;
         });
       case 'ProjectExpense':
         return fromUniqueId(async (id) => {
-          const row = await this.projectExpense.findUnique({ where: { id }, select: { projectId: true } });
+          const row = await this.projectExpense.findUnique({
+            where: { id },
+            select: { projectId: true },
+          });
           return row?.projectId ?? null;
         });
       case 'MeasurementSnapshot':
         return fromUniqueId(async (id) => {
-          const row = await this.measurementSnapshot.findUnique({ where: { id }, select: { projectId: true } });
+          const row = await this.measurementSnapshot.findUnique({
+            where: { id },
+            select: { projectId: true },
+          });
           return row?.projectId ?? null;
         });
       case 'WorkforceMember':
         return fromUniqueId(async (id) => {
-          const row = await this.workforceMember.findUnique({ where: { id }, select: { projectId: true } });
+          const row = await this.workforceMember.findUnique({
+            where: { id },
+            select: { projectId: true },
+          });
           return row?.projectId ?? null;
         });
       case 'ProjectMember':
         return fromUniqueId(async (id) => {
-          const row = await this.projectMember.findUnique({ where: { id }, select: { projectId: true } });
+          const row = await this.projectMember.findUnique({
+            where: { id },
+            select: { projectId: true },
+          });
           return row?.projectId ?? null;
         });
       case 'ProjectPlanning':
         return fromUniqueId(async (id) => {
-          const row = await this.projectPlanning.findUnique({ where: { id }, select: { projectId: true } });
+          const row = await this.projectPlanning.findUnique({
+            where: { id },
+            select: { projectId: true },
+          });
           return row?.projectId ?? null;
         });
       case 'ProjectJournal':
         return fromUniqueId(async (id) => {
-          const row = await this.projectJournal.findUnique({ where: { id }, select: { projectId: true } });
+          const row = await this.projectJournal.findUnique({
+            where: { id },
+            select: { projectId: true },
+          });
           return row?.projectId ?? null;
         });
       case 'LaborContract': {
@@ -153,7 +208,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
         }
 
         return fromUniqueId(async (id) => {
-          const row = await this.laborContract.findUnique({ where: { id }, select: { projectId: true } });
+          const row = await this.laborContract.findUnique({
+            where: { id },
+            select: { projectId: true },
+          });
           return row?.projectId ?? null;
         });
       }
@@ -174,18 +232,30 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
         return fromUniqueId(async (id) => {
           const planningIdLookup = async (): Promise<string | null> => {
             if (model === 'PlanningTask') {
-              const row = await this.planningTask.findUnique({ where: { id }, select: { projectPlanningId: true } });
+              const row = await this.planningTask.findUnique({
+                where: { id },
+                select: { projectPlanningId: true },
+              });
               return row?.projectPlanningId ?? null;
             }
             if (model === 'MaterialForecast') {
-              const row = await this.materialForecast.findUnique({ where: { id }, select: { projectPlanningId: true } });
+              const row = await this.materialForecast.findUnique({
+                where: { id },
+                select: { projectPlanningId: true },
+              });
               return row?.projectPlanningId ?? null;
             }
             if (model === 'Milestone') {
-              const row = await this.milestone.findUnique({ where: { id }, select: { projectPlanningId: true } });
+              const row = await this.milestone.findUnique({
+                where: { id },
+                select: { projectPlanningId: true },
+              });
               return row?.projectPlanningId ?? null;
             }
-            const row = await this.supplyGroup.findUnique({ where: { id }, select: { projectPlanningId: true } });
+            const row = await this.supplyGroup.findUnique({
+              where: { id },
+              select: { projectPlanningId: true },
+            });
             return row?.projectPlanningId ?? null;
           };
 
@@ -211,7 +281,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
         }
 
         return fromUniqueId(async (id) => {
-          const row = await this.journalEntry.findUnique({ where: { id }, select: { projectJournalId: true } });
+          const row = await this.journalEntry.findUnique({
+            where: { id },
+            select: { projectJournalId: true },
+          });
           if (!row?.projectJournalId) return null;
           const journal = await this.projectJournal.findUnique({
             where: { id: row.projectJournalId },
@@ -232,7 +305,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
         }
 
         return fromUniqueId(async (id) => {
-          const row = await this.staffDocument.findUnique({ where: { id }, select: { workforceMemberId: true } });
+          const row = await this.staffDocument.findUnique({
+            where: { id },
+            select: { workforceMemberId: true },
+          });
           if (!row?.workforceMemberId) return null;
           const member = await this.workforceMember.findUnique({
             where: { id: row.workforceMemberId },
@@ -263,9 +339,15 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
         if (resolved.length > 0) return resolved;
 
         return fromUniqueId(async (id) => {
-          const row = await this.workItemResponsibility.findUnique({ where: { id }, select: { workItemId: true } });
+          const row = await this.workItemResponsibility.findUnique({
+            where: { id },
+            select: { workItemId: true },
+          });
           if (!row?.workItemId) return null;
-          const item = await this.workItem.findUnique({ where: { id: row.workItemId }, select: { projectId: true } });
+          const item = await this.workItem.findUnique({
+            where: { id: row.workItemId },
+            select: { projectId: true },
+          });
           return item?.projectId ?? null;
         });
       }
@@ -281,7 +363,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
         }
 
         return fromUniqueId(async (id) => {
-          const row = await this.laborContractWorkItem.findUnique({ where: { id }, select: { laborContractId: true } });
+          const row = await this.laborContractWorkItem.findUnique({
+            where: { id },
+            select: { laborContractId: true },
+          });
           if (!row?.laborContractId) return null;
           const contract = await this.laborContract.findUnique({
             where: { id: row.laborContractId },
@@ -302,7 +387,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
         }
 
         return fromUniqueId(async (id) => {
-          const row = await this.laborPayment.findUnique({ where: { id }, select: { laborContractId: true } });
+          const row = await this.laborPayment.findUnique({
+            where: { id },
+            select: { laborContractId: true },
+          });
           if (!row?.laborContractId) return null;
           const contract = await this.laborContract.findUnique({
             where: { id: row.laborContractId },
@@ -320,9 +408,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     await this.$connect();
   }
 
-  async enableShutdownHooks(app: INestApplication) {
-    const shutdown = async () => {
-      await app.close();
+  enableShutdownHooks(app: INestApplication) {
+    const shutdown = () => {
+      void app.close();
     };
 
     process.on('beforeExit', shutdown);

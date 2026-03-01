@@ -53,7 +53,9 @@ export async function ensureProjectWritable(
   }
 
   if (project.isArchived) {
-    throw new ForbiddenException('Projeto arquivado. Reative a obra para editar.');
+    throw new ForbiddenException(
+      'Projeto arquivado. Reative a obra para editar.',
+    );
   }
 }
 
