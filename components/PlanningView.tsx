@@ -36,6 +36,7 @@ interface PlanningViewProps {
   onUpdatePlanning: (planning: ProjectPlanning) => void;
   onAddExpense: (expense: ProjectExpense) => void;
   onUpdateExpense: (id: string, data: Partial<ProjectExpense>) => void;
+  onRefreshExpenses?: () => Promise<void>;
   categories: WorkItem[];
   allWorkItems: WorkItem[];
   viewMode?: 'planning' | 'supplies';
@@ -53,6 +54,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   onUpdatePlanning,
   onAddExpense,
   onUpdateExpense,
+  onRefreshExpenses,
   categories,
   allWorkItems,
   viewMode = 'planning',
@@ -545,140 +547,47 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     discountValue?: number,
     discountPercentage?: number,
   ) => {
-    const existingExpense = findExpenseForForecast(forecast);
-    const expenseData = planningService.prepareExpenseFromForecast(
-      forecast,
-      parentId,
-      purchaseDate,
-      isPaid,
-      forecast.id,
-      'ordered',
-      {
-        discountValue,
-        discountPercentage,
-      },
-    );
-    const supplierName = suppliers.find(s => s.id === forecast.supplierId)?.name;
-    if (supplierName) {
-      expenseData.entityName = supplierName;
-    }
-    if (isPaid && proof) {
-      expenseData.paymentProof = proof;
-    }
-    
-    if (existingExpense) {
-      onUpdateExpense(existingExpense.id, {
-        parentId: parentId ?? existingExpense.parentId,
-        date: expenseData.date,
-        description: expenseData.description,
-        entityName: expenseData.entityName,
-        unit: expenseData.unit,
-        quantity: expenseData.quantity,
-        unitPrice: expenseData.unitPrice,
-        discountValue: expenseData.discountValue,
-        discountPercentage: expenseData.discountPercentage,
-        amount: expenseData.amount,
-        isPaid: expenseData.isPaid,
-        status: expenseData.status,
-        paymentDate: expenseData.paymentDate ?? existingExpense.paymentDate,
-        paymentProof: expenseData.paymentProof ?? existingExpense.paymentProof,
-      });
-    } else {
-      onAddExpense(expenseData as ProjectExpense);
-    }
-    
+    // Expense sync is now handled atomically by the backend when forecast status changes.
+    // We only update local planning state here — the backend sync via syncPlanningEntities
+    // will create/update the expense automatically.
     const updatedPlanning = moveForecastToStatusTop(planning, forecast.id, 'ordered', {
       isPaid: isPaid,
       paymentProof: proof,
       purchaseDate: purchaseDate || new Date().toISOString().split('T')[0],
-      discountValue: expenseData.discountValue ?? forecast.discountValue ?? 0,
-      discountPercentage: expenseData.discountPercentage ?? forecast.discountPercentage ?? 0,
+      discountValue: discountValue ?? forecast.discountValue ?? 0,
+      discountPercentage: discountPercentage ?? forecast.discountPercentage ?? 0,
     });
     onUpdatePlanning(updatedPlanning);
     setConfirmingForecast(null);
     setForecastStatusFilter('ordered');
   };
 
-  const syncExpenseWithForecast = (forecast: MaterialForecast) => {
-    const linkedExpense = findExpenseForForecast(forecast);
-    if (!linkedExpense) return;
-
-    const supplierName = suppliers.find((supplier) => supplier.id === forecast.supplierId)?.name;
-    const expenseData = planningService.prepareExpenseFromForecast(
-      forecast,
-      linkedExpense.parentId ?? (forecast.categoryId || null),
-      forecast.purchaseDate || linkedExpense.date,
-      forecast.isPaid,
-      linkedExpense.id,
-      forecast.status,
-      {
-        discountValue: forecast.discountValue,
-        discountPercentage: forecast.discountPercentage,
-      },
-    );
-
-    const nextStatus = forecast.status === 'delivered'
-      ? 'DELIVERED'
-      : (linkedExpense.status === 'DELIVERED' ? 'DELIVERED' : expenseData.status);
-
-    onUpdateExpense(linkedExpense.id, {
-      parentId: expenseData.parentId ?? linkedExpense.parentId,
-      date: expenseData.date,
-      description: expenseData.description,
-      entityName: supplierName || expenseData.entityName || linkedExpense.entityName,
-      unit: expenseData.unit,
-      quantity: expenseData.quantity,
-      unitPrice: expenseData.unitPrice,
-      discountValue: expenseData.discountValue,
-      discountPercentage: expenseData.discountPercentage,
-      amount: expenseData.amount,
-      isPaid: expenseData.isPaid,
-      status: nextStatus,
-      paymentDate: expenseData.paymentDate ?? linkedExpense.paymentDate,
-      paymentProof: expenseData.paymentProof ?? linkedExpense.paymentProof,
-      deliveryDate:
-        forecast.status === 'delivered'
-          ? (forecast.deliveryDate || linkedExpense.deliveryDate || new Date().toISOString().split('T')[0])
-          : linkedExpense.deliveryDate,
-    });
+  const syncExpenseWithForecast = (_forecast: MaterialForecast) => {
+    // No-op: expense sync is now handled atomically by the backend.
+    // Kept as stub for any remaining call sites during transition.
   };
 
-  const syncExpensesWithForecasts = (forecastsToSync: MaterialForecast[]) => {
-    forecastsToSync.forEach((forecast) => {
-      syncExpenseWithForecast(forecast);
-    });
+  const syncExpensesWithForecasts = (_forecastsToSync: MaterialForecast[]) => {
+    // No-op: expense sync is now handled atomically by the backend.
   };
 
   const syncItemFinancialGroup = (
-    forecastId: string,
-    categoryId: string | null,
+    _forecastId: string,
+    _categoryId: string | null,
     _description: string,
   ) => {
-    const forecast = planning.forecasts.find((item) => item.id === forecastId);
-    // Use findExpenseForForecast when the forecast object is available (safe two-pass lookup).
-    // Otherwise fall back to ID-only match — bare description matching is unreliable
-    // when multiple items share the same name.
-    const linkedExpense = forecast
-      ? findExpenseForForecast(forecast)
-      : project.expenses.find((expense) => expense.id === forecastId);
-
-    if (!linkedExpense) return;
-
-    const nextParentId = categoryId || null;
-    const currentParentId = linkedExpense.parentId || null;
-    if (currentParentId === nextParentId) return;
-
-    onUpdateExpense(linkedExpense.id, { parentId: nextParentId });
+    // No-op: expense sync is now handled atomically by the backend.
   };
 
   const refreshForecastsFromApi = async () => {
     try {
       const latestForecasts = await planningApi.listForecasts(project.id);
-      syncExpensesWithForecasts(latestForecasts);
       onUpdatePlanning({
         ...planning,
         forecasts: latestForecasts,
       });
+      // Refresh expenses since backend may have synced them
+      await onRefreshExpenses?.();
     } catch (error) {
       console.error('Erro ao recarregar suprimentos:', error);
       toast.error('Erro ao atualizar lista de suprimentos.');
@@ -803,82 +712,8 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
           [updatedGroup.id]: updatedGroup,
         }));
       }
-      const shouldSyncFinancial =
-        payload.status !== undefined ||
-        payload.isPaid !== undefined ||
-        payload.isCleared !== undefined ||
-        payload.paymentProof !== undefined ||
-        payload.invoiceDoc !== undefined ||
-        payload.purchaseDate !== undefined ||
-        payload.deliveryDate !== undefined ||
-        payload.supplierId !== undefined;
-
-      if (shouldSyncFinancial) {
-        const groupedForecasts = planning.forecasts.filter((forecast) => forecast.supplyGroupId === groupId);
-        const supplierName = suppliers.find((supplier) => supplier.id === (payload.supplierId || ''))?.name;
-
-        groupedForecasts.forEach((forecast) => {
-          const linkedExpense = findExpenseForForecast(forecast);
-          const targetStatus = payload.status || forecast.status;
-          const targetIsPaid = payload.isPaid ?? forecast.isPaid;
-          const targetPurchaseDate = payload.purchaseDate || forecast.purchaseDate;
-          const targetDeliveryDate = payload.deliveryDate || forecast.deliveryDate;
-
-          if (targetStatus !== 'pending') {
-            const expenseData = planningService.prepareExpenseFromForecast(
-              forecast,
-              linkedExpense?.parentId ?? (forecast.categoryId || null),
-              targetPurchaseDate || undefined,
-              targetIsPaid,
-              linkedExpense?.id || forecast.id,
-              targetStatus,
-              {
-                discountValue: forecast.discountValue,
-                discountPercentage: forecast.discountPercentage,
-              },
-            );
-
-            if (supplierName) {
-              expenseData.entityName = supplierName;
-            }
-
-            if (targetIsPaid && payload.paymentProof) {
-              expenseData.paymentProof = payload.paymentProof;
-            }
-
-            if (targetStatus === 'delivered') {
-              expenseData.status = 'DELIVERED';
-              expenseData.deliveryDate = targetDeliveryDate || new Date().toISOString().split('T')[0];
-            }
-
-            if (linkedExpense) {
-              onUpdateExpense(linkedExpense.id, {
-                parentId: expenseData.parentId ?? linkedExpense.parentId,
-                date: expenseData.date,
-                description: expenseData.description,
-                entityName: expenseData.entityName,
-                unit: expenseData.unit,
-                quantity: expenseData.quantity,
-                unitPrice: expenseData.unitPrice,
-                discountValue: expenseData.discountValue,
-                discountPercentage: expenseData.discountPercentage,
-                amount: expenseData.amount,
-                isPaid: expenseData.isPaid,
-                status: expenseData.status,
-                paymentDate: expenseData.paymentDate ?? linkedExpense.paymentDate,
-                paymentProof: expenseData.paymentProof ?? linkedExpense.paymentProof,
-                deliveryDate: expenseData.deliveryDate ?? linkedExpense.deliveryDate,
-                invoiceDoc: payload.isCleared ? (payload.invoiceDoc ?? linkedExpense.invoiceDoc) : linkedExpense.invoiceDoc,
-              });
-            } else {
-              onAddExpense(expenseData as ProjectExpense);
-            }
-          } else if (linkedExpense && payload.isCleared && payload.invoiceDoc) {
-            onUpdateExpense(linkedExpense.id, { invoiceDoc: payload.invoiceDoc });
-          }
-        });
-      }
-
+      // Expense sync is now handled atomically by the backend.
+      // Just refresh forecasts to get the latest state.
       await refreshForecastsFromApi();
       setEditingSupplyGroup(null);
       toast.success('Grupo atualizado com sucesso.');
@@ -998,22 +833,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
 
   const handleFinalizeDelivery = (forecast: MaterialForecast) => {
     const deliveryDate = new Date().toISOString().split('T')[0];
-    const linkedExpense = findExpenseForForecast(forecast);
-    if (linkedExpense) {
-      const expenseData = planningService.prepareExpenseFromForecast(
-        forecast,
-        linkedExpense.parentId ?? null,
-        deliveryDate,
-        linkedExpense.isPaid,
-        linkedExpense.id,
-        'delivered'
-      );
-      onUpdateExpense(linkedExpense.id, {
-        status: 'DELIVERED',
-        deliveryDate,
-        description: expenseData.description,
-      });
-    }
+    // Expense sync is now handled atomically by the backend when forecast status changes.
     onUpdatePlanning(moveForecastToStatusTop(planning, forecast.id, 'delivered', {
       deliveryDate,
     }));
@@ -1021,16 +841,15 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   };
 
   const handleFinalizeClearance = (forecast: MaterialForecast, invoiceDoc?: string) => {
-    const linkedExpense = findExpenseForForecast(forecast);
-    if (!linkedExpense) {
-      toast.warning('Nao foi encontrado o item financeiro vinculado.');
-      return;
-    }
     if (!invoiceDoc) {
       toast.warning('Anexe a nota fiscal para dar baixa.');
       return;
     }
-    onUpdateExpense(linkedExpense.id, { invoiceDoc });
+    // invoiceDoc is an expense-exclusive field — update it directly on the expense
+    const linkedExpense = findExpenseForForecast(forecast);
+    if (linkedExpense) {
+      onUpdateExpense(linkedExpense.id, { invoiceDoc });
+    }
     onUpdatePlanning(planningService.updateForecast(planning, forecast.id, { isCleared: true }));
     setConfirmingClearanceForecast(null);
   };

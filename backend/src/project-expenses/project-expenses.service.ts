@@ -531,6 +531,31 @@ export class ProjectExpensesService {
 
     await ensureProjectWritable(this.prisma, existing.projectId);
 
+    // Guard: if this expense is synced from a MaterialForecast (same ID),
+    // block editing forecast-controlled fields — only allow expense-exclusive fields
+    const linkedForecast = await this.prisma.materialForecast.findUnique({
+      where: { id: input.id },
+      select: { id: true },
+    });
+    if (linkedForecast) {
+      // Strip forecast-synced fields to prevent manual overwrites
+      delete input.description;
+      delete input.unit;
+      delete input.quantity;
+      delete input.unitPrice;
+      delete input.discountValue;
+      delete input.discountPercentage;
+      delete input.amount;
+      delete input.isPaid;
+      delete input.status;
+      delete input.paymentDate;
+      delete input.date;
+      delete input.deliveryDate;
+      delete input.paymentProof;
+      delete input.type;
+      delete input.itemType;
+    }
+
     const nextStatus = input.status ?? existing.status;
 
     const updated = await this.prisma.projectExpense.update({

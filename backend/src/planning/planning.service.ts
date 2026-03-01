@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma, ExpenseStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { isLocalUpload, removeLocalUpload } from '../uploads/file.utils';
 import {
@@ -6,6 +7,8 @@ import {
   ensureProjectWritable,
 } from '../common/project-access.util';
 import { NotificationsService } from '../notifications/notifications.service';
+
+type TxClient = Prisma.TransactionClient;
 
 interface CreateTaskInput {
   id?: string;
@@ -282,6 +285,236 @@ export class PlanningService {
     }
   }
 
+  // ──────────────────────────────────────────────────────────────
+  // Expense sync helpers — atomic forecast ↔ expense consistency
+  // ──────────────────────────────────────────────────────────────
+
+  private getExpensePrefix(status: string, isPaid: boolean): string {
+    if (status === 'delivered') return 'Pedido Entregue';
+    if (isPaid) return 'Pedido Pago';
+    return 'Pedido Pendente';
+  }
+
+  private getExpenseStatus(forecastStatus: string, isPaid: boolean): ExpenseStatus {
+    if (forecastStatus === 'delivered') return ExpenseStatus.DELIVERED;
+    if (isPaid) return ExpenseStatus.PAID;
+    return ExpenseStatus.PENDING;
+  }
+
+  private computeExpenseAmount(qty: number, unitPrice: number, discountValue: number): number {
+    return Math.max(0, Math.round((qty * unitPrice - discountValue) * 100) / 100);
+  }
+
+  /**
+   * Resolve projectId from a projectPlanningId.
+   */
+  private async resolveProjectId(tx: TxClient, projectPlanningId: string): Promise<string> {
+    const planning = await tx.projectPlanning.findUnique({
+      where: { id: projectPlanningId },
+      select: { projectId: true },
+    });
+    if (!planning) throw new NotFoundException('Planejamento nao encontrado');
+    return planning.projectId;
+  }
+
+  /**
+   * Resolve supplier name from supplierId.
+   */
+  private async resolveSupplierName(tx: TxClient, supplierId?: string | null): Promise<string> {
+    if (!supplierId) return '';
+    const supplier = await tx.supplier.findUnique({
+      where: { id: supplierId },
+      select: { name: true },
+    });
+    return supplier?.name ?? '';
+  }
+
+  /**
+   * Build the expense data object from a forecast. Used for both create and update.
+   */
+  private buildExpenseDataFromForecast(
+    forecast: {
+      id: string;
+      description: string;
+      unit: string;
+      quantityNeeded: number;
+      unitPrice: number;
+      discountValue?: number | null;
+      discountPercentage?: number | null;
+      status: string;
+      isPaid: boolean;
+      purchaseDate?: string | null;
+      deliveryDate?: string | null;
+      paymentProof?: string | null;
+      categoryId?: string | null;
+    },
+    supplierName: string,
+  ) {
+    const prefix = this.getExpensePrefix(forecast.status, forecast.isPaid);
+    const discountValue = forecast.discountValue ?? 0;
+    const amount = this.computeExpenseAmount(
+      forecast.quantityNeeded,
+      forecast.unitPrice,
+      discountValue,
+    );
+    const expenseStatus = this.getExpenseStatus(forecast.status, forecast.isPaid);
+    const effectiveDate = forecast.purchaseDate || new Date().toISOString().split('T')[0];
+
+    return {
+      parentId: forecast.categoryId ?? null,
+      type: 'material' as const,
+      itemType: 'item' as const,
+      wbs: '',
+      order: 0,
+      date: effectiveDate,
+      description: `${prefix}: ${forecast.description}`,
+      entityName: supplierName,
+      unit: forecast.unit,
+      quantity: forecast.quantityNeeded,
+      unitPrice: forecast.unitPrice,
+      discountValue: discountValue,
+      discountPercentage: forecast.discountPercentage ?? 0,
+      amount,
+      isPaid: forecast.isPaid,
+      status: expenseStatus,
+      paymentDate: forecast.isPaid ? effectiveDate : null,
+      paymentProof: forecast.paymentProof ?? null,
+      invoiceDoc: null as string | null,
+      deliveryDate: forecast.status === 'delivered'
+        ? (forecast.deliveryDate || new Date().toISOString().split('T')[0])
+        : null,
+      linkedWorkItemId: null as string | null,
+    };
+  }
+
+  /**
+   * Sync a single forecast's corresponding ProjectExpense atomically.
+   *
+   * Rules:
+   * - status pending/quoted → delete expense if it exists
+   * - status ordered/delivered → upsert expense with forecast values
+   *
+   * MUST be called inside a $transaction (receives tx client).
+   * Returns the synced expense or null.
+   */
+  private async syncExpenseForForecast(
+    tx: TxClient,
+    forecast: {
+      id: string;
+      description: string;
+      unit: string;
+      quantityNeeded: number;
+      unitPrice: number;
+      discountValue?: number | null;
+      discountPercentage?: number | null;
+      status: string;
+      isPaid: boolean;
+      purchaseDate?: string | null;
+      deliveryDate?: string | null;
+      paymentProof?: string | null;
+      categoryId?: string | null;
+      supplierId?: string | null;
+      projectPlanningId: string;
+    },
+    projectId: string,
+  ) {
+    const shouldHaveExpense = forecast.status === 'ordered' || forecast.status === 'delivered';
+
+    if (!shouldHaveExpense) {
+      // Remove expense if it exists (forecast went back to pending or was never ordered)
+      await tx.projectExpense.deleteMany({ where: { id: forecast.id } });
+      return null;
+    }
+
+    const supplierName = await this.resolveSupplierName(tx, forecast.supplierId);
+    const data = this.buildExpenseDataFromForecast(forecast, supplierName);
+
+    const existing = await tx.projectExpense.findUnique({
+      where: { id: forecast.id },
+    });
+
+    if (existing) {
+      // Preserve expense-exclusive fields that don't come from forecast
+      const updated = await tx.projectExpense.update({
+        where: { id: forecast.id },
+        data: {
+          parentId: data.parentId ?? existing.parentId,
+          date: data.date,
+          description: data.description,
+          entityName: data.entityName || existing.entityName,
+          unit: data.unit,
+          quantity: data.quantity,
+          unitPrice: data.unitPrice,
+          discountValue: data.discountValue,
+          discountPercentage: data.discountPercentage,
+          amount: data.amount,
+          isPaid: data.isPaid,
+          status: data.status,
+          paymentDate: data.paymentDate ?? existing.paymentDate,
+          paymentProof: data.paymentProof ?? existing.paymentProof,
+          deliveryDate: data.deliveryDate ?? existing.deliveryDate,
+          // Preserve expense-exclusive fields:
+          // invoiceDoc, linkedWorkItemId, wbs, order, issValue, issPercentage
+        },
+      });
+      return updated;
+    }
+
+    // Create new expense with same ID as forecast
+    const created = await tx.projectExpense.create({
+      data: {
+        id: forecast.id,
+        projectId,
+        ...data,
+      },
+    });
+    return created;
+  }
+
+  /**
+   * Sync expenses for multiple forecasts (e.g., all in a supply group).
+   */
+  private async syncExpensesForForecasts(
+    tx: TxClient,
+    forecasts: Array<{
+      id: string;
+      description: string;
+      unit: string;
+      quantityNeeded: number;
+      unitPrice: number;
+      discountValue?: number | null;
+      discountPercentage?: number | null;
+      status: string;
+      isPaid: boolean;
+      purchaseDate?: string | null;
+      deliveryDate?: string | null;
+      paymentProof?: string | null;
+      categoryId?: string | null;
+      supplierId?: string | null;
+      projectPlanningId: string;
+    }>,
+    projectId: string,
+  ) {
+    const results: Array<{ id: string; expense: any | null }> = [];
+    for (const forecast of forecasts) {
+      const expense = await this.syncExpenseForForecast(tx, forecast, projectId);
+      results.push({ id: forecast.id, expense });
+    }
+    return results;
+  }
+
+  /**
+   * Delete expenses corresponding to forecast IDs (used when forecasts are deleted).
+   */
+  private async deleteExpensesForForecasts(tx: TxClient, forecastIds: string[]) {
+    if (forecastIds.length === 0) return;
+    await tx.projectExpense.deleteMany({
+      where: { id: { in: forecastIds } },
+    });
+  }
+
+  // ──────────────────────────────────────────────────────────────
+
   private async ensureProject(
     projectId: string,
     instanceId: string,
@@ -506,46 +739,59 @@ export class PlanningService {
       throw new BadRequestException('Informe ao menos um item no grupo.');
     }
 
-    const group = await this.prisma.supplyGroup.create({
-      data: {
-        title: input.title ?? null,
-        estimatedDate: input.estimatedDate,
-        purchaseDate: input.purchaseDate ?? null,
-        deliveryDate: input.deliveryDate ?? null,
-        status: input.status,
-        isPaid: input.isPaid,
-        isCleared: input.isCleared,
-        supplierId: this.normalizeRelationId(input.supplierId),
-        paymentProof: input.paymentProof ?? null,
-        invoiceDoc: input.invoiceDoc ?? null,
-        createdById: input.userId ?? null,
-        projectPlanningId: planning.id,
-      },
-    });
+    const { group, syncedExpenses } = await this.prisma.$transaction(async (tx) => {
+      const createdGroup = await tx.supplyGroup.create({
+        data: {
+          title: input.title ?? null,
+          estimatedDate: input.estimatedDate,
+          purchaseDate: input.purchaseDate ?? null,
+          deliveryDate: input.deliveryDate ?? null,
+          status: input.status,
+          isPaid: input.isPaid,
+          isCleared: input.isCleared,
+          supplierId: this.normalizeRelationId(input.supplierId),
+          paymentProof: input.paymentProof ?? null,
+          invoiceDoc: input.invoiceDoc ?? null,
+          createdById: input.userId ?? null,
+          projectPlanningId: planning.id,
+        },
+      });
 
-    await this.prisma.materialForecast.createMany({
-      data: input.items.map((item, index) => ({
-        ...(item.id ? { id: item.id } : {}),
-        projectPlanningId: planning.id,
-        description: item.description,
-        unit: item.unit,
-        quantityNeeded: item.quantityNeeded,
-        unitPrice: item.unitPrice,
-        discountValue: item.discountValue ?? null,
-        discountPercentage: item.discountPercentage ?? null,
-        categoryId: item.categoryId ?? null,
-        estimatedDate: input.estimatedDate,
-        purchaseDate: input.purchaseDate ?? null,
-        deliveryDate: input.deliveryDate ?? null,
-        status: input.status,
-        isPaid: input.isPaid,
-        isCleared: input.isCleared,
-        order: item.order ?? index,
-        supplierId: this.normalizeRelationId(input.supplierId),
-        paymentProof: input.paymentProof ?? null,
-        createdById: input.userId ?? null,
-        supplyGroupId: group.id,
-      })),
+      await tx.materialForecast.createMany({
+        data: input.items.map((item, index) => ({
+          ...(item.id ? { id: item.id } : {}),
+          projectPlanningId: planning.id,
+          description: item.description,
+          unit: item.unit,
+          quantityNeeded: item.quantityNeeded,
+          unitPrice: item.unitPrice,
+          discountValue: item.discountValue ?? null,
+          discountPercentage: item.discountPercentage ?? null,
+          categoryId: item.categoryId ?? null,
+          estimatedDate: input.estimatedDate,
+          purchaseDate: input.purchaseDate ?? null,
+          deliveryDate: input.deliveryDate ?? null,
+          status: input.status,
+          isPaid: input.isPaid,
+          isCleared: input.isCleared,
+          order: item.order ?? index,
+          supplierId: this.normalizeRelationId(input.supplierId),
+          paymentProof: input.paymentProof ?? null,
+          createdById: input.userId ?? null,
+          supplyGroupId: createdGroup.id,
+        })),
+      });
+
+      // Sync expenses for all forecasts if group is ordered/delivered
+      let expenses: Array<{ id: string; expense: any | null }> = [];
+      if (input.status === 'ordered' || input.status === 'delivered') {
+        const forecasts = await tx.materialForecast.findMany({
+          where: { supplyGroupId: createdGroup.id },
+        });
+        expenses = await this.syncExpensesForForecasts(tx, forecasts, input.projectId);
+      }
+
+      return { group: createdGroup, syncedExpenses: expenses };
     });
 
     if (group.status === 'ordered') {
@@ -570,13 +816,15 @@ export class PlanningService {
       }).catch(() => undefined);
     }
 
-    return this.prisma.supplyGroup.findUnique({
+    const result = await this.prisma.supplyGroup.findUnique({
       where: { id: group.id },
       include: {
         supplier: { select: { id: true, name: true } },
         forecasts: { orderBy: { order: 'asc' } },
       },
     });
+
+    return { ...result, syncedExpenses };
   }
 
   async updateSupplyGroup(
@@ -606,53 +854,73 @@ export class PlanningService {
       ? this.normalizeRelationId(data.supplierId)
       : group.supplierId;
 
-    const updated = await this.prisma.supplyGroup.update({
-      where: { id },
-      data: {
-        title: data.title ?? group.title,
-        estimatedDate: data.estimatedDate ?? group.estimatedDate,
-        purchaseDate: Object.prototype.hasOwnProperty.call(data, 'purchaseDate')
-          ? (data.purchaseDate ?? null)
-          : group.purchaseDate,
-        deliveryDate: Object.prototype.hasOwnProperty.call(data, 'deliveryDate')
-          ? (data.deliveryDate ?? null)
-          : group.deliveryDate,
-        status: data.status ?? group.status,
-        isPaid: data.isPaid ?? group.isPaid,
-        isCleared: data.isCleared ?? group.isCleared,
-        supplierId: resolvedSupplierId,
-        paymentProof: Object.prototype.hasOwnProperty.call(data, 'paymentProof')
-          ? (data.paymentProof ?? null)
-          : group.paymentProof,
-        invoiceDoc: Object.prototype.hasOwnProperty.call(data, 'invoiceDoc')
-          ? (data.invoiceDoc ?? null)
-          : group.invoiceDoc,
-      },
-    });
+    const { updated, resolvedProjectId, syncedExpenses, fullGroup } =
+      await this.prisma.$transaction(async (tx) => {
+        const updatedGroup = await tx.supplyGroup.update({
+          where: { id },
+          data: {
+            title: data.title ?? group.title,
+            estimatedDate: data.estimatedDate ?? group.estimatedDate,
+            purchaseDate: Object.prototype.hasOwnProperty.call(data, 'purchaseDate')
+              ? (data.purchaseDate ?? null)
+              : group.purchaseDate,
+            deliveryDate: Object.prototype.hasOwnProperty.call(data, 'deliveryDate')
+              ? (data.deliveryDate ?? null)
+              : group.deliveryDate,
+            status: data.status ?? group.status,
+            isPaid: data.isPaid ?? group.isPaid,
+            isCleared: data.isCleared ?? group.isCleared,
+            supplierId: resolvedSupplierId,
+            paymentProof: Object.prototype.hasOwnProperty.call(data, 'paymentProof')
+              ? (data.paymentProof ?? null)
+              : group.paymentProof,
+            invoiceDoc: Object.prototype.hasOwnProperty.call(data, 'invoiceDoc')
+              ? (data.invoiceDoc ?? null)
+              : group.invoiceDoc,
+          },
+        });
 
-    await this.prisma.materialForecast.updateMany({
-      where: { supplyGroupId: id },
-      data: {
-        estimatedDate: updated.estimatedDate,
-        purchaseDate: updated.purchaseDate,
-        deliveryDate: updated.deliveryDate,
-        status: updated.status,
-        isPaid: updated.isPaid,
-        isCleared: updated.isCleared,
-        supplierId: updated.supplierId,
-        paymentProof: updated.paymentProof,
-      },
-    });
+        await tx.materialForecast.updateMany({
+          where: { supplyGroupId: id },
+          data: {
+            estimatedDate: updatedGroup.estimatedDate,
+            purchaseDate: updatedGroup.purchaseDate,
+            deliveryDate: updatedGroup.deliveryDate,
+            status: updatedGroup.status,
+            isPaid: updatedGroup.isPaid,
+            isCleared: updatedGroup.isCleared,
+            supplierId: updatedGroup.supplierId,
+            paymentProof: updatedGroup.paymentProof,
+          },
+        });
 
-    const planning = await this.prisma.projectPlanning.findUnique({
-      where: { id: updated.projectPlanningId },
-      select: { projectId: true },
-    });
+        // Fetch updated forecasts and sync their expenses atomically
+        const forecasts = await tx.materialForecast.findMany({
+          where: { supplyGroupId: id },
+        });
+        const projId = await this.resolveProjectId(tx, updatedGroup.projectPlanningId);
+        const expenses = await this.syncExpensesForForecasts(tx, forecasts, projId);
 
-    if (planning && group.status !== 'ordered' && updated.status === 'ordered') {
+        const result = await tx.supplyGroup.findUnique({
+          where: { id },
+          include: {
+            supplier: { select: { id: true, name: true } },
+            forecasts: { orderBy: { order: 'asc' } },
+          },
+        });
+
+        return {
+          updated: updatedGroup,
+          resolvedProjectId: projId,
+          syncedExpenses: expenses,
+          fullGroup: result,
+        };
+      });
+
+    if (group.status !== 'ordered' && updated.status === 'ordered') {
       void this.emitSupplyOrderedNotification({
         instanceId,
-        projectId: planning.projectId,
+        projectId: resolvedProjectId,
         actorUserId: userId,
         supplyGroupId: updated.id,
         label: updated.title?.trim() || `Lote ${updated.id.slice(0, 8)}`,
@@ -660,10 +928,10 @@ export class PlanningService {
       }).catch(() => undefined);
     }
 
-    if (planning && !group.isPaid && updated.isPaid) {
+    if (!group.isPaid && updated.isPaid) {
       void this.emitSupplyPaymentNotification({
         instanceId,
-        projectId: planning.projectId,
+        projectId: resolvedProjectId,
         actorUserId: userId,
         supplyGroupId: updated.id,
         label: updated.title?.trim() || `Lote ${updated.id.slice(0, 8)}`,
@@ -671,13 +939,7 @@ export class PlanningService {
       }).catch(() => undefined);
     }
 
-    return this.prisma.supplyGroup.findUnique({
-      where: { id },
-      include: {
-        supplier: { select: { id: true, name: true } },
-        forecasts: { orderBy: { order: 'asc' } },
-      },
-    });
+    return { ...fullGroup, syncedExpenses };
   }
 
   async addItemsToSupplyGroup(
@@ -711,38 +973,66 @@ export class PlanningService {
       where: { supplyGroupId: groupId },
     });
 
-    await this.prisma.materialForecast.createMany({
-      data: items.map((item, index) => ({
-        ...(item.id ? { id: item.id } : {}),
-        projectPlanningId: group.projectPlanningId,
-        description: item.description,
-        unit: item.unit,
-        quantityNeeded: item.quantityNeeded,
-        unitPrice: item.unitPrice,
-        discountValue: item.discountValue ?? null,
-        discountPercentage: item.discountPercentage ?? null,
-        categoryId: item.categoryId ?? null,
-        estimatedDate: group.estimatedDate,
-        purchaseDate: group.purchaseDate,
-        deliveryDate: group.deliveryDate,
-        status: group.status,
-        isPaid: group.isPaid,
-        isCleared: group.isCleared,
-        order: item.order ?? count + index,
-        supplierId: group.supplierId,
-        paymentProof: group.paymentProof,
-        createdById: userId ?? null,
-        supplyGroupId: groupId,
-      })),
+    const { syncedExpenses } = await this.prisma.$transaction(async (tx) => {
+      await tx.materialForecast.createMany({
+        data: items.map((item, index) => ({
+          ...(item.id ? { id: item.id } : {}),
+          projectPlanningId: group.projectPlanningId,
+          description: item.description,
+          unit: item.unit,
+          quantityNeeded: item.quantityNeeded,
+          unitPrice: item.unitPrice,
+          discountValue: item.discountValue ?? null,
+          discountPercentage: item.discountPercentage ?? null,
+          categoryId: item.categoryId ?? null,
+          estimatedDate: group.estimatedDate,
+          purchaseDate: group.purchaseDate,
+          deliveryDate: group.deliveryDate,
+          status: group.status,
+          isPaid: group.isPaid,
+          isCleared: group.isCleared,
+          order: item.order ?? count + index,
+          supplierId: group.supplierId,
+          paymentProof: group.paymentProof,
+          createdById: userId ?? null,
+          supplyGroupId: groupId,
+        })),
+      });
+
+      // Sync expenses for newly added items if group is non-pending
+      let expenses: Array<{ id: string; expense: any | null }> = [];
+      if (group.status === 'ordered' || group.status === 'delivered') {
+        const newItemIds = items.filter((i) => i.id).map((i) => i.id!);
+        let newForecasts;
+        if (newItemIds.length > 0) {
+          newForecasts = await tx.materialForecast.findMany({
+            where: { id: { in: newItemIds } },
+          });
+        } else {
+          // Items without explicit IDs: fetch all group forecasts beyond old count
+          const allForecasts = await tx.materialForecast.findMany({
+            where: { supplyGroupId: groupId },
+            orderBy: { order: 'asc' },
+          });
+          newForecasts = allForecasts.slice(count);
+        }
+        if (newForecasts.length > 0) {
+          const projectId = await this.resolveProjectId(tx, group.projectPlanningId);
+          expenses = await this.syncExpensesForForecasts(tx, newForecasts, projectId);
+        }
+      }
+      return { syncedExpenses: expenses };
     });
 
-    return this.prisma.supplyGroup.findUnique({
+    const result = await this.prisma.supplyGroup.findUnique({
       where: { id: groupId },
       include: {
         supplier: { select: { id: true, name: true } },
         forecasts: { orderBy: { order: 'asc' } },
       },
     });
+
+    return { ...result, syncedExpenses };
   }
 
   async deleteSupplyGroup(id: string, instanceId: string, userId?: string) {
@@ -780,21 +1070,24 @@ export class PlanningService {
       select: { id: true, paymentProof: true },
     });
 
+    const forecastIds = forecasts.map((f) => f.id);
+
     const candidateUploads: Array<string | null | undefined> = [
       group.paymentProof,
       group.invoiceDoc,
       ...forecasts.map((forecast) => forecast.paymentProof),
     ];
 
-    await this.prisma.materialForecast.deleteMany({
-      where: { supplyGroupId: id },
+    await this.prisma.$transaction(async (tx) => {
+      // Delete synced expenses, then forecasts, then group — atomically
+      await this.deleteExpensesForForecasts(tx, forecastIds);
+      await tx.materialForecast.deleteMany({ where: { supplyGroupId: id } });
+      await tx.supplyGroup.delete({ where: { id } });
     });
-
-    await this.prisma.supplyGroup.delete({ where: { id } });
 
     await this.cleanupUploadsIfOrphaned(candidateUploads);
 
-    return { deleted: forecasts.length };
+    return { deleted: forecasts.length, deletedExpenseIds: forecastIds };
   }
 
   async convertForecastsToGroup(input: ConvertForecastsToGroupInput) {
@@ -817,39 +1110,52 @@ export class PlanningService {
       throw new NotFoundException('Um ou mais suprimentos nao foram encontrados.');
     }
 
-    const group = await this.prisma.supplyGroup.create({
-      data: {
-        title: input.title ?? null,
-        estimatedDate: input.estimatedDate,
-        purchaseDate: input.purchaseDate ?? null,
-        deliveryDate: input.deliveryDate ?? null,
-        status: input.status,
-        isPaid: input.isPaid,
-        isCleared: input.isCleared,
-        supplierId: this.normalizeRelationId(input.supplierId),
-        paymentProof: input.paymentProof ?? null,
-        invoiceDoc: input.invoiceDoc ?? null,
-        createdById: input.userId ?? null,
-        projectPlanningId: planning.id,
-      },
-    });
+    const { group, syncedExpenses } = await this.prisma.$transaction(async (tx) => {
+      const createdGroup = await tx.supplyGroup.create({
+        data: {
+          title: input.title ?? null,
+          estimatedDate: input.estimatedDate,
+          purchaseDate: input.purchaseDate ?? null,
+          deliveryDate: input.deliveryDate ?? null,
+          status: input.status,
+          isPaid: input.isPaid,
+          isCleared: input.isCleared,
+          supplierId: this.normalizeRelationId(input.supplierId),
+          paymentProof: input.paymentProof ?? null,
+          invoiceDoc: input.invoiceDoc ?? null,
+          createdById: input.userId ?? null,
+          projectPlanningId: planning.id,
+        },
+      });
 
-    await this.prisma.materialForecast.updateMany({
-      where: {
-        id: { in: input.forecastIds },
-        projectPlanningId: planning.id,
-      },
-      data: {
-        supplyGroupId: group.id,
-        estimatedDate: input.estimatedDate,
-        purchaseDate: input.purchaseDate ?? null,
-        deliveryDate: input.deliveryDate ?? null,
-        status: input.status,
-        isPaid: input.isPaid,
-        isCleared: input.isCleared,
-        supplierId: this.normalizeRelationId(input.supplierId),
-        paymentProof: input.paymentProof ?? null,
-      },
+      await tx.materialForecast.updateMany({
+        where: {
+          id: { in: input.forecastIds },
+          projectPlanningId: planning.id,
+        },
+        data: {
+          supplyGroupId: createdGroup.id,
+          estimatedDate: input.estimatedDate,
+          purchaseDate: input.purchaseDate ?? null,
+          deliveryDate: input.deliveryDate ?? null,
+          status: input.status,
+          isPaid: input.isPaid,
+          isCleared: input.isCleared,
+          supplierId: this.normalizeRelationId(input.supplierId),
+          paymentProof: input.paymentProof ?? null,
+        },
+      });
+
+      // Sync expenses for converted forecasts if non-pending
+      let expenses: Array<{ id: string; expense: any | null }> = [];
+      if (input.status === 'ordered' || input.status === 'delivered') {
+        const updatedForecasts = await tx.materialForecast.findMany({
+          where: { supplyGroupId: createdGroup.id },
+        });
+        expenses = await this.syncExpensesForForecasts(tx, updatedForecasts, input.projectId);
+      }
+
+      return { group: createdGroup, syncedExpenses: expenses };
     });
 
     const groupLabel = group.title?.trim() || `Lote ${group.id.slice(0, 8)}`;
@@ -876,43 +1182,50 @@ export class PlanningService {
       }).catch(() => undefined);
     }
 
-    return this.prisma.supplyGroup.findUnique({
+    const result = await this.prisma.supplyGroup.findUnique({
       where: { id: group.id },
       include: {
         supplier: { select: { id: true, name: true } },
         forecasts: { orderBy: { order: 'asc' } },
       },
     });
+
+    return { ...result, syncedExpenses };
   }
 
   async createForecast(input: CreateForecastInput) {
     await this.ensureProject(input.projectId, input.instanceId, input.userId, true);
     const planning = await this.ensurePlanning(input.projectId);
 
-    const created = await this.prisma.materialForecast.create({
-      data: {
-        id: input.id,
-        projectPlanningId: planning.id,
-        categoryId: input.categoryId ?? null,
-        description: input.description,
-        calculationMemory: input.calculationMemory ?? null,
-        unit: input.unit,
-        quantityNeeded: input.quantityNeeded,
-        unitPrice: input.unitPrice,
-        discountValue: input.discountValue ?? null,
-        discountPercentage: input.discountPercentage ?? null,
-        estimatedDate: input.estimatedDate,
-        purchaseDate: input.purchaseDate ?? null,
-        deliveryDate: input.deliveryDate ?? null,
-        status: input.status,
-        isPaid: input.isPaid,
-        isCleared: input.isCleared ?? false,
-        order: input.order ?? 0,
-        supplierId: this.normalizeRelationId(input.supplierId),
-        supplyGroupId: this.normalizeRelationId(input.supplyGroupId),
-        paymentProof: input.paymentProof ?? null,
-        createdById: input.userId ?? input.createdById ?? null,
-      },
+    const { created, syncedExpense } = await this.prisma.$transaction(async (tx) => {
+      const forecast = await tx.materialForecast.create({
+        data: {
+          id: input.id,
+          projectPlanningId: planning.id,
+          categoryId: input.categoryId ?? null,
+          description: input.description,
+          calculationMemory: input.calculationMemory ?? null,
+          unit: input.unit,
+          quantityNeeded: input.quantityNeeded,
+          unitPrice: input.unitPrice,
+          discountValue: input.discountValue ?? null,
+          discountPercentage: input.discountPercentage ?? null,
+          estimatedDate: input.estimatedDate,
+          purchaseDate: input.purchaseDate ?? null,
+          deliveryDate: input.deliveryDate ?? null,
+          status: input.status,
+          isPaid: input.isPaid,
+          isCleared: input.isCleared ?? false,
+          order: input.order ?? 0,
+          supplierId: this.normalizeRelationId(input.supplierId),
+          supplyGroupId: this.normalizeRelationId(input.supplyGroupId),
+          paymentProof: input.paymentProof ?? null,
+          createdById: input.userId ?? input.createdById ?? null,
+        },
+      });
+
+      const expense = await this.syncExpenseForForecast(tx, forecast, input.projectId);
+      return { created: forecast, syncedExpense: expense };
     });
 
     const supplyGroupLabel =
@@ -947,7 +1260,7 @@ export class PlanningService {
       }).catch(() => undefined);
     }
 
-    return created;
+    return { ...created, syncedExpense };
   }
 
   async updateForecast(
@@ -990,40 +1303,46 @@ export class PlanningService {
       ? this.normalizeRelationId(data.supplyGroupId)
       : forecast.supplyGroupId;
 
-    const updated = await this.prisma.materialForecast.update({
-      where: { id },
-      data: {
-        categoryId:
-          Object.prototype.hasOwnProperty.call(data, 'categoryId')
-            ? (data.categoryId ?? null)
-            : forecast.categoryId,
-        description: data.description ?? forecast.description,
-        calculationMemory:
-          Object.prototype.hasOwnProperty.call(data, 'calculationMemory')
-            ? (data.calculationMemory ?? null)
-            : forecast.calculationMemory,
-        unit: data.unit ?? forecast.unit,
-        quantityNeeded: data.quantityNeeded ?? forecast.quantityNeeded,
-        unitPrice: data.unitPrice ?? forecast.unitPrice,
-        discountValue: data.discountValue ?? forecast.discountValue,
-        discountPercentage: data.discountPercentage ?? forecast.discountPercentage,
-        estimatedDate: data.estimatedDate ?? forecast.estimatedDate,
-        purchaseDate: Object.prototype.hasOwnProperty.call(data, 'purchaseDate')
-          ? (data.purchaseDate ?? null)
-          : forecast.purchaseDate,
-        deliveryDate: Object.prototype.hasOwnProperty.call(data, 'deliveryDate')
-          ? (data.deliveryDate ?? null)
-          : forecast.deliveryDate,
-        status: data.status ?? forecast.status,
-        isPaid: data.isPaid ?? forecast.isPaid,
-        isCleared: data.isCleared ?? forecast.isCleared,
-        order: data.order ?? forecast.order,
-        supplierId: resolvedSupplierId,
-        supplyGroupId: resolvedSupplyGroupId,
-        paymentProof: Object.prototype.hasOwnProperty.call(data, 'paymentProof')
-          ? (data.paymentProof ?? null)
-          : forecast.paymentProof,
-      },
+    const { updated, syncedExpense } = await this.prisma.$transaction(async (tx) => {
+      const updatedForecast = await tx.materialForecast.update({
+        where: { id },
+        data: {
+          categoryId:
+            Object.prototype.hasOwnProperty.call(data, 'categoryId')
+              ? (data.categoryId ?? null)
+              : forecast.categoryId,
+          description: data.description ?? forecast.description,
+          calculationMemory:
+            Object.prototype.hasOwnProperty.call(data, 'calculationMemory')
+              ? (data.calculationMemory ?? null)
+              : forecast.calculationMemory,
+          unit: data.unit ?? forecast.unit,
+          quantityNeeded: data.quantityNeeded ?? forecast.quantityNeeded,
+          unitPrice: data.unitPrice ?? forecast.unitPrice,
+          discountValue: data.discountValue ?? forecast.discountValue,
+          discountPercentage: data.discountPercentage ?? forecast.discountPercentage,
+          estimatedDate: data.estimatedDate ?? forecast.estimatedDate,
+          purchaseDate: Object.prototype.hasOwnProperty.call(data, 'purchaseDate')
+            ? (data.purchaseDate ?? null)
+            : forecast.purchaseDate,
+          deliveryDate: Object.prototype.hasOwnProperty.call(data, 'deliveryDate')
+            ? (data.deliveryDate ?? null)
+            : forecast.deliveryDate,
+          status: data.status ?? forecast.status,
+          isPaid: data.isPaid ?? forecast.isPaid,
+          isCleared: data.isCleared ?? forecast.isCleared,
+          order: data.order ?? forecast.order,
+          supplierId: resolvedSupplierId,
+          supplyGroupId: resolvedSupplyGroupId,
+          paymentProof: Object.prototype.hasOwnProperty.call(data, 'paymentProof')
+            ? (data.paymentProof ?? null)
+            : forecast.paymentProof,
+        },
+      });
+
+      const projectId = await this.resolveProjectId(tx, updatedForecast.projectPlanningId);
+      const expense = await this.syncExpenseForForecast(tx, updatedForecast, projectId);
+      return { updated: updatedForecast, syncedExpense: expense };
     });
 
     const planning = await this.prisma.projectPlanning.findUnique({
@@ -1065,7 +1384,7 @@ export class PlanningService {
       }
     }
 
-    return updated;
+    return { ...updated, syncedExpense };
   }
 
   async deleteForecast(id: string, instanceId: string, userId?: string) {
@@ -1098,27 +1417,31 @@ export class PlanningService {
 
     const candidateUploads: Array<string | null | undefined> = [forecast.paymentProof];
 
-    await this.prisma.materialForecast.delete({ where: { id } });
+    await this.prisma.$transaction(async (tx) => {
+      // Delete forecast and its corresponding expense atomically
+      await tx.materialForecast.delete({ where: { id } });
+      await tx.projectExpense.deleteMany({ where: { id } });
 
-    if (forecast.supplyGroupId) {
-      const [remainingInGroup, group] = await Promise.all([
-        this.prisma.materialForecast.count({
-          where: { supplyGroupId: forecast.supplyGroupId },
-        }),
-        this.prisma.supplyGroup.findUnique({
-          where: { id: forecast.supplyGroupId },
-          select: { id: true, paymentProof: true, invoiceDoc: true },
-        }),
-      ]);
+      if (forecast.supplyGroupId) {
+        const [remainingInGroup, group] = await Promise.all([
+          tx.materialForecast.count({
+            where: { supplyGroupId: forecast.supplyGroupId },
+          }),
+          tx.supplyGroup.findUnique({
+            where: { id: forecast.supplyGroupId },
+            select: { id: true, paymentProof: true, invoiceDoc: true },
+          }),
+        ]);
 
-      if (group && remainingInGroup === 0) {
-        candidateUploads.push(group.paymentProof, group.invoiceDoc);
-        await this.prisma.supplyGroup.delete({ where: { id: group.id } });
+        if (group && remainingInGroup === 0) {
+          candidateUploads.push(group.paymentProof, group.invoiceDoc);
+          await tx.supplyGroup.delete({ where: { id: group.id } });
+        }
       }
-    }
+    });
 
     await this.cleanupUploadsIfOrphaned(candidateUploads);
-    return { deleted: 1 };
+    return { deleted: 1, deletedExpenseId: id };
   }
 
   async listMilestones(projectId: string, instanceId: string, userId?: string) {
@@ -1249,31 +1572,46 @@ export class PlanningService {
       isCompleted: m.isCompleted,
     }));
 
-    await this.prisma.$transaction([
-      this.prisma.planningTask.deleteMany({
+    await this.prisma.$transaction(async (tx) => {
+      // Delete existing data (expenses for forecasts first)
+      const existingForecastIds = await tx.materialForecast.findMany({
+        where: { projectPlanningId: planning.id },
+        select: { id: true },
+      });
+      await this.deleteExpensesForForecasts(
+        tx,
+        existingForecastIds.map((f) => f.id),
+      );
+
+      await tx.planningTask.deleteMany({
+        where: { projectPlanningId: planning.id },
+      });
+      await tx.materialForecast.deleteMany({
+        where: { projectPlanningId: planning.id },
+      });
+      await tx.supplyGroup.deleteMany({
+        where: { projectPlanningId: planning.id },
+      });
+      await tx.milestone.deleteMany({
+        where: { projectPlanningId: planning.id },
+      });
+
+      // Create new data
+      await tx.planningTask.createMany({ data: taskData });
+      await tx.materialForecast.createMany({ data: forecastData });
+      await tx.milestone.createMany({ data: milestoneData });
+
+      // Sync expenses for ordered/delivered forecasts
+      const nonPendingForecasts = await tx.materialForecast.findMany({
         where: {
           projectPlanningId: planning.id,
+          status: { in: ['ordered', 'delivered'] },
         },
-      }),
-      this.prisma.materialForecast.deleteMany({
-        where: {
-          projectPlanningId: planning.id,
-        },
-      }),
-      this.prisma.supplyGroup.deleteMany({
-        where: {
-          projectPlanningId: planning.id,
-        },
-      }),
-      this.prisma.milestone.deleteMany({
-        where: {
-          projectPlanningId: planning.id,
-        },
-      }),
-      this.prisma.planningTask.createMany({ data: taskData }),
-      this.prisma.materialForecast.createMany({ data: forecastData }),
-      this.prisma.milestone.createMany({ data: milestoneData }),
-    ]);
+      });
+      if (nonPendingForecasts.length > 0) {
+        await this.syncExpensesForForecasts(tx, nonPendingForecasts, projectId);
+      }
+    });
 
     await this.cleanupUploadsIfOrphaned(candidateUploads);
 

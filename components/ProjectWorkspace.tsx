@@ -207,6 +207,15 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     onUpdateProject({ expenses: nextExpenses });
   }, [onUpdateProject]);
 
+  const refreshExpenses = useCallback(async () => {
+    try {
+      const expenses = await projectExpensesApi.list(project.id);
+      applyExpenses(expenses);
+    } catch (error) {
+      console.error('Erro ao recarregar despesas:', error);
+    }
+  }, [project.id, applyExpenses]);
+
   const handleRequestExpensePrint = useCallback((dateStart?: string, dateEnd?: string) => {
     setExpensePrintDateStart(dateStart);
     setExpensePrintDateEnd(dateEnd);
@@ -833,85 +842,17 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     );
     applyExpenses(updatedExpenses);
 
-    const updatedExpense = updatedExpenses.find((expense) => expense.id === id);
-    if (updatedExpense && updatedExpense.type === 'material' && updatedExpense.itemType === 'item') {
-      const currentPlanning = planningRef.current;
-      const extractDescription = (rawDescription: string) => {
-        const match = rawDescription.match(/^[^:]+:\s*(.+)$/);
-        return (match?.[1] || rawDescription || '').trim();
-      };
-
-      const linkedForecast = currentPlanning.forecasts.find((forecast) => {
-        if (forecast.id === updatedExpense.id) return true;
-        const suffix = `: ${forecast.description}`;
-        return updatedExpense.description.endsWith(suffix);
-      });
-
-      if (linkedForecast) {
-        const forecastPatch: Partial<MaterialForecast> = {};
-        const nextDescription = extractDescription(updatedExpense.description || linkedForecast.description);
-        if (nextDescription && nextDescription !== linkedForecast.description) {
-          forecastPatch.description = nextDescription;
-        }
-        if ((updatedExpense.unit || '') !== (linkedForecast.unit || '')) {
-          forecastPatch.unit = updatedExpense.unit || linkedForecast.unit;
-        }
-        if ((updatedExpense.quantity ?? linkedForecast.quantityNeeded) !== linkedForecast.quantityNeeded) {
-          forecastPatch.quantityNeeded = updatedExpense.quantity ?? linkedForecast.quantityNeeded;
-        }
-        if ((updatedExpense.unitPrice ?? linkedForecast.unitPrice) !== linkedForecast.unitPrice) {
-          forecastPatch.unitPrice = updatedExpense.unitPrice ?? linkedForecast.unitPrice;
-        }
-        if ((updatedExpense.discountValue ?? linkedForecast.discountValue ?? 0) !== (linkedForecast.discountValue ?? 0)) {
-          forecastPatch.discountValue = updatedExpense.discountValue ?? linkedForecast.discountValue ?? 0;
-        }
-        if ((updatedExpense.discountPercentage ?? linkedForecast.discountPercentage ?? 0) !== (linkedForecast.discountPercentage ?? 0)) {
-          forecastPatch.discountPercentage = updatedExpense.discountPercentage ?? linkedForecast.discountPercentage ?? 0;
-        }
-        if (updatedExpense.date && updatedExpense.date !== linkedForecast.purchaseDate) {
-          forecastPatch.purchaseDate = updatedExpense.date;
-        }
-        if ((updatedExpense.paymentProof ?? linkedForecast.paymentProof) !== linkedForecast.paymentProof) {
-          forecastPatch.paymentProof = updatedExpense.paymentProof;
-        }
-
-        if (updatedExpense.status === 'DELIVERED' && linkedForecast.status !== 'delivered') {
-          forecastPatch.status = 'delivered';
-          if (updatedExpense.deliveryDate) {
-            forecastPatch.deliveryDate = updatedExpense.deliveryDate;
-          }
-        } else if ((updatedExpense.status === 'PENDING' || updatedExpense.status === 'PAID') && linkedForecast.status === 'pending') {
-          forecastPatch.status = 'ordered';
-        }
-
-        if ((updatedExpense.isPaid ?? linkedForecast.isPaid) !== linkedForecast.isPaid) {
-          forecastPatch.isPaid = updatedExpense.isPaid ?? linkedForecast.isPaid;
-        }
-
-        if (Object.keys(forecastPatch).length > 0) {
-          const nextPlanning = {
-            ...currentPlanning,
-            forecasts: currentPlanning.forecasts.map((forecast) =>
-              forecast.id === linkedForecast.id ? { ...forecast, ...forecastPatch } : forecast,
-            ),
-          };
-          planningRef.current = nextPlanning;
-          onUpdateProject({ planning: nextPlanning });
-          try {
-            await planningApi.updateForecast(linkedForecast.id, forecastPatch);
-          } catch (forecastSyncError) {
-            console.error('Erro ao sincronizar suprimento a partir de edição financeira:', forecastSyncError);
-          }
-        }
-      }
-    }
+    // Reverse sync (expense → forecast) is no longer needed.
+    // The backend guards forecast-linked expense fields and handles sync
+    // atomically from forecast → expense. Users should edit forecasts
+    // directly for synced fields (description, qty, price, status, etc.).
 
     try {
       await projectExpensesApi.update(id, data);
     } catch (error) {
       console.error('Erro ao atualizar despesa:', error);
     }
-  }, [applyExpenses, onUpdateProject]);
+  }, [applyExpenses]);
 
   const handleExpenseDelete = useCallback(async (id: string) => {
     const updatedExpenses = expensesRef.current.filter((expense) => expense.id !== id && expense.parentId !== id);
@@ -1028,6 +969,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           forecasts: nextPlanning.forecasts,
           milestones: nextPlanning.milestones,
         });
+        // Backend replaceAll also syncs expenses — refresh local state
+        await refreshExpenses();
         return;
       }
 
@@ -1042,10 +985,18 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
       await Promise.all(taskDiff.updated.map(item => taskDiff.update(item.id, item.patch)));
       await Promise.all(forecastDiff.updated.map(item => forecastDiff.update(item.id, item.patch)));
       await Promise.all(milestoneDiff.updated.map(item => milestoneDiff.update(item.id, item.patch)));
+
+      // Backend now syncs expenses atomically with forecast changes.
+      // Refresh local expenses to reflect any backend-created/updated/deleted expenses.
+      const hasForecastChanges =
+        forecastDiff.removed.length + forecastDiff.added.length + forecastDiff.updated.length > 0;
+      if (hasForecastChanges) {
+        await refreshExpenses();
+      }
     } catch (error) {
       console.error('Erro ao sincronizar planejamento:', error);
     }
-  }, [project.id, project.planning]);
+  }, [project.id, project.planning, refreshExpenses]);
 
   const handleUpdatePlanning = useCallback(async (nextPlanning: ProjectPlanning) => {
     onUpdateProject({ planning: nextPlanning });
@@ -1418,6 +1369,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     onUpdatePlanning={handleUpdatePlanning}
                     onAddExpense={handleExpenseAdd}
                     onUpdateExpense={handleExpenseUpdate}
+                    onRefreshExpenses={refreshExpenses}
                     categories={displayData.items.filter(i => i.type === 'category' && i.scope !== 'quantitativo')}
                     allWorkItems={displayData.items.filter(i => i.scope !== 'quantitativo')}
                     viewMode="supplies"
@@ -1444,6 +1396,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     onUpdatePlanning={handleUpdatePlanning}
                     onAddExpense={handleExpenseAdd}
                     onUpdateExpense={handleExpenseUpdate}
+                    onRefreshExpenses={refreshExpenses}
                     categories={displayData.items.filter(i => i.type === 'category' && i.scope !== 'quantitativo')}
                     allWorkItems={displayData.items.filter(i => i.scope !== 'quantitativo')}
                     fixedSubTab="tasks"
@@ -1460,6 +1413,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     onUpdatePlanning={handleUpdatePlanning}
                     onAddExpense={handleExpenseAdd}
                     onUpdateExpense={handleExpenseUpdate}
+                    onRefreshExpenses={refreshExpenses}
                     categories={displayData.items.filter(i => i.type === 'category' && i.scope !== 'quantitativo')}
                     allWorkItems={displayData.items.filter(i => i.scope !== 'quantitativo')}
                     fixedSubTab="milestones"
