@@ -161,8 +161,8 @@ export const TreeTable: React.FC<TreeTableProps> = ({
   };
 
   const rootItems = data.filter(i => i.depth === 0);
-  const totalContract = contractTotalOverride ?? financial.sum(rootItems.map(i => i.contractTotal));
-  const totalCurrent = currentTotalOverride ?? financial.sum(rootItems.map(i => i.currentTotal));
+  const totalContract = contractTotalOverride || financial.sum(rootItems.map(i => i.contractTotal));
+  const totalCurrent = currentTotalOverride || financial.sum(rootItems.map(i => i.currentTotal));
 
   return (
     <div className="flex flex-col gap-4">

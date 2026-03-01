@@ -123,8 +123,8 @@ export const treeService = {
       balance: financial.sum(processed.map(n => n.balanceTotal || 0)),
     };
 
-    const contract = project?.contractTotalOverride ?? rawTotals.contract;
-    const current = project?.currentTotalOverride ?? rawTotals.current;
+    const contract = project?.contractTotalOverride || rawTotals.contract;
+    const current = project?.currentTotalOverride || rawTotals.current;
     const balance = financial.truncate(contract - rawTotals.accumulated);
 
     return {

@@ -21,6 +21,11 @@ const IGNORED_DIFF_FIELDS = new Set(['updatedAt', 'createdAt', 'updatedById']);
 
 @Injectable()
 export class AuditService {
+  /** In-memory throttle map: key → last-written timestamp */
+  private readonly throttleMap = new Map<string, number>();
+  /** Default throttle window: 2 minutes */
+  private static readonly THROTTLE_MS = 2 * 60 * 1000;
+
   constructor(private readonly prisma: PrismaService) {}
 
   /**
@@ -46,6 +51,40 @@ export class AuditService {
       .catch((err: Error) => {
         console.error('[AuditService] Failed to write audit log:', err.message);
       });
+  }
+
+  /**
+   * Throttled audit log: skips if an identical operation was logged
+   * within the last `windowMs` milliseconds (default 2 min).
+   * The throttle key is built from model + entityId + action + operation.
+   */
+  logThrottled(
+    input: AuditLogInput,
+    throttleKey?: string,
+    windowMs?: number,
+  ): void {
+    const opValue = (input.metadata as Record<string, unknown> | null)
+      ?.operation;
+    const key =
+      throttleKey ||
+      `${input.model}:${input.entityId}:${input.action}:${typeof opValue === 'string' ? opValue : ''}`;
+    const now = Date.now();
+    const lastWrite = this.throttleMap.get(key);
+
+    if (lastWrite && now - lastWrite < (windowMs ?? AuditService.THROTTLE_MS)) {
+      return; // Skip — too recent
+    }
+
+    this.throttleMap.set(key, now);
+    this.log(input);
+
+    // Periodic cleanup of stale keys (every 1000 entries)
+    if (this.throttleMap.size > 1000) {
+      const cutoff = now - (windowMs ?? AuditService.THROTTLE_MS) * 2;
+      for (const [k, ts] of this.throttleMap) {
+        if (ts < cutoff) this.throttleMap.delete(k);
+      }
+    }
   }
 
   /** Paginated list of audit entries with optional filters */

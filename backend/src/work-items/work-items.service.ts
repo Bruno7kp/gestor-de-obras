@@ -401,11 +401,12 @@ export class WorkItemsService {
     }
 
     // Single summary audit log for the entire batch
-    void this.auditService.log({
+    // Throttle cellEdit operations (max 1 log per 2 minutes per project)
+    const auditInput = {
       instanceId,
       userId,
       projectId,
-      action: 'UPDATE',
+      action: 'UPDATE' as const,
       model: 'WorkItem',
       entityId: projectId,
       metadata: {
@@ -414,7 +415,13 @@ export class WorkItemsService {
         count: results.length,
         itemIds: ids,
       },
-    });
+    };
+
+    if (operation === 'cellEdit') {
+      void this.auditService.logThrottled(auditInput);
+    } else {
+      void this.auditService.log(auditInput);
+    }
 
     // Detect completion crossings and emit notifications/journal
     for (const input of updates) {

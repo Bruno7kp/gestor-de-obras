@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useProjectState } from './hooks/useProjectState';
 import { projectService } from './services/projectService';
@@ -225,10 +225,22 @@ const App: React.FC = () => {
   const [projectNotifications, setProjectNotifications] = useState<UserNotification[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
 
-  const allVisibleProjectIds = useMemo(
-    () => Array.from(new Set([...projects.map((project) => project.id), ...externalProjects.map((project) => project.projectId)])),
-    [projects, externalProjects],
-  );
+  const allVisibleProjectIds = useMemo(() => {
+    const ids = Array.from(new Set([...projects.map((project) => project.id), ...externalProjects.map((project) => project.projectId)]));
+    ids.sort();
+    return ids;
+  }, [projects, externalProjects]);
+
+  // Stabilize the IDs reference so downstream effects only fire when actual IDs change
+  const stableProjectIdsRef = useRef<string>(JSON.stringify(allVisibleProjectIds));
+  const [stableProjectIds, setStableProjectIds] = useState(allVisibleProjectIds);
+  useEffect(() => {
+    const key = JSON.stringify(allVisibleProjectIds);
+    if (key !== stableProjectIdsRef.current) {
+      stableProjectIdsRef.current = key;
+      setStableProjectIds(allVisibleProjectIds);
+    }
+  }, [allVisibleProjectIds]);
 
   useEffect(() => {
     const tabFromPath = getTabFromPath(location.pathname);
@@ -255,14 +267,14 @@ const App: React.FC = () => {
   }, [setActiveProjectId, navigate]);
 
   const refreshUnreadCounts = useCallback(async () => {
-    if (allVisibleProjectIds.length === 0) {
+    if (stableProjectIds.length === 0) {
       setUnreadNotificationsByProject({});
       return;
     }
 
     try {
       const entries = await Promise.all(
-        allVisibleProjectIds.map(async (projectId) => {
+        stableProjectIds.map(async (projectId) => {
           const unread = await notificationsApi.list({ projectId, unreadOnly: true, limit: 200 });
           return [projectId, unread.length] as const;
         }),
@@ -271,7 +283,7 @@ const App: React.FC = () => {
     } catch {
       setUnreadNotificationsByProject({});
     }
-  }, [allVisibleProjectIds]);
+  }, [stableProjectIds]);
 
   const refreshActiveProjectNotifications = useCallback(async () => {
     if (!activeProjectId) {
