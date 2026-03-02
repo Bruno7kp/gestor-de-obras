@@ -21,7 +21,9 @@ interface ProjectNotificationsDrawerProps {
   onMarkRead: (id: string) => void;
   onMarkAllRead: () => void;
   onDelete: (id: string) => void;
+  onDeleteRead: () => void;
   deletingId?: string | null;
+  deletingRead?: boolean;
   /** When provided, only these filters are shown (permission-filtered). Falls back to all filters. */
   visibleFilters?: NotificationFilterEntry[];
 }
@@ -34,7 +36,9 @@ export const ProjectNotificationsDrawer: React.FC<ProjectNotificationsDrawerProp
   onMarkRead,
   onMarkAllRead,
   onDelete,
+  onDeleteRead,
   deletingId,
+  deletingRead,
   visibleFilters,
 }) => {
   const filters = visibleFilters ?? NOTIFICATION_FILTERS;
@@ -55,6 +59,11 @@ export const ProjectNotificationsDrawer: React.FC<ProjectNotificationsDrawerProp
 
   const unreadCount = useMemo(
     () => notifications.filter((notification) => !notification.isRead).length,
+    [notifications],
+  );
+
+  const readCount = useMemo(
+    () => notifications.filter((notification) => notification.isRead).length,
     [notifications],
   );
 
@@ -121,6 +130,19 @@ export const ProjectNotificationsDrawer: React.FC<ProjectNotificationsDrawerProp
           >
             <CheckCheck size={14} />
             Marcar tudo como lido
+          </button>
+
+          <button
+            onClick={onDeleteRead}
+            disabled={readCount === 0 || deletingRead}
+            className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+              readCount > 0 && !deletingRead
+                ? 'bg-rose-600 text-white hover:bg-rose-700'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
+            }`}
+          >
+            <Trash2 size={14} />
+            {deletingRead ? 'Apagando...' : 'Apagar notificações lidas'}
           </button>
         </div>
 

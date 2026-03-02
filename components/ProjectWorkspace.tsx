@@ -141,6 +141,7 @@ interface ProjectWorkspaceProps {
   onMarkNotificationRead: (id: string) => Promise<void> | void;
   onMarkAllNotificationsRead: () => Promise<void> | void;
   onDeleteNotification: (id: string) => Promise<void> | void;
+  onDeleteReadNotifications: () => Promise<void> | void;
 }
 
 export type TabID = 'wbs' | 'blueprint' | 'stats' | 'expenses' | 'supplies' | 'workforce' | 'labor-contracts' | 'planning' | 'schedule' | 'stock' | 'journal' | 'documents' | 'branding';
@@ -151,7 +152,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   project, globalSettings, suppliers, isExternalProject: isExternalProjectProp = false, onUpdateProject, onCloseMeasurement,
   canUndo, canRedo, onUndo, onRedo, activeTab, onTabChange,
   notifications, notificationsLoading, unreadNotificationsCount,
-  onRefreshNotifications, onMarkNotificationRead, onMarkAllNotificationsRead, onDeleteNotification,
+  onRefreshNotifications, onMarkNotificationRead, onMarkAllNotificationsRead, onDeleteNotification, onDeleteReadNotifications,
 }) => {
   const { user } = useAuth();
   const { canView: canViewGlobal, getLevel: getLevelGlobal, loading: permissionsLoading } = usePermissions();
@@ -174,6 +175,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const [showNotificationsDrawer, setShowNotificationsDrawer] = useState(false);
   const [showDescriptionModal, setShowDescriptionModal] = useState(false);
   const [deletingNotificationId, setDeletingNotificationId] = useState<string | null>(null);
+  const [deletingReadNotifications, setDeletingReadNotifications] = useState(false);
   const [isExpensePrintModalOpen, setIsExpensePrintModalOpen] = useState(false);
   const [expensePrintMode, setExpensePrintMode] = useState<ExpensePrintMode>('complete');
   const [expensePrintDateStart, setExpensePrintDateStart] = useState<string | undefined>(undefined);
@@ -1343,7 +1345,14 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
             setDeletingNotificationId((current) => (current === id ? null : current));
           });
         }}
+        onDeleteRead={() => {
+          setDeletingReadNotifications(true);
+          void Promise.resolve(onDeleteReadNotifications()).finally(() => {
+            setDeletingReadNotifications(false);
+          });
+        }}
         deletingId={deletingNotificationId}
+        deletingRead={deletingReadNotifications}
       />
           <nav className="no-print bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 shrink-0 sticky top-0 z-20 overflow-hidden">
             <div

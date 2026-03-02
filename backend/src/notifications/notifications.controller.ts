@@ -67,6 +67,18 @@ export class NotificationsController {
     return this.notificationsService.markAllRead(req.user.id, body.projectId);
   }
 
+  @Delete('read')
+  @HasPermission('notifications.view', 'notifications.edit')
+  async removeRead(
+    @Body() body: { projectId?: string },
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ deleted: number }> {
+    return await this.notificationsService.removeReadForUser(
+      req.user.id,
+      body.projectId,
+    );
+  }
+
   @Delete(':id')
   @HasPermission('notifications.view', 'notifications.edit')
   async remove(

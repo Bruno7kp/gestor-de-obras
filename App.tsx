@@ -73,6 +73,7 @@ type ProjectRouteProps = {
   onMarkNotificationRead: (id: string) => Promise<void>;
   onMarkAllNotificationsRead: () => Promise<void>;
   onDeleteNotification: (id: string) => Promise<void>;
+  onDeleteReadNotifications: () => Promise<void>;
 };
 
 const ProjectRoute: React.FC<ProjectRouteProps> = ({
@@ -95,6 +96,7 @@ const ProjectRoute: React.FC<ProjectRouteProps> = ({
   onMarkNotificationRead,
   onMarkAllNotificationsRead,
   onDeleteNotification,
+  onDeleteReadNotifications,
 }) => {
   const { projectId, tab } = useParams();
   const navigate = useNavigate();
@@ -150,6 +152,7 @@ const ProjectRoute: React.FC<ProjectRouteProps> = ({
       onMarkNotificationRead={onMarkNotificationRead}
       onMarkAllNotificationsRead={onMarkAllNotificationsRead}
       onDeleteNotification={onDeleteNotification}
+      onDeleteReadNotifications={onDeleteReadNotifications}
     />
   );
 };
@@ -356,6 +359,11 @@ const App: React.FC = () => {
     });
   }, [activeProjectId]);
 
+  const handleDeleteReadNotifications = useCallback(async () => {
+    await notificationsApi.removeRead(activeProjectId);
+    setProjectNotifications((prev) => prev.filter((n) => !n.isRead));
+  }, [activeProjectId]);
+
   useEffect(() => {
     void refreshUnreadCounts();
   }, [refreshUnreadCounts]);
@@ -557,6 +565,7 @@ const App: React.FC = () => {
                 onMarkNotificationRead={handleMarkNotificationRead}
                 onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
                 onDeleteNotification={handleDeleteNotification}
+                onDeleteReadNotifications={handleDeleteReadNotifications}
               />
             }
           />

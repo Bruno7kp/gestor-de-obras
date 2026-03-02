@@ -89,6 +89,23 @@ export const notificationsApi = {
     return response.json();
   },
 
+  async removeRead(projectId?: string) {
+    const response = await fetch(`${API_BASE}/notifications/read`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ projectId }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Falha ao remover notificacoes lidas');
+    }
+
+    return response.json();
+  },
+
   async listPreferences(projectId?: string): Promise<NotificationPreference[]> {
     const query = new URLSearchParams();
     if (projectId) query.set('projectId', projectId);

@@ -828,6 +828,23 @@ export class NotificationsService {
     return { deleted: 1 };
   }
 
+  async removeReadForUser(userId: string, projectId?: string) {
+    const where: Record<string, unknown> = {
+      userId,
+      isRead: true,
+    };
+
+    if (projectId) {
+      where.notification = { projectId };
+    }
+
+    const result = await this.prisma.notificationRecipient.deleteMany({
+      where,
+    });
+
+    return { deleted: result.count };
+  }
+
   async listPreferences(
     userId: string,
     instanceId: string,
