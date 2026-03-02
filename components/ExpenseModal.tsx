@@ -376,7 +376,6 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                                     }}
                                   >
                                     <span className="truncate">{s.name}</span>
-                                    {s.cnpj && <span className="text-[10px] text-slate-400 font-mono shrink-0">{s.cnpj}</span>}
                                   </button>
                                 ))}
                               </div>
