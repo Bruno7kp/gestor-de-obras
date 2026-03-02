@@ -517,6 +517,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
         date: data.date || new Date().toISOString().split('T')[0],
         description: data.description || 'Novo Lançamento',
         entityName: data.entityName || '',
+        supplierId: data.supplierId || null,
         unit: data.unit || 'un',
         quantity: data.quantity || 1,
         unitPrice: data.unitPrice || 0,

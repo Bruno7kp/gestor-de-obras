@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ProjectExpense, ItemType, ExpenseType, ExpenseStatus, Supplier } from '../types';
 import { financial } from '../utils/math';
 import { ExpenseAttachmentZone } from './ExpenseAttachmentZone';
@@ -49,6 +49,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
     unitPrice: 0,
     amount: 0,
     entityName: '',
+    supplierId: null as string | null,
     date: new Date().toISOString().split('T')[0],
     status: 'PENDING' as ExpenseStatus,
     paymentProof: undefined,
@@ -70,6 +71,35 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
   const [strIssValue, setStrIssValue] = useState('0,00');
   const [strIssPercent, setStrIssPercent] = useState('0,00');
   const [strAmount, setStrAmount] = useState('0,00');
+
+  // Supplier autocomplete state
+  const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
+  const supplierInputRef = useRef<HTMLInputElement>(null);
+  const supplierDropdownRef = useRef<HTMLDivElement>(null);
+
+  const filteredSuppliers = useMemo(() => {
+    const query = (formData.entityName || '').trim().toLowerCase();
+    if (!query) return suppliers.slice().sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+    return suppliers
+      .filter(s => s.name.toLowerCase().includes(query))
+      .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  }, [suppliers, formData.entityName]);
+
+  // Close supplier dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        supplierDropdownRef.current &&
+        !supplierDropdownRef.current.contains(e.target as Node) &&
+        supplierInputRef.current &&
+        !supplierInputRef.current.contains(e.target as Node)
+      ) {
+        setShowSupplierDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (editingItem) {
@@ -309,22 +339,49 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                         <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">Entidade / Fornecedor / MEI</label>
                         {isSupplyLinked ? (
                           <input className="w-full px-6 py-4 rounded-2xl border-2 border-amber-100 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-900/10 text-sm font-black outline-none text-slate-500 cursor-not-allowed transition-all" value={formData.entityName} readOnly />
-                        ) : suppliers.length > 0 ? (
-                          <select
-                            className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none appearance-none focus:border-indigo-500 transition-all"
-                            value={formData.entityName || ''}
-                            onChange={e => setFormData(prev => ({ ...prev, entityName: e.target.value }))}
-                          >
-                            <option value="">Selecione um fornecedor</option>
-                            {suppliers
-                              .slice()
-                              .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
-                              .map((supplier) => (
-                                <option key={supplier.id} value={supplier.name}>{supplier.name}</option>
-                              ))}
-                          </select>
                         ) : (
-                          <input className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all" value={formData.entityName} onChange={e => setFormData(prev => ({ ...prev, entityName: e.target.value }))} placeholder="Nome Fantasia ou Razão" />
+                          <div className="relative">
+                            <input
+                              ref={supplierInputRef}
+                              className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all"
+                              value={formData.entityName || ''}
+                              onChange={e => {
+                                const val = e.target.value;
+                                setFormData(prev => ({ ...prev, entityName: val, supplierId: null }));
+                                setShowSupplierDropdown(true);
+                              }}
+                              onFocus={() => setShowSupplierDropdown(true)}
+                              placeholder="Digite o nome ou selecione um fornecedor"
+                              autoComplete="off"
+                            />
+                            {formData.supplierId && (
+                              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded-lg">
+                                Vinculado
+                              </span>
+                            )}
+                            {showSupplierDropdown && filteredSuppliers.length > 0 && (
+                              <div
+                                ref={supplierDropdownRef}
+                                className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl"
+                              >
+                                {filteredSuppliers.map(s => (
+                                  <button
+                                    key={s.id}
+                                    type="button"
+                                    className="w-full text-left px-5 py-3 text-sm font-bold hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors first:rounded-t-2xl last:rounded-b-2xl flex items-center justify-between gap-2"
+                                    onMouseDown={e => e.preventDefault()}
+                                    onClick={() => {
+                                      setFormData(prev => ({ ...prev, entityName: s.name, supplierId: s.id }));
+                                      setShowSupplierDropdown(false);
+                                    }}
+                                  >
+                                    <span className="truncate">{s.name}</span>
+                                    {s.cnpj && <span className="text-[10px] text-slate-400 font-mono shrink-0">{s.cnpj}</span>}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
                       <div>
