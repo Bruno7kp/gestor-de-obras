@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { removeLocalUploads } from '../uploads/file.utils';
 import {
@@ -149,6 +149,12 @@ export class JournalService {
   }
 
   async createEntry(input: CreateJournalEntryInput) {
+    if (input.type === 'AUTO') {
+      throw new BadRequestException(
+        'Entradas automáticas no diário estão desativadas. Use cadastro manual.',
+      );
+    }
+
     await this.ensureProject(
       input.projectId,
       input.instanceId,
@@ -219,6 +225,12 @@ export class JournalService {
     data: Partial<CreateJournalEntryInput>,
     userId?: string,
   ) {
+    if (data.type === 'AUTO') {
+      throw new BadRequestException(
+        'Entradas automáticas no diário estão desativadas. Use cadastro manual.',
+      );
+    }
+
     let entry = await this.prisma.journalEntry.findFirst({
       where: { id, projectJournal: { project: { instanceId } } },
       select: {
