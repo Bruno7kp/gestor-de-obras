@@ -28,7 +28,8 @@ interface CreateLaborContractBody {
   projectId: string;
   tipo: string;
   descricao: string;
-  associadoId: string;
+  associadoId?: string;
+  contractorId?: string;
   valorTotal: number;
   dataInicio: string;
   dataFim?: string;

@@ -362,38 +362,36 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     fetchUsersAndRoles();
   }, [project.id, isExternalProjectProp]);
 
-  // For external projects, fetch the suppliers from the project's owning instance
+  // Always fetch suppliers from the owning instance of the active project
   useEffect(() => {
-    if (!isExternalProjectProp) {
+    const pid = project.instanceId;
+    if (!pid) {
       setExternalSuppliers([]);
       return;
     }
-    const pid = (project as any).instanceId;
-    if (!pid) return;
     suppliersApi.listByInstance(pid).then(setExternalSuppliers).catch(() => setExternalSuppliers([]));
-  }, [isExternalProjectProp, (project as any).instanceId]);
+  }, [project.instanceId]);
 
-  // For external projects, fetch the contractors from the project's owning instance
+  // Always fetch contractors from the owning instance of the active project
   useEffect(() => {
-    if (!isExternalProjectProp) {
+    const pid = project.instanceId;
+    if (!pid) {
       setExternalContractors([]);
       return;
     }
-    const pid = (project as any).instanceId;
-    if (!pid) return;
     contractorsApi.listByInstance(pid).then(setExternalContractors).catch(() => setExternalContractors([]));
-  }, [isExternalProjectProp, (project as any).instanceId]);
+  }, [project.instanceId]);
 
-  // Merge external suppliers with the ones passed from the parent
+  // Prefer project-instance suppliers to avoid home-instance leakage
   const effectiveSuppliers = useMemo(
-    () => (isExternalProjectProp ? externalSuppliers : suppliers),
-    [isExternalProjectProp, externalSuppliers, suppliers],
+    () => (project.instanceId ? externalSuppliers : suppliers),
+    [project.instanceId, externalSuppliers, suppliers],
   );
 
-  // Merge external contractors with the ones passed from the parent
+  // Prefer project-instance contractors to avoid home-instance leakage
   const effectiveContractors = useMemo(
-    () => (isExternalProjectProp ? externalContractors : contractors),
-    [isExternalProjectProp, externalContractors, contractors],
+    () => (project.instanceId ? externalContractors : contractors),
+    [project.instanceId, externalContractors, contractors],
   );
 
   const memberPreviewUsers = useMemo(() => {
@@ -1474,6 +1472,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                 {tab === 'labor-contracts' && (
                   <LaborContractsManager
                     project={project}
+                    contractors={effectiveContractors}
                     onUpdateProject={onUpdateProject}
                     onAddExpense={handleExpenseAdd}
                     onUpdateExpense={handleExpenseUpdate}

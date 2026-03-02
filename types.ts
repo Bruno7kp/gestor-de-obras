@@ -59,9 +59,9 @@ export interface WorkforceMember {
   cpf_cnpj: string;
   empresa_vinculada: string;
   contractorId?: string;
-  contractor?: { id: string; name: string };
+  contractor?: { id: string; name: string; cnpj?: string; type?: 'PJ' | 'Autônomo'; cargo?: string | null };
   foto?: string;
-  cargo: WorkforceRole;
+  cargo: string;
   documentos: StaffDocument[];
   linkedWorkItemIds: string[]; // Vínculo com IDs da EAP para responsabilidade técnica
 }
@@ -85,6 +85,7 @@ export interface LaborContract {
   tipo: LaborContractType;
   descricao: string;
   associadoId: string; // FK para WorkforceMember
+  contractorId?: string;
   valorTotal: number;
   valorPago: number;
   status: LaborPaymentStatus;
@@ -477,6 +478,7 @@ export interface Contractor {
   type: 'PJ' | 'Autônomo';
   city: string;
   specialty?: string;
+  cargo?: string | null;
   status: 'Ativo' | 'Inativo';
   contactName: string;
   email: string;

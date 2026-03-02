@@ -957,6 +957,7 @@ model Contractor {
   type          String    @default("PJ")
   city          String    @default("")
   specialty     String?
+  cargo         String?
   status        String    @default("Ativo")
   contactName   String    @default("")
   email         String    @default("")

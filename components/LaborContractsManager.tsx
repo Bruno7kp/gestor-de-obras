@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Project, LaborContract, LaborPayment, WorkforceMember, ProjectExpense, WorkItem } from '../types';
+import { Project, LaborContract, LaborPayment, WorkforceMember, ProjectExpense, WorkItem, Contractor } from '../types';
 import { laborContractService } from '../services/laborContractService';
 import { uploadService } from '../services/uploadService';
 import { laborContractsApi } from '../services/laborContractsApi';
@@ -22,6 +22,7 @@ const VIEW_MODE_KEY = 'labor_contracts_view_mode';
 
 interface LaborContractsManagerProps {
   project: Project;
+  contractors?: Contractor[];
   onUpdateProject: (data: Partial<Project>) => void;
   onAddExpense?: (expense: ProjectExpense) => Promise<void> | void;
   onUpdateExpense?: (id: string, data: Partial<ProjectExpense>) => Promise<void> | void;
@@ -30,6 +31,7 @@ interface LaborContractsManagerProps {
 
 export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({ 
   project, 
+  contractors = [],
   onUpdateProject,
   onAddExpense,
   onUpdateExpense,
@@ -262,6 +264,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
           tipo: updated.tipo,
           descricao: updated.descricao,
           associadoId: updated.associadoId,
+          contractorId: updated.contractorId,
           valorTotal: updated.valorTotal,
           dataInicio: updated.dataInicio,
           dataFim: updated.dataFim,
@@ -288,6 +291,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
           tipo: updated.tipo,
           descricao: updated.descricao,
           associadoId: updated.associadoId,
+          contractorId: updated.contractorId,
           valorTotal: updated.valorTotal,
           dataInicio: updated.dataInicio,
           dataFim: updated.dataFim,
@@ -900,6 +904,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
         <ContractModal 
           contract={editingContract}
           workforce={workforce}
+          contractors={contractors}
           workItems={project.items}
           isReadOnly={isReadOnly}
           financialCategories={laborFinancialCategories}
@@ -1228,7 +1233,7 @@ const PaymentModal = ({
   );
 };
 
-const ContractModal = ({ contract, workforce, workItems, isReadOnly, financialCategories, onAddExpense, onClose, onSave }: any) => {
+const ContractModal = ({ contract, workforce, contractors, workItems, isReadOnly, financialCategories, onAddExpense, onClose, onSave }: any) => {
   const initialContract = contract || laborContractService.createContract('empreita');
   const [data, setData] = useState<LaborContract>(initialContract);
   const [localFinancialCategories, setLocalFinancialCategories] = useState<ProjectExpense[]>(financialCategories ?? []);
@@ -1255,6 +1260,16 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, financialCa
   const [newGroupName, setNewGroupName] = useState('');
   const toast = useToast();
 
+  const selectedContractor = useMemo(
+    () => (contractors as Contractor[]).find((c) => c.id === data.contractorId),
+    [contractors, data.contractorId],
+  );
+
+  const linkedMember = useMemo(
+    () => workforce.find((w: WorkforceMember) => w.contractorId === data.contractorId),
+    [workforce, data.contractorId],
+  );
+
   useEffect(() => {
     setExpandedIds(new Set());
   }, [contract, workItems]);
@@ -1268,6 +1283,20 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, financialCa
     const fallback = data.linkedWorkItemId ? [data.linkedWorkItemId] : [];
     setData((prev) => ({ ...prev, linkedWorkItemIds: fallback }));
   }, [data.linkedWorkItemIds, data.linkedWorkItemId]);
+
+  useEffect(() => {
+    if (data.contractorId) return;
+    if (!data.associadoId) return;
+    const member = workforce.find((w: WorkforceMember) => w.id === data.associadoId);
+    if (!member?.contractorId) return;
+    setData((prev) => ({ ...prev, contractorId: member.contractorId as string }));
+  }, [data.contractorId, data.associadoId, workforce]);
+
+  useEffect(() => {
+    if (!linkedMember?.id) return;
+    if (data.associadoId === linkedMember.id) return;
+    setData((prev) => ({ ...prev, associadoId: linkedMember.id }));
+  }, [linkedMember?.id, data.associadoId]);
 
   useEffect(() => {
     setPaymentValues(prev => {
@@ -1285,8 +1314,8 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, financialCa
   }, [data.pagamentos]);
 
   const handleSubmit = () => {
-    if (!data.associadoId) {
-      toast.error('Selecione o associado responsavel.');
+    if (!data.contractorId && !data.associadoId) {
+      toast.error('Selecione o prestador responsavel.');
       return;
     }
     if (!data.descricao.trim()) {
@@ -1533,21 +1562,36 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, financialCa
 
                 <div>
                   <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">
-                    Associado Responsável
+                    Prestador Responsável
                   </label>
                   <select
                     className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500"
-                    value={data.associadoId}
-                    onChange={e => setData({ ...data, associadoId: e.target.value })}
+                    value={data.contractorId || ''}
+                    onChange={e => {
+                      const contractorId = e.target.value || undefined;
+                      const member = workforce.find((w: WorkforceMember) => w.contractorId === contractorId);
+                      setData({
+                        ...data,
+                        contractorId,
+                        associadoId: member?.id || '',
+                      });
+                    }}
                     disabled={isReadOnly}
                   >
                     <option value="">Selecione...</option>
-                    {workforce.map((w: WorkforceMember) => (
-                      <option key={w.id} value={w.id}>
-                        {w.nome} - {w.cargo}{w.contractor?.name ? ` (${w.contractor.name})` : ''}
+                    {(contractors as Contractor[]).map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}{c.type === 'Autônomo' && c.cargo ? ` - ${c.cargo}` : ''}
                       </option>
                     ))}
                   </select>
+                  <p className="mt-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    {linkedMember?.id
+                      ? `Já vinculado na equipe: ${linkedMember.nome}`
+                      : selectedContractor
+                        ? 'Será incluído automaticamente na equipe ao salvar'
+                        : 'Selecione um prestador cadastrado'}
+                  </p>
                 </div>
               </div>
 

@@ -2,7 +2,13 @@ import type { StaffDocument, WorkforceMember } from '../types';
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL ?? '/api';
 
-type WorkforceInput = Omit<WorkforceMember, 'id' | 'documentos' | 'linkedWorkItemIds'> & {
+type WorkforceInput = {
+  contractorId?: string | null;
+  foto?: string | null;
+  nome?: string;
+  cpf_cnpj?: string;
+  empresa_vinculada?: string;
+  cargo?: string;
   documentos?: StaffDocument[];
   linkedWorkItemIds?: string[];
 };
@@ -16,13 +22,24 @@ type WorkforceResponse = WorkforceMember & {
 
 const normalizeMember = (input: WorkforceResponse): WorkforceMember => ({
   id: input.id,
-  nome: input.nome ?? '',
-  cpf_cnpj: input.cpf_cnpj ?? '',
-  empresa_vinculada: input.empresa_vinculada ?? '',
+  nome: input.contractor?.name ?? input.nome ?? '',
+  cpf_cnpj: input.contractor?.cnpj ?? input.cpf_cnpj ?? '',
+  empresa_vinculada: input.contractor?.name ?? input.empresa_vinculada ?? '',
   contractorId: input.contractorId ?? undefined,
-  contractor: input.contractor ?? undefined,
+  contractor: input.contractor
+    ? {
+        id: input.contractor.id,
+        name: input.contractor.name,
+        cnpj: input.contractor.cnpj,
+        type: input.contractor.type as 'PJ' | 'Autônomo',
+        cargo: input.contractor.cargo ?? null,
+      }
+    : undefined,
   foto: input.foto ?? undefined,
-  cargo: input.cargo ?? 'Servente',
+  cargo:
+    input.contractor?.type === 'Autônomo'
+      ? input.contractor?.cargo ?? input.cargo ?? ''
+      : '',
   documentos: input.documentos ?? [],
   linkedWorkItemIds: input.responsabilidades?.map((resp) => resp.workItemId) ?? input.linkedWorkItemIds ?? [],
 });

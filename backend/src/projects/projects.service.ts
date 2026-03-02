@@ -397,7 +397,21 @@ export class ProjectsService {
             },
           },
         },
-        workforce: { include: { documentos: true, responsabilidades: true } },
+        workforce: {
+          include: {
+            documentos: true,
+            responsabilidades: true,
+            contractor: {
+              select: {
+                id: true,
+                name: true,
+                cnpj: true,
+                type: true,
+                cargo: true,
+              },
+            },
+          },
+        },
         laborContracts: {
           include: {
             pagamentos: {
@@ -486,7 +500,21 @@ export class ProjectsService {
               },
             },
           },
-          workforce: { include: { documentos: true, responsabilidades: true } },
+          workforce: {
+            include: {
+              documentos: true,
+              responsabilidades: true,
+              contractor: {
+                select: {
+                  id: true,
+                  name: true,
+                  cnpj: true,
+                  type: true,
+                  cargo: true,
+                },
+              },
+            },
+          },
           laborContracts: {
             include: {
               pagamentos: {
@@ -1075,7 +1103,21 @@ export class ProjectsService {
             },
           },
         },
-        workforce: { include: { documentos: true, responsabilidades: true } },
+        workforce: {
+          include: {
+            documentos: true,
+            responsabilidades: true,
+            contractor: {
+              select: {
+                id: true,
+                name: true,
+                cnpj: true,
+                type: true,
+                cargo: true,
+              },
+            },
+          },
+        },
         laborContracts: {
           include: {
             pagamentos: {

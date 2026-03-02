@@ -1,9 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Project, WorkforceMember, WorkforceRole, WorkItem, Contractor } from '../types';
-import { workforceService } from '../services/workforceService';
+import { Project, WorkforceMember, WorkItem, Contractor } from '../types';
 import { workforceApi } from '../services/workforceApi';
-import { contractorsApi } from '../services/contractorsApi';
 import { treeService } from '../services/treeService';
 import { usePermissions } from '../hooks/usePermissions';
 import { ConfirmModal } from './ConfirmModal';
@@ -39,7 +37,7 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, con
     return workforce.filter(m => {
       const matchesSearch = m.nome.toLowerCase().includes(search.toLowerCase()) || 
         m.cpf_cnpj.includes(search) ||
-        m.cargo.toLowerCase().includes(search.toLowerCase());
+        (m.cargo || '').toLowerCase().includes(search.toLowerCase());
       return matchesSearch;
     });
   }, [workforce, search]);
@@ -92,12 +90,7 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, con
       if (exists) {
         const prevMember = workforce.find(m => m.id === member.id);
         await workforceApi.update(member.id, {
-          nome: member.nome,
-          cpf_cnpj: member.cpf_cnpj,
-          empresa_vinculada: member.empresa_vinculada,
-          contractorId: member.contractorId ?? null,
           foto: member.foto ?? null,
-          cargo: member.cargo,
         });
 
         if (prevMember) {
@@ -137,12 +130,8 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, con
         }
       } else {
         await workforceApi.create(project.id, {
-          nome: member.nome,
-          cpf_cnpj: member.cpf_cnpj,
-          empresa_vinculada: member.empresa_vinculada,
           contractorId: member.contractorId ?? null,
           foto: member.foto ?? null,
-          cargo: member.cargo,
           documentos: member.documentos,
           linkedWorkItemIds: member.linkedWorkItemIds,
         });
@@ -222,9 +211,11 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, con
                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase truncate">{member.nome || 'Sem Nome'}</h3>
-                    <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900 text-indigo-600 text-[8px] font-black uppercase rounded-lg border border-indigo-100 dark:border-indigo-800">{member.cargo}</span>
+                    {!!member.cargo && (
+                      <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900 text-indigo-600 text-[8px] font-black uppercase rounded-lg border border-indigo-100 dark:border-indigo-800">{member.cargo}</span>
+                    )}
                   </div>
-                  <p className="text-[13px] font-bold text-slate-400 uppercase mt-1 truncate">{member.contractor?.name || member.empresa_vinculada || 'Autônomo'} • {member.cpf_cnpj}</p>
+                  <p className="text-[13px] font-bold text-slate-400 uppercase mt-1 truncate">{member.contractor?.name || member.empresa_vinculada || 'Autônomo'}{member.cpf_cnpj ? ` • ${member.cpf_cnpj}` : ''}</p>
                   <p className="text-[12px] text-indigo-500 font-bold mt-1">Responsável por {member.linkedWorkItemIds.length} itens da EAP</p>
                   <p className="text-[12px] text-slate-500 font-bold mt-1">
                     Total pago: R$ {(paidByMember[member.id] || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -243,7 +234,6 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, con
         <MemberModal 
           member={editingMember} 
           contractors={contractors}
-          onContractorCreated={onContractorCreated}
           onClose={() => setIsModalOpen(false)} 
           onSave={handleSave} 
           allWorkItems={project.items}
@@ -264,9 +254,22 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, con
   );
 };
 
-const MemberModal = ({ member, contractors, onContractorCreated, onClose, onSave, allWorkItems }: any) => {
-  const [data, setData] = useState<WorkforceMember>(member || workforceService.createMember('Servente'));
-  const [contractorSearch, setContractorSearch] = useState(member?.empresa_vinculada || '');
+const MemberModal = ({ member, contractors, onClose, onSave, allWorkItems }: any) => {
+  const [data, setData] = useState<WorkforceMember>(
+    member || {
+      id: crypto.randomUUID(),
+      nome: '',
+      cpf_cnpj: '',
+      empresa_vinculada: '',
+      contractorId: undefined,
+      contractor: undefined,
+      cargo: '',
+      documentos: [],
+      linkedWorkItemIds: [],
+      foto: undefined,
+    },
+  );
+  const [contractorSearch, setContractorSearch] = useState(member?.contractor?.name || member?.empresa_vinculada || '');
   const [showContractorDropdown, setShowContractorDropdown] = useState(false);
   const contractorInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -292,62 +295,28 @@ const MemberModal = ({ member, contractors, onContractorCreated, onClose, onSave
   }, []);
 
   const selectContractor = (c: Contractor) => {
-    setData({ ...data, contractorId: c.id, empresa_vinculada: c.name, nome: c.name, cpf_cnpj: c.cnpj || data.cpf_cnpj });
+    setData({
+      ...data,
+      contractorId: c.id,
+      contractor: c,
+      empresa_vinculada: c.name,
+      nome: c.name,
+      cpf_cnpj: c.cnpj || data.cpf_cnpj,
+      cargo: c.type === 'Autônomo' ? c.cargo || '' : '',
+    });
     setContractorSearch(c.name);
     setShowContractorDropdown(false);
   };
 
   const clearContractor = () => {
-    setData({ ...data, contractorId: undefined, empresa_vinculada: '', nome: '' });
+    if (member) return;
+    setData({ ...data, contractorId: undefined, contractor: undefined, empresa_vinculada: '', nome: '', cpf_cnpj: '', cargo: '' });
     setContractorSearch('');
   };
 
-  const handleContractorBlur = async () => {
-    // Small delay to allow dropdown click to register
-    setTimeout(async () => {
-      const trimmed = contractorSearch.trim();
-      if (!trimmed) {
-        clearContractor();
-        return;
-      }
-      // Check if the typed text matches an existing contractor
-      const match = ((contractors as Contractor[]) || []).find(
-        c => c.name.toLowerCase() === trimmed.toLowerCase()
-      );
-      if (match) {
-        selectContractor(match);
-      } else if (trimmed) {
-        // Auto-create: set empresa_vinculada now; the actual contractor will be 
-        // created on save via the ensureByName endpoint
-        setData(prev => ({ ...prev, empresa_vinculada: trimmed, nome: trimmed, contractorId: undefined }));
-      }
-    }, 200);
-  };
-
-  const handleSaveWithContractorEnsure = async () => {
-    let memberToSave = { ...data };
-    const trimmed = contractorSearch.trim();
-
-    // If there's a name typed but no contractorId, ensure the contractor exists
-    if (trimmed && !memberToSave.contractorId) {
-      try {
-        const result = await contractorsApi.ensureByName(trimmed);
-        memberToSave = {
-          ...memberToSave,
-          contractorId: result.contractor.id,
-          empresa_vinculada: result.contractor.name,
-          nome: result.contractor.name,
-        };
-        if (result.created && onContractorCreated) {
-          onContractorCreated(result.contractor);
-        }
-      } catch {
-        // If ensure fails, save without contractorId
-        memberToSave = { ...memberToSave, empresa_vinculada: trimmed };
-      }
-    }
-
-    onSave(memberToSave);
+  const handleSaveDirect = () => {
+    if (!data.contractorId) return;
+    onSave(data);
   };
 
   useEffect(() => {
@@ -454,17 +423,18 @@ const MemberModal = ({ member, contractors, onContractorCreated, onClose, onSave
                       className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500" 
                       value={contractorSearch} 
                       onChange={e => {
+                        if (member) return;
                         setContractorSearch(e.target.value);
                         setShowContractorDropdown(true);
                         if (!e.target.value.trim()) {
                           clearContractor();
                         }
                       }}
-                      onFocus={() => setShowContractorDropdown(true)}
-                      onBlur={handleContractorBlur}
-                      placeholder="Digite para buscar ou criar prestador..."
+                      onFocus={() => !member && setShowContractorDropdown(true)}
+                      placeholder="Digite para buscar prestador..."
+                      readOnly={!!member}
                     />
-                    {data.contractorId && (
+                    {data.contractorId && !member && (
                       <button 
                         type="button"
                         onClick={clearContractor}
@@ -488,10 +458,10 @@ const MemberModal = ({ member, contractors, onContractorCreated, onClose, onSave
                         ))}
                       </div>
                     )}
-                    {showContractorDropdown && contractorSearch.trim() && contractorSuggestions.length === 0 && (
+                    {showContractorDropdown && contractorSearch.trim() && contractorSuggestions.length === 0 && !member && (
                       <div ref={dropdownRef} className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-2xl shadow-xl p-4">
                         <p className="text-[10px] font-bold text-slate-400">
-                          Prestador "<span className="text-indigo-600">{contractorSearch.trim()}</span>" será criado automaticamente ao salvar
+                          Nenhum prestador encontrado. Cadastre em Prestadores para vincular na equipe.
                         </p>
                       </div>
                     )}
@@ -499,13 +469,11 @@ const MemberModal = ({ member, contractors, onContractorCreated, onClose, onSave
                   <div className="grid grid-cols-2 gap-4">
                      <div>
                        <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">CPF / CNPJ</label>
-                       <input className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none" value={data.cpf_cnpj} onChange={e => setData({...data, cpf_cnpj: e.target.value})} />
+                       <input className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 text-sm font-black outline-none text-slate-500" value={data.cpf_cnpj} readOnly />
                      </div>
                      <div>
                        <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">Cargo / Função</label>
-                       <select className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none" value={data.cargo} onChange={e => setData({...data, cargo: e.target.value as any})}>
-                         {['Engenheiro', 'Mestre', 'Encarregado', 'Eletricista', 'Encanador', 'Pedreiro', 'Servente', 'Carpinteiro'].map(r => <option key={r} value={r}>{r}</option>)}
-                       </select>
+                       <input className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 text-sm font-black outline-none text-slate-500" value={data.cargo || '-'} readOnly />
                      </div>
                   </div>
                </div>
@@ -538,7 +506,7 @@ const MemberModal = ({ member, contractors, onContractorCreated, onClose, onSave
 
          <div className="flex gap-4 pt-8 border-t dark:border-slate-800 mt-auto">
             <button onClick={onClose} className="flex-1 py-5 text-[11px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors">Cancelar</button>
-            <button onClick={handleSaveWithContractorEnsure} className="flex-[2] py-5 bg-indigo-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all">Salvar Cadastro</button>
+            <button onClick={handleSaveDirect} disabled={!data.contractorId} className={`flex-[2] py-5 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl transition-all ${data.contractorId ? 'bg-indigo-600 text-white active:scale-95' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`}>Salvar Cadastro</button>
          </div>
       </div>
     </div>

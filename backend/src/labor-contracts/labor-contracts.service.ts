@@ -24,7 +24,8 @@ interface CreateLaborContractInput {
   userId?: string;
   tipo: string;
   descricao: string;
-  associadoId: string;
+  associadoId?: string;
+  contractorId?: string;
   valorTotal: number;
   dataInicio: string;
   dataFim?: string;
@@ -179,6 +180,217 @@ export class LaborContractsService {
     if (!member) throw new NotFoundException('Associado nao encontrado');
   }
 
+  private async resolveProjectInstanceId(
+    projectId: string,
+    instanceId: string,
+    userId?: string,
+  ) {
+    let project = await this.prisma.project.findFirst({
+      where: { id: projectId, instanceId },
+      select: { id: true, instanceId: true },
+    });
+
+    if (!project && userId) {
+      project = await this.prisma.project.findFirst({
+        where: { id: projectId, members: { some: { userId } } },
+        select: { id: true, instanceId: true },
+      });
+    }
+
+    if (!project) {
+      throw new NotFoundException('Projeto nao encontrado');
+    }
+
+    return project.instanceId;
+  }
+
+  private async ensureContractorForProject(
+    contractorId: string,
+    projectId: string,
+    instanceId: string,
+    userId?: string,
+  ) {
+    const projectInstanceId = await this.resolveProjectInstanceId(
+      projectId,
+      instanceId,
+      userId,
+    );
+
+    const contractor = await this.prisma.contractor.findFirst({
+      where: {
+        id: contractorId,
+        instanceId: projectInstanceId,
+      },
+      select: {
+        id: true,
+        name: true,
+        cnpj: true,
+        type: true,
+        cargo: true,
+      },
+    });
+
+    if (!contractor) {
+      throw new NotFoundException('Prestador nao encontrado');
+    }
+
+    return contractor;
+  }
+
+  private async resolveAssociadoId(input: {
+    projectId: string;
+    instanceId: string;
+    userId?: string;
+    associadoId?: string;
+    contractorId?: string;
+  }): Promise<string> {
+    if (input.associadoId) {
+      const member = await this.prisma.workforceMember.findFirst({
+        where: { id: input.associadoId, projectId: input.projectId },
+        select: {
+          id: true,
+          projectId: true,
+          contractorId: true,
+          nome: true,
+          empresa_vinculada: true,
+          cpf_cnpj: true,
+          cargo: true,
+        },
+      });
+
+      if (!member) {
+        throw new NotFoundException('Associado nao encontrado');
+      }
+
+      if (!member.contractorId) {
+        const projectInstanceId = await this.resolveProjectInstanceId(
+          input.projectId,
+          input.instanceId,
+          input.userId,
+        );
+
+        const baseName = (member.nome || member.empresa_vinculada || '').trim();
+        if (!baseName) {
+          return member.id;
+        }
+
+        const existingContractor = await this.prisma.contractor.findFirst({
+          where: {
+            instanceId: projectInstanceId,
+            name: { equals: baseName, mode: 'insensitive' },
+          },
+        });
+
+        const contractor =
+          existingContractor ||
+          (await this.prisma.contractor.create({
+            data: {
+              instanceId: projectInstanceId,
+              name: baseName,
+              cnpj: member.cpf_cnpj || '',
+              type: 'Autônomo',
+              cargo: member.cargo || null,
+              createdById: input.userId ?? null,
+            },
+          }));
+
+        if (!existingContractor) {
+          void this.auditService.log({
+            instanceId: projectInstanceId,
+            userId: input.userId,
+            projectId: input.projectId,
+            action: 'CREATE',
+            model: 'Contractor',
+            entityId: contractor.id,
+            after: contractor as Record<string, unknown>,
+            metadata: {
+              operation: 'autoCreateFromLegacyWorkforce',
+              workforceMemberId: member.id,
+            },
+          });
+        }
+
+        const updatedMember = await this.prisma.workforceMember.update({
+          where: { id: member.id },
+          data: {
+            contractorId: contractor.id,
+            nome: contractor.name,
+            empresa_vinculada: contractor.name,
+            cpf_cnpj: contractor.cnpj || member.cpf_cnpj,
+            cargo:
+              contractor.type === 'Autônomo' ? contractor.cargo || member.cargo : '',
+            updatedById: input.userId ?? null,
+          },
+        });
+
+        void this.auditService.log({
+          instanceId: projectInstanceId,
+          userId: input.userId,
+          projectId: input.projectId,
+          action: 'UPDATE',
+          model: 'WorkforceMember',
+          entityId: member.id,
+          before: member as Record<string, unknown>,
+          after: updatedMember as Record<string, unknown>,
+          metadata: { operation: 'linkContractorFromLaborContract' },
+        });
+      }
+
+      return member.id;
+    }
+
+    if (!input.contractorId) {
+      throw new NotFoundException('Prestador ou associado e obrigatorio');
+    }
+
+    const contractor = await this.ensureContractorForProject(
+      input.contractorId,
+      input.projectId,
+      input.instanceId,
+      input.userId,
+    );
+
+    const existingMember = await this.prisma.workforceMember.findFirst({
+      where: { projectId: input.projectId, contractorId: contractor.id },
+      select: { id: true },
+    });
+
+    if (existingMember) {
+      return existingMember.id;
+    }
+
+    const createdMember = await this.prisma.workforceMember.create({
+      data: {
+        projectId: input.projectId,
+        contractorId: contractor.id,
+        nome: contractor.name,
+        empresa_vinculada: contractor.name,
+        cpf_cnpj: contractor.cnpj || '',
+        cargo: contractor.type === 'Autônomo' ? contractor.cargo || '' : '',
+        createdById: input.userId ?? null,
+      },
+    });
+
+    const projectInstanceId = await this.resolveProjectInstanceId(
+      input.projectId,
+      input.instanceId,
+      input.userId,
+    );
+
+    void this.auditService.log({
+      instanceId: projectInstanceId,
+      userId: input.userId,
+      projectId: input.projectId,
+      action: 'CREATE',
+      model: 'WorkforceMember',
+      entityId: createdMember.id,
+      after: createdMember as Record<string, unknown>,
+      metadata: { operation: 'autoCreateFromLaborContract', contractorId: contractor.id },
+    });
+
+    return createdMember.id;
+  }
+
   private async ensureWorkItem(id: string, projectId: string) {
     const item = await this.prisma.workItem.findFirst({
       where: { id, projectId },
@@ -254,7 +466,13 @@ export class LaborContractsService {
       input.userId,
       true,
     );
-    await this.ensureWorkforceMember(input.associadoId, input.projectId);
+    const associadoId = await this.resolveAssociadoId({
+      projectId: input.projectId,
+      instanceId: input.instanceId,
+      userId: input.userId,
+      associadoId: input.associadoId,
+      contractorId: input.contractorId,
+    });
     const linkedWorkItemIds = this.normalizeLinkedWorkItemIds(
       input.linkedWorkItemIds,
       input.linkedWorkItemId,
@@ -273,7 +491,7 @@ export class LaborContractsService {
           projectId: input.projectId,
           tipo: input.tipo,
           descricao: input.descricao,
-          associadoId: input.associadoId,
+          associadoId,
           valorTotal: input.valorTotal,
           valorPago: totals.valorPago,
           status: totals.status,
@@ -370,9 +588,16 @@ export class LaborContractsService {
 
     await ensureProjectWritable(this.prisma, existing.projectId);
 
-    if (input.associadoId) {
-      await this.ensureWorkforceMember(input.associadoId, existing.projectId);
-    }
+    const associadoId =
+      input.associadoId || input.contractorId
+        ? await this.resolveAssociadoId({
+            projectId: existing.projectId,
+            instanceId: input.instanceId,
+            userId: input.userId,
+            associadoId: input.associadoId,
+            contractorId: input.contractorId,
+          })
+        : existing.associadoId;
 
     const linkedWorkItemIds = this.resolveLinkedWorkItemIds(input);
     if (linkedWorkItemIds && linkedWorkItemIds.length) {
@@ -397,7 +622,7 @@ export class LaborContractsService {
         data: {
           tipo: input.tipo ?? existing.tipo,
           descricao: input.descricao ?? existing.descricao,
-          associadoId: input.associadoId ?? existing.associadoId,
+          associadoId,
           valorTotal,
           valorPago: totals ? totals.valorPago : existing.valorPago,
           status: totals ? totals.status : existing.status,

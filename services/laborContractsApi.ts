@@ -15,6 +15,7 @@ const normalizeContract = (input: any): LaborContract => ({
   tipo: input.tipo,
   descricao: input.descricao,
   associadoId: input.associadoId,
+  contractorId: input.contractorId ?? undefined,
   valorTotal: input.valorTotal,
   valorPago: input.valorPago ?? 0,
   status: input.status ?? 'pendente',

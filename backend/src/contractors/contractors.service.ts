@@ -10,6 +10,7 @@ interface CreateContractorInput {
   type?: string;
   city?: string;
   specialty?: string;
+  cargo?: string;
   status?: string;
   contactName?: string;
   email?: string;
@@ -26,6 +27,10 @@ interface UpdateContractorInput extends Partial<CreateContractorInput> {
   id: string;
   userId?: string;
 }
+
+type ContractorWithOptionalCargo = {
+  cargo?: string | null;
+};
 
 @Injectable()
 export class ContractorsService {
@@ -70,26 +75,38 @@ export class ContractorsService {
   }
 
   async create(input: CreateContractorInput) {
+    const contractorType = input.type ?? 'PJ';
+    const normalizedCargo =
+      contractorType === 'Autônomo' && input.cargo?.trim()
+        ? input.cargo.trim()
+        : null;
+
+    const createData: Parameters<
+      typeof this.prisma.contractor.create
+    >[0]['data'] = {
+      instanceId: input.instanceId,
+      name: input.name,
+      cnpj: input.cnpj ?? '',
+      type: contractorType,
+      city: input.city ?? '',
+      specialty: input.specialty ?? null,
+      status: input.status ?? 'Ativo',
+      contactName: input.contactName ?? '',
+      email: input.email ?? '',
+      phone: input.phone ?? '',
+      bankName: input.bankName ?? '',
+      bankAgency: input.bankAgency ?? '',
+      bankAccount: input.bankAccount ?? '',
+      pixKey: input.pixKey ?? null,
+      notes: input.notes ?? '',
+      order: input.order ?? 0,
+      createdById: input.userId ?? null,
+    };
+    (createData as unknown as ContractorWithOptionalCargo).cargo =
+      normalizedCargo;
+
     const created = await this.prisma.contractor.create({
-      data: {
-        instanceId: input.instanceId,
-        name: input.name,
-        cnpj: input.cnpj ?? '',
-        type: input.type ?? 'PJ',
-        city: input.city ?? '',
-        specialty: input.specialty ?? null,
-        status: input.status ?? 'Ativo',
-        contactName: input.contactName ?? '',
-        email: input.email ?? '',
-        phone: input.phone ?? '',
-        bankName: input.bankName ?? '',
-        bankAgency: input.bankAgency ?? '',
-        bankAccount: input.bankAccount ?? '',
-        pixKey: input.pixKey ?? null,
-        notes: input.notes ?? '',
-        order: input.order ?? 0,
-        createdById: input.userId ?? null,
-      },
+      data: createData,
     });
 
     void this.auditService.log({
@@ -155,32 +172,69 @@ export class ContractorsService {
     });
     if (!existing) throw new NotFoundException('Prestador não encontrado');
 
+    const existingCargo =
+      (existing as ContractorWithOptionalCargo).cargo ?? null;
+    const nextType = input.type ?? existing.type;
+    const nextCargo =
+      nextType === 'Autônomo'
+        ? input.cargo?.trim() || existingCargo || null
+        : null;
+
+    const cargoToPersist =
+      input.cargo !== undefined
+        ? nextCargo
+        : nextType === 'Autônomo'
+          ? existingCargo
+          : null;
+
+    const updateData: Parameters<
+      typeof this.prisma.contractor.update
+    >[0]['data'] = {
+      name: input.name ?? existing.name,
+      cnpj: input.cnpj ?? existing.cnpj,
+      type: nextType,
+      city: input.city ?? existing.city,
+      specialty:
+        input.specialty !== undefined ? input.specialty : existing.specialty,
+      status: input.status ?? existing.status,
+      contactName: input.contactName ?? existing.contactName,
+      email: input.email ?? existing.email,
+      phone: input.phone ?? existing.phone,
+      bankName: input.bankName ?? existing.bankName,
+      bankAgency: input.bankAgency ?? existing.bankAgency,
+      bankAccount: input.bankAccount ?? existing.bankAccount,
+      pixKey: input.pixKey !== undefined ? input.pixKey : existing.pixKey,
+      notes: input.notes ?? existing.notes,
+      order: input.order ?? existing.order,
+      updatedById: input.userId ?? null,
+    };
+    (updateData as unknown as ContractorWithOptionalCargo).cargo =
+      cargoToPersist;
+
     return this.prisma.contractor
       .update({
         where: { id: input.id },
-        data: {
-          name: input.name ?? existing.name,
-          cnpj: input.cnpj ?? existing.cnpj,
-          type: input.type ?? existing.type,
-          city: input.city ?? existing.city,
-          specialty:
-            input.specialty !== undefined
-              ? input.specialty
-              : existing.specialty,
-          status: input.status ?? existing.status,
-          contactName: input.contactName ?? existing.contactName,
-          email: input.email ?? existing.email,
-          phone: input.phone ?? existing.phone,
-          bankName: input.bankName ?? existing.bankName,
-          bankAgency: input.bankAgency ?? existing.bankAgency,
-          bankAccount: input.bankAccount ?? existing.bankAccount,
-          pixKey: input.pixKey !== undefined ? input.pixKey : existing.pixKey,
-          notes: input.notes ?? existing.notes,
-          order: input.order ?? existing.order,
-          updatedById: input.userId ?? null,
-        },
+        data: updateData,
       })
-      .then((updated) => {
+      .then(async (updated) => {
+        const nextCompany = updated.name;
+        const nextDocument = updated.cnpj;
+        const updatedCargo =
+          (updated as ContractorWithOptionalCargo).cargo ?? null;
+        const nextWorkforceCargo =
+          updated.type === 'Autônomo' ? (updatedCargo ?? '') : '';
+
+        await this.prisma.workforceMember.updateMany({
+          where: { contractorId: updated.id },
+          data: {
+            nome: nextCompany,
+            empresa_vinculada: nextCompany,
+            cpf_cnpj: nextDocument,
+            cargo: nextWorkforceCargo,
+            updatedById: input.userId ?? null,
+          },
+        });
+
         void this.auditService.log({
           instanceId: input.instanceId!,
           userId: input.userId,

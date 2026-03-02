@@ -18,11 +18,24 @@ const normalizeExpenses = (expenses: ProjectExpense[] | undefined) =>
 const normalizeWorkforce = (workforce: any[] | undefined): WorkforceMember[] =>
   (workforce ?? []).map((member) => ({
     id: member.id,
-    nome: member.nome ?? '',
-    cpf_cnpj: member.cpf_cnpj ?? '',
-    empresa_vinculada: member.empresa_vinculada ?? '',
+    nome: member.contractor?.name ?? member.nome ?? '',
+    cpf_cnpj: member.contractor?.cnpj ?? member.cpf_cnpj ?? '',
+    empresa_vinculada: member.contractor?.name ?? member.empresa_vinculada ?? '',
+    contractorId: member.contractorId ?? undefined,
+    contractor: member.contractor
+      ? {
+          id: member.contractor.id,
+          name: member.contractor.name,
+          cnpj: member.contractor.cnpj,
+          type: member.contractor.type,
+          cargo: member.contractor.cargo ?? null,
+        }
+      : undefined,
     foto: member.foto ?? undefined,
-    cargo: member.cargo ?? 'Servente',
+    cargo:
+      member.contractor?.type === 'Autônomo'
+        ? member.contractor?.cargo ?? member.cargo ?? ''
+        : '',
     documentos: member.documentos ?? [],
     linkedWorkItemIds: member.responsabilidades?.map((resp: any) => resp.workItemId) ?? [],
   }));
@@ -33,6 +46,7 @@ const normalizeLaborContracts = (contracts: any[] | undefined): LaborContract[] 
     tipo: contract.tipo,
     descricao: contract.descricao,
     associadoId: contract.associadoId,
+    contractorId: contract.contractorId ?? undefined,
     valorTotal: contract.valorTotal,
     valorPago: contract.valorPago ?? 0,
     status: contract.status ?? 'pendente',
@@ -95,6 +109,7 @@ export const normalizeProject = (project: any): Project => {
   return {
     id: project.id,
     createdAt: project.createdAt ?? undefined,
+    instanceId: project.instanceId ?? undefined,
     isArchived: Boolean(project.isArchived),
     archivedAt: project.archivedAt ?? null,
     groupId: project.groupId ?? null,

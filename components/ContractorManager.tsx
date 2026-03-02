@@ -72,7 +72,8 @@ export const ContractorManager: React.FC<ContractorManagerProps> = ({ contractor
       c.name.toLowerCase().includes(search.toLowerCase()) ||
       c.cnpj.includes(search) ||
       c.city.toLowerCase().includes(search.toLowerCase()) ||
-      c.specialty?.toLowerCase().includes(search.toLowerCase())
+      c.specialty?.toLowerCase().includes(search.toLowerCase()) ||
+      (c.cargo || '').toLowerCase().includes(search.toLowerCase())
     ).sort((a, b) => a.order - b.order);
   }, [contractors, search]);
 
@@ -107,6 +108,7 @@ export const ContractorManager: React.FC<ContractorManagerProps> = ({ contractor
         type: (data.type as 'PJ' | 'Autônomo') || 'PJ',
         city: data.city || '',
         specialty: data.specialty,
+        cargo: data.type === 'Autônomo' ? data.cargo ?? null : null,
         status: (data.status as 'Ativo' | 'Inativo') || 'Ativo',
         contactName: data.contactName || '',
         email: data.email || '',
@@ -131,6 +133,7 @@ export const ContractorManager: React.FC<ContractorManagerProps> = ({ contractor
           type: newContractor.type,
           city: newContractor.city,
           specialty: newContractor.specialty,
+          cargo: newContractor.type === 'Autônomo' ? newContractor.cargo ?? null : null,
           status: newContractor.status,
           contactName: newContractor.contactName,
           email: newContractor.email,
@@ -417,6 +420,7 @@ const ContractorModal: React.FC<ContractorModalProps> = ({ contractor, onClose, 
   const [status, setStatus] = useState<'Ativo' | 'Inativo'>(contractor?.status ?? 'Ativo');
   const [city, setCity] = useState(contractor?.city ?? '');
   const [specialty, setSpecialty] = useState(contractor?.specialty ?? '');
+  const [cargo, setCargo] = useState(contractor?.cargo ?? '');
   const [contactName, setContactName] = useState(contractor?.contactName ?? '');
   const [email, setEmail] = useState(contractor?.email ?? '');
   const [phone, setPhone] = useState(contractor?.phone ?? '');
@@ -437,6 +441,7 @@ const ContractorModal: React.FC<ContractorModalProps> = ({ contractor, onClose, 
       status,
       city,
       specialty: specialty || undefined,
+      cargo: type === 'Autônomo' ? cargo || undefined : undefined,
       contactName,
       email,
       phone,
@@ -503,6 +508,15 @@ const ContractorModal: React.FC<ContractorModalProps> = ({ contractor, onClose, 
                 <input value={specialty} onChange={e => setSpecialty(e.target.value)} className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-indigo-500 rounded-2xl text-xs font-bold outline-none transition-all dark:text-white" placeholder="Ex: Elétrica, Hidráulica..." />
               </div>
             </div>
+
+            {type === 'Autônomo' && (
+              <div className="grid grid-cols-1 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2">Cargo (Autônomo)</label>
+                  <input value={cargo} onChange={e => setCargo(e.target.value)} className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-indigo-500 rounded-2xl text-xs font-bold outline-none transition-all dark:text-white" placeholder="Ex: Pedreiro, Eletricista..." />
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-3 gap-6">
               <div className="space-y-2">

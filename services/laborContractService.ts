@@ -8,6 +8,7 @@ export const laborContractService = {
       tipo,
       descricao: tipo === 'empreita' ? 'Nova Empreita' : 'Nova Quinzena/Diária',
       associadoId: '',
+      contractorId: undefined,
       valorTotal: 0,
       valorPago: 0,
       status: 'pendente',

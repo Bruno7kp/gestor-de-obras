@@ -12,6 +12,7 @@ import { useCrossInstanceStock } from '../hooks/useCrossInstanceStock';
 import { useToast } from '../hooks/useToast';
 import { stockRequestApi } from '../services/stockRequestApi';
 import { purchaseRequestApi } from '../services/purchaseRequestApi';
+import { suppliersApi } from '../services/suppliersApi';
 import { financial } from '../utils/math';
 import { ConfirmModal } from './ConfirmModal';
 import type { StockRequest, PurchaseRequest, Supplier } from '../types';
@@ -308,6 +309,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
   const setTab = (t: Tab) => { setTabState(t); localStorage.setItem('traceability_tab', t); };
   const [stockRequests, setStockRequests] = useState<StockRequest[]>([]);
   const [purchaseRequests, setPurchaseRequests] = useState<PurchaseRequest[]>([]);
+  const [instanceSuppliers, setInstanceSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [completeModal, setCompleteModal] = useState<{ open: boolean; purchase?: PurchaseRequest }>({ open: false });
   const [cancelConfirm, setCancelConfirm] = useState<string | null>(null);
@@ -332,6 +334,18 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
   }, [canWarehouse, canFinancial, externalInstanceId]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  useEffect(() => {
+    if (!externalInstanceId) {
+      setInstanceSuppliers(suppliers);
+      return;
+    }
+
+    suppliersApi
+      .listByInstance(externalInstanceId)
+      .then(setInstanceSuppliers)
+      .catch(() => setInstanceSuppliers([]));
+  }, [externalInstanceId, suppliers]);
 
   // -- Derived data
   const activeRequests = useMemo(() => stockRequests.filter(r => r.status === 'PENDING' || r.status === 'APPROVED' || r.status === 'PARTIALLY_DELIVERED'), [stockRequests]);
@@ -924,7 +938,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
       {completeModal.open && completeModal.purchase && (
         <CompleteModal
           purchase={completeModal.purchase}
-          suppliers={suppliers}
+          suppliers={instanceSuppliers}
           onSave={handleComplete}
           onClose={() => setCompleteModal({ open: false })}
         />

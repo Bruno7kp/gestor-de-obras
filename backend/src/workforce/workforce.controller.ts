@@ -17,11 +17,12 @@ import type { AuthenticatedRequest } from '../auth/auth.types';
 
 interface CreateWorkforceBody {
   projectId: string;
-  nome: string;
-  cpf_cnpj: string;
-  empresa_vinculada: string;
+  nome?: string;
+  cpf_cnpj?: string;
+  empresa_vinculada?: string;
+  contractorId?: string | null;
   foto?: string | null;
-  cargo: string;
+  cargo?: string;
   documentos?: Array<{
     nome: string;
     dataVencimento: string;

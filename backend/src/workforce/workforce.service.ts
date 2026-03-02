@@ -11,12 +11,12 @@ interface CreateWorkforceInput {
   projectId: string;
   instanceId: string;
   userId?: string;
-  nome: string;
-  cpf_cnpj: string;
-  empresa_vinculada: string;
+  nome?: string;
+  cpf_cnpj?: string;
+  empresa_vinculada?: string;
   contractorId?: string | null;
   foto?: string | null;
-  cargo: string;
+  cargo?: string;
   documentos?: Array<{
     nome: string;
     dataVencimento: string;
@@ -72,17 +72,109 @@ export class WorkforceService {
     return member;
   }
 
+  private async resolveProjectInstanceId(
+    projectId: string,
+    instanceId: string,
+    userId?: string,
+  ) {
+    let project = await this.prisma.project.findFirst({
+      where: { id: projectId, instanceId },
+      select: { id: true, instanceId: true },
+    });
+
+    if (!project && userId) {
+      project = await this.prisma.project.findFirst({
+        where: { id: projectId, members: { some: { userId } } },
+        select: { id: true, instanceId: true },
+      });
+    }
+
+    if (!project) {
+      throw new NotFoundException('Projeto nao encontrado');
+    }
+
+    return project.instanceId;
+  }
+
+  private async ensureContractor(
+    contractorId: string,
+    projectId: string,
+    instanceId: string,
+    userId?: string,
+  ) {
+    const projectInstanceId = await this.resolveProjectInstanceId(
+      projectId,
+      instanceId,
+      userId,
+    );
+
+    const contractor = await this.prisma.contractor.findFirst({
+      where: { id: contractorId, instanceId: projectInstanceId },
+      select: {
+        id: true,
+        name: true,
+        cnpj: true,
+        type: true,
+        cargo: true,
+      },
+    });
+
+    if (!contractor) {
+      throw new NotFoundException('Prestador nao encontrado');
+    }
+
+    return contractor;
+  }
+
+  private hydrateMember(
+    member: {
+      id: string;
+      nome: string;
+      cpf_cnpj: string;
+      empresa_vinculada: string;
+      contractorId: string | null;
+      foto: string | null;
+      cargo: string;
+      documentos?: any[];
+      responsabilidades?: Array<{ workItemId: string }>;
+      contractor?: {
+        id: string;
+        name: string;
+        cnpj: string;
+        type: string;
+        cargo: string | null;
+      } | null;
+    },
+  ) {
+    if (!member.contractor) return member;
+
+    return {
+      ...member,
+      nome: member.contractor.name,
+      empresa_vinculada: member.contractor.name,
+      cpf_cnpj: member.contractor.cnpj || member.cpf_cnpj,
+      cargo:
+        member.contractor.type === 'Autônomo'
+          ? member.contractor.cargo || member.cargo
+          : '',
+    };
+  }
+
   async findAll(projectId: string, instanceId: string, userId?: string) {
     await this.ensureProject(projectId, instanceId, userId);
-    return this.prisma.workforceMember.findMany({
+    const members = await this.prisma.workforceMember.findMany({
       where: { projectId },
       include: {
         documentos: true,
         responsabilidades: true,
-        contractor: { select: { id: true, name: true } },
+        contractor: {
+          select: { id: true, name: true, cnpj: true, type: true, cargo: true },
+        },
       },
       orderBy: { nome: 'asc' },
     });
+
+    return members.map((member) => this.hydrateMember(member));
   }
 
   async create(input: CreateWorkforceInput) {
@@ -93,15 +185,52 @@ export class WorkforceService {
       true,
     );
 
+    if (!input.contractorId) {
+      throw new NotFoundException('Prestador e obrigatorio para incluir na equipe');
+    }
+
+    const contractor = await this.ensureContractor(
+      input.contractorId,
+      input.projectId,
+      input.instanceId,
+      input.userId,
+    );
+
+    const existingByContractor = await this.prisma.workforceMember.findFirst({
+      where: { projectId: input.projectId, contractorId: contractor.id },
+      select: { id: true },
+    });
+
+    if (existingByContractor) {
+      const existing = await this.prisma.workforceMember.findUnique({
+        where: { id: existingByContractor.id },
+        include: {
+          documentos: true,
+          responsabilidades: true,
+          contractor: {
+            select: {
+              id: true,
+              name: true,
+              cnpj: true,
+              type: true,
+              cargo: true,
+            },
+          },
+        },
+      });
+
+      return existing ? this.hydrateMember(existing) : existing;
+    }
+
     const member = await this.prisma.workforceMember.create({
       data: {
         projectId: input.projectId,
-        nome: input.nome,
-        cpf_cnpj: input.cpf_cnpj,
-        empresa_vinculada: input.empresa_vinculada,
-        contractorId: input.contractorId ?? null,
+        nome: contractor.name,
+        cpf_cnpj: contractor.cnpj || '',
+        empresa_vinculada: contractor.name,
+        contractorId: contractor.id,
         foto: input.foto ?? null,
-        cargo: input.cargo,
+        cargo: contractor.type === 'Autônomo' ? contractor.cargo || '' : '',
         createdById: input.userId ?? null,
       },
     });
@@ -131,7 +260,19 @@ export class WorkforceService {
     return this.prisma.workforceMember
       .findUnique({
         where: { id: member.id },
-        include: { documentos: true, responsabilidades: true },
+        include: {
+          documentos: true,
+          responsabilidades: true,
+          contractor: {
+            select: {
+              id: true,
+              name: true,
+              cnpj: true,
+              type: true,
+              cargo: true,
+            },
+          },
+        },
       })
       .then((result) => {
         void this.auditService.log({
@@ -143,7 +284,7 @@ export class WorkforceService {
           entityId: member.id,
           after: member as Record<string, unknown>,
         });
-        return result;
+        return result ? this.hydrateMember(result) : result;
       });
   }
 
@@ -159,16 +300,7 @@ export class WorkforceService {
       .update({
         where: { id: existing.id },
         data: {
-          nome: input.nome ?? existing.nome,
-          cpf_cnpj: input.cpf_cnpj ?? existing.cpf_cnpj,
-          empresa_vinculada:
-            input.empresa_vinculada ?? existing.empresa_vinculada,
-          contractorId:
-            input.contractorId !== undefined
-              ? input.contractorId
-              : existing.contractorId,
           foto: input.foto ?? existing.foto,
-          cargo: input.cargo ?? existing.cargo,
           updatedById: input.userId ?? null,
         },
       })

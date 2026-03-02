@@ -23,6 +23,7 @@ interface CreateContractorBody {
   type?: string;
   city?: string;
   specialty?: string;
+  cargo?: string;
   status?: string;
   contactName?: string;
   email?: string;
