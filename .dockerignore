@@ -5,3 +5,7 @@ dist
 .gitignore
 .DS_Store
 *.log
+backend/node_modules
+backend/dist
+backend/uploads
+backend/generated
