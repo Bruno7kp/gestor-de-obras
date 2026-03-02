@@ -58,6 +58,8 @@ export interface WorkforceMember {
   nome: string;
   cpf_cnpj: string;
   empresa_vinculada: string;
+  contractorId?: string;
+  contractor?: { id: string; name: string };
   foto?: string;
   cargo: WorkforceRole;
   documentos: StaffDocument[];
@@ -462,6 +464,26 @@ export interface Supplier {
   phone: string;
   category: 'Material' | 'Serviço' | 'Locação' | 'Outros';
   rating: number;
+  notes: string;
+  order: number;
+}
+
+// --- PRESTADORES ---
+export interface Contractor {
+  id: string;
+  name: string;
+  cnpj: string;
+  type: 'PJ' | 'Autônomo';
+  city: string;
+  specialty?: string;
+  status: 'Ativo' | 'Inativo';
+  contactName: string;
+  email: string;
+  phone: string;
+  bankName: string;
+  bankAgency: string;
+  bankAccount: string;
+  pixKey?: string;
   notes: string;
   order: number;
 }

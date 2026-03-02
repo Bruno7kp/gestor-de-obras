@@ -19,6 +19,8 @@ const normalizeMember = (input: WorkforceResponse): WorkforceMember => ({
   nome: input.nome ?? '',
   cpf_cnpj: input.cpf_cnpj ?? '',
   empresa_vinculada: input.empresa_vinculada ?? '',
+  contractorId: input.contractorId ?? undefined,
+  contractor: input.contractor ?? undefined,
   foto: input.foto ?? undefined,
   cargo: input.cargo ?? 'Servente',
   documentos: input.documentos ?? [],

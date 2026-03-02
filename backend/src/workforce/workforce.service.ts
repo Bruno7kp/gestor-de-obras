@@ -14,6 +14,7 @@ interface CreateWorkforceInput {
   nome: string;
   cpf_cnpj: string;
   empresa_vinculada: string;
+  contractorId?: string | null;
   foto?: string | null;
   cargo: string;
   documentos?: Array<{
@@ -78,6 +79,7 @@ export class WorkforceService {
       include: {
         documentos: true,
         responsabilidades: true,
+        contractor: { select: { id: true, name: true } },
       },
       orderBy: { nome: 'asc' },
     });
@@ -97,6 +99,7 @@ export class WorkforceService {
         nome: input.nome,
         cpf_cnpj: input.cpf_cnpj,
         empresa_vinculada: input.empresa_vinculada,
+        contractorId: input.contractorId ?? null,
         foto: input.foto ?? null,
         cargo: input.cargo,
         createdById: input.userId ?? null,
@@ -160,6 +163,10 @@ export class WorkforceService {
           cpf_cnpj: input.cpf_cnpj ?? existing.cpf_cnpj,
           empresa_vinculada:
             input.empresa_vinculada ?? existing.empresa_vinculada,
+          contractorId:
+            input.contractorId !== undefined
+              ? input.contractorId
+              : existing.contractorId,
           foto: input.foto ?? existing.foto,
           cargo: input.cargo ?? existing.cargo,
           updatedById: input.userId ?? null,

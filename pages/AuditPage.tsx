@@ -11,6 +11,7 @@ const MODEL_LABELS: Record<string, string> = {
   WorkItem: 'Item da EAP',
   ProjectExpense: 'Despesa',
   Supplier: 'Fornecedor',
+  Contractor: 'Prestador',
   BiddingProcess: 'Cotação',
   WorkforceMember: 'Mão de obra',
   LaborContract: 'Contrato',

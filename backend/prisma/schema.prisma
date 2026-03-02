@@ -31,6 +31,7 @@ model Instance {
   projects         Project[]
   projectGroups    ProjectGroup[]
   suppliers        Supplier[]
+  contractors      Contractor[]
   biddings         BiddingProcess[]
   globalStockItems GlobalStockItem[]
   purchaseRequests PurchaseRequest[]
@@ -112,6 +113,7 @@ model User {
   createdSuppliers        Supplier[]          @relation("UserSuppliersCreated")
   createdBiddings         BiddingProcess[]    @relation("UserBiddingsCreated")
   createdWorkforceMembers WorkforceMember[]   @relation("UserWorkforceMembersCreated")
+  createdContractors      Contractor[]        @relation("UserContractorsCreated")
   createdLaborContracts   LaborContract[]     @relation("UserLaborContractsCreated")
   createdMilestones       Milestone[]         @relation("UserMilestonesCreated")
   createdMeasurements     MeasurementSnapshot[] @relation("UserMeasurementsCreated")
@@ -126,6 +128,7 @@ model User {
   updatedSuppliers        Supplier[]          @relation("UserSuppliersUpdated")
   updatedBiddings         BiddingProcess[]    @relation("UserBiddingsUpdated")
   updatedWorkforceMembers WorkforceMember[]   @relation("UserWorkforceMembersUpdated")
+  updatedContractors      Contractor[]        @relation("UserContractorsUpdated")
   updatedLaborContracts   LaborContract[]     @relation("UserLaborContractsUpdated")
   updatedStockItems       StockItem[]         @relation("UserStockItemsUpdated")
   updatedGlobalStockItems GlobalStockItem[]   @relation("UserGlobalStockItemsUpdated")
@@ -637,6 +640,8 @@ model WorkforceMember {
   empresa_vinculada String
   foto             String?
   cargo            String
+  contractorId     String?
+  contractor       Contractor? @relation(fields: [contractorId], references: [id])
   projectId        String
   project          Project  @relation(fields: [projectId], references: [id])
   createdBy        User?    @relation("UserWorkforceMembersCreated", fields: [createdById], references: [id])
@@ -938,4 +943,34 @@ model AuditLog {
   @@index([instanceId, createdAt])
   @@index([projectId, createdAt])
   @@index([userId])
+}
+
+model Contractor {
+  id            String    @id @default(uuid())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime? @updatedAt
+  createdById   String?
+  updatedById   String?
+  name          String
+  cnpj          String    @default("")
+  type          String    @default("PJ")
+  city          String    @default("")
+  specialty     String?
+  status        String    @default("Ativo")
+  contactName   String    @default("")
+  email         String    @default("")
+  phone         String    @default("")
+  bankName      String    @default("")
+  bankAgency    String    @default("")
+  bankAccount   String    @default("")
+  pixKey        String?
+  notes         String    @default("")
+  order         Int       @default(0)
+  instanceId    String
+  instance      Instance  @relation(fields: [instanceId], references: [id])
+  createdBy     User?     @relation("UserContractorsCreated", fields: [createdById], references: [id])
+  updatedBy     User?     @relation("UserContractorsUpdated", fields: [updatedById], references: [id])
+  workforceMembers WorkforceMember[]
+
+  @@index([instanceId])
 }

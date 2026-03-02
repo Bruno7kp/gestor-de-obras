@@ -19,6 +19,7 @@ import { MeasurementSnapshotsModule } from './measurement-snapshots/measurement-
 import { WorkforceModule } from './workforce/workforce.module';
 import { BiddingsModule } from './biddings/biddings.module';
 import { SuppliersModule } from './suppliers/suppliers.module';
+import { ContractorsModule } from './contractors/contractors.module';
 import { GlobalSettingsModule } from './global-settings/global-settings.module';
 import { RolesGuard } from './auth/roles.guard';
 import { RolesModule } from './roles/roles.module';
@@ -52,6 +53,7 @@ import { AuditModule } from './audit/audit.module';
     WorkforceModule,
     BiddingsModule,
     SuppliersModule,
+    ContractorsModule,
     GlobalSettingsModule,
     RolesModule,
     PermissionsModule,

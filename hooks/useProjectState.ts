@@ -1,9 +1,10 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Project, ProjectGroup, GlobalSettings, BiddingProcess, Supplier, CompanyCertificate, ExternalProject } from '../types';
+import { Project, ProjectGroup, GlobalSettings, BiddingProcess, Supplier, Contractor, CompanyCertificate, ExternalProject } from '../types';
 import { projectsApi, normalizeProject } from '../services/projectsApi';
 import { projectGroupsApi } from '../services/projectGroupsApi';
 import { suppliersApi } from '../services/suppliersApi';
+import { contractorsApi } from '../services/contractorsApi';
 import { biddingsApi } from '../services/biddingsApi';
 import { globalSettingsApi } from '../services/globalSettingsApi';
 
@@ -13,6 +14,7 @@ interface State {
   biddings: BiddingProcess[];
   groups: ProjectGroup[];
   suppliers: Supplier[];
+  contractors: Contractor[];
   activeProjectId: string | null;
   activeBiddingId: string | null;
   globalSettings: GlobalSettings;
@@ -36,6 +38,7 @@ export const useProjectState = () => {
     biddings: [],
     groups: [],
     suppliers: [],
+    contractors: [],
     activeProjectId: null,
     activeBiddingId: null,
     globalSettings: INITIAL_SETTINGS,
@@ -50,10 +53,11 @@ export const useProjectState = () => {
     let isMounted = true;
     const load = async () => {
       try {
-        const [projectsResult, groupsResult, suppliersResult, biddingsResult, settingsResult, externalResult] = await Promise.allSettled([
+        const [projectsResult, groupsResult, suppliersResult, contractorsResult, biddingsResult, settingsResult, externalResult] = await Promise.allSettled([
           projectsApi.list(),
           projectGroupsApi.list(),
           suppliersApi.list(),
+          contractorsApi.list(),
           biddingsApi.list(),
           globalSettingsApi.get(),
           projectsApi.listExternal(),
@@ -62,6 +66,7 @@ export const useProjectState = () => {
         const projects = projectsResult.status === 'fulfilled' ? projectsResult.value : [];
         const groups = groupsResult.status === 'fulfilled' ? groupsResult.value : [];
         const suppliers = suppliersResult.status === 'fulfilled' ? suppliersResult.value : [];
+        const contractors = contractorsResult.status === 'fulfilled' ? contractorsResult.value : [];
         const biddings = biddingsResult.status === 'fulfilled' ? biddingsResult.value : [];
         const globalSettings = settingsResult.status === 'fulfilled' ? settingsResult.value : INITIAL_SETTINGS;
         const externalProjects = externalResult.status === 'fulfilled' ? externalResult.value : [];
@@ -109,6 +114,7 @@ export const useProjectState = () => {
             externalProjects,
             groups,
             suppliers,
+            contractors,
             biddings,
             globalSettings,
             activeProjectId,
@@ -243,6 +249,7 @@ export const useProjectState = () => {
     updateProjects: (projects: Project[]) => commit(prev => ({ ...prev, projects })),
     updateGroups: (groups: ProjectGroup[]) => commit(prev => ({ ...prev, groups })),
     updateSuppliers: (suppliers: Supplier[]) => commit(prev => ({ ...prev, suppliers })),
+    updateContractors: (contractors: Contractor[]) => commit(prev => ({ ...prev, contractors })),
     updateBiddings: (biddings: BiddingProcess[]) => commit(prev => ({ ...prev, biddings })),
     updateCertificates: (certificates: CompanyCertificate[]) => commit(prev => ({
       ...prev,

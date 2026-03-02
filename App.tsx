@@ -8,7 +8,7 @@ import { projectsApi } from './services/projectsApi';
 import { notificationsApi } from './services/notificationsApi';
 import { workItemsApi } from './services/workItemsApi';
 import { measurementSnapshotsApi } from './services/measurementSnapshotsApi';
-import type { GlobalSettings, Project, Supplier, UserNotification } from './types';
+import type { GlobalSettings, Project, Supplier, Contractor, UserNotification } from './types';
 
 import { Sidebar } from './components/Sidebar';
 import { DashboardView } from './components/DashboardView';
@@ -16,6 +16,7 @@ import { SettingsView } from './components/SettingsView';
 import { ProjectWorkspace, type TabID } from './components/ProjectWorkspace';
 import { BiddingView } from './components/BiddingView';
 import { SupplierManager } from './components/SupplierManager';
+import { ContractorManager } from './components/ContractorManager';
 import { GlobalInventoryPage } from './components/GlobalInventoryPage';
 import { TraceabilityPage } from './components/TraceabilityPage';
 import { StockLogPage } from './components/StockLogPage';
@@ -58,6 +59,8 @@ type ProjectRouteProps = {
   activeProjectId: string | null;
   setActiveProjectId: (id: string | null) => void;
   suppliers: Supplier[];
+  contractors: Contractor[];
+  updateContractors: (contractors: Contractor[]) => void;
   safeGlobalSettings: GlobalSettings;
   externalProjectIds: Set<string>;
   updateActiveProject: (data: Partial<Project>) => void;
@@ -81,6 +84,8 @@ const ProjectRoute: React.FC<ProjectRouteProps> = ({
   activeProjectId,
   setActiveProjectId,
   suppliers,
+  contractors,
+  updateContractors,
   safeGlobalSettings,
   externalProjectIds,
   updateActiveProject,
@@ -136,6 +141,8 @@ const ProjectRoute: React.FC<ProjectRouteProps> = ({
       project={activeProject}
       globalSettings={safeGlobalSettings as any}
       suppliers={suppliers}
+      contractors={contractors}
+      onContractorCreated={(c) => updateContractors([...contractors, c])}
       isExternalProject={externalProjectIds.has(projectId)}
       onUpdateProject={updateActiveProject}
       onCloseMeasurement={handleCloseMeasurement}
@@ -181,9 +188,9 @@ const DashboardGuard: React.FC<{ children: React.ReactElement }> = ({ children }
 
 const App: React.FC = () => {
   const { 
-    projects, biddings, groups, suppliers, activeProject, activeProjectId, setActiveProjectId, 
+    projects, biddings, groups, suppliers, contractors, activeProject, activeProjectId, setActiveProjectId, 
     globalSettings, setGlobalSettings, externalProjects,
-    updateActiveProject, updateProjects, updateGroups, updateSuppliers, updateBiddings, updateCertificates, bulkUpdate,
+    updateActiveProject, updateProjects, updateGroups, updateSuppliers, updateContractors, updateBiddings, updateCertificates, bulkUpdate,
     undo, redo, canUndo, canRedo
   } = useProjectState();
 
@@ -455,6 +462,7 @@ const App: React.FC = () => {
   const headerTitle = useMemo(() => {
     if (location.pathname.startsWith('/app/biddings')) return 'Setor de Licitações';
     if (location.pathname.startsWith('/app/suppliers')) return 'Base de Fornecedores';
+    if (location.pathname.startsWith('/app/contractors')) return 'Prestadores';
     if (location.pathname.startsWith('/app/global-stock')) return 'Estoque Global';
     if (location.pathname.startsWith('/app/stock-log')) return 'Movimentações';
     if (location.pathname.startsWith('/app/traceability')) return 'Logística';
@@ -523,6 +531,10 @@ const App: React.FC = () => {
             element={<SupplierManager suppliers={suppliers} projects={projects} onUpdateSuppliers={updateSuppliers} />}
           />
           <Route
+            path="contractors"
+            element={<ContractorManager contractors={contractors} onUpdateContractors={updateContractors} />}
+          />
+          <Route
             path="global-stock"
             element={<GlobalInventoryPage suppliers={suppliers} />}
           />
@@ -550,6 +562,8 @@ const App: React.FC = () => {
                 activeProjectId={activeProjectId}
                 setActiveProjectId={setActiveProjectId}
                 suppliers={suppliers}
+                contractors={contractors}
+                updateContractors={updateContractors}
                 safeGlobalSettings={safeGlobalSettings as GlobalSettings}
                 externalProjectIds={externalProjectIds}
                 updateActiveProject={updateActiveProject}

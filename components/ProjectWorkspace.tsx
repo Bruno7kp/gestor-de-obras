@@ -1,7 +1,8 @@
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
-import { Project, GlobalSettings, WorkItem, Supplier, ProjectAsset, ProjectExpense, ProjectPlanning, PlanningTask, MaterialForecast, Milestone, UserNotification } from '../types';
+import { Project, GlobalSettings, WorkItem, Supplier, Contractor, ProjectAsset, ProjectExpense, ProjectPlanning, PlanningTask, MaterialForecast, Milestone, UserNotification } from '../types';
+import { contractorsApi } from '../services/contractorsApi';
 import {
   Layers, BarChart3, Coins, Users, HardHat, BookOpen, FileText, Sliders, Boxes,
   CheckCircle2, History, Calendar, Lock, ChevronDown,
@@ -125,6 +126,8 @@ interface ProjectWorkspaceProps {
   project: Project;
   globalSettings: GlobalSettings;
   suppliers: Supplier[];
+  contractors: Contractor[];
+  onContractorCreated?: (c: Contractor) => void;
   isExternalProject?: boolean;
   onUpdateProject: (data: Partial<Project>) => void;
   onCloseMeasurement: () => Promise<void> | void;
@@ -149,7 +152,7 @@ type ExpensePrintMode = 'complete' | 'material' | 'labor';
 type SuppliesPrintMode = 'complete' | 'pending' | 'ordered';
 
 export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
-  project, globalSettings, suppliers, isExternalProject: isExternalProjectProp = false, onUpdateProject, onCloseMeasurement,
+  project, globalSettings, suppliers, contractors, onContractorCreated, isExternalProject: isExternalProjectProp = false, onUpdateProject, onCloseMeasurement,
   canUndo, canRedo, onUndo, onRedo, activeTab, onTabChange,
   notifications, notificationsLoading, unreadNotificationsCount,
   onRefreshNotifications, onMarkNotificationRead, onMarkAllNotificationsRead, onDeleteNotification, onDeleteReadNotifications,
@@ -170,6 +173,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const [allRoles, setAllRoles] = useState<any[]>([]);
   const [generalAccessUserIds, setGeneralAccessUserIds] = useState<string[]>([]);
   const [externalSuppliers, setExternalSuppliers] = useState<Supplier[]>([]);
+  const [externalContractors, setExternalContractors] = useState<Contractor[]>([]);
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(project.name);
   const [showNotificationsDrawer, setShowNotificationsDrawer] = useState(false);
@@ -368,10 +372,27 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     suppliersApi.listByInstance(pid).then(setExternalSuppliers).catch(() => setExternalSuppliers([]));
   }, [isExternalProjectProp, (project as any).instanceId]);
 
+  // For external projects, fetch the contractors from the project's owning instance
+  useEffect(() => {
+    if (!isExternalProjectProp) {
+      setExternalContractors([]);
+      return;
+    }
+    const pid = (project as any).instanceId;
+    if (!pid) return;
+    contractorsApi.listByInstance(pid).then(setExternalContractors).catch(() => setExternalContractors([]));
+  }, [isExternalProjectProp, (project as any).instanceId]);
+
   // Merge external suppliers with the ones passed from the parent
   const effectiveSuppliers = useMemo(
     () => (isExternalProjectProp && externalSuppliers.length > 0 ? externalSuppliers : suppliers),
     [isExternalProjectProp, externalSuppliers, suppliers],
+  );
+
+  // Merge external contractors with the ones passed from the parent
+  const effectiveContractors = useMemo(
+    () => (isExternalProjectProp && externalContractors.length > 0 ? externalContractors : contractors),
+    [isExternalProjectProp, externalContractors, contractors],
   );
 
   const memberPreviewUsers = useMemo(() => {
@@ -1457,7 +1478,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     isReadOnly={displayData.isReadOnly}
                   />
                 )}
-                {tab === 'workforce' && <WorkforceManager project={project} onUpdateProject={onUpdateProject} isReadOnly={displayData.isReadOnly} />}
+                {tab === 'workforce' && <WorkforceManager project={project} contractors={effectiveContractors} onUpdateProject={onUpdateProject} onContractorCreated={onContractorCreated} isReadOnly={displayData.isReadOnly} />}
                 {tab === 'planning' && (
                   <PlanningView
                     project={project}

@@ -1,8 +1,9 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
-import { Project, WorkforceMember, WorkforceRole, WorkItem } from '../types';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { Project, WorkforceMember, WorkforceRole, WorkItem, Contractor } from '../types';
 import { workforceService } from '../services/workforceService';
 import { workforceApi } from '../services/workforceApi';
+import { contractorsApi } from '../services/contractorsApi';
 import { treeService } from '../services/treeService';
 import { usePermissions } from '../hooks/usePermissions';
 import { ConfirmModal } from './ConfirmModal';
@@ -14,11 +15,13 @@ import {
 
 interface WorkforceManagerProps {
   project: Project;
+  contractors: Contractor[];
   onUpdateProject: (data: Partial<Project>) => void;
+  onContractorCreated?: (c: Contractor) => void;
   isReadOnly?: boolean;
 }
 
-export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onUpdateProject, isReadOnly = false }) => {
+export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, contractors, onUpdateProject, onContractorCreated, isReadOnly = false }) => {
   const { canEdit, getLevel } = usePermissions();
   const canEditWorkforce = canEdit('workforce') && !isReadOnly;
   const toast = useToast();
@@ -33,11 +36,12 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onU
   const expenses = project.expenses || [];
 
   const filteredMembers = useMemo(() => {
-    return workforce.filter(m => 
-      m.nome.toLowerCase().includes(search.toLowerCase()) || 
-      m.cpf_cnpj.includes(search) ||
-      m.cargo.toLowerCase().includes(search.toLowerCase())
-    );
+    return workforce.filter(m => {
+      const matchesSearch = m.nome.toLowerCase().includes(search.toLowerCase()) || 
+        m.cpf_cnpj.includes(search) ||
+        m.cargo.toLowerCase().includes(search.toLowerCase());
+      return matchesSearch;
+    });
   }, [workforce, search]);
 
   const stats = useMemo(() => ({
@@ -91,6 +95,7 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onU
           nome: member.nome,
           cpf_cnpj: member.cpf_cnpj,
           empresa_vinculada: member.empresa_vinculada,
+          contractorId: member.contractorId ?? null,
           foto: member.foto ?? null,
           cargo: member.cargo,
         });
@@ -135,6 +140,7 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onU
           nome: member.nome,
           cpf_cnpj: member.cpf_cnpj,
           empresa_vinculada: member.empresa_vinculada,
+          contractorId: member.contractorId ?? null,
           foto: member.foto ?? null,
           cargo: member.cargo,
           documentos: member.documentos,
@@ -175,13 +181,16 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onU
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
       <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div className="relative flex-1 w-full md:max-w-md">
-           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-           <input placeholder="Buscar por nome, cargo ou CPF..." className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-sm outline-none focus:ring-4 focus:ring-indigo-500/10" value={search} onChange={e => setSearch(e.target.value)} />
+        <div className="flex flex-1 w-full gap-4">
+          <div className="relative flex-1 md:max-w-md">
+             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+             <input placeholder="Buscar por nome, cargo ou CPF..." className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-sm outline-none focus:ring-4 focus:ring-indigo-500/10" value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+
         </div>
         <div className="flex items-center gap-4">
           <span className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-[10px] font-black uppercase tracking-widest text-slate-500">
-            {stats.total} Colaboradores
+            {stats.total} Prestadores
           </span>
           <button 
             onClick={() => { if (canEditWorkforce) { setEditingMember(null); setIsModalOpen(true); } }}
@@ -192,7 +201,7 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onU
                 : 'bg-slate-300 text-slate-500 cursor-not-allowed'
             }`}
           >
-            <Plus size={18} /> Adicionar Colaborador
+            <Plus size={18} /> Adicionar Prestador
           </button>
         </div>
       </div>
@@ -215,7 +224,7 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onU
                     <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase truncate">{member.nome || 'Sem Nome'}</h3>
                     <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900 text-indigo-600 text-[8px] font-black uppercase rounded-lg border border-indigo-100 dark:border-indigo-800">{member.cargo}</span>
                   </div>
-                  <p className="text-[13px] font-bold text-slate-400 uppercase mt-1 truncate">{member.empresa_vinculada || 'Autônomo'} • {member.cpf_cnpj}</p>
+                  <p className="text-[13px] font-bold text-slate-400 uppercase mt-1 truncate">{member.contractor?.name || member.empresa_vinculada || 'Autônomo'} • {member.cpf_cnpj}</p>
                   <p className="text-[12px] text-indigo-500 font-bold mt-1">Responsável por {member.linkedWorkItemIds.length} itens da EAP</p>
                   <p className="text-[12px] text-slate-500 font-bold mt-1">
                     Total pago: R$ {(paidByMember[member.id] || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -233,6 +242,8 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onU
       {isModalOpen && (
         <MemberModal 
           member={editingMember} 
+          contractors={contractors}
+          onContractorCreated={onContractorCreated}
           onClose={() => setIsModalOpen(false)} 
           onSave={handleSave} 
           allWorkItems={project.items}
@@ -253,10 +264,91 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, onU
   );
 };
 
-const MemberModal = ({ member, onClose, onSave, allWorkItems }: any) => {
+const MemberModal = ({ member, contractors, onContractorCreated, onClose, onSave, allWorkItems }: any) => {
   const [data, setData] = useState<WorkforceMember>(member || workforceService.createMember('Servente'));
+  const [contractorSearch, setContractorSearch] = useState(member?.empresa_vinculada || '');
+  const [showContractorDropdown, setShowContractorDropdown] = useState(false);
+  const contractorInputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const workTree = useMemo(() => treeService.buildTree(allWorkItems), [allWorkItems]);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  const contractorSuggestions = useMemo(() => {
+    if (!contractorSearch.trim()) return (contractors as Contractor[]) || [];
+    return ((contractors as Contractor[]) || []).filter(c =>
+      c.name.toLowerCase().includes(contractorSearch.toLowerCase())
+    );
+  }, [contractors, contractorSearch]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node) &&
+          contractorInputRef.current && !contractorInputRef.current.contains(e.target as Node)) {
+        setShowContractorDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectContractor = (c: Contractor) => {
+    setData({ ...data, contractorId: c.id, empresa_vinculada: c.name, nome: c.name, cpf_cnpj: c.cnpj || data.cpf_cnpj });
+    setContractorSearch(c.name);
+    setShowContractorDropdown(false);
+  };
+
+  const clearContractor = () => {
+    setData({ ...data, contractorId: undefined, empresa_vinculada: '', nome: '' });
+    setContractorSearch('');
+  };
+
+  const handleContractorBlur = async () => {
+    // Small delay to allow dropdown click to register
+    setTimeout(async () => {
+      const trimmed = contractorSearch.trim();
+      if (!trimmed) {
+        clearContractor();
+        return;
+      }
+      // Check if the typed text matches an existing contractor
+      const match = ((contractors as Contractor[]) || []).find(
+        c => c.name.toLowerCase() === trimmed.toLowerCase()
+      );
+      if (match) {
+        selectContractor(match);
+      } else if (trimmed) {
+        // Auto-create: set empresa_vinculada now; the actual contractor will be 
+        // created on save via the ensureByName endpoint
+        setData(prev => ({ ...prev, empresa_vinculada: trimmed, nome: trimmed, contractorId: undefined }));
+      }
+    }, 200);
+  };
+
+  const handleSaveWithContractorEnsure = async () => {
+    let memberToSave = { ...data };
+    const trimmed = contractorSearch.trim();
+
+    // If there's a name typed but no contractorId, ensure the contractor exists
+    if (trimmed && !memberToSave.contractorId) {
+      try {
+        const result = await contractorsApi.ensureByName(trimmed);
+        memberToSave = {
+          ...memberToSave,
+          contractorId: result.contractor.id,
+          empresa_vinculada: result.contractor.name,
+          nome: result.contractor.name,
+        };
+        if (result.created && onContractorCreated) {
+          onContractorCreated(result.contractor);
+        }
+      } catch {
+        // If ensure fails, save without contractorId
+        memberToSave = { ...memberToSave, empresa_vinculada: trimmed };
+      }
+    }
+
+    onSave(memberToSave);
+  };
 
   useEffect(() => {
     setExpandedIds(new Set());
@@ -355,9 +447,54 @@ const MemberModal = ({ member, onClose, onSave, allWorkItems }: any) => {
          <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                <div className="space-y-6">
-                  <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">Nome Completo</label>
-                    <input className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500" value={data.nome} onChange={e => setData({...data, nome: e.target.value})} />
+                  <div className="relative">
+                    <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">Profissional ou Empresa Vinculada</label>
+                    <input 
+                      ref={contractorInputRef}
+                      className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500" 
+                      value={contractorSearch} 
+                      onChange={e => {
+                        setContractorSearch(e.target.value);
+                        setShowContractorDropdown(true);
+                        if (!e.target.value.trim()) {
+                          clearContractor();
+                        }
+                      }}
+                      onFocus={() => setShowContractorDropdown(true)}
+                      onBlur={handleContractorBlur}
+                      placeholder="Digite para buscar ou criar prestador..."
+                    />
+                    {data.contractorId && (
+                      <button 
+                        type="button"
+                        onClick={clearContractor}
+                        className="absolute right-3 top-[2.6rem] text-slate-400 hover:text-rose-500"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                    {showContractorDropdown && contractorSuggestions.length > 0 && (
+                      <div ref={dropdownRef} className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-2xl shadow-xl max-h-48 overflow-y-auto">
+                        {contractorSuggestions.map(c => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            className="w-full text-left px-5 py-3 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors flex items-center gap-3"
+                            onMouseDown={(e) => { e.preventDefault(); selectContractor(c); }}
+                          >
+                            <span className="text-xs font-black text-slate-700 dark:text-slate-200">{c.name}</span>
+                            <span className="text-[8px] font-bold text-slate-400 uppercase">{c.type}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {showContractorDropdown && contractorSearch.trim() && contractorSuggestions.length === 0 && (
+                      <div ref={dropdownRef} className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-2xl shadow-xl p-4">
+                        <p className="text-[10px] font-bold text-slate-400">
+                          Prestador "<span className="text-indigo-600">{contractorSearch.trim()}</span>" será criado automaticamente ao salvar
+                        </p>
+                      </div>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                      <div>
@@ -370,10 +507,6 @@ const MemberModal = ({ member, onClose, onSave, allWorkItems }: any) => {
                          {['Engenheiro', 'Mestre', 'Encarregado', 'Eletricista', 'Encanador', 'Pedreiro', 'Servente', 'Carpinteiro'].map(r => <option key={r} value={r}>{r}</option>)}
                        </select>
                      </div>
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">Empresa Vinculada</label>
-                    <input className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none" value={data.empresa_vinculada} onChange={e => setData({...data, empresa_vinculada: e.target.value})} />
                   </div>
                </div>
 
@@ -405,7 +538,7 @@ const MemberModal = ({ member, onClose, onSave, allWorkItems }: any) => {
 
          <div className="flex gap-4 pt-8 border-t dark:border-slate-800 mt-auto">
             <button onClick={onClose} className="flex-1 py-5 text-[11px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors">Cancelar</button>
-            <button onClick={() => onSave(data)} className="flex-[2] py-5 bg-indigo-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all">Salvar Cadastro</button>
+            <button onClick={handleSaveWithContractorEnsure} className="flex-[2] py-5 bg-indigo-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all">Salvar Cadastro</button>
          </div>
       </div>
     </div>
