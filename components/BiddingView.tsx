@@ -11,10 +11,12 @@ import { uiPreferences } from '../utils/uiPreferences';
 import { BiddingModal } from './BiddingModal';
 import { CertificateModal } from './CertificateModal';
 import { ConfirmModal } from './ConfirmModal';
+import JSZip from 'jszip';
 import { 
   Briefcase, Plus, FileText, Calendar, DollarSign, 
   TrendingUp, Search, Filter, ShieldCheck, AlertCircle, 
-  ArrowUpRight, Trash2, CheckCircle2, Clock, Landmark, ExternalLink, Pencil
+  ArrowUpRight, Trash2, CheckCircle2, Clock, Landmark, ExternalLink, Pencil,
+  Eye, Download, Paperclip, X, Loader2
 } from 'lucide-react';
 
 interface BiddingViewProps {
@@ -40,6 +42,8 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
   const [editingCert, setEditingCert] = useState<CompanyCertificate | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | CompanyCertificate['category']>('ALL');
   const [confirmDelete, setConfirmDelete] = useState<{ type: 'bidding' | 'certificate'; id: string; name: string } | null>(null);
+  const [fileListModal, setFileListModal] = useState<{ certName: string; urls: string[]; mode: 'view' | 'download' } | null>(null);
+  const [isDownloadingZip, setIsDownloadingZip] = useState(false);
 
   const { canEdit } = usePermissions();
   const canEditBiddings = canEdit('biddings');
@@ -190,6 +194,98 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
     } catch (error) {
       console.error('Erro ao atualizar status:', error);
       onUpdateBiddings(previous);
+    }
+  };
+
+  const getFileName = (url: string) => {
+    try {
+      const parts = url.split('/');
+      const raw = parts[parts.length - 1];
+      return decodeURIComponent(raw.replace(/^\d+-/, ''));
+    } catch {
+      return url.split('/').pop() || 'arquivo';
+    }
+  };
+
+  const handleViewFiles = (cert: CompanyCertificate) => {
+    const urls = cert.attachmentUrls ?? [];
+    if (urls.length === 0) return;
+    if (urls.length === 1) {
+      window.open(urls[0], '_blank', 'noopener,noreferrer');
+    } else {
+      setFileListModal({ certName: cert.name, urls, mode: 'view' });
+    }
+  };
+
+  const triggerSingleDownload = async (url: string) => {
+    try {
+      const response = await fetch(url, { credentials: 'include' });
+      const blob = await response.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = getFileName(url);
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+    } catch (err) {
+      console.error('Erro ao baixar arquivo:', err);
+      toast.error('Erro ao baixar o arquivo.');
+    }
+  };
+
+  const triggerZipDownload = async (urls: string[], zipName: string) => {
+    setIsDownloadingZip(true);
+    try {
+      const zip = new JSZip();
+      const nameCount: Record<string, number> = {};
+
+      await Promise.all(
+        urls.map(async (url) => {
+          try {
+            const response = await fetch(url, { credentials: 'include' });
+            const blob = await response.blob();
+            let name = getFileName(url);
+            if (nameCount[name]) {
+              nameCount[name]++;
+              const dotIdx = name.lastIndexOf('.');
+              name = dotIdx > 0
+                ? `${name.slice(0, dotIdx)} (${nameCount[name]})${name.slice(dotIdx)}`
+                : `${name} (${nameCount[name]})`;
+            } else {
+              nameCount[name] = 1;
+            }
+            zip.file(name, blob);
+          } catch (err) {
+            console.error('Erro ao baixar arquivo para zip:', url, err);
+          }
+        }),
+      );
+
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(zipBlob);
+      a.download = `${zipName}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+      toast.success('Arquivos baixados com sucesso.');
+    } catch (err) {
+      console.error('Erro ao criar zip:', err);
+      toast.error('Erro ao criar arquivo zip.');
+    } finally {
+      setIsDownloadingZip(false);
+    }
+  };
+
+  const handleDownloadFiles = (cert: CompanyCertificate) => {
+    const urls = cert.attachmentUrls ?? [];
+    if (urls.length === 0) return;
+    if (urls.length === 1) {
+      void triggerSingleDownload(urls[0]);
+    } else {
+      void triggerZipDownload(urls, cert.name);
     }
   };
 
@@ -400,6 +496,7 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
                       <th className="px-8 py-5">Emissor</th>
                       <th className="px-8 py-5">Vencimento</th>
                       <th className="px-8 py-5">Status</th>
+                      <th className="px-8 py-5 text-center">Arquivos</th>
                       <th className="px-8 py-5 text-right">Ações</th>
                     </tr>
                  </thead>
@@ -425,6 +522,29 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
                              }`}>
                                {status === 'expired' ? 'Vencida' : (status === 'warning' ? 'Próximo' : 'Válida')}
                              </span>
+                          </td>
+                          <td className="px-8 py-5 text-center">
+                            {(cert.attachmentUrls ?? []).length > 0 ? (
+                              <div className="flex items-center justify-center gap-1">
+                                <span className="text-[9px] font-bold text-slate-400 mr-1">{(cert.attachmentUrls ?? []).length}</span>
+                                <button
+                                  onClick={() => handleViewFiles(cert)}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
+                                  title="Visualizar arquivo(s)"
+                                >
+                                  <Eye size={15} />
+                                </button>
+                                <button
+                                  onClick={() => handleDownloadFiles(cert)}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all"
+                                  title="Baixar arquivo(s)"
+                                >
+                                  <Download size={15} />
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-[9px] font-bold text-slate-300">—</span>
+                            )}
                           </td>
                           <td className="px-8 py-5 text-right">
                              {canEditBiddings && (
@@ -469,6 +589,84 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
         onConfirm={handleConfirmDelete}
         onCancel={() => setConfirmDelete(null)}
       />
+
+      {/* File list modal for multi-file view/download */}
+      {fileListModal && (
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={() => setFileListModal(null)}>
+          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 rounded-2xl">
+                  <Paperclip size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-800 dark:text-white tracking-tight">
+                    {fileListModal.mode === 'view' ? 'Visualizar Arquivos' : 'Baixar Arquivos'}
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{fileListModal.certName}</p>
+                </div>
+              </div>
+              <button onClick={() => setFileListModal(null)} className="p-2 text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-2 max-h-80 overflow-y-auto custom-scrollbar">
+              {fileListModal.urls.map((url, index) => (
+                <div key={url + index} className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all group">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Paperclip size={14} className="text-slate-400 shrink-0" />
+                    <span className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{getFileName(url)}</span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {fileListModal.mode === 'view' ? (
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
+                        title="Visualizar"
+                      >
+                        <ExternalLink size={15} />
+                      </a>
+                    ) : (
+                      <button
+                        onClick={() => void triggerSingleDownload(url)}
+                        className="p-2 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all"
+                        title="Baixar"
+                      >
+                        <Download size={15} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setFileListModal(null)}
+                className="flex-1 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors"
+              >
+                Fechar
+              </button>
+              {fileListModal.mode === 'download' && (
+                <button
+                  onClick={() => {
+                    void triggerZipDownload(fileListModal.urls, fileListModal.certName);
+                    setFileListModal(null);
+                  }}
+                  disabled={isDownloadingZip}
+                  className="flex-[2] py-4 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-emerald-500/20 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  {isDownloadingZip ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                  Baixar Todos (.zip)
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
