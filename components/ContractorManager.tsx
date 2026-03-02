@@ -319,13 +319,20 @@ export const ContractorManager: React.FC<ContractorManagerProps> = ({ contractor
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        {contractor.specialty ? (
-                          <span className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[8px] font-black uppercase rounded-lg">
-                            {contractor.specialty}
-                          </span>
-                        ) : (
-                          <span className="text-[9px] text-slate-300 dark:text-slate-600 italic">—</span>
-                        )}
+                        <div className="flex flex-wrap items-center gap-1">
+                          {contractor.cargo && (
+                            <span className="px-2 py-1 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-800 text-[8px] font-black uppercase rounded-lg">
+                              {contractor.cargo}
+                            </span>
+                          )}
+                          {contractor.specialty ? (
+                            <span className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[8px] font-black uppercase rounded-lg">
+                              {contractor.specialty}
+                            </span>
+                          ) : !contractor.cargo ? (
+                            <span className="text-[9px] text-slate-300 dark:text-slate-600 italic">—</span>
+                          ) : null}
+                        </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="space-y-1">

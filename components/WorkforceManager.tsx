@@ -1,7 +1,8 @@
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Project, WorkforceMember, WorkItem, Contractor } from '../types';
 import { workforceApi } from '../services/workforceApi';
+import { contractorsApi } from '../services/contractorsApi';
 import { treeService } from '../services/treeService';
 import { usePermissions } from '../hooks/usePermissions';
 import { ConfirmModal } from './ConfirmModal';
@@ -9,8 +10,10 @@ import { useToast } from '../hooks/useToast';
 import { uiPreferences } from '../utils/uiPreferences';
 import { 
   Plus, Search, Trash2, Edit2, HardHat,
-  X, UserCircle, Briefcase, User, ChevronDown, ChevronRight
+  X, UserCircle, Briefcase, User, ChevronDown, ChevronRight, Loader2
 } from 'lucide-react';
+
+const CARGO_OPTIONS = ['Engenheiro', 'Mestre', 'Encarregado', 'Eletricista', 'Encanador', 'Pedreiro', 'Servente', 'Carpinteiro'];
 
 interface WorkforceManagerProps {
   project: Project;
@@ -238,6 +241,8 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, con
           onClose={() => setIsModalOpen(false)} 
           onSave={handleSave} 
           allWorkItems={project.items}
+          projectInstanceId={project.instanceId}
+          onContractorCreated={onContractorCreated}
         />
       )}
 
@@ -255,7 +260,8 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, con
   );
 };
 
-const MemberModal = ({ member, contractors, onClose, onSave, allWorkItems }: any) => {
+const MemberModal = ({ member, contractors, onClose, onSave, allWorkItems, projectInstanceId, onContractorCreated }: any) => {
+  const toast = useToast();
   const [data, setData] = useState<WorkforceMember>(
     member || {
       id: crypto.randomUUID(),
@@ -274,6 +280,14 @@ const MemberModal = ({ member, contractors, onClose, onSave, allWorkItems }: any
   const [showContractorDropdown, setShowContractorDropdown] = useState(false);
   const contractorInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Inline contractor creation state
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newType, setNewType] = useState<'PJ' | 'Autônomo'>('PJ');
+  const [newCargo, setNewCargo] = useState('');
+  const [newCpfCnpj, setNewCpfCnpj] = useState('');
+  const [creatingContractor, setCreatingContractor] = useState(false);
+
   const workTree = useMemo(() => treeService.buildTree(allWorkItems), [allWorkItems]);
 
   const collectCategoryIds = (nodes: WorkItem[]): string[] => {
@@ -327,7 +341,46 @@ const MemberModal = ({ member, contractors, onClose, onSave, allWorkItems }: any
     if (member) return;
     setData({ ...data, contractorId: undefined, contractor: undefined, empresa_vinculada: '', nome: '', cpf_cnpj: '', cargo: '' });
     setContractorSearch('');
+    setShowCreateForm(false);
   };
+
+  const hasNoResults = contractorSearch.trim().length > 0 && contractorSuggestions.length === 0 && !member;
+
+  const handleCreateContractor = useCallback(async () => {
+    const trimmedName = contractorSearch.trim();
+    if (!trimmedName) return;
+    setCreatingContractor(true);
+    try {
+      const created = await contractorsApi.create({
+        name: trimmedName,
+        type: newType,
+        cargo: newType === 'Autônomo' ? newCargo : undefined,
+        cnpj: newCpfCnpj,
+        instanceId: projectInstanceId,
+      });
+      onContractorCreated?.(created);
+      setData({
+        ...data,
+        contractorId: created.id,
+        contractor: created,
+        empresa_vinculada: created.name,
+        nome: created.name,
+        cpf_cnpj: created.cnpj || '',
+        cargo: created.type === 'Autônomo' ? created.cargo || '' : '',
+      });
+      setContractorSearch(created.name);
+      setShowContractorDropdown(false);
+      setShowCreateForm(false);
+      setNewType('PJ');
+      setNewCargo('');
+      setNewCpfCnpj('');
+      toast.success(`Prestador "${trimmedName}" cadastrado com sucesso.`);
+    } catch {
+      toast.error('Erro ao cadastrar prestador.');
+    } finally {
+      setCreatingContractor(false);
+    }
+  }, [contractorSearch, newType, newCargo, newCpfCnpj, projectInstanceId, onContractorCreated, data]);
 
   const handleSaveDirect = () => {
     if (!data.contractorId) return;
@@ -467,24 +520,92 @@ const MemberModal = ({ member, contractors, onClose, onSave, allWorkItems }: any
                         ))}
                       </div>
                     )}
-                    {showContractorDropdown && contractorSearch.trim() && contractorSuggestions.length === 0 && !member && (
+                    {showContractorDropdown && hasNoResults && !showCreateForm && (
                       <div ref={dropdownRef} className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-2xl shadow-xl p-4">
-                        <p className="text-[10px] font-bold text-slate-400">
-                          Nenhum prestador encontrado. Cadastre em Prestadores para vincular na equipe.
+                        <p className="text-[10px] font-bold text-slate-400 mb-3">
+                          Nenhum prestador encontrado.
                         </p>
+                        <button
+                          type="button"
+                          onMouseDown={(e) => { e.preventDefault(); setShowCreateForm(true); setShowContractorDropdown(false); }}
+                          className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-colors w-full justify-center"
+                        >
+                          <Plus size={14} /> Cadastrar "{contractorSearch.trim()}"
+                        </button>
                       </div>
                     )}
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                     <div>
-                       <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">CPF / CNPJ</label>
-                       <input className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 text-sm font-black outline-none text-slate-500" value={data.cpf_cnpj} readOnly />
-                     </div>
-                     <div>
-                       <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">Cargo / Função</label>
-                       <input className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 text-sm font-black outline-none text-slate-500" value={data.cargo || '-'} readOnly />
-                     </div>
-                  </div>
+
+                  {/* Inline contractor creation form */}
+                  {showCreateForm && !data.contractorId && (
+                    <div className="p-5 bg-indigo-50 dark:bg-indigo-950/30 border-2 border-indigo-200 dark:border-indigo-800 rounded-2xl space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Novo Prestador: {contractorSearch.trim()}</h4>
+                        <button type="button" onClick={() => setShowCreateForm(false)} className="text-slate-400 hover:text-rose-500">
+                          <X size={14} />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Tipo</label>
+                          <select
+                            value={newType}
+                            onChange={(e) => { setNewType(e.target.value as 'PJ' | 'Autônomo'); if (e.target.value === 'PJ') setNewCargo(''); }}
+                            className="w-full px-4 py-3 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 dark:text-white"
+                          >
+                            <option value="PJ">Empreiteiro (PJ)</option>
+                            <option value="Autônomo">Prestador Autônomo</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block">CPF / CNPJ</label>
+                          <input
+                            value={newCpfCnpj}
+                            onChange={(e) => setNewCpfCnpj(e.target.value)}
+                            className="w-full px-4 py-3 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 dark:text-white"
+                            placeholder="00.000.000/0000-00"
+                          />
+                        </div>
+                      </div>
+                      {newType === 'Autônomo' && (
+                        <div>
+                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Cargo</label>
+                          <select
+                            value={newCargo}
+                            onChange={(e) => setNewCargo(e.target.value)}
+                            className="w-full px-4 py-3 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 dark:text-white"
+                          >
+                            <option value="">Selecione o cargo</option>
+                            {CARGO_OPTIONS.map((r) => (
+                              <option key={r} value={r}>{r}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleCreateContractor}
+                        disabled={creatingContractor}
+                        className="flex items-center justify-center gap-2 w-full py-3 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                      >
+                        {creatingContractor ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                        {creatingContractor ? 'Cadastrando...' : 'Cadastrar e Vincular'}
+                      </button>
+                    </div>
+                  )}
+
+                  {!showCreateForm && (
+                    <div className="grid grid-cols-2 gap-4">
+                       <div>
+                         <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">CPF / CNPJ</label>
+                         <input className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 text-sm font-black outline-none text-slate-500" value={data.cpf_cnpj} readOnly />
+                       </div>
+                       <div>
+                         <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">Cargo / Função</label>
+                         <input className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 text-sm font-black outline-none text-slate-500" value={data.cargo || '-'} readOnly />
+                       </div>
+                    </div>
+                  )}
                </div>
 
                <div className="space-y-4">
