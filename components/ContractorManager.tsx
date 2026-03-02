@@ -513,7 +513,12 @@ const ContractorModal: React.FC<ContractorModalProps> = ({ contractor, onClose, 
               <div className="grid grid-cols-1 gap-6">
                 <div className="space-y-2">
                   <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2">Cargo (Autônomo)</label>
-                  <input value={cargo} onChange={e => setCargo(e.target.value)} className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-indigo-500 rounded-2xl text-xs font-bold outline-none transition-all dark:text-white" placeholder="Ex: Pedreiro, Eletricista..." />
+                  <select value={cargo} onChange={e => setCargo(e.target.value)} className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-indigo-500 rounded-2xl text-xs font-bold outline-none transition-all dark:text-white appearance-none">
+                    <option value="">Selecione o cargo</option>
+                    {['Engenheiro', 'Mestre', 'Encarregado', 'Eletricista', 'Encanador', 'Pedreiro', 'Servente', 'Carpinteiro'].map(r => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
             )}
