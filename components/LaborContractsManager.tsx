@@ -13,8 +13,12 @@ import { useAuth } from '../auth/AuthContext';
 import { 
   Briefcase, Plus, Search, Trash2, Edit2, DollarSign, Calendar, 
   CheckCircle2, Clock, AlertCircle, User, FileText, Download, X,
-  TrendingUp, TrendingDown, Wallet, ChevronDown, ChevronUp, ChevronRight, CreditCard
+  TrendingUp, TrendingDown, Wallet, ChevronDown, ChevronUp, ChevronRight, CreditCard,
+  LayoutGrid, List, Table, Rows
 } from 'lucide-react';
+
+type ContractViewMode = 'detailed' | 'grid' | 'table' | 'compact';
+const VIEW_MODE_KEY = 'labor_contracts_view_mode';
 
 interface LaborContractsManagerProps {
   project: Project;
@@ -41,6 +45,15 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
     return saved === 'all' || saved === 'empreita' || saved === 'diaria' ? saved : 'all';
   });
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ContractViewMode>(() => {
+    const saved = localStorage.getItem(VIEW_MODE_KEY);
+    if (saved === 'detailed' || saved === 'grid' || saved === 'table' || saved === 'compact') return saved;
+    return 'compact';
+  });
+  const handleViewModeChange = (mode: ContractViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem(VIEW_MODE_KEY, mode);
+  };
   const paymentsExpandedKey = `labor_contracts_payments_${project.id}`;
   const [expandedPayments, setExpandedPayments] = useState<Record<string, boolean>>({});
   const [editingPayment, setEditingPayment] = useState<{
@@ -484,20 +497,55 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
 
       {/* Filtros e Busca */}
       <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div className="flex gap-3">
-          {(['all', 'empreita', 'diaria'] as const).map(type => (
+        <div className="flex items-center gap-6">
+          <div className="flex gap-3">
+            {(['all', 'empreita', 'diaria'] as const).map(type => (
+              <button
+                key={type}
+                onClick={() => setFilterType(type)}
+                className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                  filterType === type
+                    ? 'bg-indigo-600 text-white shadow-lg'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                {type === 'all' ? 'Todos' : type === 'empreita' ? 'Empreitas' : 'Diárias'}
+              </button>
+            ))}
+          </div>
+
+          <div className="h-8 w-px bg-slate-100 dark:bg-slate-800" />
+
+          <div className="flex gap-2">
             <button
-              key={type}
-              onClick={() => setFilterType(type)}
-              className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                filterType === type
-                  ? 'bg-indigo-600 text-white shadow-lg'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-600'
-              }`}
+              onClick={() => handleViewModeChange('detailed')}
+              className={`p-2.5 rounded-xl transition-all ${viewMode === 'detailed' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600' : 'text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+              title="Visualização Detalhada"
             >
-              {type === 'all' ? 'Todos' : type === 'empreita' ? 'Empreitas' : 'Diárias'}
+              <Rows size={18} />
             </button>
-          ))}
+            <button
+              onClick={() => handleViewModeChange('compact')}
+              className={`p-2.5 rounded-xl transition-all ${viewMode === 'compact' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600' : 'text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+              title="Lista Compacta"
+            >
+              <List size={18} />
+            </button>
+            <button
+              onClick={() => handleViewModeChange('grid')}
+              className={`p-2.5 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600' : 'text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+              title="Cards"
+            >
+              <LayoutGrid size={18} />
+            </button>
+            <button
+              onClick={() => handleViewModeChange('table')}
+              className={`p-2.5 rounded-xl transition-all ${viewMode === 'table' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600' : 'text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+              title="Tabela"
+            >
+              <Table size={18} />
+            </button>
+          </div>
         </div>
 
         <div className="relative flex-1 w-full md:max-w-md">
@@ -523,259 +571,329 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
         </button>
       </div>
 
-      {/* Lista de Contratos */}
-      <div className="grid grid-cols-1 gap-6">
-        {filteredContracts.map(contract => {
-          const associado = workforce.find(w => w.id === contract.associadoId);
-          const progress = (contract.valorPago / contract.valorTotal) * 100 || 0;
-          const isPaymentsOpen = !!expandedPayments[contract.id];
-          const linkedItemLabel = resolveLinkedWorkItemLabel(contract);
-          
-          return (
-            <div 
-              key={contract.id} 
-              className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-lg transition-all"
-            >
-              <div className="flex items-start justify-between mb-6">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className={`px-3 py-1 rounded-xl text-[9px] font-black uppercase ${
-                      contract.tipo === 'empreita' 
-                        ? 'bg-indigo-50 dark:bg-indigo-900 text-indigo-600' 
-                        : 'bg-emerald-50 dark:bg-emerald-900 text-emerald-600'
-                    }`}>
-                      {contract.tipo}
-                    </span>
-                    <span className={`px-3 py-1 rounded-xl text-[9px] font-black uppercase ${
-                      contract.status === 'pago' 
-                        ? 'bg-emerald-50 dark:bg-emerald-900 text-emerald-600'
-                        : contract.status === 'parcial'
-                        ? 'bg-amber-50 dark:bg-amber-900 text-amber-600'
-                        : 'bg-rose-50 dark:bg-rose-900 text-rose-600'
-                    }`}>
-                      {contract.status}
-                    </span>
-                    {linkedItemLabel && (
-                      <span
-                        className="px-3 py-1 rounded-xl text-[9px] font-black uppercase bg-slate-100 dark:bg-slate-800 text-slate-500 max-w-[180px] truncate"
-                        title={linkedItemLabel}
-                      >
-                        {truncateBadgeLabel(linkedItemLabel)}
+      {/* Conteúdo Dinâmico conforme ViewMode */}
+      {viewMode === 'detailed' && (
+        <div className="grid grid-cols-1 gap-6">
+          {filteredContracts.map(contract => {
+            const associado = workforce.find(w => w.id === contract.associadoId);
+            const progress = (contract.valorPago / contract.valorTotal) * 100 || 0;
+            const isPaymentsOpen = !!expandedPayments[contract.id];
+            const linkedItemLabel = resolveLinkedWorkItemLabel(contract);
+
+            return (
+              <div
+                key={contract.id}
+                className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-lg transition-all"
+              >
+                <div className="flex items-start justify-between mb-6">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className={`px-3 py-1 rounded-xl text-[9px] font-black uppercase ${
+                        contract.tipo === 'empreita'
+                          ? 'bg-indigo-50 dark:bg-indigo-900 text-indigo-600'
+                          : 'bg-emerald-50 dark:bg-emerald-900 text-emerald-600'
+                      }`}>
+                        {contract.tipo}
                       </span>
-                    )}
+                      <span className={`px-3 py-1 rounded-xl text-[9px] font-black uppercase ${
+                        contract.status === 'pago'
+                          ? 'bg-emerald-50 dark:bg-emerald-900 text-emerald-600'
+                          : contract.status === 'parcial'
+                          ? 'bg-amber-50 dark:bg-amber-900 text-amber-600'
+                          : 'bg-rose-50 dark:bg-rose-900 text-rose-600'
+                      }`}>
+                        {contract.status}
+                      </span>
+                      {linkedItemLabel && (
+                        <span
+                          className="px-3 py-1 rounded-xl text-[9px] font-black uppercase bg-slate-100 dark:bg-slate-800 text-slate-500 max-w-[180px] truncate"
+                          title={linkedItemLabel}
+                        >
+                          {truncateBadgeLabel(linkedItemLabel)}
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-lg font-black text-slate-800 dark:text-white mb-1">
+                      {contract.descricao}
+                    </h3>
+                    <div className="flex items-center gap-2 text-sm text-slate-500">
+                      <User size={14} />
+                      <span className="font-bold">{associado?.nome || 'Associado não encontrado'}</span>
+                      <span className="text-slate-300 mx-2">•</span>
+                      <Calendar size={14} />
+                      <span>{formatLocalDate(contract.dataInicio)}</span>
+                      {contract.dataFim && (
+                        <>
+                          <span className="text-slate-300 mx-2">→</span>
+                          <span>{formatLocalDate(contract.dataFim)}</span>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <h3 className="text-lg font-black text-slate-800 dark:text-white mb-1">
-                    {contract.descricao}
-                  </h3>
-                  <div className="flex items-center gap-2 text-sm text-slate-500">
-                    <User size={14} />
-                    <span className="font-bold">{associado?.nome || 'Associado não encontrado'}</span>
-                    <span className="text-slate-300 mx-2">•</span>
-                    <Calendar size={14} />
-                    <span>{formatLocalDate(contract.dataInicio)}</span>
-                    {contract.dataFim && (
-                      <>
-                        <span className="text-slate-300 mx-2">→</span>
-                        <span>{formatLocalDate(contract.dataFim)}</span>
-                      </>
-                    )}
-                  </div>
-                </div>
 
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => { if (!isReadOnly) { setEditingContract(contract); setIsModalOpen(true); } }}
-                    disabled={isReadOnly}
-                    className={`p-3 rounded-xl transition-all ${
-                      isReadOnly
-                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-300 cursor-not-allowed'
-                        : 'bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-indigo-600'
-                    }`}
-                  >
-                    <Edit2 size={16}/>
-                  </button>
-                  <button 
-                    onClick={() => !isReadOnly && setConfirmDeleteId(contract.id)}
-                    disabled={isReadOnly}
-                    className={`p-3 rounded-xl transition-all ${
-                      isReadOnly
-                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-300 cursor-not-allowed'
-                        : 'bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-rose-500'
-                    }`}
-                  >
-                    <Trash2 size={16}/>
-                  </button>
-                </div>
-              </div>
-
-              {/* Valores e Progresso */}
-              <div className="grid grid-cols-3 gap-4 mb-6">
-                <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl">
-                  <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Valor Total</p>
-                  <p className="text-xl font-black text-slate-800 dark:text-white">
-                    R$ {contract.valorTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
-                  </p>
-                </div>
-                <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-2xl">
-                  <p className="text-[9px] font-black text-emerald-600 uppercase mb-1">Pago</p>
-                  <p className="text-xl font-black text-emerald-600">
-                    R$ {contract.valorPago.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
-                  </p>
-                </div>
-                <div className="bg-amber-50 dark:bg-amber-900/20 p-4 rounded-2xl">
-                  <p className="text-[9px] font-black text-amber-600 uppercase mb-1">A Pagar</p>
-                  <p className="text-xl font-black text-amber-600">
-                    R$ {(contract.valorTotal - contract.valorPago).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
-                  </p>
-                </div>
-              </div>
-
-              {/* Barra de Progresso */}
-              <div className="mb-6">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-[9px] font-black text-slate-400 uppercase">Progresso</span>
-                  <span className="text-sm font-black text-indigo-600">{progress.toFixed(1)}%</span>
-                </div>
-                <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-to-r from-indigo-500 to-indigo-600 transition-all duration-500"
-                    style={{ width: `${Math.min(progress, 100)}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Pagamentos */}
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-2">
-                    <FileText size={12} /> Histórico de Pagamentos ({contract.pagamentos.length})
-                  </h4>
-                  <div className="flex items-center gap-2">
+                  <div className="flex gap-2">
                     <button
-                      type="button"
-                      onClick={() => handleOpenPaymentModal(contract.id)}
+                      onClick={() => { if (!isReadOnly) { setEditingContract(contract); setIsModalOpen(true); } }}
                       disabled={isReadOnly}
-                      className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
+                      className={`p-3 rounded-xl transition-all ${
                         isReadOnly
-                          ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                          : 'bg-indigo-600 text-white hover:scale-105'
+                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-300 cursor-not-allowed'
+                          : 'bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-indigo-600'
                       }`}
                     >
-                      <Plus size={12} /> Adicionar
+                      <Edit2 size={16}/>
                     </button>
-                    {contract.pagamentos.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setExpandedPayments(prev => ({
-                          ...prev,
-                          [contract.id]: !prev[contract.id],
-                        }))}
-                        className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-600"
-                      >
-                        {isPaymentsOpen ? 'Ocultar' : 'Mostrar'}
-                        {isPaymentsOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                      </button>
-                    )}
+                    <button
+                      onClick={() => !isReadOnly && setConfirmDeleteId(contract.id)}
+                      disabled={isReadOnly}
+                      className={`p-3 rounded-xl transition-all ${
+                        isReadOnly
+                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-300 cursor-not-allowed'
+                          : 'bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-rose-500'
+                      }`}
+                    >
+                      <Trash2 size={16}/>
+                    </button>
                   </div>
                 </div>
-                {contract.pagamentos.length === 0 && (
-                  <div className="text-center py-6 text-slate-400 text-sm">
-                    Nenhum pagamento registrado
+
+                {/* Valores e Progresso */}
+                <div className="grid grid-cols-3 gap-4 mb-6">
+                  <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl">
+                    <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Valor Total</p>
+                    <p className="text-xl font-black text-slate-800 dark:text-white">
+                      R$ {contract.valorTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                    </p>
                   </div>
-                )}
-                {contract.pagamentos.length > 0 && isPaymentsOpen && (
-                  <div className="space-y-2">
-                    {[...contract.pagamentos]
-                      .sort((a, b) => parseLocalDate(b.data).getTime() - parseLocalDate(a.data).getTime())
-                      .map(pag => (
-                      <div 
-                        key={pag.id} 
-                        className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl"
+                  <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-2xl">
+                    <p className="text-[9px] font-black text-emerald-600 uppercase mb-1">Pago</p>
+                    <p className="text-xl font-black text-emerald-600">
+                      R$ {contract.valorPago.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                    </p>
+                  </div>
+                  <div className="bg-amber-50 dark:bg-amber-900/20 p-4 rounded-2xl">
+                    <p className="text-[9px] font-black text-amber-600 uppercase mb-1">A Pagar</p>
+                    <p className="text-xl font-black text-amber-600">
+                      R$ {(contract.valorTotal - contract.valorPago).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Barra de Progresso */}
+                <div className="mb-6">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-[9px] font-black text-slate-400 uppercase">Progresso</span>
+                    <span className="text-sm font-black text-indigo-600">{progress.toFixed(1)}%</span>
+                  </div>
+                  <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-indigo-500 to-indigo-600 transition-all duration-500"
+                      style={{ width: `${Math.min(progress, 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Pagamentos */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-2">
+                      <FileText size={12} /> Histórico de Pagamentos ({contract.pagamentos.length})
+                    </h4>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenPaymentModal(contract.id)}
+                        disabled={isReadOnly}
+                        className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
+                          isReadOnly
+                            ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                            : 'bg-indigo-600 text-white hover:scale-105'
+                        }`}
                       >
-                        <div className="flex items-center gap-3">
-                          {(() => {
-                            const linkedExpense = findExpenseForPayment(pag.id);
-                            const isPaid = !!linkedExpense && (linkedExpense.isPaid || linkedExpense.status === 'PAID');
-                            return isPaid ? (
-                              <CheckCircle2 size={14} className="text-emerald-500" />
-                            ) : (
-                              <Clock size={14} className="text-amber-500" />
-                            );
-                          })()}
-                          <div>
-                            <p className="text-xs font-bold text-slate-800 dark:text-white">
-                              {pag.descricao || 'Pagamento'}
-                            </p>
-                              <div className="flex flex-wrap items-center gap-2 text-[9px] text-slate-400">
-                                <span>{formatLocalDate(pag.data)}</span>
-                                {pag.createdBy?.name && (
-                                  <span className="flex items-center gap-2">
-                                    {pag.createdBy.profileImage ? (
-                                      <img
-                                        src={pag.createdBy.profileImage}
-                                        alt={pag.createdBy.name}
-                                        className="w-5 h-5 rounded-full object-cover border border-slate-200"
-                                      />
-                                    ) : (
-                                      <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[9px] font-black">
-                                        {getInitials(pag.createdBy.name)}
-                                      </span>
-                                    )}
-                                    <span>Cadastrado por {pag.createdBy.name}</span>
-                                  </span>
-                                )}
-                              </div>
+                        <Plus size={12} /> Adicionar
+                      </button>
+                      {contract.pagamentos.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setExpandedPayments(prev => ({
+                            ...prev,
+                            [contract.id]: !prev[contract.id],
+                          }))}
+                          className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-600"
+                        >
+                          {isPaymentsOpen ? 'Ocultar' : 'Mostrar'}
+                          {isPaymentsOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {contract.pagamentos.length === 0 && (
+                    <div className="text-center py-6 text-slate-400 text-sm">
+                      Nenhum pagamento registrado
+                    </div>
+                  )}
+                  {contract.pagamentos.length > 0 && isPaymentsOpen && (
+                    <div className="space-y-2">
+                      {[...contract.pagamentos]
+                        .sort((a, b) => parseLocalDate(b.data).getTime() - parseLocalDate(a.data).getTime())
+                        .map(pag => (
+                        <div
+                          key={pag.id}
+                          className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl"
+                        >
+                          <div className="flex items-center gap-3">
+                            {(() => {
+                              const linkedExpense = findExpenseForPayment(pag.id);
+                              const isPaid = !!linkedExpense && (linkedExpense.isPaid || linkedExpense.status === 'PAID');
+                              return isPaid ? (
+                                <CheckCircle2 size={14} className="text-emerald-500" />
+                              ) : (
+                                <Clock size={14} className="text-amber-500" />
+                              );
+                            })()}
+                            <div>
+                              <p className="text-xs font-bold text-slate-800 dark:text-white">
+                                {pag.descricao || 'Pagamento'}
+                              </p>
+                                <div className="flex flex-wrap items-center gap-2 text-[9px] text-slate-400">
+                                  <span>{formatLocalDate(pag.data)}</span>
+                                  {pag.createdBy?.name && (
+                                    <span className="flex items-center gap-2">
+                                      {pag.createdBy.profileImage ? (
+                                        <img
+                                          src={pag.createdBy.profileImage}
+                                          alt={pag.createdBy.name}
+                                          className="w-5 h-5 rounded-full object-cover border border-slate-200"
+                                        />
+                                      ) : (
+                                        <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[9px] font-black">
+                                          {getInitials(pag.createdBy.name)}
+                                        </span>
+                                      )}
+                                      <span>Cadastrado por {pag.createdBy.name}</span>
+                                    </span>
+                                  )}
+                                </div>
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {pag.comprovante && (
+                          <div className="flex items-center gap-2">
+                            {pag.comprovante && (
+                              <button
+                                type="button"
+                                onClick={() => handleDownloadProof(
+                                  pag.comprovante!,
+                                  `COMPR_${contract.descricao}_${pag.descricao || 'Pagamento'}`
+                                )}
+                                className="p-1.5 text-blue-500 hover:text-blue-700 rounded-lg"
+                                title="Baixar comprovante"
+                              >
+                                <Download size={14} />
+                              </button>
+                            )}
                             <button
                               type="button"
-                              onClick={() => handleDownloadProof(
-                                pag.comprovante!,
-                                `COMPR_${contract.descricao}_${pag.descricao || 'Pagamento'}`
-                              )}
-                              className="p-1.5 text-blue-500 hover:text-blue-700 rounded-lg"
-                              title="Baixar comprovante"
+                              onClick={() => handleOpenPaymentModal(contract.id, pag)}
+                              disabled={isReadOnly}
+                              className={`p-1.5 rounded-lg ${
+                                isReadOnly
+                                  ? 'text-slate-300 cursor-not-allowed'
+                                  : 'text-slate-400 hover:text-indigo-600'
+                              }`}
+                              title="Editar pagamento"
                             >
-                              <Download size={14} />
+                              <Edit2 size={14} />
                             </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => handleOpenPaymentModal(contract.id, pag)}
-                            disabled={isReadOnly}
-                            className={`p-1.5 rounded-lg ${
-                              isReadOnly
-                                ? 'text-slate-300 cursor-not-allowed'
-                                : 'text-slate-400 hover:text-indigo-600'
-                            }`}
-                            title="Editar pagamento"
-                          >
-                            <Edit2 size={14} />
-                          </button>
-                          <p className="text-sm font-black text-emerald-600">
-                            R$ {pag.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
-                          </p>
+                            <p className="text-sm font-black text-emerald-600">
+                              R$ {pag.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+      )}
 
-        {filteredContracts.length === 0 && (
-          <div className="text-center py-16 bg-slate-50 dark:bg-slate-900 rounded-[2.5rem] border-2 border-dashed border-slate-200 dark:border-slate-800">
-            <Briefcase size={48} className="mx-auto text-slate-300 mb-4" />
-            <p className="text-slate-400 font-bold">
-              {search ? 'Nenhum contrato encontrado' : 'Nenhum contrato cadastrado'}
-            </p>
+      {viewMode === 'compact' && (
+        <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            {filteredContracts.map(contract => (
+              <CompactContractItem
+                key={contract.id}
+                contract={contract}
+                workforce={workforce}
+                isReadOnly={isReadOnly}
+                onEdit={() => { setEditingContract(contract); setIsModalOpen(true); }}
+                onDelete={() => !isReadOnly && setConfirmDeleteId(contract.id)}
+                onAddPayment={() => handleOpenPaymentModal(contract.id)}
+              />
+            ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {viewMode === 'grid' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredContracts.map(contract => (
+            <GridContractCard
+              key={contract.id}
+              contract={contract}
+              workforce={workforce}
+              isReadOnly={isReadOnly}
+              resolveLinkedWorkItemLabel={() => resolveLinkedWorkItemLabel(contract)}
+              onEdit={() => { setEditingContract(contract); setIsModalOpen(true); }}
+              onDelete={() => !isReadOnly && setConfirmDeleteId(contract.id)}
+              onAddPayment={() => handleOpenPaymentModal(contract.id)}
+            />
+          ))}
+        </div>
+      )}
+
+      {viewMode === 'table' && (
+        <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-800/50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  <th className="px-6 py-4">Contrato / Descrição</th>
+                  <th className="px-6 py-4">Associado</th>
+                  <th className="px-6 py-4">Tipo</th>
+                  <th className="px-6 py-4">Valor Total</th>
+                  <th className="px-6 py-4">Pago</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4 text-center">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {filteredContracts.map(contract => (
+                  <TableContractRow
+                    key={contract.id}
+                    contract={contract}
+                    workforce={workforce}
+                    isReadOnly={isReadOnly}
+                    onEdit={() => { setEditingContract(contract); setIsModalOpen(true); }}
+                    onDelete={() => !isReadOnly && setConfirmDeleteId(contract.id)}
+                    onAddPayment={() => handleOpenPaymentModal(contract.id)}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {filteredContracts.length === 0 && (
+        <div className="text-center py-16 bg-slate-50 dark:bg-slate-900 rounded-[2.5rem] border-2 border-dashed border-slate-200 dark:border-slate-800">
+          <Briefcase size={48} className="mx-auto text-slate-300 mb-4" />
+          <p className="text-slate-400 font-bold">
+            {search ? 'Nenhum contrato encontrado' : 'Nenhum contrato cadastrado'}
+          </p>
+        </div>
+      )}
 
       {isModalOpen && (
         <ContractModal 
@@ -1750,6 +1868,166 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, financialCa
         </div>
       </div>
     </div>
+  );
+};
+
+const CompactContractItem = ({ contract, workforce, isReadOnly, onEdit, onDelete, onAddPayment }: any) => {
+  const associado = workforce.find((w: any) => w.id === contract.associadoId);
+  const progress = (contract.valorPago / contract.valorTotal) * 100 || 0;
+
+  return (
+    <div className="flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+      <div className="flex items-center gap-4 flex-1 min-w-0">
+        <div className={`w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center ${
+          contract.tipo === 'empreita' ? 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600' : 'bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600'
+        }`}>
+          <Briefcase size={20} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-tight truncate">{contract.descricao}</h4>
+            <span className={`flex-shrink-0 px-2 py-0.5 rounded-lg text-[8px] font-black uppercase ${
+              contract.status === 'pago'
+                ? 'bg-emerald-50 dark:bg-emerald-900 text-emerald-600'
+                : contract.status === 'parcial'
+                ? 'bg-amber-50 dark:bg-amber-900 text-amber-600'
+                : 'bg-rose-50 dark:bg-rose-900 text-rose-600'
+            }`}>
+              {contract.status}
+            </span>
+          </div>
+          <p className="text-[10px] text-slate-400 font-bold uppercase truncate">{associado?.nome || 'Sem associado'}</p>
+        </div>
+        <div className="hidden md:block w-32 flex-shrink-0">
+          <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+            <div className="h-full bg-indigo-500 transition-all" style={{ width: `${Math.min(progress, 100)}%` }} />
+          </div>
+        </div>
+        <div className="text-right flex-shrink-0 w-28">
+          <p className="text-xs font-black text-slate-700 dark:text-slate-300">R$ {contract.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+          <p className="text-[9px] font-bold text-emerald-600 uppercase">Pago: R$ {contract.valorPago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+        {!isReadOnly && (
+          <button onClick={onAddPayment} className="p-2 text-slate-400 hover:text-emerald-600 transition-colors" title="Adicionar pagamento"><Plus size={14}/></button>
+        )}
+        <button onClick={onEdit} disabled={isReadOnly} className={`p-2 transition-colors ${isReadOnly ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-indigo-600'}`}><Edit2 size={14}/></button>
+        <button onClick={onDelete} disabled={isReadOnly} className={`p-2 transition-colors ${isReadOnly ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-rose-500'}`}><Trash2 size={14}/></button>
+      </div>
+    </div>
+  );
+};
+
+const GridContractCard = ({ contract, workforce, isReadOnly, resolveLinkedWorkItemLabel, onEdit, onDelete, onAddPayment }: any) => {
+  const associado = workforce.find((w: any) => w.id === contract.associadoId);
+  const progress = (contract.valorPago / contract.valorTotal) * 100 || 0;
+  const linkedItemLabel = resolveLinkedWorkItemLabel?.();
+
+  return (
+    <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all">
+      <div className="flex justify-between items-start mb-4">
+        <div className="flex items-center gap-2">
+          <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase ${
+            contract.tipo === 'empreita' ? 'bg-indigo-50 dark:bg-indigo-900 text-indigo-600' : 'bg-emerald-50 dark:bg-emerald-900 text-emerald-600'
+          }`}>
+            {contract.tipo}
+          </span>
+          <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase ${
+            contract.status === 'pago'
+              ? 'bg-emerald-50 dark:bg-emerald-900 text-emerald-600'
+              : contract.status === 'parcial'
+              ? 'bg-amber-50 dark:bg-amber-900 text-amber-600'
+              : 'bg-rose-50 dark:bg-rose-900 text-rose-600'
+          }`}>
+            {contract.status}
+          </span>
+        </div>
+        <div className="flex gap-1">
+          {!isReadOnly && (
+            <button onClick={onAddPayment} className="p-1.5 text-slate-400 hover:text-emerald-600 transition-colors" title="Adicionar pagamento"><Plus size={12}/></button>
+          )}
+          <button onClick={onEdit} disabled={isReadOnly} className={`p-1.5 transition-colors ${isReadOnly ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-indigo-600'}`}><Edit2 size={12}/></button>
+          <button onClick={onDelete} disabled={isReadOnly} className={`p-1.5 transition-colors ${isReadOnly ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-rose-500'}`}><Trash2 size={12}/></button>
+        </div>
+      </div>
+      <h4 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tight mb-1 truncate">{contract.descricao}</h4>
+      <p className="text-[10px] text-slate-400 font-bold uppercase mb-1 truncate">{associado?.nome || 'Sem associado'}</p>
+      {linkedItemLabel && (
+        <p className="text-[9px] text-indigo-500 font-bold uppercase mb-3 truncate" title={linkedItemLabel}>{linkedItemLabel}</p>
+      )}
+      {!linkedItemLabel && <div className="mb-3" />}
+
+      <div className="space-y-3">
+        <div className="flex justify-between items-end">
+          <div>
+            <p className="text-[8px] font-black text-slate-400 uppercase">Valor Total</p>
+            <p className="text-sm font-black text-slate-800 dark:text-white">R$ {contract.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[8px] font-black text-emerald-600 uppercase">Pago</p>
+            <p className="text-sm font-black text-emerald-600">R$ {contract.valorPago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+          </div>
+        </div>
+        <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+          <div className="h-full bg-indigo-500 transition-all" style={{ width: `${Math.min(progress, 100)}%` }} />
+        </div>
+        <p className="text-[9px] font-bold text-slate-400 text-right">{contract.pagamentos.length} pagamento(s)</p>
+      </div>
+    </div>
+  );
+};
+
+const TableContractRow = ({ contract, workforce, isReadOnly, onEdit, onDelete, onAddPayment }: any) => {
+  const associado = workforce.find((w: any) => w.id === contract.associadoId);
+
+  return (
+    <tr className="group hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+      <td className="px-6 py-4">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 flex-shrink-0">
+            <Briefcase size={16} />
+          </div>
+          <span className="text-xs font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight">{contract.descricao}</span>
+        </div>
+      </td>
+      <td className="px-6 py-4">
+        <span className="text-xs font-bold text-slate-600 dark:text-slate-400">{associado?.nome || 'Sem associado'}</span>
+      </td>
+      <td className="px-6 py-4">
+        <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase ${
+          contract.tipo === 'empreita' ? 'bg-indigo-50 dark:bg-indigo-900 text-indigo-600' : 'bg-emerald-50 dark:bg-emerald-900 text-emerald-600'
+        }`}>
+          {contract.tipo}
+        </span>
+      </td>
+      <td className="px-6 py-4 text-xs font-black text-slate-700 dark:text-slate-300">
+        R$ {contract.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+      </td>
+      <td className="px-6 py-4 text-xs font-black text-emerald-600">
+        R$ {contract.valorPago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+      </td>
+      <td className="px-6 py-4">
+        <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase ${
+          contract.status === 'pago'
+            ? 'bg-emerald-50 dark:bg-emerald-900 text-emerald-600'
+            : contract.status === 'parcial'
+            ? 'bg-amber-50 dark:bg-amber-900 text-amber-600'
+            : 'bg-rose-50 dark:bg-rose-900 text-rose-600'
+        }`}>
+          {contract.status}
+        </span>
+      </td>
+      <td className="px-6 py-4 text-center">
+        <div className="flex items-center justify-center gap-2">
+          {!isReadOnly && (
+            <button onClick={onAddPayment} className="p-2 text-slate-400 hover:text-emerald-600 transition-colors" title="Adicionar pagamento"><Plus size={14}/></button>
+          )}
+          <button onClick={onEdit} disabled={isReadOnly} className={`p-2 transition-colors ${isReadOnly ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-indigo-600'}`}><Edit2 size={14}/></button>
+          <button onClick={onDelete} disabled={isReadOnly} className={`p-2 transition-colors ${isReadOnly ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-rose-500'}`}><Trash2 size={14}/></button>
+        </div>
+      </td>
+    </tr>
   );
 };
 
