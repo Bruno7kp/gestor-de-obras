@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { ProjectAsset, ProjectAssetCategory } from '../types';
-import { FileText, Download, Trash2, Eye, UploadCloud, Search, AlertCircle, Loader2, X, LayoutGrid, List, Pencil, Receipt } from 'lucide-react';
+import { FileText, Download, Trash2, Eye, UploadCloud, Search, AlertCircle, Loader2, X, LayoutGrid, List, Pencil, Receipt, Map, BookOpen, Award, Ruler, type LucideIcon } from 'lucide-react';
 import { uploadService } from '../services/uploadService';
 import { ConfirmModal } from './ConfirmModal';
 import { useToast } from '../hooks/useToast';
@@ -124,8 +124,16 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ assets, onAdd, onUpd
     [assets, categoryFilter, searchQuery],
   );
 
-  const isInvoiceCategory = (category?: ProjectAssetCategory) =>
-    (category ?? 'DOCUMENTO_DIVERSO') === 'NOTA_FISCAL';
+  const categoryStyle: Record<ProjectAssetCategory, { icon: LucideIcon; bg: string; text: string }> = {
+    PLANTA_BAIXA: { icon: Map, bg: 'bg-blue-50 dark:bg-blue-900/30', text: 'text-blue-600 dark:text-blue-300' },
+    MEMORIAL: { icon: BookOpen, bg: 'bg-amber-50 dark:bg-amber-900/30', text: 'text-amber-600 dark:text-amber-300' },
+    ART: { icon: Award, bg: 'bg-purple-50 dark:bg-purple-900/30', text: 'text-purple-600 dark:text-purple-300' },
+    NOTA_FISCAL: { icon: Receipt, bg: 'bg-emerald-50 dark:bg-emerald-900/30', text: 'text-emerald-600 dark:text-emerald-300' },
+    MEDICAO: { icon: Ruler, bg: 'bg-sky-50 dark:bg-sky-900/30', text: 'text-sky-600 dark:text-sky-300' },
+    DOCUMENTO_DIVERSO: { icon: FileText, bg: 'bg-indigo-50 dark:bg-indigo-900/40', text: 'text-indigo-600 dark:text-indigo-300' },
+  };
+
+  const getCategoryStyle = (category?: ProjectAssetCategory) => categoryStyle[category ?? 'DOCUMENTO_DIVERSO'];
 
   return (
     <div className="space-y-6 sm:space-y-8 max-w-6xl mx-auto">
@@ -158,14 +166,18 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ assets, onAdd, onUpd
           onClick={() => setCategoryFilter('ALL')}
           label="Tudo"
         />
-        {categories.map((category) => (
+        {categories.map((category) => {
+          const s = categoryStyle[category.id];
+          return (
           <FilterBtn
             key={category.id}
             active={categoryFilter === category.id}
             onClick={() => setCategoryFilter(category.id)}
             label={category.label}
+            icon={s.icon}
+            colorClass={s.text}
           />
-        ))}
+        );})}
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <button
@@ -210,9 +222,11 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ assets, onAdd, onUpd
                     <tr key={asset.id} className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg shrink-0 ${isInvoiceCategory(asset.category) ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-300' : 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600'}`}>
-                            {isInvoiceCategory(asset.category) ? <Receipt size={14} /> : <FileText size={14} />}
+                          {(() => { const s = getCategoryStyle(asset.category); const Icon = s.icon; return (
+                          <div className={`p-2 rounded-lg shrink-0 ${s.bg} ${s.text}`}>
+                            <Icon size={14} />
                           </div>
+                          ); })()}
                           <span className="text-xs font-bold text-slate-800 dark:text-white truncate max-w-[200px]" title={asset.name}>{asset.name}</span>
                         </div>
                       </td>
@@ -261,9 +275,11 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ assets, onAdd, onUpd
           filteredAssets.map(asset => (
             <div key={asset.id} className="group bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 hover:border-indigo-500 transition-all shadow-sm relative overflow-hidden">
               <div className="flex items-start justify-between mb-4">
-                <div className={`p-3 rounded-xl ${isInvoiceCategory(asset.category) ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-300' : 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600'}`}>
-                  {isInvoiceCategory(asset.category) ? <Receipt size={20} /> : <FileText size={20} />}
+                {(() => { const s = getCategoryStyle(asset.category); const Icon = s.icon; return (
+                <div className={`p-3 rounded-xl ${s.bg} ${s.text}`}>
+                  <Icon size={20} />
                 </div>
+                ); })()}
                 <div className="flex items-center gap-1">
                   {!isReadOnly && <button onClick={() => openRenameModal(asset)} className="p-2 text-slate-300 hover:text-amber-600 transition-all" title="Renomear"><Pencil size={14} /></button>}
                   {!isReadOnly && <button onClick={() => setConfirmDeleteId(asset.id)} className="p-2 text-slate-300 hover:text-rose-600 transition-all"><Trash2 size={16} /></button>}
@@ -441,15 +457,16 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ assets, onAdd, onUpd
   );
 };
 
-const FilterBtn = ({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) => (
+const FilterBtn = ({ active, onClick, label, icon: Icon, colorClass }: { active: boolean; onClick: () => void; label: string; icon?: LucideIcon; colorClass?: string }) => (
   <button
     onClick={onClick}
-    className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${
+    className={`flex items-center gap-1.5 px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${
       active
         ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-500/20'
         : 'bg-white dark:bg-slate-900 text-slate-400 border-slate-200 dark:border-slate-800 hover:text-slate-600'
     }`}
   >
+    {Icon && <Icon size={12} className={active ? '' : (colorClass ?? '')} />}
     {label}
   </button>
 );
