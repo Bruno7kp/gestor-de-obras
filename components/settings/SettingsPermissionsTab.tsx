@@ -99,10 +99,10 @@ export const SettingsPermissionsTab: React.FC = () => {
       const merged = roles.map((role) => updates.find((updated) => updated.id === role.id) ?? role);
       setRoles(merged);
       hydrateLevels(merged);
-      toast.success('Alteracoes salvas com sucesso!');
+      toast.success('Alterações salvas com sucesso!');
     } catch (err) {
-      console.error('Erro ao salvar permissoes:', err);
-      setError('Nao foi possivel salvar as permissoes.');
+      console.error('Erro ao salvar permissões:', err);
+      setError('Não foi possível salvar as permissões.');
     } finally {
       setSaving(false);
     }
@@ -110,7 +110,7 @@ export const SettingsPermissionsTab: React.FC = () => {
 
   const handleCreateRole = async () => {
     if (!newRoleName.trim()) {
-      setError('Informe um nome para o tipo de usuario.');
+      setError('Informe um nome para o tipo de usuário.');
       return;
     }
     try {
@@ -124,8 +124,8 @@ export const SettingsPermissionsTab: React.FC = () => {
       setNewRoleName('');
       setNewRoleDescription('');
     } catch (err) {
-      console.error('Erro ao criar tipo de usuario:', err);
-      setError('Nao foi possivel criar o tipo de usuario.');
+      console.error('Erro ao criar tipo de usuário:', err);
+      setError('Não foi possível criar o tipo de usuário.');
     }
   };
 
@@ -145,8 +145,8 @@ export const SettingsPermissionsTab: React.FC = () => {
       hydrateLevels(nextRoles);
       toast.success('Tipo de usuário removido com sucesso.');
     } catch (err) {
-      console.error('Erro ao remover tipo de usuario:', err);
-      setError('Nao foi possivel remover o tipo de usuario.');
+      console.error('Erro ao remover tipo de usuário:', err);
+      setError('Não foi possível remover o tipo de usuário.');
       toast.error('Erro ao remover tipo de usuário.');
     }
   };
@@ -162,10 +162,10 @@ export const SettingsPermissionsTab: React.FC = () => {
       setRoles(updated);
       hydrateLevels(updated);
       setShowResetModal(false);
-      toast.success('Tipos de usuario restaurados com sucesso!');
+      toast.success('Tipos de usuário restaurados com sucesso!');
     } catch (err) {
-      console.error('Erro ao resetar tipos de usuario:', err);
-      setError('Nao foi possivel restaurar os tipos de usuario padrao.');
+      console.error('Erro ao resetar tipos de usuário:', err);
+      setError('Não foi possível restaurar os tipos de usuário padrão.');
     } finally {
       setResettingDefaults(false);
     }
@@ -174,7 +174,7 @@ export const SettingsPermissionsTab: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20 text-sm text-slate-400">
-        Carregando permissoes...
+        Carregando permissões...
       </div>
     );
   }

@@ -78,7 +78,7 @@ export const rolesApi = {
     });
 
     if (!response.ok) {
-      throw new Error('Falha ao atualizar permissoes');
+      throw new Error('Falha ao atualizar permissões');
     }
 
     return normalizeRole(await response.json());

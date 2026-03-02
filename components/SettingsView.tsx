@@ -25,9 +25,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdate, 
   const tabs = useMemo(
     () => [
       { key: 'account', label: 'Conta', adminOnly: false, icon: <UserCircle2 size={16} /> },
-      { key: 'global-settings', label: 'Configuracoes gerais', adminOnly: true, icon: <Cog size={16} /> },
-      { key: 'permissions', label: 'Permissoes', adminOnly: true, icon: <Shield size={16} /> },
-      { key: 'users', label: 'Usuarios', adminOnly: true, icon: <Users size={16} /> },
+      { key: 'global-settings', label: 'Configurações gerais', adminOnly: true, icon: <Cog size={16} /> },
+      { key: 'permissions', label: 'Permissões', adminOnly: true, icon: <Shield size={16} /> },
+      { key: 'users', label: 'Usuários', adminOnly: true, icon: <Users size={16} /> },
     ],
     [],
   );
