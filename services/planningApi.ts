@@ -86,7 +86,7 @@ export const planningApi = {
     });
 
     if (!response.ok) {
-      throw new Error('Falha ao carregar grupos de suprimentos');
+      throw new Error('Falha ao carregar grupos de compras');
     }
 
     const data = await response.json();
@@ -133,7 +133,7 @@ export const planningApi = {
     });
 
     if (!response.ok) {
-      throw new Error('Falha ao criar grupo de suprimentos');
+      throw new Error('Falha ao criar grupo de compras');
     }
 
     return response.json();
@@ -150,7 +150,7 @@ export const planningApi = {
     });
 
     if (!response.ok) {
-      throw new Error('Falha ao atualizar grupo de suprimentos');
+      throw new Error('Falha ao atualizar grupo de compras');
     }
 
     return response.json();
@@ -181,7 +181,7 @@ export const planningApi = {
     });
 
     if (!response.ok) {
-      throw new Error('Falha ao adicionar itens ao grupo de suprimentos');
+      throw new Error('Falha ao adicionar itens ao grupo de compras');
     }
 
     return response.json();
@@ -194,7 +194,7 @@ export const planningApi = {
     });
 
     if (!response.ok) {
-      throw new Error('Falha ao remover grupo de suprimentos');
+      throw new Error('Falha ao remover grupo de compras');
     }
   },
 
@@ -227,7 +227,7 @@ export const planningApi = {
     });
 
     if (!response.ok) {
-      throw new Error('Falha ao converter suprimentos para grupo');
+      throw new Error('Falha ao converter compras para grupo');
     }
 
     return response.json();

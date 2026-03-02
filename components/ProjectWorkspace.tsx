@@ -41,6 +41,7 @@ import { projectExpensesApi } from '../services/projectExpensesApi';
 import { planningApi } from '../services/planningApi';
 import { projectAssetsApi } from '../services/projectAssetsApi';
 import { projectsApi } from '../services/projectsApi';
+import { measurementSnapshotsApi } from '../services/measurementSnapshotsApi';
 import { rolesApi } from '../services/rolesApi';
 import { usersApi } from '../services/usersApi';
 import { suppliersApi } from '../services/suppliersApi';
@@ -159,6 +160,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const [viewingMeasurementId, setViewingMeasurementId] = useState<'current' | number>('current');
   const [isClosingModalOpen, setIsClosingModalOpen] = useState(false);
   const [isReopenModalOpen, setIsReopenModalOpen] = useState(false);
+  const [isReopenInProgress, setIsReopenInProgress] = useState(false);
   const [showMembersModal, setShowMembersModal] = useState(false);
   const [isClosingInProgress, setIsClosingInProgress] = useState(false);
   const [projectMembers, setProjectMembers] = useState<any[]>([]);
@@ -529,9 +531,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
   const availableTabs = useMemo(() => ([
     'wbs',
-    'blueprint',
     'stats',
     'expenses',
+    'blueprint',
     'supplies',
     'workforce',
     'labor-contracts',
@@ -1073,11 +1075,65 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     }, 500);
   }, [project.id, onUpdateProject]);
 
-  const handleConfirmReopen = () => {
+  const handleConfirmReopen = async () => {
+    if (isReopenInProgress) return;
+
+    const latestSnapshot = project.history?.[0];
+    if (!latestSnapshot) return;
+
+    setIsReopenInProgress(true);
+
     const updated = projectService.reopenLatestMeasurement(project);
     onUpdateProject(updated);
     setViewingMeasurementId('current');
     setIsReopenModalOpen(false);
+
+    try {
+      const snapshots = await measurementSnapshotsApi.list(project.id);
+      const snapshotToDelete = snapshots.find(
+        (snapshot) => snapshot.measurementNumber === latestSnapshot.measurementNumber,
+      );
+
+      if (snapshotToDelete?.id) {
+        await measurementSnapshotsApi.remove(snapshotToDelete.id);
+      }
+
+      await projectsApi.update(project.id, {
+        measurementNumber: updated.measurementNumber,
+        referenceDate: updated.referenceDate,
+      });
+
+      const wbsItems = updated.items.filter(item => item.scope !== 'quantitativo');
+      await workItemsApi.batchUpdate(
+        project.id,
+        wbsItems.map(item => ({
+          id: item.id,
+          parentId: item.parentId,
+          order: item.order,
+          wbs: item.wbs,
+          contractQuantity: item.contractQuantity,
+          unitPrice: item.unitPrice,
+          unitPriceNoBdi: item.unitPriceNoBdi,
+          contractTotal: item.contractTotal,
+          previousQuantity: item.previousQuantity,
+          previousTotal: item.previousTotal,
+          currentQuantity: item.currentQuantity,
+          currentTotal: item.currentTotal,
+          currentPercentage: item.currentPercentage,
+          accumulatedQuantity: item.accumulatedQuantity,
+          accumulatedTotal: item.accumulatedTotal,
+          accumulatedPercentage: item.accumulatedPercentage,
+          balanceQuantity: item.balanceQuantity,
+          balanceTotal: item.balanceTotal,
+        })),
+        'reopenMeasurement',
+      );
+    } catch (error) {
+      console.error('Erro ao reabrir medição:', error);
+      toast.error('Falha ao persistir a reabertura da medição.');
+    } finally {
+      setIsReopenInProgress(false);
+    }
   };
 
   const TabBtn: React.FC<{ active: boolean; id: TabID; label: string; icon: React.ReactNode }> = ({ active, id, label, icon }) => (
@@ -1299,14 +1355,14 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
               onScroll={handleTabsScroll}
               className={`px-6 py-3 flex items-center gap-2 overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing select-none`}
             >
-              {canView('wbs') && <TabBtn active={tab === 'wbs'} id="wbs" label="Planilha EAP" icon={<Layers size={16} />} />}
-              {canView('blueprint') && <TabBtn active={tab === 'blueprint'} id="blueprint" label="Quantitativos" icon={<Ruler size={16} />} />}
+              {canView('wbs') && <TabBtn active={tab === 'wbs'} id="wbs" label="Medição" icon={<Layers size={16} />} />}
               {canView('technical_analysis') && <TabBtn active={tab === 'stats'} id="stats" label="Análise Técnica" icon={<BarChart3 size={16} />} />}
-              {canView('financial_flow') && <TabBtn active={tab === 'expenses'} id="expenses" label="Fluxo Financeiro" icon={<Coins size={16} />} />}
-              {canView('supplies') && <TabBtn active={tab === 'supplies'} id="supplies" label="Suprimentos" icon={<Boxes size={16} />} />}
-              {canView('workforce') && <TabBtn active={tab === 'labor-contracts' || tab === 'workforce'} id="labor-contracts" label="Contratos M.O." icon={<Briefcase size={16} />} />}
+              {canView('financial_flow') && <TabBtn active={tab === 'expenses'} id="expenses" label="Financeiro" icon={<Coins size={16} />} />}
+              {canView('blueprint') && <TabBtn active={tab === 'blueprint'} id="blueprint" label="Quantitativo" icon={<Ruler size={16} />} />}
+              {canView('supplies') && <TabBtn active={tab === 'supplies'} id="supplies" label="Compras" icon={<Boxes size={16} />} />}
+              {canView('workforce') && <TabBtn active={tab === 'labor-contracts' || tab === 'workforce'} id="labor-contracts" label="Mão de Obra" icon={<Briefcase size={16} />} />}
               {canView('planning') && <TabBtn active={tab === 'planning'} id="planning" label="Planejamento" icon={<HardHat size={16} />} />}
-              {canView('journal') && <TabBtn active={tab === 'journal'} id="journal" label="Diário de Obra" icon={<BookOpen size={16} />} />}
+              {canView('journal') && <TabBtn active={tab === 'journal'} id="journal" label="Diário" icon={<BookOpen size={16} />} />}
               {canView('schedule') && <TabBtn active={tab === 'schedule'} id="schedule" label="Cronograma" icon={<Target size={16} />} />}
               {canView('stock') && <TabBtn active={tab === 'stock'} id="stock" label="Estoque" icon={<Package size={16} />} />}
               {canView('documents') && <TabBtn active={tab === 'documents'} id="documents" label="Repositório" icon={<FileText size={16} />} />}
@@ -1332,7 +1388,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                             : 'text-slate-400 hover:text-slate-600'
                         }`}
                       >
-                        Contratos M.O.
+                        Contratos
                       </button>
                       <button
                         onClick={() => onTabChange('workforce')}
@@ -1342,7 +1398,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                             : 'text-slate-400 hover:text-slate-600'
                         }`}
                       >
-                        Equipe Permanente
+                        Equipe
                       </button>
                     </div>
                   </div>
@@ -1477,7 +1533,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                 className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6"
                 onClick={(event) => event.stopPropagation()}
               >
-                <h3 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">Exportar PDF do Fluxo Financeiro</h3>
+                <h3 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">Exportar PDF do Financeiro</h3>
                 <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">Escolha o formato do relatório</p>
 
                 <div className="mt-5 space-y-2">
@@ -1522,7 +1578,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                 className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6"
                 onClick={(event) => event.stopPropagation()}
               >
-                <h3 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">Exportar PDF de Suprimentos</h3>
+                <h3 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">Exportar PDF de Compras</h3>
                 <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">Escolha o formato do relatório</p>
 
                 <div className="mt-5 space-y-2">
@@ -1629,7 +1685,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                 </div>
                 <div className="flex items-center gap-6 w-full">
                   <button onClick={() => setIsReopenModalOpen(false)} className="flex-1 py-4 text-slate-500 dark:text-slate-300 font-black uppercase text-xs tracking-widest hover:text-slate-800 dark:hover:text-white transition-colors">Cancelar</button>
-                  <button onClick={handleConfirmReopen} className="flex-[2] py-5 bg-rose-600 hover:bg-rose-50 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-[0_10px_30px_-10px_rgba(225,29,72,0.5)] active:scale-95 transition-all">Confirmar Reabertura</button>
+                  <button
+                    onClick={() => void handleConfirmReopen()}
+                    disabled={isReopenInProgress}
+                    className="flex-[2] py-5 bg-rose-600 hover:bg-rose-50 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-[0_10px_30px_-10px_rgba(225,29,72,0.5)] active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isReopenInProgress ? 'Processando...' : 'Confirmar Reabertura'}
+                  </button>
                 </div>
               </div>
             </div>

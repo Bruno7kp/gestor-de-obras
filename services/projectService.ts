@@ -107,11 +107,20 @@ export const projectService = {
   reopenLatestMeasurement: (project: Project): Project => {
     if (!project.history || project.history.length === 0) return project;
     const [latestSnapshot, ...remainingHistory] = project.history;
+
+    const snapshotWbsItems = JSON.parse(JSON.stringify(latestSnapshot.items)) as Project['items'];
+    const snapshotWbsById = new Map(snapshotWbsItems.map(item => [item.id, item] as const));
+    const quantitativoItems = project.items.filter(item => item.scope === 'quantitativo');
+    const restoredWbsItems = snapshotWbsItems.filter(item => item.scope !== 'quantitativo');
+
     return {
       ...project,
       measurementNumber: latestSnapshot.measurementNumber,
       referenceDate: latestSnapshot.date,
-      items: JSON.parse(JSON.stringify(latestSnapshot.items)),
+      items: [
+        ...restoredWbsItems,
+        ...quantitativoItems.filter(item => !snapshotWbsById.has(item.id)),
+      ],
       history: remainingHistory
     };
   },

@@ -689,7 +689,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
               const exp = expenses.find(e => e.id === id);
               if (!exp) return;
               if (isSupplyLinkedExpense(exp)) {
-                toast.warning('Status controlado por suprimentos.');
+                toast.warning('Status controlado por compras.');
                 return;
               }
               onUpdate(id, { isPaid: !exp.isPaid, status: !exp.isPaid ? 'PAID' : 'PENDING' });

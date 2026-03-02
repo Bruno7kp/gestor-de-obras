@@ -31,7 +31,7 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({ isOpen, onClose, o
             <div className="p-4 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 rounded-[1.5rem]"><Truck size={28}/></div>
             <div>
               <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">{supplier ? 'Editar Parceiro' : 'Novo Fornecedor'}</h2>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Base de Suprimentos Estratégica</p>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Base de Compras Estratégica</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all"><X size={24}/></button>

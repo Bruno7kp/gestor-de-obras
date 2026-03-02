@@ -464,7 +464,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
       onUpdatePlanning(updated);
     } else if (activeSubTab === 'forecast') {
       if (forecastSearch.trim()) {
-        toast.warning('Limpe a busca para reordenar os suprimentos.');
+        toast.warning('Limpe a busca para reordenar as compras.');
         return;
       }
       if (destination.index === source.index) return;
@@ -482,7 +482,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
 
   const moveForecastInStatus = (id: string, direction: 'up' | 'down') => {
     if (forecastSearch.trim()) {
-      toast.warning('Limpe a busca para reordenar os suprimentos.');
+      toast.warning('Limpe a busca para reordenar as compras.');
       return;
     }
 
@@ -589,8 +589,8 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
       // Refresh expenses since backend may have synced them
       await onRefreshExpenses?.();
     } catch (error) {
-      console.error('Erro ao recarregar suprimentos:', error);
-      toast.error('Erro ao atualizar lista de suprimentos.');
+      console.error('Erro ao recarregar compras:', error);
+      toast.error('Erro ao atualizar lista de compras.');
     }
   };
 
@@ -641,15 +641,15 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
       const target = groups.find((group) => group.id === supplyGroupId);
       if (!target) {
         if (!fallback) {
-          toast.warning('Grupo de suprimentos não encontrado.');
+          toast.warning('Grupo de compras não encontrado.');
         }
         return;
       }
       setEditingSupplyGroup(target);
     } catch (error) {
-      console.error('Erro ao carregar grupo de suprimentos:', error);
+      console.error('Erro ao carregar grupo de compras:', error);
       if (!fallback) {
-        toast.error('Erro ao abrir grupo de suprimentos.');
+        toast.error('Erro ao abrir grupo de compras.');
       }
     }
   };
@@ -691,10 +691,10 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
       await refreshForecastsFromApi();
       setSelectedForecastIds([]);
       setIsAddingSupplyGroup(false);
-      toast.success('Grupo de suprimentos criado com sucesso.');
+      toast.success('Grupo de compras criado com sucesso.');
     } catch (error) {
-      console.error('Erro ao criar grupo de suprimentos:', error);
-      toast.error('Erro ao criar grupo de suprimentos.');
+      console.error('Erro ao criar grupo de compras:', error);
+      toast.error('Erro ao criar grupo de compras.');
     }
   };
 
@@ -718,8 +718,8 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
       setEditingSupplyGroup(null);
       toast.success('Grupo atualizado com sucesso.');
     } catch (error) {
-      console.error('Erro ao atualizar grupo de suprimentos:', error);
-      toast.error('Erro ao atualizar grupo de suprimentos.');
+      console.error('Erro ao atualizar grupo de compras:', error);
+      toast.error('Erro ao atualizar grupo de compras.');
     }
   };
 
@@ -771,8 +771,8 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
       setConfirmingDeleteSupplyGroup(null);
       toast.success('Grupo removido com sucesso.');
     } catch (error) {
-      console.error('Erro ao remover grupo de suprimentos:', error);
-      toast.error('Erro ao remover grupo de suprimentos.');
+      console.error('Erro ao remover grupo de compras:', error);
+      toast.error('Erro ao remover grupo de compras.');
     }
   };
 
@@ -1062,7 +1062,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                 </div>
              </div>
              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-               <ForecastKpi label="Previsão de Suprimentos" value={forecastStats.total} icon={<Boxes size={20}/>} color="indigo" sub="Previsão global de gastos" />
+               <ForecastKpi label="Previsão de Compras" value={forecastStats.total} icon={<Boxes size={20}/>} color="indigo" sub="Previsão global de gastos" />
                 <ForecastKpi label="Pendente de Pagamento" value={forecastStats.pending} icon={<Clock size={20}/>} color="amber" sub="Ainda não efetivado" />
                <ForecastKpi label="Efetivado/Local" value={forecastStats.effective} icon={<CheckCircle2 size={20}/>} color="emerald" sub="Lançado no financeiro" />
              </div>
@@ -1668,7 +1668,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                   {groupedForecastRows.length === 0 && (
                     <div className="py-24 flex flex-col items-center justify-center text-slate-300 opacity-40">
                       <Boxes size={64} className="mb-4" />
-                      <p className="text-xs font-black uppercase tracking-[0.2em]">Sem suprimentos neste estágio</p>
+                      <p className="text-xs font-black uppercase tracking-[0.2em]">Sem compras neste estágio</p>
                     </div>
                   )}
                 </div>
@@ -3613,7 +3613,7 @@ const SupplyGroupModal = ({
             </div>
             <div>
               <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                {mode === 'create' ? 'Novo Grupo de Suprimentos' : 'Editar Grupo de Suprimentos'}
+                {mode === 'create' ? 'Novo Grupo de Compras' : 'Editar Grupo de Compras'}
               </h2>
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
                 Mesmo fluxo do pedido individual: cadastro inicial e evolução por etapa

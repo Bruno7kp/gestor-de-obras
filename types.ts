@@ -124,6 +124,7 @@ export const DEFAULT_THEME: PDFTheme = {
 
 // --- MEDIÇÕES E HISTÓRICO ---
 export interface MeasurementSnapshot {
+  id?: string;
   measurementNumber: number;
   date: string;
   items: WorkItem[];

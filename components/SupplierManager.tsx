@@ -309,7 +309,7 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, pro
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <div>
             <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">Gestão de Fornecedores</h1>
-            <p className="text-slate-500 dark:text-slate-400 font-medium">Parceiros comerciais e base de suprimentos.</p>
+            <p className="text-slate-500 dark:text-slate-400 font-medium">Parceiros comerciais e base de compras.</p>
           </div>
           <div className="flex items-center gap-2">
             {canEditSuppliers && (
@@ -330,7 +330,7 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, pro
         {/* STATS GRID + SEARCH & FILTERS */}
         <div className="flex flex-wrap items-stretch gap-3">
           <StatCard label="Total Cadastrados" value={stats.total} icon={<Truck size={16} />} color="indigo" />
-          <StatCard label="Suprimentos Vinculados" value={stats.linkedSupplies} icon={<Boxes size={16} />} color="amber" />
+          <StatCard label="Compras Vinculadas" value={stats.linkedSupplies} icon={<Boxes size={16} />} color="amber" />
           <StatCard label="Materiais / Serviços" value={`${stats.byCategory.Material} / ${stats.byCategory.Serviço}`} icon={<Building2 size={16} />} color="emerald" />
           <div className="flex items-center gap-3 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <div className="relative">
@@ -402,7 +402,7 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, pro
                              <button
                                onClick={() => openSupplierSuppliesModal(supplier)}
                                className="p-3 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                               title="Ver suprimentos vinculados"
+                               title="Ver compras vinculadas"
                              >
                                <Boxes size={18} />
                              </button>
@@ -464,7 +464,7 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, pro
           <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-[2.5rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl max-h-[85vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-xl font-black text-slate-800 dark:text-white tracking-tight">Suprimentos vinculados</h2>
+                <h2 className="text-xl font-black text-slate-800 dark:text-white tracking-tight">Compras vinculadas</h2>
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{supplierSuppliesModal.name} • {filteredSupplierSupplies.length} item(ns)</p>
               </div>
               <button onClick={() => setSupplierSuppliesModal(null)} className="p-2 text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all"><X size={20} /></button>
@@ -476,7 +476,7 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, pro
                 <input
                   value={suppliesSearch}
                   onChange={(e) => setSuppliesSearch(e.target.value)}
-                  placeholder="Buscar suprimento..."
+                  placeholder="Buscar compra..."
                   className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold outline-none focus:ring-2 focus:ring-indigo-500/20"
                 />
               </div>
@@ -494,11 +494,11 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, pro
 
             {isLoadingSuppliesProjects ? (
               <div className="flex-1 flex items-center justify-center text-sm font-semibold text-slate-500 dark:text-slate-400 gap-2">
-                <Loader2 size={16} className="animate-spin" /> Carregando suprimentos...
+                <Loader2 size={16} className="animate-spin" /> Carregando compras...
               </div>
             ) : filteredSupplierSupplies.length === 0 ? (
               <div className="flex-1 flex items-center justify-center text-sm font-semibold text-slate-500 dark:text-slate-400">
-                Nenhum suprimento associado a este fornecedor.
+                Nenhuma compra associada a este fornecedor.
               </div>
             ) : (
               <div className="max-h-[52vh] overflow-y-auto custom-scrollbar space-y-2 pr-2">

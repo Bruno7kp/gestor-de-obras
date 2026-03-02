@@ -130,7 +130,7 @@ export const PrintPlanningReport: React.FC<PrintPlanningReportProps> = ({
       <div className="planning-report-container">
         <div className="flex justify-between items-center border-b-2 pb-4 mb-6" style={{ borderColor: theme.primary }}>
           <div>
-            <h1 className="text-xl font-black uppercase" style={{ color: theme.primary }}>Relatório de Suprimentos</h1>
+            <h1 className="text-xl font-black uppercase" style={{ color: theme.primary }}>Relatório de Compras</h1>
             <p className="text-[8pt] font-bold text-slate-500 uppercase">{project.companyName}</p>
             <p className="text-[9pt] font-black uppercase mt-2">{project.name}</p>
             <p className="text-[7pt] font-bold text-slate-400 mt-1 uppercase">Modo: {printModeLabel[printMode]}{onlyUnpaid ? ' • Apenas não pagos' : ''}</p>
@@ -160,7 +160,7 @@ export const PrintPlanningReport: React.FC<PrintPlanningReportProps> = ({
             </div>
           </div>
 
-          <h3 className="text-[10pt] font-black uppercase border-b mb-3">Previsão de Suprimentos (Insumos)</h3>
+          <h3 className="text-[10pt] font-black uppercase border-b mb-3">Previsão de Compras (Insumos)</h3>
           <table className="planning-table">
             <thead>
               <tr className="bg-header">

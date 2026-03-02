@@ -156,7 +156,7 @@ export const PrintExpenseReport: React.FC<PrintExpenseReportProps> = ({ project,
         <div className="flex justify-between items-end border-b-2 pb-4 mb-6" style={{ borderColor: theme.primary }}>
           <div>
             <h1 className="text-xl font-black uppercase leading-none" style={{ color: theme.primary }}>{project.companyName}</h1>
-            <p className="text-[7pt] font-bold text-slate-500 uppercase mt-1">Relatório Consolidado de Fluxo Financeiro</p>
+            <p className="text-[7pt] font-bold text-slate-500 uppercase mt-1">Relatório Consolidado de Financeiro</p>
             <p className="text-[8pt] font-black mt-2 uppercase tracking-tight">{project.name}</p>
             {periodLabel && <p className="text-[7pt] font-bold text-indigo-600 mt-1">{periodLabel}</p>}
           </div>

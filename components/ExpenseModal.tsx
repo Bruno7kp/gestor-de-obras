@@ -239,7 +239,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
           <div className="mx-8 mt-4 flex items-center gap-3 px-5 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl">
             <Link2 size={16} className="text-amber-600 shrink-0" />
             <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-widest">
-              Item vinculado a Suprimentos — campos controlados pelo planejamento são somente leitura.
+              Item vinculado a Compras — campos controlados pelo planejamento são somente leitura.
             </p>
           </div>
         )}
@@ -290,7 +290,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                       </select>
                       {isSupplyLinked && (
                         <p className="mt-2 text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest flex items-center gap-1">
-                          <Link2 size={10} /> Controlado por suprimentos
+                          <Link2 size={10} /> Controlado por compras
                         </p>
                       )}
                     </div>
@@ -457,7 +457,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                     />
                     {isSupplyLinked && (
                       <p className="mt-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                        <Link2 size={10} /> Controlado por suprimentos
+                        <Link2 size={10} /> Controlado por compras
                       </p>
                     )}
                   </div>

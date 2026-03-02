@@ -788,7 +788,7 @@ export class ProjectExpensesService {
     });
     if (linkedForecasts.length > 0) {
       throw new ForbiddenException(
-        `Não é possível excluir: ${linkedForecasts.length === 1 ? 'existe 1 item' : `existem ${linkedForecasts.length} itens`} controlado(s) por Suprimentos nesta hierarquia. Remova-os primeiro em Suprimentos.`,
+        `Não é possível excluir: ${linkedForecasts.length === 1 ? 'existe 1 item' : `existem ${linkedForecasts.length} itens`} controlado(s) por Compras nesta hierarquia. Remova-os primeiro em Compras.`,
       );
     }
 

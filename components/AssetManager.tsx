@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { ProjectAsset, ProjectAssetCategory } from '../types';
-import { FileText, Download, Trash2, Eye, UploadCloud, Search, AlertCircle, Loader2, X, LayoutGrid, List, Pencil } from 'lucide-react';
+import { FileText, Download, Trash2, Eye, UploadCloud, Search, AlertCircle, Loader2, X, LayoutGrid, List, Pencil, Receipt } from 'lucide-react';
 import { uploadService } from '../services/uploadService';
 import { ConfirmModal } from './ConfirmModal';
 import { useToast } from '../hooks/useToast';
@@ -124,12 +124,15 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ assets, onAdd, onUpd
     [assets, categoryFilter, searchQuery],
   );
 
+  const isInvoiceCategory = (category?: ProjectAssetCategory) =>
+    (category ?? 'DOCUMENTO_DIVERSO') === 'NOTA_FISCAL';
+
   return (
     <div className="space-y-6 sm:space-y-8 max-w-6xl mx-auto">
       <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white tracking-tight">Repositório Técnico</h2>
-          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Plantas e Memoriais</p>
+          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">PLANTAS E ARQUIVOS DIVERSOS</p>
         </div> 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
           <div className="relative flex-1 sm:w-64">
@@ -207,7 +210,9 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ assets, onAdd, onUpd
                     <tr key={asset.id} className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="p-2 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 rounded-lg shrink-0"><FileText size={14} /></div>
+                          <div className={`p-2 rounded-lg shrink-0 ${isInvoiceCategory(asset.category) ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-300' : 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600'}`}>
+                            {isInvoiceCategory(asset.category) ? <Receipt size={14} /> : <FileText size={14} />}
+                          </div>
                           <span className="text-xs font-bold text-slate-800 dark:text-white truncate max-w-[200px]" title={asset.name}>{asset.name}</span>
                         </div>
                       </td>
@@ -256,7 +261,9 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ assets, onAdd, onUpd
           filteredAssets.map(asset => (
             <div key={asset.id} className="group bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 hover:border-indigo-500 transition-all shadow-sm relative overflow-hidden">
               <div className="flex items-start justify-between mb-4">
-                <div className="p-3 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 rounded-xl"><FileText size={20} /></div>
+                <div className={`p-3 rounded-xl ${isInvoiceCategory(asset.category) ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-300' : 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600'}`}>
+                  {isInvoiceCategory(asset.category) ? <Receipt size={20} /> : <FileText size={20} />}
+                </div>
                 <div className="flex items-center gap-1">
                   {!isReadOnly && <button onClick={() => openRenameModal(asset)} className="p-2 text-slate-300 hover:text-amber-600 transition-all" title="Renomear"><Pencil size={14} /></button>}
                   {!isReadOnly && <button onClick={() => setConfirmDeleteId(asset.id)} className="p-2 text-slate-300 hover:text-rose-600 transition-all"><Trash2 size={16} /></button>}

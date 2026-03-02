@@ -428,7 +428,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   active={location.pathname.startsWith('/app/dashboard') || location.pathname === '/app'}
                   onClick={() => { navigate('/app/dashboard'); setMobileOpen(false); }}
                   icon={<Home size={18}/>}
-                  label="Dashboard"
+                  label="Obras"
                 />
               )}
               {canView('biddings') && (

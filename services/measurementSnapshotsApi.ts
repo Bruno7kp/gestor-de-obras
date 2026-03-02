@@ -16,6 +16,7 @@ export const measurementSnapshotsApi = {
     const data = await response.json();
     return Array.isArray(data)
       ? data.map((snap: any) => ({
+          id: snap.id,
           measurementNumber: snap.measurementNumber,
           date: snap.date,
           items: snap.items ?? snap.itemsSnapshot ?? [],
@@ -45,5 +46,16 @@ export const measurementSnapshotsApi = {
     }
 
     return response.json();
+  },
+
+  async remove(id: string): Promise<void> {
+    const response = await fetch(`${API_BASE}/measurement-snapshots/${id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error('Falha ao remover snapshot');
+    }
   },
 };

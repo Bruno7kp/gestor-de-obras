@@ -184,7 +184,7 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                             {(() => {
                               const isSupplyLinked = item.type === 'material' && item.itemType === 'item' && /^Pedido (Pendente|Pago|Entregue): /.test(item.description);
                               return isSupplyLinked
-                                ? <span className="p-1.5 text-amber-400" title="Controlado por Suprimentos — exclua pelo planejamento"><Link2 size={14} /></span>
+                                ? <span className="p-1.5 text-amber-400" title="Controlado por Compras — exclua pelo planejamento"><Link2 size={14} /></span>
                                 : <button onClick={() => onDelete(item.id)} className="p-1.5 text-rose-300 hover:text-rose-600 rounded-lg" title="Excluir"><Trash2 size={14} /></button>;
                             })()}
                           </div>

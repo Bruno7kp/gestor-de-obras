@@ -161,7 +161,7 @@ export const excelService = {
     ]);
     const wsMilestones = XLSX.utils.aoa_to_sheet([["TITULO", "DATA_META", "CONCLUIDA"], ...milestoneData]);
     XLSX.utils.book_append_sheet(wb, wsTasks, "Tarefas");
-    XLSX.utils.book_append_sheet(wb, wsForecasts, "Suprimentos");
+    XLSX.utils.book_append_sheet(wb, wsForecasts, "Compras");
     XLSX.utils.book_append_sheet(wb, wsMilestones, "Cronograma");
     XLSX.writeFile(wb, `Planejamento_${project.name}.xlsx`);
   },
@@ -305,8 +305,9 @@ export const excelService = {
               });
             });
           }
-          if (workbook.Sheets["Suprimentos"]) {
-            const raw: any[] = XLSX.utils.sheet_to_json(workbook.Sheets["Suprimentos"]);
+          const planningSheet = workbook.Sheets["Compras"] ?? workbook.Sheets["Suprimentos"];
+          if (planningSheet) {
+            const raw: any[] = XLSX.utils.sheet_to_json(planningSheet);
             raw.forEach((r, idx) => {
               // Fix: Added missing 'isPaid' and 'isCleared' properties to match the interface requirements
               forecasts.push({

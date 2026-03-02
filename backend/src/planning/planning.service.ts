@@ -964,7 +964,7 @@ export class PlanningService {
     }
 
     if (!group)
-      throw new NotFoundException('Grupo de suprimentos nao encontrado');
+      throw new NotFoundException('Grupo de compras nao encontrado');
 
     await this.ensurePlanningWritable(group.projectPlanningId);
 
@@ -1116,7 +1116,7 @@ export class PlanningService {
     }
 
     if (!group)
-      throw new NotFoundException('Grupo de suprimentos nao encontrado');
+      throw new NotFoundException('Grupo de compras nao encontrado');
 
     await this.ensurePlanningWritable(group.projectPlanningId);
 
@@ -1225,7 +1225,7 @@ export class PlanningService {
     }
 
     if (!group)
-      throw new NotFoundException('Grupo de suprimentos nao encontrado');
+      throw new NotFoundException('Grupo de compras nao encontrado');
 
     await this.ensurePlanningWritable(group.projectPlanningId);
 
@@ -1278,7 +1278,7 @@ export class PlanningService {
 
     if (!Array.isArray(input.forecastIds) || input.forecastIds.length === 0) {
       throw new BadRequestException(
-        'Selecione ao menos um suprimento para converter.',
+        'Selecione ao menos uma compra para converter.',
       );
     }
 
@@ -1292,7 +1292,7 @@ export class PlanningService {
 
     if (forecasts.length !== input.forecastIds.length) {
       throw new NotFoundException(
-        'Um ou mais suprimentos nao foram encontrados.',
+        'Uma ou mais compras nao foram encontradas.',
       );
     }
 
