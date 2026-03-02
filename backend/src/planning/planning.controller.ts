@@ -26,6 +26,7 @@ interface CreateTaskBody {
   dueDate: string;
   createdAt: string;
   completedAt?: string | null;
+  order?: number;
 }
 
 type UpdateTaskBody = Partial<CreateTaskBody>;

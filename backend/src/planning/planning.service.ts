@@ -27,6 +27,7 @@ interface CreateTaskInput {
   dueDate: string;
   createdAt: string;
   completedAt?: string | null;
+  order?: number;
 }
 
 interface CreateForecastInput {
@@ -619,7 +620,7 @@ export class PlanningService {
     const planning = await this.ensurePlanning(projectId);
     return this.prisma.planningTask.findMany({
       where: { projectPlanningId: planning.id },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { order: 'asc' },
       include: this.taskInclude,
     });
   }
@@ -633,6 +634,12 @@ export class PlanningService {
     );
     const planning = await this.ensurePlanning(input.projectId);
 
+    const maxOrder = await this.prisma.planningTask.aggregate({
+      where: { projectPlanningId: planning.id, status: input.status },
+      _max: { order: true },
+    });
+    const nextOrder = input.order ?? ((maxOrder._max.order ?? -1) + 1);
+
     const createdTask = await this.prisma.planningTask.create({
       data: {
         id: input.id,
@@ -645,6 +652,7 @@ export class PlanningService {
         createdAt: input.createdAt,
         completedAt: input.completedAt ?? null,
         createdById: input.userId ?? null,
+        order: nextOrder,
       },
       include: this.taskInclude,
     });
@@ -716,6 +724,7 @@ export class PlanningService {
         dueDate: data.dueDate ?? task.dueDate,
         createdAt: data.createdAt ?? task.createdAt,
         completedAt: data.completedAt ?? task.completedAt,
+        ...(data.order !== undefined ? { order: data.order } : {}),
       },
       include: this.taskInclude,
     });
@@ -1844,7 +1853,7 @@ export class PlanningService {
       ]),
     ];
 
-    const taskData = tasks.map((t) => ({
+    const taskData = tasks.map((t, idx) => ({
       ...(t.id ? { id: t.id } : {}),
       projectPlanningId: planning.id,
       categoryId: t.categoryId ?? null,
@@ -1854,6 +1863,7 @@ export class PlanningService {
       dueDate: t.dueDate,
       createdAt: t.createdAt,
       completedAt: t.completedAt ?? null,
+      order: (t as any).order ?? idx,
     }));
 
     const forecastData = forecasts.map((f) => ({

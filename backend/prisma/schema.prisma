@@ -484,6 +484,7 @@ model PlanningTask {
   dueDate          String
   createdAt        String
   completedAt      String?
+  order            Int      @default(0)
   createdById      String?
   projectPlanningId String
   projectPlanning  ProjectPlanning @relation(fields: [projectPlanningId], references: [id])

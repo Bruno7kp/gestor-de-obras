@@ -96,6 +96,10 @@ export const planningService = {
 
   addTask: (planning: ProjectPlanning, data: Partial<PlanningTask>): ProjectPlanning => {
     const now = new Date().toISOString();
+    const status = data.status || 'todo';
+    const maxOrder = (planning.tasks || [])
+      .filter(t => (t.status || 'todo') === status)
+      .reduce((max, t) => Math.max(max, t.order ?? 0), -1);
     return {
       ...planning,
       tasks: [...(planning.tasks || []), {
@@ -103,10 +107,11 @@ export const planningService = {
         categoryId: data.categoryId || null,
         description: data.description?.trim() || 'Nova Tarefa',
         isCompleted: data.status === 'done',
-        status: data.status || 'todo',
+        status,
         dueDate: data.dueDate || now,
         createdAt: now,
         createdBy: data.createdBy,
+        order: maxOrder + 1,
       }]
     };
   },

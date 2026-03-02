@@ -939,6 +939,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         if (prev.dueDate !== next.dueDate) patch.dueDate = next.dueDate;
         if (prev.createdAt !== next.createdAt) patch.createdAt = next.createdAt;
         if (prev.completedAt !== next.completedAt) patch.completedAt = next.completedAt;
+        if ((prev.order ?? 0) !== (next.order ?? 0)) patch.order = next.order;
         return patch;
       },
       (item) => planningApi.createTask(project.id, item),

@@ -455,12 +455,56 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     return reorderForecastsInStatus({ ...current, forecasts: updatedForecasts }, status, orderedIds);
   };
 
+  const reorderTasksInStatus = (
+    p: ProjectPlanning,
+    status: TaskStatus,
+    orderedIds: string[],
+  ): ProjectPlanning => {
+    const orderMap = new Map(orderedIds.map((id, i) => [id, i]));
+    return {
+      ...p,
+      tasks: p.tasks.map((t) => {
+        const newOrder = orderMap.get(t.id);
+        if (newOrder !== undefined) return { ...t, order: newOrder };
+        return t;
+      }),
+    };
+  };
+
   const onDragEnd = (result: DropResult) => {
     if (!result.destination) return;
     const { draggableId, destination, source } = result;
     if (activeSubTab === 'tasks') {
       const newStatus = destination.droppableId as TaskStatus;
-      const updated = planningService.updateTask(planning, draggableId, { status: newStatus });
+      const oldStatus = source.droppableId as TaskStatus;
+
+      if (oldStatus === newStatus && destination.index === source.index) return;
+
+      // First update status if moving between columns
+      let updated = planning;
+      if (oldStatus !== newStatus) {
+        updated = planningService.updateTask(updated, draggableId, { status: newStatus });
+      }
+
+      // Now handle reorder within destination column
+      const destTasks = updated.tasks
+        .filter(t => (t.status || (t.isCompleted ? 'done' : 'todo')) === newStatus)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+      // If same column, reorder in place
+      if (oldStatus === newStatus) {
+        const reordered = [...destTasks];
+        const [moved] = reordered.splice(source.index, 1);
+        reordered.splice(destination.index, 0, moved);
+        updated = reorderTasksInStatus(updated, newStatus, reordered.map(t => t.id));
+      } else {
+        // Cross-column: insert at destination index
+        const movedTask = updated.tasks.find(t => t.id === draggableId)!;
+        const withoutMoved = destTasks.filter(t => t.id !== draggableId);
+        withoutMoved.splice(destination.index, 0, movedTask);
+        updated = reorderTasksInStatus(updated, newStatus, withoutMoved.map(t => t.id));
+      }
+
       onUpdatePlanning(updated);
     } else if (activeSubTab === 'forecast') {
       if (forecastSearch.trim()) {
@@ -983,6 +1027,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                       >
                         {planning.tasks
                           .filter(t => (t.status || (t.isCompleted ? 'done' : 'todo')) === col.id)
+                          .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
                           .map((task, index) => (
                             <Draggable key={task.id} draggableId={task.id} index={index}>
                               {(p, s) => (

@@ -204,6 +204,7 @@ export interface PlanningTask {
   dueDate: string;
   createdAt: string;
   completedAt?: string;
+  order: number;
   createdBy?: { id: string; name: string; profileImage?: string | null };
 }
 
