@@ -42,6 +42,7 @@ interface CreateExpenseInput {
   issPercentage?: number;
   linkedWorkItemId?: string;
   supplierId?: string | null;
+  contractorId?: string | null;
 }
 
 interface UpdateExpenseInput extends Partial<CreateExpenseInput> {
@@ -511,6 +512,7 @@ export class ProjectExpensesService {
         issPercentage: input.issPercentage ?? null,
         linkedWorkItemId: input.linkedWorkItemId || null,
         supplierId: input.supplierId || null,
+        contractorId: input.contractorId || null,
         createdById: input.userId ?? null,
       },
     });
@@ -625,6 +627,7 @@ export class ProjectExpensesService {
         issPercentage: input.issPercentage ?? existing.issPercentage,
         linkedWorkItemId: input.linkedWorkItemId ?? existing.linkedWorkItemId,
         supplierId: input.supplierId !== undefined ? (input.supplierId || null) : existing.supplierId,
+        contractorId: input.contractorId !== undefined ? (input.contractorId || null) : existing.contractorId,
         updatedById: input.userId ?? null,
       },
     });
@@ -720,6 +723,7 @@ export class ProjectExpensesService {
       issPercentage: e.issPercentage ?? null,
       linkedWorkItemId: e.linkedWorkItemId || null,
       supplierId: e.supplierId || null,
+      contractorId: e.contractorId || null,
     }));
 
     if (replaceTypes && replaceTypes.length > 0) {

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ProjectExpense, ItemType, ExpenseType, ExpenseStatus, Supplier } from '../types';
+import { ProjectExpense, ItemType, ExpenseType, ExpenseStatus, Supplier, Contractor } from '../types';
 import { financial } from '../utils/math';
 import { ExpenseAttachmentZone } from './ExpenseAttachmentZone';
 import { X, Save, Truck, Users, Calculator, FolderTree, Landmark, ReceiptText, ClipboardCheck, Percent, Layers, ChevronLeft, ChevronRight, Link2 } from 'lucide-react';
@@ -25,6 +25,7 @@ interface ExpenseModalProps {
   onSave: (data: Partial<ProjectExpense>) => void;
   editingItem: ProjectExpense | null;
   suppliers: Supplier[];
+  contractors?: Contractor[];
   expenseType: ExpenseType;
   itemType: ItemType;
   categories: (ProjectExpense & { depth: number })[];
@@ -32,7 +33,7 @@ interface ExpenseModalProps {
 }
 
 export const ExpenseModal: React.FC<ExpenseModalProps> = ({
-  isOpen, onClose, onSave, editingItem, suppliers, expenseType, itemType: initialItemType, categories,
+  isOpen, onClose, onSave, editingItem, suppliers, contractors = [], expenseType, itemType: initialItemType, categories,
   currencySymbol = 'R$'
 }) => {
   const isIncome = expenseType === 'revenue' || expenseType === 'other';
@@ -50,6 +51,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
     amount: 0,
     entityName: '',
     supplierId: null as string | null,
+    contractorId: null as string | null,
     date: new Date().toISOString().split('T')[0],
     status: 'PENDING' as ExpenseStatus,
     paymentProof: undefined,
@@ -77,13 +79,18 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
   const supplierInputRef = useRef<HTMLInputElement>(null);
   const supplierDropdownRef = useRef<HTMLDivElement>(null);
 
+  const autocompleteSource = useMemo(() => {
+    if (isLabor) return contractors.map(c => ({ id: c.id, name: c.name }));
+    return suppliers.map(s => ({ id: s.id, name: s.name }));
+  }, [isLabor, suppliers, contractors]);
+
   const filteredSuppliers = useMemo(() => {
     const query = (formData.entityName || '').trim().toLowerCase();
-    if (!query) return suppliers.slice().sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
-    return suppliers
+    if (!query) return autocompleteSource.slice().sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+    return autocompleteSource
       .filter(s => s.name.toLowerCase().includes(query))
       .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
-  }, [suppliers, formData.entityName]);
+  }, [autocompleteSource, formData.entityName]);
 
   // Close supplier dropdown on click outside
   useEffect(() => {
@@ -336,7 +343,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                   <>
                     <div className="grid grid-cols-2 gap-6 mb-6">
                       <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">Entidade / Fornecedor / MEI</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">{isLabor ? 'Prestador' : 'Entidade / Fornecedor / MEI'}</label>
                         {isSupplyLinked ? (
                           <input className="w-full px-6 py-4 rounded-2xl border-2 border-amber-100 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-900/10 text-sm font-black outline-none text-slate-500 cursor-not-allowed transition-all" value={formData.entityName} readOnly />
                         ) : (
@@ -347,14 +354,14 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                               value={formData.entityName || ''}
                               onChange={e => {
                                 const val = e.target.value;
-                                setFormData(prev => ({ ...prev, entityName: val, supplierId: null }));
+                                setFormData(prev => ({ ...prev, entityName: val, supplierId: null, contractorId: null }));
                                 setShowSupplierDropdown(true);
                               }}
                               onFocus={() => setShowSupplierDropdown(true)}
-                              placeholder="Digite o nome ou selecione um fornecedor"
+                              placeholder={isLabor ? 'Digite o nome ou selecione um prestador' : 'Digite o nome ou selecione um fornecedor'}
                               autoComplete="off"
                             />
-                            {formData.supplierId && (
+                            {(formData.supplierId || formData.contractorId) && (
                               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded-lg">
                                 Vinculado
                               </span>
@@ -371,7 +378,11 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                                     className="w-full text-left px-5 py-3 text-sm font-bold hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors first:rounded-t-2xl last:rounded-b-2xl flex items-center justify-between gap-2"
                                     onMouseDown={e => e.preventDefault()}
                                     onClick={() => {
-                                      setFormData(prev => ({ ...prev, entityName: s.name, supplierId: s.id }));
+                                      if (isLabor) {
+                                        setFormData(prev => ({ ...prev, entityName: s.name, contractorId: s.id, supplierId: null }));
+                                      } else {
+                                        setFormData(prev => ({ ...prev, entityName: s.name, supplierId: s.id, contractorId: null }));
+                                      }
                                       setShowSupplierDropdown(false);
                                     }}
                                   >

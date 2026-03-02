@@ -1440,6 +1440,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                   <ExpenseManager
                     project={project}
                     suppliers={effectiveSuppliers}
+                    contractors={effectiveContractors}
                     expenses={project.expenses}
                     onAdd={handleExpenseAdd}
                     onAddMany={handleExpenseAddMany}

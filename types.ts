@@ -190,6 +190,7 @@ export interface ProjectExpense {
   issPercentage?: number;
   linkedWorkItemId?: string;
   supplierId?: string | null;
+  contractorId?: string | null;
   children?: ProjectExpense[];
 }
 

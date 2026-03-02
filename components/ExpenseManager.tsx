@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { ProjectExpense, ExpenseType, WorkItem, ItemType, Project, Supplier } from '../types';
+import { ProjectExpense, ExpenseType, WorkItem, ItemType, Project, Supplier, Contractor } from '../types';
 import { financial } from '../utils/math';
 import { expenseService } from '../services/expenseService';
 import { treeService } from '../services/treeService';
@@ -22,6 +22,7 @@ import {
 interface ExpenseManagerProps {
   project: Project;
   suppliers: Supplier[];
+  contractors?: Contractor[];
   expenses: ProjectExpense[];
   onAdd: (expense: ProjectExpense) => void;
   onAddMany: (expenses: ProjectExpense[]) => void;
@@ -35,7 +36,7 @@ interface ExpenseManagerProps {
 }
 
 export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
-  project, suppliers, expenses, onAdd, onAddMany, onUpdate, onDelete, workItems, measuredValue, onUpdateExpenses, isReadOnly, onRequestPrintReport
+  project, suppliers, contractors = [], expenses, onAdd, onAddMany, onUpdate, onDelete, workItems, measuredValue, onUpdateExpenses, isReadOnly, onRequestPrintReport
 }) => {
   const { canEdit, getLevel } = usePermissions();
   const toast = useToast();
@@ -719,6 +720,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
         onSave={handleSaveExpense}
         editingItem={editingExpense}
         suppliers={suppliers}
+        contractors={contractors}
         expenseType={activeTab === 'overview' ? 'material' : (activeTab as ExpenseType)}
         itemType={modalItemType}
         categories={processedExpenseCategories as any}

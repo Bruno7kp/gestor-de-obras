@@ -44,6 +44,7 @@ interface CreateExpenseBody {
   issPercentage?: number;
   linkedWorkItemId?: string;
   supplierId?: string | null;
+  contractorId?: string | null;
 }
 
 type UpdateExpenseBody = Partial<CreateExpenseBody>;
