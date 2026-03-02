@@ -60,11 +60,27 @@ command -v docker >/dev/null 2>&1 || { err "docker não encontrado"; exit 1; }
 
 docker info >/dev/null 2>&1 || { err "docker não está acessível para o usuário atual"; exit 1; }
 
+read_env_value() {
+  local key="$1"
+  local line
+  line="$(grep -E "^[[:space:]]*${key}=" "$ENV_FILE" | tail -n 1 || true)"
+  [[ -n "$line" ]] || return 1
+
+  local value="${line#*=}"
+  value="${value%$'\r'}"
+
+  if [[ "${value:0:1}" == '"' && "${value: -1}" == '"' ]]; then
+    value="${value:1:${#value}-2}"
+  elif [[ "${value:0:1}" == "'" && "${value: -1}" == "'" ]]; then
+    value="${value:1:${#value}-2}"
+  fi
+
+  printf '%s' "$value"
+}
+
 load_env() {
-  set -a
-  # shellcheck disable=SC1090
-  source "$ENV_FILE"
-  set +a
+  export GHCR_IMAGE_PREFIX="$(read_env_value GHCR_IMAGE_PREFIX || true)"
+  export IMAGE_TAG="$(read_env_value IMAGE_TAG || true)"
 }
 
 compose() {
@@ -74,7 +90,7 @@ compose() {
 require_env_vars() {
   local required_vars=(GHCR_IMAGE_PREFIX DATABASE_URL JWT_SECRET POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD CORS_ORIGINS RESEND_FROM_EMAIL)
   for var in "${required_vars[@]}"; do
-    if [[ -z "${!var:-}" ]]; then
+    if ! grep -Eq "^[[:space:]]*${var}=" "$ENV_FILE"; then
       err "Variável obrigatória ausente em .env.prod: $var"
       exit 1
     fi
