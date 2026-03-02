@@ -30,6 +30,80 @@ import { useToast } from '../hooks/useToast';
 import { uiPreferences } from '../utils/uiPreferences';
 import { useAuth } from '../auth/AuthContext';
 
+/* ─── Reusable supplier autocomplete input ─── */
+const SupplierAutocompleteInput: React.FC<{
+  suppliers: Supplier[];
+  value: string;
+  onChange: (id: string) => void;
+  className?: string;
+  placeholder?: string;
+}> = ({ suppliers, value, onChange, className, placeholder = 'Não definido (Spot)' }) => {
+  const [query, setQuery] = useState(() => {
+    const match = suppliers.find(s => s.id === value);
+    return match ? match.name : '';
+  });
+  const [open, setOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const match = suppliers.find(s => s.id === value);
+    setQuery(match ? match.name : '');
+  }, [value, suppliers]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (
+        dropdownRef.current && !dropdownRef.current.contains(e.target as Node) &&
+        inputRef.current && !inputRef.current.contains(e.target as Node)
+      ) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const sorted = suppliers.slice().sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+    if (!q) return sorted;
+    return sorted.filter(s => s.name.toLowerCase().includes(q));
+  }, [suppliers, query]);
+
+  return (
+    <div className="relative">
+      <input
+        ref={inputRef}
+        className={className || "w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500"}
+        value={query}
+        onChange={e => { setQuery(e.target.value); onChange(''); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        placeholder={placeholder}
+        autoComplete="off"
+      />
+      {value && (
+        <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300" onClick={() => { onChange(''); setQuery(''); }}>
+          <X size={14} />
+        </button>
+      )}
+      {open && filtered.length > 0 && (
+        <div ref={dropdownRef} className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl">
+          {filtered.map(s => (
+            <button
+              key={s.id}
+              type="button"
+              className="w-full text-left px-4 py-2.5 text-sm font-bold hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors first:rounded-t-2xl last:rounded-b-2xl truncate"
+              onMouseDown={e => e.preventDefault()}
+              onClick={() => { onChange(s.id); setQuery(s.name); setOpen(false); }}
+            >
+              {s.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface PlanningViewProps {
   project: Project;
   suppliers: Supplier[];
@@ -2723,7 +2797,7 @@ const ForecastModal = ({ onClose, onSave, projectId, allWorkItems, suppliers, ex
                 <Boxes size={28}/>
              </div>
              <div>
-               <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-none">{editingItem ? 'Editar Insumo' : 'Novo Suprimento'}</h2>
+               <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-none">{editingItem ? 'Editar Insumo' : 'Nova Compra'}</h2>
                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest mt-1">Inteligência de Aquisições</p>
              </div>
           </div>
@@ -2796,19 +2870,16 @@ const ForecastModal = ({ onClose, onSave, projectId, allWorkItems, suppliers, ex
               <div>
                 <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest block mb-3 ml-1">Vínculo de Fornecedor</label>
                 <div className="relative">
-                   <Building2 className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={18} />
-                   <select 
-                    className="w-full pl-14 pr-10 py-5 rounded-3xl bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-white text-xs font-bold outline-none appearance-none focus:border-indigo-600 transition-all" 
-                    value={data.supplierId} 
-                    onChange={e => {
+                   <Building2 className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 z-10" size={18} />
+                   <SupplierAutocompleteInput
+                    suppliers={suppliers}
+                    value={data.supplierId}
+                    onChange={val => {
                       setManualEdited((prev) => ({ ...prev, supplierId: true }));
-                      setData({...data, supplierId: e.target.value});
+                      setData({...data, supplierId: val});
                     }}
-                   >
-                     <option value="">Não definido (Spot)</option>
-                     {suppliers.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                   </select>
-                   <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" size={16} />
+                    className="w-full pl-14 pr-10 py-5 rounded-3xl bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-white text-xs font-bold outline-none focus:border-indigo-600 transition-all"
+                   />
                 </div>
               </div>
               <div>
@@ -3683,16 +3754,11 @@ const SupplyGroupModal = ({
             </div>
             <div>
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Fornecedor</label>
-              <select
-                className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500"
+              <SupplierAutocompleteInput
+                suppliers={suppliers}
                 value={supplierId}
-                onChange={(event) => setSupplierId(event.target.value)}
-              >
-                <option value="">Não definido (Spot)</option>
-                {suppliers.map((supplier) => (
-                  <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
-                ))}
-              </select>
+                onChange={(val) => setSupplierId(val)}
+              />
             </div>
             <div>
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Previsão de Chegada</label>
@@ -4122,16 +4188,11 @@ const ConvertForecastsToGroupModal = ({
             </div>
             <div>
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Fornecedor</label>
-              <select
-                className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500"
+              <SupplierAutocompleteInput
+                suppliers={suppliers}
                 value={supplierId}
-                onChange={(event) => setSupplierId(event.target.value)}
-              >
-                <option value="">Não definido (Spot)</option>
-                {suppliers.map((supplier) => (
-                  <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
-                ))}
-              </select>
+                onChange={(val) => setSupplierId(val)}
+              />
             </div>
           </div>
 
