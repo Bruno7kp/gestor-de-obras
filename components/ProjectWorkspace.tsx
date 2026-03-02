@@ -630,9 +630,10 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   }, [project, viewingMeasurementId, canEditProject, isProjectArchived]);
 
   const flattenedPrintData = useMemo(() => {
-    const tree = treeService.buildTree<WorkItem>(displayData.items);
+    const wbsPrintItems = displayData.items.filter(i => i.scope !== 'quantitativo');
+    const tree = treeService.buildTree<WorkItem>(wbsPrintItems);
     const processed = tree.map((root, idx) => treeService.processRecursive(root, '', idx, project.bdi));
-    const allIds = new Set<string>(displayData.items.map(i => i.id));
+    const allIds = new Set<string>(wbsPrintItems.map(i => i.id));
     return treeService.flattenTree(processed, allIds);
   }, [displayData.items, project.bdi]);
 

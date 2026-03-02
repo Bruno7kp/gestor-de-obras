@@ -88,7 +88,7 @@ export const normalizeProject = (project: any): Project => {
   const history = (project.history ?? []).map((snapshot: any) => ({
     measurementNumber: snapshot.measurementNumber,
     date: snapshot.date,
-    items: snapshot.items ?? snapshot.itemsSnapshot ?? [],
+    items: (snapshot.items ?? snapshot.itemsSnapshot ?? []).filter((item: any) => item?.scope !== 'quantitativo'),
     totals: snapshot.totals ?? {},
   })).sort((a, b) => (b.measurementNumber ?? 0) - (a.measurementNumber ?? 0));
 

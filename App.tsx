@@ -391,9 +391,10 @@ const App: React.FC = () => {
       }
 
       try {
+        const wbsItems = updated.items.filter(item => item.scope !== 'quantitativo');
         await workItemsApi.batchUpdate(
           activeProject.id,
-          updated.items.map(item => ({
+          wbsItems.map(item => ({
             id: item.id,
             parentId: item.parentId,
             order: item.order,

@@ -52,11 +52,12 @@ export const projectService = {
 
   closeMeasurement: (project: Project): Project => {
     try {
-      const stats = treeService.calculateBasicStats(project.items, project.bdi);
+      const wbsItems = project.items.filter(item => item.scope !== 'quantitativo');
+      const stats = treeService.calculateBasicStats(wbsItems, project.bdi);
       const snapshot: MeasurementSnapshot = {
         measurementNumber: project.measurementNumber,
         date: new Date().toLocaleDateString('pt-BR'),
-        items: JSON.parse(JSON.stringify(project.items)),
+        items: JSON.parse(JSON.stringify(wbsItems)),
         totals: {
           contract: stats.contract,
           period: stats.current,
@@ -65,22 +66,30 @@ export const projectService = {
         }
       };
 
-      const rotatedItems = project.items.map(item => {
-        if (item.type === 'category') {
-          return { ...item, currentTotal: 0, currentPercentage: 0 };
-        }
-        const newPreviousQuantity = financial.round((item.previousQuantity || 0) + (item.currentQuantity || 0));
-        const newPreviousTotal = financial.truncate((item.previousTotal || 0) + (item.currentTotal || 0));
+      const rotatedWbsById = new Map(
+        wbsItems.map(item => {
+          if (item.type === 'category') {
+            return [item.id, { ...item, currentTotal: 0, currentPercentage: 0 }] as const;
+          }
 
-        return {
-          ...item,
-          previousQuantity: newPreviousQuantity,
-          previousTotal: newPreviousTotal,
-          currentQuantity: 0,
-          currentTotal: 0,
-          currentPercentage: 0
-        };
-      });
+          const newPreviousQuantity = financial.round((item.previousQuantity || 0) + (item.currentQuantity || 0));
+          const newPreviousTotal = financial.truncate((item.previousTotal || 0) + (item.currentTotal || 0));
+
+          return [
+            item.id,
+            {
+              ...item,
+              previousQuantity: newPreviousQuantity,
+              previousTotal: newPreviousTotal,
+              currentQuantity: 0,
+              currentTotal: 0,
+              currentPercentage: 0
+            }
+          ] as const;
+        })
+      );
+
+      const rotatedItems = project.items.map(item => rotatedWbsById.get(item.id) ?? item);
 
       return {
         ...project,
