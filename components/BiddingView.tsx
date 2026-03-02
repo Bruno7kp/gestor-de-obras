@@ -496,7 +496,6 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
                       <th className="px-8 py-5">Emissor</th>
                       <th className="px-8 py-5">Vencimento</th>
                       <th className="px-8 py-5">Status</th>
-                      <th className="px-8 py-5 text-center">Arquivos</th>
                       <th className="px-8 py-5 text-right">Ações</th>
                     </tr>
                  </thead>
@@ -523,36 +522,33 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
                                {status === 'expired' ? 'Vencida' : (status === 'warning' ? 'Próximo' : 'Válida')}
                              </span>
                           </td>
-                          <td className="px-8 py-5 text-center">
-                            {(cert.attachmentUrls ?? []).length > 0 ? (
-                              <div className="flex items-center justify-center gap-1">
-                                <span className="text-[9px] font-bold text-slate-400 mr-1">{(cert.attachmentUrls ?? []).length}</span>
-                                <button
-                                  onClick={() => handleViewFiles(cert)}
-                                  className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
-                                  title="Visualizar arquivo(s)"
-                                >
-                                  <Eye size={15} />
-                                </button>
-                                <button
-                                  onClick={() => handleDownloadFiles(cert)}
-                                  className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all"
-                                  title="Baixar arquivo(s)"
-                                >
-                                  <Download size={15} />
-                                </button>
-                              </div>
-                            ) : (
-                              <span className="text-[9px] font-bold text-slate-300">—</span>
-                            )}
-                          </td>
                           <td className="px-8 py-5 text-right">
-                             {canEditBiddings && (
-                               <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                                 <button onClick={() => handleEditCertificate(cert)} className="p-2 text-slate-300 hover:text-indigo-500 transition-all"><Pencil size={16}/></button>
-                                 <button onClick={() => requestDeleteCertificate(cert)} className="p-2 text-slate-300 hover:text-rose-500 transition-all"><Trash2 size={16}/></button>
-                               </div>
-                             )}
+                            <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                              {(cert.attachmentUrls ?? []).length > 0 && (
+                                <>
+                                  <button
+                                    onClick={() => handleViewFiles(cert)}
+                                    className="p-2 text-slate-300 hover:text-indigo-500 transition-all"
+                                    title="Visualizar arquivo(s)"
+                                  >
+                                    <Eye size={16} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDownloadFiles(cert)}
+                                    className="p-2 text-slate-300 hover:text-emerald-500 transition-all"
+                                    title="Baixar arquivo(s)"
+                                  >
+                                    <Download size={16} />
+                                  </button>
+                                </>
+                              )}
+                              {canEditBiddings && (
+                                <>
+                                  <button onClick={() => handleEditCertificate(cert)} className="p-2 text-slate-300 hover:text-indigo-500 transition-all"><Pencil size={16}/></button>
+                                  <button onClick={() => requestDeleteCertificate(cert)} className="p-2 text-slate-300 hover:text-rose-500 transition-all"><Trash2 size={16}/></button>
+                                </>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
