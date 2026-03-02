@@ -377,6 +377,51 @@ export class ProjectMembersService {
   }
 
   /**
+   * Allows a user to voluntarily leave a project they were invited to.
+   * Only works for cross-instance memberships (external projects).
+   */
+  async leaveProject(projectId: string, userId: string, userInstanceId: string) {
+    const member = await this.prisma.projectMember.findUnique({
+      where: {
+        userId_projectId: { userId, projectId },
+      },
+      include: {
+        project: { select: { id: true, instanceId: true } },
+      },
+    });
+
+    if (!member) {
+      throw new NotFoundException('Voce nao e membro deste projeto');
+    }
+
+    // Only allow leaving external projects (different instance)
+    if (member.project.instanceId === userInstanceId) {
+      throw new BadRequestException(
+        'Voce nao pode sair de um projeto da sua propria instancia',
+      );
+    }
+
+    await this.prisma.projectMember.delete({
+      where: {
+        userId_projectId: { userId, projectId },
+      },
+    });
+
+    void this.auditService.log({
+      instanceId: member.project.instanceId,
+      userId,
+      projectId,
+      action: 'DELETE',
+      model: 'ProjectMember',
+      entityId: member.id,
+      before: { userId, projectId } as Record<string, unknown>,
+      metadata: { operation: 'leaveProject' },
+    });
+
+    return { success: true };
+  }
+
+  /**
    * Get all projects from OTHER instances where the user is a member.
    */
   async getExternalProjects(userId: string, homeInstanceId: string) {

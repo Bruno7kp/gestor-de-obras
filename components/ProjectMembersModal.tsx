@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { X, UserPlus, Trash2, Shield, Eye, Mail, Globe } from 'lucide-react';
+import { X, UserPlus, Trash2, Shield, Eye, Mail, Globe, LogOut } from 'lucide-react';
 import { ConfirmModal } from './ConfirmModal';
 import { useToast } from '../hooks/useToast';
 
@@ -45,8 +45,11 @@ interface ProjectMembersModalProps {
   allRoles: Role[];
   generalAccessUserIds: string[];
   canEdit: boolean;
+  isExternalProject?: boolean;
+  currentUserId?: string;
   onClose: () => void;
   onMembersChange: () => void;
+  onLeaveProject?: () => void;
 }
 
 export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
@@ -56,8 +59,11 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
   allRoles,
   generalAccessUserIds,
   canEdit,
+  isExternalProject = false,
+  currentUserId,
   onClose,
   onMembersChange,
+  onLeaveProject,
 }) => {
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [emailInput, setEmailInput] = useState('');
@@ -65,6 +71,8 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmRemoveUserId, setConfirmRemoveUserId] = useState<string | null>(null);
+  const [confirmLeave, setConfirmLeave] = useState(false);
+  const [leavingInProgress, setLeavingInProgress] = useState(false);
   const toast = useToast();
 
   // Check if the typed email matches a user that's already in _this_ instance
@@ -508,10 +516,20 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/40">
+        <div className="p-6 border-t border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/40 flex gap-3">
+          {isExternalProject && currentUserId && (
+            <button
+              onClick={() => setConfirmLeave(true)}
+              disabled={leavingInProgress}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50"
+            >
+              <LogOut size={16} />
+              Sair do Projeto
+            </button>
+          )}
           <button
             onClick={onClose}
-            className="w-full px-4 py-2 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-200 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors font-medium"
+            className="flex-1 px-4 py-2 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-200 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors font-medium"
           >
             Fechar
           </button>
@@ -527,6 +545,36 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
         variant="danger"
         onConfirm={() => confirmRemoveUserId && handleRemoveMember(confirmRemoveUserId)}
         onCancel={() => setConfirmRemoveUserId(null)}
+      />
+
+      <ConfirmModal
+        isOpen={confirmLeave}
+        title="Sair do projeto"
+        message="Tem certeza que deseja sair deste projeto? Você perderá o acesso e todas as permissões associadas. Para acessar novamente, será necessário solicitar um novo convite ao gestor da instância."
+        confirmLabel="Sair do Projeto"
+        cancelLabel="Cancelar"
+        variant="danger"
+        onConfirm={async () => {
+          setConfirmLeave(false);
+          setLeavingInProgress(true);
+          try {
+            const response = await fetch(`/api/projects/${projectId}/members/leave`, {
+              method: 'POST',
+              credentials: 'include',
+            });
+            if (!response.ok) {
+              const data = await response.json().catch(() => ({}));
+              throw new Error(data.message || 'Erro ao sair do projeto');
+            }
+            toast.success('Você saiu do projeto.');
+            onLeaveProject?.();
+          } catch (err: any) {
+            toast.error(err.message || 'Erro ao sair do projeto.');
+          } finally {
+            setLeavingInProgress(false);
+          }
+        }}
+        onCancel={() => setConfirmLeave(false)}
       />
     </div>
   );

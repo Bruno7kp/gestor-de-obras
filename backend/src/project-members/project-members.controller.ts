@@ -85,4 +85,16 @@ export class ProjectMembersController {
       req.user.instanceId,
     );
   }
+
+  @Post('leave')
+  leaveProject(
+    @Param('projectId') projectId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.membersService.leaveProject(
+      projectId,
+      req.user.id,
+      req.user.instanceId,
+    );
+  }
 }

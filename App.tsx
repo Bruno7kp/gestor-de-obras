@@ -64,6 +64,7 @@ type ProjectRouteProps = {
   safeGlobalSettings: GlobalSettings;
   externalProjectIds: Set<string>;
   updateActiveProject: (data: Partial<Project>) => void;
+  removeExternalProject: (projectId: string) => void;
   handleCloseMeasurement: () => void;
   canUndo: boolean;
   canRedo: boolean;
@@ -89,6 +90,7 @@ const ProjectRoute: React.FC<ProjectRouteProps> = ({
   safeGlobalSettings,
   externalProjectIds,
   updateActiveProject,
+  removeExternalProject,
   handleCloseMeasurement,
   canUndo,
   canRedo,
@@ -146,6 +148,10 @@ const ProjectRoute: React.FC<ProjectRouteProps> = ({
       isExternalProject={externalProjectIds.has(projectId)}
       onUpdateProject={updateActiveProject}
       onCloseMeasurement={handleCloseMeasurement}
+      onLeaveProject={() => {
+        removeExternalProject(projectId);
+        navigate('/app/dashboard');
+      }}
       canUndo={canUndo}
       canRedo={canRedo}
       onUndo={undo}
@@ -190,7 +196,7 @@ const App: React.FC = () => {
   const { 
     projects, biddings, groups, suppliers, contractors, activeProject, activeProjectId, setActiveProjectId, 
     globalSettings, setGlobalSettings, externalProjects,
-    updateActiveProject, updateProjects, updateGroups, updateSuppliers, updateContractors, updateBiddings, updateCertificates, bulkUpdate,
+    updateActiveProject, updateProjects, updateGroups, updateSuppliers, updateContractors, updateBiddings, updateCertificates, removeExternalProject, bulkUpdate,
     undo, redo, canUndo, canRedo
   } = useProjectState();
 
@@ -578,6 +584,7 @@ const App: React.FC = () => {
                 safeGlobalSettings={safeGlobalSettings as GlobalSettings}
                 externalProjectIds={externalProjectIds}
                 updateActiveProject={updateActiveProject}
+                removeExternalProject={removeExternalProject}
                 handleCloseMeasurement={handleCloseMeasurement}
                 canUndo={canUndo}
                 canRedo={canRedo}

@@ -261,6 +261,12 @@ export const useProjectState = () => {
     updateSuppliers: (suppliers: Supplier[]) => commit(prev => ({ ...prev, suppliers })),
     updateContractors: (contractors: Contractor[]) => commit(prev => ({ ...prev, contractors })),
     updateBiddings: (biddings: BiddingProcess[]) => commit(prev => ({ ...prev, biddings })),
+    removeExternalProject: (projectId: string) => commit(prev => ({
+      ...prev,
+      activeProjectId: prev.activeProjectId === projectId ? null : prev.activeProjectId,
+      projects: prev.projects.filter(p => p.id !== projectId),
+      externalProjects: prev.externalProjects.filter(ep => ep.projectId !== projectId),
+    })),
     updateCertificates: (certificates: CompanyCertificate[]) => commit(prev => ({
       ...prev,
       globalSettings: { ...prev.globalSettings, certificates }

@@ -131,6 +131,7 @@ interface ProjectWorkspaceProps {
   isExternalProject?: boolean;
   onUpdateProject: (data: Partial<Project>) => void;
   onCloseMeasurement: () => Promise<void> | void;
+  onLeaveProject?: () => void;
   canUndo: boolean;
   canRedo: boolean;
   onUndo: () => void;
@@ -152,7 +153,7 @@ type ExpensePrintMode = 'complete' | 'material' | 'labor';
 type SuppliesPrintMode = 'complete' | 'pending' | 'ordered';
 
 export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
-  project, globalSettings, suppliers, contractors, onContractorCreated, isExternalProject: isExternalProjectProp = false, onUpdateProject, onCloseMeasurement,
+  project, globalSettings, suppliers, contractors, onContractorCreated, isExternalProject: isExternalProjectProp = false, onUpdateProject, onCloseMeasurement, onLeaveProject,
   canUndo, canRedo, onUndo, onRedo, activeTab, onTabChange,
   notifications, notificationsLoading, unreadNotificationsCount,
   onRefreshNotifications, onMarkNotificationRead, onMarkAllNotificationsRead, onDeleteNotification, onDeleteReadNotifications,
@@ -1736,8 +1737,11 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
               allRoles={allRoles}
               generalAccessUserIds={generalAccessUserIds}
               canEdit={canEditMembers}
+              isExternalProject={isExternalProject}
+              currentUserId={user?.id}
               onClose={() => setShowMembersModal(false)}
               onMembersChange={handleMembersChange}
+              onLeaveProject={onLeaveProject}
             />
           )}
 
