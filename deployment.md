@@ -49,6 +49,23 @@ docker compose --env-file .env.prod -f docker-compose.prod.prebuilt.yml pull app
 docker compose --env-file .env.prod -f docker-compose.prod.prebuilt.yml up -d
 ```
 
+### Deploy automatizado (script)
+```bash
+./deploy.sh
+```
+
+Exemplos úteis:
+```bash
+# fixar uma versão específica da imagem
+./deploy.sh --tag sha-abc123
+
+# subir sem pull (usa imagens já presentes no host)
+./deploy.sh --no-pull
+
+# subir sem rodar migrations
+./deploy.sh --skip-migrate
+```
+
 ### Migrar banco (quando necessário)
 ```bash
 docker compose --env-file .env.prod -f docker-compose.prod.prebuilt.yml exec backend npx prisma migrate deploy
