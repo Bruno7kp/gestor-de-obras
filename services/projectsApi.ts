@@ -37,7 +37,7 @@ const normalizeWorkforce = (workforce: any[] | undefined): WorkforceMember[] =>
         ? member.contractor?.cargo ?? member.cargo ?? ''
         : '',
     documentos: member.documentos ?? [],
-    linkedWorkItemIds: member.responsabilidades?.map((resp: any) => resp.workItemId) ?? [],
+    linkedWorkItemIds: member.responsabilidades?.map((resp: any) => resp.workItemId) ?? member.linkedWorkItemIds ?? [],
   }));
 
 const normalizeLaborContracts = (contracts: any[] | undefined): LaborContract[] =>

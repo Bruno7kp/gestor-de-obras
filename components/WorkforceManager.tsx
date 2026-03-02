@@ -10,7 +10,8 @@ import { useToast } from '../hooks/useToast';
 import { uiPreferences } from '../utils/uiPreferences';
 import { 
   Plus, Search, Trash2, Edit2, HardHat,
-  X, UserCircle, Briefcase, User, ChevronDown, ChevronRight, Loader2
+  X, UserCircle, Briefcase, User, ChevronDown, ChevronRight, Loader2,
+  LayoutGrid, Table
 } from 'lucide-react';
 
 const CARGO_OPTIONS = ['Engenheiro', 'Mestre', 'Encarregado', 'Eletricista', 'Encanador', 'Pedreiro', 'Servente', 'Carpinteiro'];
@@ -32,6 +33,12 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, con
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<WorkforceMember | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>(() => (uiPreferences.getString('workforce_view_mode') as 'cards' | 'table') || 'cards');
+
+  const handleViewMode = (mode: 'cards' | 'table') => {
+    setViewMode(mode);
+    uiPreferences.setString('workforce_view_mode', mode);
+  };
 
   const workforce = project.workforce || [];
   const laborContracts = project.laborContracts || [];
@@ -126,11 +133,13 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, con
           const prevLinks = prevMember.linkedWorkItemIds ?? [];
           const nextLinks = member.linkedWorkItemIds ?? [];
 
-          const removedLinks = prevLinks.filter(id => !nextLinks.includes(id));
-          const addedLinks = nextLinks.filter(id => !prevLinks.includes(id));
+          const linksChanged = prevLinks.length !== nextLinks.length ||
+            prevLinks.some(id => !nextLinks.includes(id)) ||
+            nextLinks.some(id => !prevLinks.includes(id));
 
-          await Promise.all(removedLinks.map(id => workforceApi.removeResponsibility(member.id, id)));
-          await Promise.all(addedLinks.map(id => workforceApi.addResponsibility(member.id, id)));
+          if (linksChanged) {
+            await workforceApi.syncResponsibilities(member.id, nextLinks);
+          }
         }
       } else {
         await workforceApi.create(project.id, {
@@ -182,6 +191,22 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, con
 
         </div>
         <div className="flex items-center gap-4">
+          <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
+            <button
+              onClick={() => handleViewMode('cards')}
+              className={`p-2 rounded-lg transition-all ${viewMode === 'cards' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+              title="Visualização em cards"
+            >
+              <LayoutGrid size={16} />
+            </button>
+            <button
+              onClick={() => handleViewMode('table')}
+              className={`p-2 rounded-lg transition-all ${viewMode === 'table' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+              title="Visualização em tabela"
+            >
+              <Table size={16} />
+            </button>
+          </div>
           <span className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-[10px] font-black uppercase tracking-widest text-slate-500">
             {stats.total} Prestadores
           </span>
@@ -199,8 +224,9 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, con
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filteredMembers.map(member => (
+      {viewMode === 'cards' ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {filteredMembers.map(member => (
             <div key={member.id} className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-lg transition-all group flex items-center gap-6">
                <div className="relative">
                  {member.foto ? (
@@ -232,7 +258,75 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, con
                </div>
             </div>
           ))}
-      </div>
+        </div>
+      ) : (
+        <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-800/50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  <th className="px-6 py-4">Nome</th>
+                  <th className="px-6 py-4">Cargo</th>
+                  <th className="px-6 py-4">Empresa / Prestador</th>
+                  <th className="px-6 py-4">CPF / CNPJ</th>
+                  <th className="px-6 py-4">Itens EAP</th>
+                  <th className="px-6 py-4">Total Pago</th>
+                  {canEditWorkforce && <th className="px-6 py-4 text-center">Ações</th>}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {filteredMembers.map(member => (
+                  <tr key={member.id} className="group hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        {member.foto ? (
+                          <img src={member.foto} className="w-9 h-9 rounded-xl object-cover border border-white shadow-sm" />
+                        ) : (
+                          <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-300">
+                            <UserCircle size={20} />
+                          </div>
+                        )}
+                        <span className="text-xs font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight">{member.nome || 'Sem Nome'}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {member.cargo ? (
+                        <span className="px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[8px] font-black uppercase rounded-lg border border-indigo-100 dark:border-indigo-800">{member.cargo}</span>
+                      ) : (
+                        <span className="text-[9px] text-slate-300 dark:text-slate-600 italic">—</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{member.contractor?.name || member.empresa_vinculada || 'Autônomo'}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {member.cpf_cnpj ? (
+                        <span className="text-[10px] font-bold text-slate-400 tracking-wide">{member.cpf_cnpj}</span>
+                      ) : (
+                        <span className="text-[9px] text-slate-300 dark:text-slate-600 italic">—</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-xs font-bold text-indigo-500">{member.linkedWorkItemIds.length}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-xs font-bold text-slate-600 dark:text-slate-400">R$ {(paidByMember[member.id] || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    </td>
+                    {canEditWorkforce && (
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-center gap-2">
+                          <button onClick={() => { setEditingMember(member); setIsModalOpen(true); }} className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-indigo-600 transition-all"><Edit2 size={14}/></button>
+                          <button onClick={() => setConfirmDeleteId(member.id)} className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-rose-500 transition-all"><Trash2 size={14}/></button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {isModalOpen && (
         <MemberModal 

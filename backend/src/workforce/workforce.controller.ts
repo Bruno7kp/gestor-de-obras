@@ -146,4 +146,18 @@ export class WorkforceController {
       req.user.id,
     );
   }
+
+  @Patch(':id/responsibilities')
+  syncResponsibilities(
+    @Param('id') id: string,
+    @Body() body: { workItemIds: string[] },
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.workforceService.syncResponsibilities(
+      id,
+      body.workItemIds ?? [],
+      req.user.instanceId,
+      req.user.id,
+    );
+  }
 }

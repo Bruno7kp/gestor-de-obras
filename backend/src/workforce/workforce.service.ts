@@ -391,8 +391,15 @@ export class WorkforceService {
     userId?: string,
   ) {
     await this.ensureMember(id, instanceId, userId, true);
-    return this.prisma.workItemResponsibility.create({
-      data: {
+    return this.prisma.workItemResponsibility.upsert({
+      where: {
+        workItemId_workforceMemberId: {
+          workItemId,
+          workforceMemberId: id,
+        },
+      },
+      update: {},
+      create: {
         workforceMemberId: id,
         workItemId,
       },
@@ -423,6 +430,58 @@ export class WorkforceService {
     });
 
     return { deleted: 1 };
+  }
+
+  async syncResponsibilities(
+    id: string,
+    workItemIds: string[],
+    instanceId: string,
+    userId?: string,
+  ) {
+    await this.ensureMember(id, instanceId, userId, true);
+
+    const existing = await this.prisma.workItemResponsibility.findMany({
+      where: { workforceMemberId: id },
+      select: { workItemId: true },
+    });
+    const existingIds = new Set(existing.map((r) => r.workItemId));
+    const desiredIds = new Set(workItemIds);
+
+    const toAdd = workItemIds.filter((wid) => !existingIds.has(wid));
+    const toRemove = existing
+      .map((r) => r.workItemId)
+      .filter((wid) => !desiredIds.has(wid));
+
+    if (toRemove.length > 0) {
+      await this.prisma.workItemResponsibility.deleteMany({
+        where: {
+          workforceMemberId: id,
+          workItemId: { in: toRemove },
+        },
+      });
+    }
+
+    if (toAdd.length > 0) {
+      await this.prisma.workItemResponsibility.createMany({
+        data: toAdd.map((workItemId) => ({
+          workforceMemberId: id,
+          workItemId,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    void this.auditService.log({
+      instanceId,
+      userId,
+      action: 'UPDATE',
+      model: 'WorkItemResponsibility',
+      entityId: id,
+      before: { workItemIds: [...existingIds] } as Record<string, unknown>,
+      after: { workItemIds } as Record<string, unknown>,
+    });
+
+    return { synced: workItemIds.length };
   }
 
   async remove(id: string, instanceId: string, userId?: string) {

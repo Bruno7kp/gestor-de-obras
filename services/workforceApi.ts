@@ -160,4 +160,19 @@ export const workforceApi = {
       throw new Error('Falha ao remover responsabilidade');
     }
   },
+
+  async syncResponsibilities(id: string, workItemIds: string[]): Promise<void> {
+    const response = await fetch(`${API_BASE}/workforce-members/${id}/responsibilities`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ workItemIds }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Falha ao sincronizar responsabilidades');
+    }
+  },
 };
