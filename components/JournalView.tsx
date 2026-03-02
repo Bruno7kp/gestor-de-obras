@@ -1,7 +1,6 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Project, JournalEntry, JournalCategory, WeatherType, ProjectJournal, WorkItem } from '../types';
-import { journalService } from '../services/journalService';
 import { journalApi } from '../services/journalApi';
 import { uploadService } from '../services/uploadService';
 import { usePermissions } from '../hooks/usePermissions';
@@ -240,7 +239,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
   }, [filteredEntries, sortOrder]);
 
   const visibleEntries = useMemo(() => {
-    return journalService.getPaginatedEntries(sortedEntries, 1, page * PAGE_SIZE);
+    return sortedEntries.slice(0, page * PAGE_SIZE);
   }, [sortedEntries, page]);
 
   const latestProgressEntry = useMemo(() => {
@@ -856,15 +855,6 @@ export const JournalView: React.FC<JournalViewProps> = ({ project, onUpdateJourn
           </div>
         )}
       </div>
-
-      {/* DOCUMENTATION: COMO ADICIONAR NOVOS TRIGGERS AUTO
-          Para adicionar novas automações no diário:
-          1. Abra 'services/journalService.ts'.
-          2. Implemente uma nova função 'check[Evento]Deltas'.
-          3. Chame esta função dentro de 'updateActiveProject' no hook 'useProjectState.ts'.
-          Exemplos recomendados: Atraso de cronograma, estouro de orçamento por categoria,
-          ou anexação de documentos técnicos importantes.
-      */}
 
       <ConfirmModal
         isOpen={!!confirmDeleteId}
