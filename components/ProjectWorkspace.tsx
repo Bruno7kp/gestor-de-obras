@@ -386,13 +386,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
   // Merge external suppliers with the ones passed from the parent
   const effectiveSuppliers = useMemo(
-    () => (isExternalProjectProp && externalSuppliers.length > 0 ? externalSuppliers : suppliers),
+    () => (isExternalProjectProp ? externalSuppliers : suppliers),
     [isExternalProjectProp, externalSuppliers, suppliers],
   );
 
   // Merge external contractors with the ones passed from the parent
   const effectiveContractors = useMemo(
-    () => (isExternalProjectProp && externalContractors.length > 0 ? externalContractors : contractors),
+    () => (isExternalProjectProp ? externalContractors : contractors),
     [isExternalProjectProp, externalContractors, contractors],
   );
 
