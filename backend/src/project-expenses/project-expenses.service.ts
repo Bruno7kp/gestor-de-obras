@@ -11,7 +11,6 @@ import {
   ensureProjectWritable,
 } from '../common/project-access.util';
 import { NotificationsService } from '../notifications/notifications.service';
-import { JournalService } from '../journal/journal.service';
 import { AuditService } from '../audit/audit.service';
 
 interface CreateExpenseInput {
@@ -77,7 +76,6 @@ export class ProjectExpensesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
-    private readonly journalService: JournalService,
     private readonly auditService: AuditService,
   ) {}
 
@@ -117,28 +115,6 @@ export class ProjectExpensesService {
         await removeLocalUpload(url);
       }
     }
-  }
-
-  private async emitExpenseJournalEntry(
-    instanceId: string,
-    expense: {
-      projectId: string;
-      status: ExpenseStatus;
-      description: string;
-    },
-  ) {
-    if (expense.status !== 'DELIVERED') return;
-
-    await this.journalService.createEntry({
-      projectId: expense.projectId,
-      instanceId,
-      timestamp: new Date().toISOString(),
-      type: 'AUTO',
-      category: 'PROGRESS',
-      title: 'Recebimento de Material',
-      description: `Entrega confirmada no canteiro: ${expense.description}. Documento fiscal vinculado ao sistema.`,
-      photoUrls: [],
-    });
   }
 
   private async emitExpenseStatusNotification(
@@ -560,12 +536,6 @@ export class ProjectExpensesService {
         },
         input.userId,
       ).catch(() => undefined);
-
-      void this.emitExpenseJournalEntry(input.instanceId, {
-        projectId: created.projectId,
-        status: created.status,
-        description: created.description,
-      }).catch(() => undefined);
     }
 
     return created;
@@ -686,12 +656,6 @@ export class ProjectExpensesService {
         },
         input.userId,
       ).catch(() => undefined);
-
-      void this.emitExpenseJournalEntry(input.instanceId, {
-        projectId: updated.projectId,
-        status: updated.status,
-        description: updated.description,
-      }).catch(() => undefined);
     }
 
     return updated;

@@ -183,17 +183,19 @@ export class JournalService {
       },
     });
 
-    await this.emitJournalEntryCreatedNotification({
-      instanceId: input.instanceId,
-      projectId: input.projectId,
-      actorUserId: input.userId,
-      entry: {
-        id: createdEntry.id,
-        title: createdEntry.title,
-        category: createdEntry.category,
-        type: createdEntry.type,
-      },
-    });
+    if (createdEntry.type !== 'AUTO') {
+      await this.emitJournalEntryCreatedNotification({
+        instanceId: input.instanceId,
+        projectId: input.projectId,
+        actorUserId: input.userId,
+        entry: {
+          id: createdEntry.id,
+          title: createdEntry.title,
+          category: createdEntry.category,
+          type: createdEntry.type,
+        },
+      });
+    }
 
     void this.auditService.log({
       instanceId: input.instanceId,
@@ -292,17 +294,19 @@ export class JournalService {
       },
     });
 
-    await this.emitJournalEntryUpdatedNotification({
-      instanceId,
-      projectId: entry.projectJournal.projectId,
-      actorUserId: userId,
-      entry: {
-        id: updatedEntry.id,
-        title: updatedEntry.title,
-        category: updatedEntry.category,
-        type: updatedEntry.type,
-      },
-    });
+    if (updatedEntry.type !== 'AUTO') {
+      await this.emitJournalEntryUpdatedNotification({
+        instanceId,
+        projectId: entry.projectJournal.projectId,
+        actorUserId: userId,
+        entry: {
+          id: updatedEntry.id,
+          title: updatedEntry.title,
+          category: updatedEntry.category,
+          type: updatedEntry.type,
+        },
+      });
+    }
 
     void this.auditService.log({
       instanceId,

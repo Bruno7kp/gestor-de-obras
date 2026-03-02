@@ -6,7 +6,6 @@ import {
   ensureProjectWritable,
 } from '../common/project-access.util';
 import { NotificationsService } from '../notifications/notifications.service';
-import { JournalService } from '../journal/journal.service';
 
 interface CreateWorkItemInput {
   id?: string;
@@ -48,25 +47,8 @@ export class WorkItemsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
-    private readonly journalService: JournalService,
     private readonly auditService: AuditService,
   ) {}
-
-  private async emitWorkItemJournalEntry(
-    instanceId: string,
-    item: { projectId: string; wbs: string; name: string },
-  ) {
-    await this.journalService.createEntry({
-      projectId: item.projectId,
-      instanceId,
-      timestamp: new Date().toISOString(),
-      type: 'AUTO',
-      category: 'PROGRESS',
-      title: `Marco de Execução: ${item.wbs}`,
-      description: `O serviço "${item.name}" foi concluído fisicamente (100% acumulado).`,
-      photoUrls: [],
-    });
-  }
 
   private chunkItems<T>(items: T[], size: number) {
     const chunks: T[][] = [];
@@ -423,7 +405,7 @@ export class WorkItemsService {
       void this.auditService.log(auditInput);
     }
 
-    // Detect completion crossings and emit notifications/journal
+    // Detect completion crossings and emit notifications
     for (const input of updates) {
       const existing = existingMap.get(input.id);
       if (!existing || existing.type !== 'item') continue;
@@ -457,11 +439,6 @@ export class WorkItemsService {
           })
           .catch(() => undefined);
 
-        void this.emitWorkItemJournalEntry(instanceId, {
-          projectId,
-          wbs: updated.wbs,
-          name: updated.name,
-        }).catch(() => undefined);
       }
     }
 
@@ -570,12 +547,6 @@ export class WorkItemsService {
           },
         })
         .catch(() => undefined);
-
-      void this.emitWorkItemJournalEntry(input.instanceId, {
-        projectId: updated.projectId,
-        wbs: updated.wbs,
-        name: updated.name,
-      }).catch(() => undefined);
     }
 
     return updated;
