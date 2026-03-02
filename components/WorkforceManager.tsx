@@ -6,6 +6,7 @@ import { treeService } from '../services/treeService';
 import { usePermissions } from '../hooks/usePermissions';
 import { ConfirmModal } from './ConfirmModal';
 import { useToast } from '../hooks/useToast';
+import { uiPreferences } from '../utils/uiPreferences';
 import { 
   Plus, Search, Trash2, Edit2, HardHat,
   X, UserCircle, Briefcase, User, ChevronDown, ChevronRight
@@ -274,6 +275,20 @@ const MemberModal = ({ member, contractors, onClose, onSave, allWorkItems }: any
   const contractorInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const workTree = useMemo(() => treeService.buildTree(allWorkItems), [allWorkItems]);
+
+  const collectCategoryIds = (nodes: WorkItem[]): string[] => {
+    return nodes.flatMap((node) => {
+      const childIds = collectCategoryIds(node.children ?? []);
+      return node.type === 'category' ? [node.id, ...childIds] : childIds;
+    });
+  };
+
+  const categoryIds = useMemo(() => collectCategoryIds(workTree as WorkItem[]), [workTree]);
+
+  const EAP_SHOW_ITEMS_KEY = 'workforce_eap_show_items';
+  const [showItems, setShowItems] = useState<boolean>(() => {
+    return uiPreferences.getString(EAP_SHOW_ITEMS_KEY) === '1';
+  });
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   const contractorSuggestions = useMemo(() => {
@@ -319,10 +334,6 @@ const MemberModal = ({ member, contractors, onClose, onSave, allWorkItems }: any
     onSave(data);
   };
 
-  useEffect(() => {
-    setExpandedIds(new Set());
-  }, [member, allWorkItems]);
-
   const getItemIds = (node: WorkItem): string[] => {
     const children = node.children ?? [];
     const childIds = children.flatMap(getItemIds);
@@ -349,24 +360,20 @@ const MemberModal = ({ member, contractors, onClose, onSave, allWorkItems }: any
     });
   };
 
-  const collectCategoryIds = (nodes: WorkItem[]): string[] => {
-    return nodes.flatMap((node) => {
-      const childIds = collectCategoryIds(node.children ?? []);
-      return node.type === 'category' ? [node.id, ...childIds] : childIds;
-    });
-  };
-
-  const categoryIds = useMemo(() => collectCategoryIds(workTree as WorkItem[]), [workTree]);
-
   const renderTreeNode = (node: WorkItem, depth: number) => {
+    const isCategory = node.type === 'category';
+
+    // When items are hidden, skip non-category leaf nodes
+    if (!isCategory && !showItems) return null;
+
     const itemIds = getItemIds(node);
     const checked = itemIds.length > 0 && itemIds.every((id) => data.linkedWorkItemIds.includes(id));
     const indeterminate =
       itemIds.length > 0 &&
       itemIds.some((id) => data.linkedWorkItemIds.includes(id)) &&
       !checked;
-    const isCategory = node.type === 'category';
     const isExpanded = isCategory && expandedIds.has(node.id);
+    const hasChildren = isCategory && (node.children?.length ?? 0) > 0;
 
     return (
       <div key={node.id} className="space-y-2">
@@ -374,7 +381,7 @@ const MemberModal = ({ member, contractors, onClose, onSave, allWorkItems }: any
           className={`flex items-center gap-3 cursor-pointer group ${itemIds.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
           style={{ marginLeft: `${depth * 1.25}rem` }}
         >
-          {isCategory ? (
+          {isCategory && hasChildren && showItems ? (
             <button
               type="button"
               className="p-1 rounded-md text-slate-400 bg-slate-100 dark:bg-slate-800 group-hover:text-indigo-600"
@@ -386,6 +393,8 @@ const MemberModal = ({ member, contractors, onClose, onSave, allWorkItems }: any
             >
               {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
             </button>
+          ) : isCategory ? (
+            <div className="w-5" />
           ) : (
             <div className="w-5" />
           )}
@@ -399,11 +408,11 @@ const MemberModal = ({ member, contractors, onClose, onSave, allWorkItems }: any
             }}
             onChange={(e) => toggleItemIds(itemIds, e.target.checked)}
           />
-          <span className={`text-[10px] font-bold ${node.type === 'category' ? 'text-slate-700 dark:text-slate-300 uppercase' : 'text-slate-600 dark:text-slate-400'} group-hover:text-indigo-600`}>
+          <span className={`text-[10px] font-bold ${isCategory ? 'text-slate-700 dark:text-slate-300 uppercase' : 'text-slate-600 dark:text-slate-400'} group-hover:text-indigo-600`}>
             {node.wbs} - {node.name}
           </span>
         </label>
-        {isExpanded && node.children?.map((child) => renderTreeNode(child, depth + 1))}
+        {isCategory && (showItems ? isExpanded : true) && node.children?.map((child) => renderTreeNode(child, depth + 1))}
       </div>
     );
   };
@@ -483,18 +492,38 @@ const MemberModal = ({ member, contractors, onClose, onSave, allWorkItems }: any
                   <div className="flex items-center gap-2 mb-3">
                     <button
                       type="button"
-                      onClick={() => setExpandedIds(new Set(categoryIds))}
-                      className="px-3 py-1.5 text-[9px] font-black uppercase text-slate-500 border rounded-lg hover:bg-slate-50"
+                      onClick={() => {
+                        const next = !showItems;
+                        setShowItems(next);
+                        uiPreferences.setString(EAP_SHOW_ITEMS_KEY, next ? '1' : '0');
+                        if (!next) setExpandedIds(new Set());
+                      }}
+                      className={`px-3 py-1.5 text-[9px] font-black uppercase border rounded-lg transition-colors ${
+                        showItems
+                          ? 'text-indigo-600 border-indigo-300 bg-indigo-50 dark:bg-indigo-900/30 dark:border-indigo-700'
+                          : 'text-slate-500 border-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 dark:border-slate-700'
+                      }`}
                     >
-                      Expandir tudo
+                      {showItems ? 'Apenas Grupos' : 'Mostrar Itens'}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setExpandedIds(new Set())}
-                      className="px-3 py-1.5 text-[9px] font-black uppercase text-slate-500 border rounded-lg hover:bg-slate-50"
-                    >
-                      Recolher
-                    </button>
+                    {showItems && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedIds(new Set(categoryIds))}
+                          className="px-3 py-1.5 text-[9px] font-black uppercase text-slate-500 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 dark:border-slate-700 transition-colors"
+                        >
+                          Expandir tudo
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedIds(new Set())}
+                          className="px-3 py-1.5 text-[9px] font-black uppercase text-slate-500 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 dark:border-slate-700 transition-colors"
+                        >
+                          Recolher
+                        </button>
+                      </>
+                    )}
                   </div>
                   <div className="max-h-[240px] overflow-y-auto border-2 border-slate-100 dark:border-slate-800 rounded-3xl p-4 bg-slate-50 dark:bg-slate-950 space-y-2">
                      {workTree.map((node: WorkItem) => renderTreeNode(node, 0))}
