@@ -51,24 +51,37 @@ docker compose --env-file .env.prod -f docker-compose.prod.prebuilt.yml up -d
 
 ### Deploy automatizado (script)
 ```bash
-./deploy.sh
+./deploy.sh deploy
 ```
 
 Exemplos úteis:
 ```bash
 # fixar uma versão específica da imagem
-./deploy.sh --tag sha-abc123
+./deploy.sh deploy --tag sha-abc123
 
 # subir sem pull (usa imagens já presentes no host)
-./deploy.sh --no-pull
+./deploy.sh deploy --no-pull
 
 # subir sem rodar migrations
-./deploy.sh --skip-migrate
+./deploy.sh deploy --skip-migrate
 ```
 
-### Migrar banco (quando necessário)
+### Manutenção pós-deploy (forma correta)
 ```bash
-docker compose --env-file .env.prod -f docker-compose.prod.prebuilt.yml exec backend npx prisma migrate deploy
+# migration manual
+./deploy.sh exec -- npx prisma migrate deploy
+
+# prisma generate
+./deploy.sh prisma-generate
+
+# seed
+./deploy.sh seed
+
+# correção de duplicados (dry-run)
+./deploy.sh fix-duplicate
+
+# aplicar correção de duplicados
+./deploy.sh fix-duplicate --apply
 ```
 
 ## 4. Maintenance & Monitoring

@@ -21,13 +21,30 @@ err() { echo -e "${RED}[deploy]${NC} $*"; }
 usage() {
   cat <<'EOF'
 Uso:
-  ./deploy.sh [--tag TAG] [--skip-migrate] [--no-pull]
+  ./deploy.sh deploy [--tag TAG] [--skip-migrate] [--no-pull]
+  ./deploy.sh exec -- <comando>
+  ./deploy.sh prisma-generate
+  ./deploy.sh seed
+  ./deploy.sh fix-duplicate [--apply]
+  ./deploy.sh status
+  ./deploy.sh logs [serviço]
 
-Opções:
+Comandos:
+  deploy            Faz pull + up + healthcheck + migrate (padrão)
+  exec              Executa comando dentro do container backend
+  prisma-generate   Roda npx prisma generate no backend
+  seed              Roda npm run prisma:seed no backend
+  fix-duplicate     Roda script de correção de forecast-expense (DRY_RUN por padrão)
+  status            Mostra status dos serviços
+  logs              Mostra logs (default: backend)
+
+Opções do deploy:
   --tag TAG         Sobrescreve IMAGE_TAG para este deploy (ex.: sha-abc123)
   --skip-migrate    Não executa prisma migrate deploy
   --no-pull         Não executa docker compose pull antes do up
-  -h, --help        Mostra esta ajuda
+
+Opções do fix-duplicate:
+  --apply           Executa sem DRY_RUN
 
 Pré-requisitos:
   - Arquivo .env.prod configurado
@@ -36,37 +53,6 @@ Pré-requisitos:
 EOF
 }
 
-TAG_OVERRIDE=""
-SKIP_MIGRATE="false"
-DO_PULL="true"
-
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --tag)
-      TAG_OVERRIDE="${2:-}"
-      [[ -n "$TAG_OVERRIDE" ]] || { err "--tag requer um valor"; exit 1; }
-      shift 2
-      ;;
-    --skip-migrate)
-      SKIP_MIGRATE="true"
-      shift
-      ;;
-    --no-pull)
-      DO_PULL="false"
-      shift
-      ;;
-    -h|--help)
-      usage
-      exit 0
-      ;;
-    *)
-      err "Argumento inválido: $1"
-      usage
-      exit 1
-      ;;
-  esac
-done
-
 [[ -f "$ENV_FILE" ]] || { err "Arquivo .env.prod não encontrado em $ENV_FILE"; exit 1; }
 [[ -f "$COMPOSE_FILE" ]] || { err "Arquivo docker-compose.prod.prebuilt.yml não encontrado"; exit 1; }
 
@@ -74,31 +60,30 @@ command -v docker >/dev/null 2>&1 || { err "docker não encontrado"; exit 1; }
 
 docker info >/dev/null 2>&1 || { err "docker não está acessível para o usuário atual"; exit 1; }
 
-set -a
-# shellcheck disable=SC1090
-source "$ENV_FILE"
-set +a
-
-if [[ -n "$TAG_OVERRIDE" ]]; then
-  export IMAGE_TAG="$TAG_OVERRIDE"
-  log "Usando IMAGE_TAG sobrescrito: $IMAGE_TAG"
-fi
-
-required_vars=(GHCR_IMAGE_PREFIX DATABASE_URL JWT_SECRET POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD CORS_ORIGINS RESEND_FROM_EMAIL)
-for var in "${required_vars[@]}"; do
-  if [[ -z "${!var:-}" ]]; then
-    err "Variável obrigatória ausente em .env.prod: $var"
-    exit 1
-  fi
-done
-
-if [[ -z "${IMAGE_TAG:-}" ]]; then
-  warn "IMAGE_TAG não definido. Usando latest"
-  export IMAGE_TAG="latest"
-fi
+load_env() {
+  set -a
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
+  set +a
+}
 
 compose() {
   docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+}
+
+require_env_vars() {
+  local required_vars=(GHCR_IMAGE_PREFIX DATABASE_URL JWT_SECRET POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD CORS_ORIGINS RESEND_FROM_EMAIL)
+  for var in "${required_vars[@]}"; do
+    if [[ -z "${!var:-}" ]]; then
+      err "Variável obrigatória ausente em .env.prod: $var"
+      exit 1
+    fi
+  done
+
+  if [[ -z "${IMAGE_TAG:-}" ]]; then
+    warn "IMAGE_TAG não definido. Usando latest"
+    export IMAGE_TAG="latest"
+  fi
 }
 
 on_error() {
@@ -109,7 +94,6 @@ on_error() {
   warn "Rollback rápido (modelo antigo com build local):"
   echo "docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml up -d --build"
 }
-trap on_error ERR
 
 wait_healthy() {
   local service="$1"
@@ -147,34 +131,161 @@ wait_healthy() {
   return 1
 }
 
-log "Validando compose"
-compose config >/dev/null
+cmd_deploy() {
+  local tag_override=""
+  local skip_migrate="false"
+  local do_pull="true"
 
-log "Estado atual dos serviços"
-compose ps || true
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --tag)
+        tag_override="${2:-}"
+        [[ -n "$tag_override" ]] || { err "--tag requer um valor"; exit 1; }
+        shift 2
+        ;;
+      --skip-migrate)
+        skip_migrate="true"
+        shift
+        ;;
+      --no-pull)
+        do_pull="false"
+        shift
+        ;;
+      -h|--help)
+        usage
+        exit 0
+        ;;
+      *)
+        err "Argumento inválido no deploy: $1"
+        usage
+        exit 1
+        ;;
+    esac
+  done
 
-if [[ "$DO_PULL" == "true" ]]; then
-  log "Baixando imagens ($GHCR_IMAGE_PREFIX, tag: $IMAGE_TAG)"
-  compose pull app backend
-else
-  warn "Pull de imagens desativado (--no-pull)"
-fi
+  load_env
+  if [[ -n "$tag_override" ]]; then
+    export IMAGE_TAG="$tag_override"
+    log "Usando IMAGE_TAG sobrescrito: $IMAGE_TAG"
+  fi
+  require_env_vars
 
-log "Subindo stack com imagens pré-buildadas"
-compose up -d
+  trap on_error ERR
 
-log "Aguardando saúde dos serviços principais"
-wait_healthy db 180
-wait_healthy backend 240
-wait_healthy app 240
-wait_healthy nginx 120 || warn "nginx não tem healthcheck; validando estado de execução"
+  log "Validando compose"
+  compose config >/dev/null
 
-if [[ "$SKIP_MIGRATE" == "false" ]]; then
-  log "Executando migrations (prisma migrate deploy)"
-  compose exec -T backend npx prisma migrate deploy
-else
-  warn "Migrations desativadas (--skip-migrate)"
-fi
+  log "Estado atual dos serviços"
+  compose ps || true
 
-ok "Deploy concluído com sucesso"
-compose ps
+  if [[ "$do_pull" == "true" ]]; then
+    log "Baixando imagens ($GHCR_IMAGE_PREFIX, tag: $IMAGE_TAG)"
+    compose pull app backend
+  else
+    warn "Pull de imagens desativado (--no-pull)"
+  fi
+
+  log "Subindo stack com imagens pré-buildadas"
+  compose up -d
+
+  log "Aguardando saúde dos serviços principais"
+  wait_healthy db 180
+  wait_healthy backend 240
+  wait_healthy app 240
+  wait_healthy nginx 120 || warn "nginx não tem healthcheck; validando estado de execução"
+
+  if [[ "$skip_migrate" == "false" ]]; then
+    log "Executando migrations (prisma migrate deploy)"
+    compose exec -T backend npx prisma migrate deploy
+  else
+    warn "Migrations desativadas (--skip-migrate)"
+  fi
+
+  ok "Deploy concluído com sucesso"
+  compose ps
+}
+
+cmd_exec() {
+  load_env
+  require_env_vars
+  if [[ "${1:-}" == "--" ]]; then shift; fi
+  [[ $# -gt 0 ]] || { err "Informe um comando para executar no backend"; exit 1; }
+  compose exec backend "$@"
+}
+
+cmd_prisma_generate() {
+  load_env
+  require_env_vars
+  compose exec -T backend npx prisma generate
+}
+
+cmd_seed() {
+  load_env
+  require_env_vars
+  compose exec -T backend npm run prisma:seed
+}
+
+cmd_fix_duplicate() {
+  load_env
+  require_env_vars
+  local mode="dry-run"
+  if [[ "${1:-}" == "--apply" ]]; then
+    mode="apply"
+  fi
+
+  if [[ "$mode" == "dry-run" ]]; then
+    compose exec -T -e DRY_RUN=1 backend npx ts-node scripts/fix-duplicate-forecast-expenses.ts
+  else
+    compose exec -T backend npx ts-node scripts/fix-duplicate-forecast-expenses.ts
+  fi
+}
+
+cmd_status() {
+  load_env
+  compose ps
+}
+
+cmd_logs() {
+  load_env
+  local service="${1:-backend}"
+  compose logs --tail=120 "$service"
+}
+
+main() {
+  local command="${1:-deploy}"
+  if [[ $# -gt 0 ]]; then shift; fi
+
+  case "$command" in
+    deploy)
+      cmd_deploy "$@"
+      ;;
+    exec)
+      cmd_exec "$@"
+      ;;
+    prisma-generate)
+      cmd_prisma_generate "$@"
+      ;;
+    seed)
+      cmd_seed "$@"
+      ;;
+    fix-duplicate)
+      cmd_fix_duplicate "$@"
+      ;;
+    status)
+      cmd_status "$@"
+      ;;
+    logs)
+      cmd_logs "$@"
+      ;;
+    -h|--help|help)
+      usage
+      ;;
+    *)
+      err "Comando inválido: $command"
+      usage
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"
