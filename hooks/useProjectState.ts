@@ -74,9 +74,13 @@ export const useProjectState = () => {
         if (!isMounted) return;
 
         setPresent(prev => {
-          const activeProjectId = projects.some(p => p.id === prev.activeProjectId)
-            ? prev.activeProjectId
-            : null;
+          const isActiveExternal = externalProjects.some(
+            (ep) => ep.projectId === prev.activeProjectId,
+          );
+          const activeProjectId =
+            projects.some(p => p.id === prev.activeProjectId) || isActiveExternal
+              ? prev.activeProjectId
+              : null;
 
           const mergedProjects = projects.map((project) => {
             const existing = prev.projects.find(p => p.id === project.id);
@@ -108,9 +112,15 @@ export const useProjectState = () => {
               : project;
           });
 
+          // Preserve external projects already loaded into state
+          const ownProjectIds = new Set(projects.map(p => p.id));
+          const externalInState = prev.projects.filter(
+            (p) => !ownProjectIds.has(p.id),
+          );
+
           return {
             ...prev,
-            projects: mergedProjects,
+            projects: [...mergedProjects, ...externalInState],
             externalProjects,
             groups,
             suppliers,
