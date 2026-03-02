@@ -11,10 +11,10 @@ import { financial } from '../utils/math';
 import { treeService } from '../services/treeService';
 import { useAuth } from '../auth/AuthContext';
 import { 
-  Briefcase, Plus, Search, Trash2, Edit2, DollarSign, Calendar, 
+  Briefcase, Plus, Search, Trash2, Edit2, Calendar, 
   CheckCircle2, Clock, AlertCircle, User, FileText, Download, X,
   TrendingUp, TrendingDown, Wallet, ChevronDown, ChevronUp, ChevronRight, CreditCard,
-  LayoutGrid, List, Table, Rows
+  LayoutGrid, List, Table, Rows, Layers
 } from 'lucide-react';
 
 type ContractViewMode = 'detailed' | 'grid' | 'table' | 'compact';
@@ -45,6 +45,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
     return saved === 'all' || saved === 'empreita' || saved === 'diaria' ? saved : 'all';
   });
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [paymentsListContractId, setPaymentsListContractId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ContractViewMode>(() => {
     const saved = localStorage.getItem(VIEW_MODE_KEY);
     if (saved === 'detailed' || saved === 'grid' || saved === 'table' || saved === 'compact') return saved;
@@ -829,7 +830,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
                 isReadOnly={isReadOnly}
                 onEdit={() => { setEditingContract(contract); setIsModalOpen(true); }}
                 onDelete={() => !isReadOnly && setConfirmDeleteId(contract.id)}
-                onAddPayment={() => handleOpenPaymentModal(contract.id)}
+                onViewPayments={() => setPaymentsListContractId(contract.id)}
               />
             ))}
           </div>
@@ -847,7 +848,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
               resolveLinkedWorkItemLabel={() => resolveLinkedWorkItemLabel(contract)}
               onEdit={() => { setEditingContract(contract); setIsModalOpen(true); }}
               onDelete={() => !isReadOnly && setConfirmDeleteId(contract.id)}
-              onAddPayment={() => handleOpenPaymentModal(contract.id)}
+              onViewPayments={() => setPaymentsListContractId(contract.id)}
             />
           ))}
         </div>
@@ -877,7 +878,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
                     isReadOnly={isReadOnly}
                     onEdit={() => { setEditingContract(contract); setIsModalOpen(true); }}
                     onDelete={() => !isReadOnly && setConfirmDeleteId(contract.id)}
-                    onAddPayment={() => handleOpenPaymentModal(contract.id)}
+                    onViewPayments={() => setPaymentsListContractId(contract.id)}
                   />
                 ))}
               </tbody>
@@ -935,6 +936,26 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
         onConfirm={() => confirmDeleteId && removeContract(confirmDeleteId)}
         onCancel={() => setConfirmDeleteId(null)}
       />
+
+      {paymentsListContractId && (() => {
+        const plContract = contracts.find(c => c.id === paymentsListContractId);
+        if (!plContract) return null;
+        return (
+          <PaymentsListModal
+            contract={plContract}
+            workforce={workforce}
+            isReadOnly={isReadOnly}
+            findExpenseForPayment={findExpenseForPayment}
+            formatLocalDate={formatLocalDate}
+            parseLocalDate={parseLocalDate}
+            getInitials={getInitials}
+            onClose={() => setPaymentsListContractId(null)}
+            onAddPayment={() => handleOpenPaymentModal(plContract.id)}
+            onEditPayment={(pag: LaborPayment) => handleOpenPaymentModal(plContract.id, pag)}
+            onDownloadProof={handleDownloadProof}
+          />
+        );
+      })()}
     </div>
   );
 };
@@ -994,7 +1015,7 @@ const PaymentModal = ({
 
   return (
     <div
-      className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in"
+      className="fixed inset-0 z-[2100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in"
       onClick={onClose}
     >
       <div
@@ -1871,7 +1892,7 @@ const ContractModal = ({ contract, workforce, workItems, isReadOnly, financialCa
   );
 };
 
-const CompactContractItem = ({ contract, workforce, isReadOnly, onEdit, onDelete, onAddPayment }: any) => {
+const CompactContractItem = ({ contract, workforce, isReadOnly, onEdit, onDelete, onViewPayments }: any) => {
   const associado = workforce.find((w: any) => w.id === contract.associadoId);
   const progress = (contract.valorPago / contract.valorTotal) * 100 || 0;
 
@@ -1909,9 +1930,7 @@ const CompactContractItem = ({ contract, workforce, isReadOnly, onEdit, onDelete
         </div>
       </div>
       <div className="flex items-center gap-2 ml-4 flex-shrink-0">
-        {!isReadOnly && (
-          <button onClick={onAddPayment} className="p-2 text-slate-400 hover:text-emerald-600 transition-colors" title="Adicionar pagamento"><Plus size={14}/></button>
-        )}
+        <button onClick={onViewPayments} className="p-2 text-slate-400 hover:text-emerald-600 transition-colors" title="Pagamentos"><Layers size={14}/></button>
         <button onClick={onEdit} disabled={isReadOnly} className={`p-2 transition-colors ${isReadOnly ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-indigo-600'}`}><Edit2 size={14}/></button>
         <button onClick={onDelete} disabled={isReadOnly} className={`p-2 transition-colors ${isReadOnly ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-rose-500'}`}><Trash2 size={14}/></button>
       </div>
@@ -1919,7 +1938,7 @@ const CompactContractItem = ({ contract, workforce, isReadOnly, onEdit, onDelete
   );
 };
 
-const GridContractCard = ({ contract, workforce, isReadOnly, resolveLinkedWorkItemLabel, onEdit, onDelete, onAddPayment }: any) => {
+const GridContractCard = ({ contract, workforce, isReadOnly, resolveLinkedWorkItemLabel, onEdit, onDelete, onViewPayments }: any) => {
   const associado = workforce.find((w: any) => w.id === contract.associadoId);
   const progress = (contract.valorPago / contract.valorTotal) * 100 || 0;
   const linkedItemLabel = resolveLinkedWorkItemLabel?.();
@@ -1944,9 +1963,7 @@ const GridContractCard = ({ contract, workforce, isReadOnly, resolveLinkedWorkIt
           </span>
         </div>
         <div className="flex gap-1">
-          {!isReadOnly && (
-            <button onClick={onAddPayment} className="p-1.5 text-slate-400 hover:text-emerald-600 transition-colors" title="Adicionar pagamento"><Plus size={12}/></button>
-          )}
+          <button onClick={onViewPayments} className="p-1.5 text-slate-400 hover:text-emerald-600 transition-colors" title="Pagamentos"><Layers size={12}/></button>
           <button onClick={onEdit} disabled={isReadOnly} className={`p-1.5 transition-colors ${isReadOnly ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-indigo-600'}`}><Edit2 size={12}/></button>
           <button onClick={onDelete} disabled={isReadOnly} className={`p-1.5 transition-colors ${isReadOnly ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-rose-500'}`}><Trash2 size={12}/></button>
         </div>
@@ -1978,7 +1995,7 @@ const GridContractCard = ({ contract, workforce, isReadOnly, resolveLinkedWorkIt
   );
 };
 
-const TableContractRow = ({ contract, workforce, isReadOnly, onEdit, onDelete, onAddPayment }: any) => {
+const TableContractRow = ({ contract, workforce, isReadOnly, onEdit, onDelete, onViewPayments }: any) => {
   const associado = workforce.find((w: any) => w.id === contract.associadoId);
 
   return (
@@ -2020,14 +2037,206 @@ const TableContractRow = ({ contract, workforce, isReadOnly, onEdit, onDelete, o
       </td>
       <td className="px-6 py-4 text-center">
         <div className="flex items-center justify-center gap-2">
-          {!isReadOnly && (
-            <button onClick={onAddPayment} className="p-2 text-slate-400 hover:text-emerald-600 transition-colors" title="Adicionar pagamento"><Plus size={14}/></button>
-          )}
+          <button onClick={onViewPayments} className="p-2 text-slate-400 hover:text-emerald-600 transition-colors" title="Pagamentos"><Layers size={14}/></button>
           <button onClick={onEdit} disabled={isReadOnly} className={`p-2 transition-colors ${isReadOnly ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-indigo-600'}`}><Edit2 size={14}/></button>
           <button onClick={onDelete} disabled={isReadOnly} className={`p-2 transition-colors ${isReadOnly ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-rose-500'}`}><Trash2 size={14}/></button>
         </div>
       </td>
     </tr>
+  );
+};
+
+const PaymentsListModal = ({
+  contract,
+  workforce,
+  isReadOnly,
+  findExpenseForPayment,
+  formatLocalDate,
+  parseLocalDate,
+  getInitials,
+  onClose,
+  onAddPayment,
+  onEditPayment,
+  onDownloadProof,
+}: any) => {
+  const associado = workforce.find((w: any) => w.id === contract.associadoId);
+  const progress = (contract.valorPago / contract.valorTotal) * 100 || 0;
+  const sorted = [...contract.pagamentos].sort(
+    (a: any, b: any) => parseLocalDate(b.data).getTime() - parseLocalDate(a.data).getTime()
+  );
+
+  return (
+    <div
+      className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col max-h-[85vh]"
+        onClick={(e: any) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="p-8 pb-0">
+          <div className="flex items-start justify-between mb-2">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-lg font-black dark:text-white uppercase tracking-tight truncate">{contract.descricao}</h2>
+              <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">
+                {associado?.nome || 'Sem associado'} • {contract.tipo}
+              </p>
+            </div>
+            <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 transition-colors">
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* Mini stats */}
+          <div className="grid grid-cols-3 gap-3 my-5">
+            <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-2xl">
+              <p className="text-[8px] font-black text-slate-400 uppercase">Valor Total</p>
+              <p className="text-sm font-black text-slate-800 dark:text-white">
+                R$ {contract.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+            <div className="bg-emerald-50 dark:bg-emerald-900/20 p-3 rounded-2xl">
+              <p className="text-[8px] font-black text-emerald-600 uppercase">Pago</p>
+              <p className="text-sm font-black text-emerald-600">
+                R$ {contract.valorPago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+            <div className="bg-amber-50 dark:bg-amber-900/20 p-3 rounded-2xl">
+              <p className="text-[8px] font-black text-amber-600 uppercase">A Pagar</p>
+              <p className="text-sm font-black text-amber-600">
+                R$ {(contract.valorTotal - contract.valorPago).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+          </div>
+
+          {/* Progress */}
+          <div className="mb-5">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-[8px] font-black text-slate-400 uppercase">Progresso</span>
+              <span className="text-xs font-black text-indigo-600">{progress.toFixed(1)}%</span>
+            </div>
+            <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-indigo-500 to-indigo-600 transition-all duration-500"
+                style={{ width: `${Math.min(progress, 100)}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Title + Add */}
+          <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+            <h4 className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-2">
+              <FileText size={12} /> Pagamentos ({contract.pagamentos.length})
+            </h4>
+            {!isReadOnly && (
+              <button
+                type="button"
+                onClick={onAddPayment}
+                className="flex items-center gap-1 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest bg-indigo-600 text-white hover:scale-105 transition-all"
+              >
+                <Plus size={12} /> Adicionar
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Payment list */}
+        <div className="flex-1 overflow-y-auto px-8 py-4 custom-scrollbar">
+          {sorted.length === 0 ? (
+            <div className="text-center py-12 text-slate-400 text-sm">
+              Nenhum pagamento registrado
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {sorted.map((pag: any) => {
+                const linkedExpense = findExpenseForPayment(pag.id);
+                const isPaid = !!linkedExpense && (linkedExpense.isPaid || linkedExpense.status === 'PAID');
+                return (
+                  <div
+                    key={pag.id}
+                    className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl"
+                  >
+                    <div className="flex items-center gap-3">
+                      {isPaid ? (
+                        <CheckCircle2 size={14} className="text-emerald-500" />
+                      ) : (
+                        <Clock size={14} className="text-amber-500" />
+                      )}
+                      <div>
+                        <p className="text-xs font-bold text-slate-800 dark:text-white">
+                          {pag.descricao || 'Pagamento'}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2 text-[9px] text-slate-400">
+                          <span>{formatLocalDate(pag.data)}</span>
+                          {pag.createdBy?.name && (
+                            <span className="flex items-center gap-2">
+                              {pag.createdBy.profileImage ? (
+                                <img
+                                  src={pag.createdBy.profileImage}
+                                  alt={pag.createdBy.name}
+                                  className="w-5 h-5 rounded-full object-cover border border-slate-200"
+                                />
+                              ) : (
+                                <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[9px] font-black">
+                                  {getInitials(pag.createdBy.name)}
+                                </span>
+                              )}
+                              <span>Cadastrado por {pag.createdBy.name}</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {pag.comprovante && (
+                        <button
+                          type="button"
+                          onClick={() => onDownloadProof(
+                            pag.comprovante,
+                            `COMPR_${contract.descricao}_${pag.descricao || 'Pagamento'}`
+                          )}
+                          className="p-1.5 text-blue-500 hover:text-blue-700 rounded-lg"
+                          title="Baixar comprovante"
+                        >
+                          <Download size={14} />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => onEditPayment(pag)}
+                        disabled={isReadOnly}
+                        className={`p-1.5 rounded-lg ${
+                          isReadOnly
+                            ? 'text-slate-300 cursor-not-allowed'
+                            : 'text-slate-400 hover:text-indigo-600'
+                        }`}
+                        title="Editar pagamento"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                      <p className="text-sm font-black text-emerald-600">
+                        R$ {pag.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-8 pt-4 border-t border-slate-100 dark:border-slate-800">
+          <button
+            onClick={onClose}
+            className="w-full py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors"
+          >
+            Fechar
+          </button>
+        </div>
+      </div>
+    </div>
   );
 };
 
