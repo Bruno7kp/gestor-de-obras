@@ -19,6 +19,41 @@
 2. **Build Command:** `npm run build` (standard React build).
 3. **Environment:** `VITE_API_URL` pointing to the backend load balancer.
 
+## 3.1 CI Pipeline (GitHub Actions)
+- Workflow: `.github/workflows/docker-images.yml`
+- Trigger: `push` na branch `main` e execução manual (`workflow_dispatch`).
+- Registry: GHCR (`ghcr.io/<owner>/<repo>/app` e `ghcr.io/<owner>/<repo>/backend`).
+- Tags publicadas: `latest` (apenas branch padrão), `sha-<commit>` e `<branch>`.
+- Cache de build habilitado com GitHub Actions cache (`type=gha`) para acelerar builds.
+
+### Configuração necessária no GitHub
+- **Actions permissions do repositório:** permitir leitura/escrita em packages.
+- **Variable de ambiente do repositório:** `VITE_API_URL`.
+- O `GITHUB_TOKEN` padrão já é usado para autenticar no GHCR.
+
+## 3.2 Deploy no servidor sem build (recomendado)
+Use `docker-compose.prod.prebuilt.yml` para consumir imagens já buildadas pelo pipeline.
+
+### Variáveis adicionais no `.env.prod`
+- `GHCR_IMAGE_PREFIX=ghcr.io/<owner>/<repo>`
+- `IMAGE_TAG=latest` (ou `sha-<commit>` para fixar versão)
+
+### Login no GHCR (uma vez por servidor)
+```bash
+echo "$GHCR_PAT" | docker login ghcr.io -u <owner> --password-stdin
+```
+
+### Deploy
+```bash
+docker compose --env-file .env.prod -f docker-compose.prod.prebuilt.yml pull app backend
+docker compose --env-file .env.prod -f docker-compose.prod.prebuilt.yml up -d
+```
+
+### Migrar banco (quando necessário)
+```bash
+docker compose --env-file .env.prod -f docker-compose.prod.prebuilt.yml exec backend npx prisma migrate deploy
+```
+
 ## 4. Maintenance & Monitoring
 - **Logs:** Winston or Pino for JSON logs.
 - **APM:** Sentry for frontend error tracking.
