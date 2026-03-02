@@ -1,13 +1,14 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Contractor } from '../types';
 import { 
   Plus, Search,
   Building2, MapPin, FileText,
   Phone, Mail, User, Trash2, Edit2, 
   CreditCard, Briefcase, CheckCircle2, XCircle,
-  X, Landmark
+  X, Landmark, Globe
 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { ConfirmModal } from './ConfirmModal';
 import { contractorsApi } from '../services/contractorsApi';
 import { usePermissions } from '../hooks/usePermissions';
@@ -18,10 +19,49 @@ interface ContractorManagerProps {
   onUpdateContractors: (list: Contractor[]) => void;
 }
 
-export const ContractorManager: React.FC<ContractorManagerProps> = ({ contractors, onUpdateContractors }) => {
+export const ContractorManager: React.FC<ContractorManagerProps> = ({ contractors: homeContractors, onUpdateContractors }) => {
   const { getLevel } = usePermissions();
-  const canEdit = getLevel('workforce') === 'edit';
+  const [searchParams] = useSearchParams();
   const toast = useToast();
+
+  // Cross-instance support
+  const externalInstanceId = searchParams.get('instanceId') || undefined;
+  const externalInstanceName = searchParams.get('instanceName') || undefined;
+  const isExternal = !!externalInstanceId;
+
+  const [externalContractors, setExternalContractors] = useState<Contractor[]>([]);
+  const [externalLoading, setExternalLoading] = useState(false);
+
+  const loadExternalContractors = useCallback(async () => {
+    if (!externalInstanceId) return;
+    setExternalLoading(true);
+    try {
+      const list = await contractorsApi.listByInstance(externalInstanceId);
+      setExternalContractors(list);
+    } catch {
+      setExternalContractors([]);
+      toast.error('Falha ao carregar prestadores da instância externa');
+    } finally {
+      setExternalLoading(false);
+    }
+  }, [externalInstanceId]);
+
+  useEffect(() => {
+    if (isExternal) loadExternalContractors();
+  }, [isExternal, loadExternalContractors]);
+
+  const contractors = isExternal ? externalContractors : homeContractors;
+  const externalCanEdit = searchParams.get('canEdit') === '1';
+  const canEdit = isExternal ? externalCanEdit : getLevel('workforce') === 'edit';
+
+  // Unified update: routes to external state or home state
+  const updateContractors = useCallback((list: Contractor[]) => {
+    if (isExternal) {
+      setExternalContractors(list);
+    } else {
+      onUpdateContractors(list);
+    }
+  }, [isExternal, onUpdateContractors]);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingContractor, setEditingContractor] = useState<Contractor | null>(null);
@@ -46,16 +86,16 @@ export const ContractorManager: React.FC<ContractorManagerProps> = ({ contractor
     if (editingContractor) {
       const previous = [...contractors];
       const optimistic = contractors.map(c => c.id === editingContractor.id ? { ...c, ...data } : c);
-      onUpdateContractors(optimistic);
+      updateContractors(optimistic);
       setIsModalOpen(false);
       setEditingContractor(null);
 
       try {
-        const updated = await contractorsApi.update(editingContractor.id, data);
-        onUpdateContractors(contractors.map(c => c.id === editingContractor.id ? updated : c));
+        const updated = await contractorsApi.update(editingContractor.id, { ...data, instanceId: externalInstanceId });
+        updateContractors(contractors.map(c => c.id === editingContractor.id ? updated : c));
         toast.success('Prestador atualizado');
       } catch {
-        onUpdateContractors(previous);
+        updateContractors(previous);
         toast.error('Falha ao atualizar prestador');
       }
     } else {
@@ -80,7 +120,7 @@ export const ContractorManager: React.FC<ContractorManagerProps> = ({ contractor
       };
 
       const previous = [...contractors];
-      onUpdateContractors([...contractors, newContractor]);
+      updateContractors([...contractors, newContractor]);
       setIsModalOpen(false);
       setEditingContractor(null);
 
@@ -101,11 +141,12 @@ export const ContractorManager: React.FC<ContractorManagerProps> = ({ contractor
           pixKey: newContractor.pixKey,
           notes: newContractor.notes,
           order: newContractor.order,
+          instanceId: externalInstanceId,
         });
-        onUpdateContractors([...contractors, created]);
+        updateContractors([...contractors, created]);
         toast.success('Prestador cadastrado');
       } catch {
-        onUpdateContractors(previous);
+        updateContractors(previous);
         toast.error('Falha ao cadastrar prestador');
       }
     }
@@ -113,14 +154,14 @@ export const ContractorManager: React.FC<ContractorManagerProps> = ({ contractor
 
   const handleDelete = async (id: string) => {
     const previous = [...contractors];
-    onUpdateContractors(contractors.filter(c => c.id !== id));
+    updateContractors(contractors.filter(c => c.id !== id));
     setConfirmDeleteId(null);
 
     try {
-      await contractorsApi.remove(id);
+      await contractorsApi.remove(id, externalInstanceId);
       toast.success('Prestador removido');
     } catch {
-      onUpdateContractors(previous);
+      updateContractors(previous);
       toast.error('Falha ao remover prestador');
     }
   };
@@ -130,8 +171,15 @@ export const ContractorManager: React.FC<ContractorManagerProps> = ({ contractor
       <header className="p-8 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-black tracking-tight text-slate-800 dark:text-white uppercase">Prestadores</h1>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Gestão de Prestadores de Serviço e Empreiteiros</p>
+            <h1 className="text-2xl font-black tracking-tight text-slate-800 dark:text-white uppercase">
+              Prestadores
+              {isExternal && externalInstanceName && (
+                <span className="text-lg text-amber-600 dark:text-amber-400 ml-2">— {externalInstanceName}</span>
+              )}
+            </h1>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+              Gestão de Prestadores de Serviço e Empreiteiros
+            </p>
           </div>
           {canEdit && (
             <button 
@@ -142,6 +190,22 @@ export const ContractorManager: React.FC<ContractorManagerProps> = ({ contractor
             </button>
           )}
         </div>
+
+        {isExternal && externalInstanceName && (
+          <div className="flex items-center gap-3 px-5 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl mb-6">
+            <Globe size={16} className="text-amber-600 dark:text-amber-400 shrink-0" />
+            <div className="flex-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-400">
+                Prestadores da instância: {externalInstanceName}
+              </p>
+              <p className="text-[9px] text-amber-600/70 dark:text-amber-400/70 font-medium mt-0.5">
+                {canEdit
+                  ? 'Você tem permissão para editar os prestadores desta instância.'
+                  : 'Visualização dos prestadores de outra empresa (somente leitura).'}
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-700 flex items-center gap-4">
@@ -327,7 +391,7 @@ export const ContractorManager: React.FC<ContractorManagerProps> = ({ contractor
       )}
 
       <ConfirmModal
-        open={!!confirmDeleteId}
+        isOpen={!!confirmDeleteId}
         title="Excluir Prestador"
         message="Deseja realmente excluir este prestador? Os membros de equipe vinculados perderão o vínculo."
         variant="danger"

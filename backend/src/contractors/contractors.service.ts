@@ -109,11 +109,7 @@ export class ContractorsService {
    * or creates a new one with minimal data. Used by the workforce autocomplete
    * to auto-create contractors when a new name is typed.
    */
-  async findOrCreate(
-    name: string,
-    instanceId: string,
-    userId?: string,
-  ) {
+  async findOrCreate(name: string, instanceId: string, userId?: string) {
     const trimmed = name.trim();
     if (!trimmed) {
       throw new NotFoundException('Nome do prestador não pode ser vazio');
@@ -178,8 +174,7 @@ export class ContractorsService {
           bankName: input.bankName ?? existing.bankName,
           bankAgency: input.bankAgency ?? existing.bankAgency,
           bankAccount: input.bankAccount ?? existing.bankAccount,
-          pixKey:
-            input.pixKey !== undefined ? input.pixKey : existing.pixKey,
+          pixKey: input.pixKey !== undefined ? input.pixKey : existing.pixKey,
           notes: input.notes ?? existing.notes,
           order: input.order ?? existing.order,
           updatedById: input.userId ?? null,

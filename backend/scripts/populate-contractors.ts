@@ -24,6 +24,7 @@ const DRY_RUN = process.env.DRY_RUN === '1' || process.env.DRY_RUN === 'true';
 async function main() {
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   const adapter = new PrismaPg(pool);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   const prisma = new PrismaClient({ adapter } as any);
 
   console.log(`\n🔧 populate-contractors.ts  (DRY_RUN=${DRY_RUN})\n`);
@@ -43,7 +44,9 @@ async function main() {
     },
   });
 
-  console.log(`Found ${members.length} workforce members with empresa_vinculada and no contractorId.\n`);
+  console.log(
+    `Found ${members.length} workforce members with empresa_vinculada and no contractorId.\n`,
+  );
 
   if (members.length === 0) {
     console.log('Nothing to do.');
@@ -53,7 +56,10 @@ async function main() {
   }
 
   // 2. Group by (instanceId, normalised name)
-  const groups = new Map<string, { instanceId: string; originalName: string; memberIds: string[] }>();
+  const groups = new Map<
+    string,
+    { instanceId: string; originalName: string; memberIds: string[] }
+  >();
 
   for (const m of members) {
     const instanceId = m.project.instanceId;
@@ -77,6 +83,7 @@ async function main() {
     const existing = await prisma.contractor.findFirst({
       where: {
         instanceId: group.instanceId,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         name: { equals: group.originalName, mode: 'insensitive' as any },
       },
     });
@@ -86,11 +93,15 @@ async function main() {
     if (existing) {
       contractorId = existing.id;
       contractorsReused++;
-      console.log(`  ♻ Reuse contractor "${existing.name}" (${contractorId}) for instance ${group.instanceId}`);
+      console.log(
+        `  ♻ Reuse contractor "${existing.name}" (${contractorId}) for instance ${group.instanceId}`,
+      );
     } else {
       if (DRY_RUN) {
         contractorId = `<dry-run-${key}>`;
-        console.log(`  + [DRY] Would create contractor "${group.originalName}" for instance ${group.instanceId}`);
+        console.log(
+          `  + [DRY] Would create contractor "${group.originalName}" for instance ${group.instanceId}`,
+        );
       } else {
         const created = await prisma.contractor.create({
           data: {
@@ -101,7 +112,9 @@ async function main() {
           },
         });
         contractorId = created.id;
-        console.log(`  ✓ Created contractor "${created.name}" (${contractorId}) for instance ${group.instanceId}`);
+        console.log(
+          `  ✓ Created contractor "${created.name}" (${contractorId}) for instance ${group.instanceId}`,
+        );
       }
       contractorsCreated++;
     }
@@ -109,13 +122,17 @@ async function main() {
     // 4. Link WorkforceMembers
     for (const memberId of group.memberIds) {
       if (DRY_RUN) {
-        console.log(`    [DRY] Would link member ${memberId} → contractor ${contractorId}`);
+        console.log(
+          `    [DRY] Would link member ${memberId} → contractor ${contractorId}`,
+        );
       } else {
         await prisma.workforceMember.update({
           where: { id: memberId },
           data: { contractorId },
         });
-        console.log(`    ✓ Linked member ${memberId} → contractor ${contractorId}`);
+        console.log(
+          `    ✓ Linked member ${memberId} → contractor ${contractorId}`,
+        );
       }
       membersLinked++;
     }
@@ -125,7 +142,10 @@ async function main() {
   console.log(`Contractors created: ${contractorsCreated}`);
   console.log(`Contractors reused:  ${contractorsReused}`);
   console.log(`Members linked:      ${membersLinked}`);
-  if (DRY_RUN) console.log(`\n⚠ DRY RUN — no changes were applied. Run without DRY_RUN=1 to apply.`);
+  if (DRY_RUN)
+    console.log(
+      `\n⚠ DRY RUN — no changes were applied. Run without DRY_RUN=1 to apply.`,
+    );
   console.log();
 
   await prisma.$disconnect();

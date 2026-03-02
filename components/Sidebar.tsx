@@ -292,6 +292,46 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       />
                     </div>
                   )}
+                  {/* Fornecedores link for this instance — show if any project grants suppliers permission */}
+                  {(() => {
+                    const instProjects = projectsByInstance[instanceName] ?? [];
+                    const hasSuppliersView = instProjects.some(ep =>
+                      ep.assignedRole.permissions.some((p: string) => p.startsWith('suppliers.'))
+                    );
+                    const hasSuppliersEdit = instProjects.some(ep =>
+                      ep.assignedRole.permissions.includes('suppliers.edit')
+                    );
+                    const instId = instProjects[0]?.instanceId || stockInst?.instanceId;
+                    if (!hasSuppliersView || !instId) return null;
+                    return (
+                      <NavItem
+                        active={location.pathname.startsWith('/app/suppliers') && new URLSearchParams(location.search).get('instanceId') === instId}
+                        onClick={() => { navigate(`/app/suppliers?instanceId=${instId}&instanceName=${encodeURIComponent(instanceName)}${hasSuppliersEdit ? '&canEdit=1' : ''}`); setMobileOpen(false); }}
+                        icon={<Truck size={sidebarOpen ? 16 : 18}/>}
+                        label={sidebarOpen ? 'Fornecedores' : ''}
+                      />
+                    );
+                  })()}
+                  {/* Prestadores link for this instance — show if any project grants workforce permission */}
+                  {(() => {
+                    const instProjects = projectsByInstance[instanceName] ?? [];
+                    const hasWorkforceView = instProjects.some(ep =>
+                      ep.assignedRole.permissions.some((p: string) => p.startsWith('workforce.'))
+                    );
+                    const hasWorkforceEdit = instProjects.some(ep =>
+                      ep.assignedRole.permissions.includes('workforce.edit')
+                    );
+                    const instId = instProjects[0]?.instanceId || stockInst?.instanceId;
+                    if (!hasWorkforceView || !instId) return null;
+                    return (
+                      <NavItem
+                        active={location.pathname.startsWith('/app/contractors') && new URLSearchParams(location.search).get('instanceId') === instId}
+                        onClick={() => { navigate(`/app/contractors?instanceId=${instId}&instanceName=${encodeURIComponent(instanceName)}${hasWorkforceEdit ? '&canEdit=1' : ''}`); setMobileOpen(false); }}
+                        icon={<Users size={sidebarOpen ? 16 : 18}/>}
+                        label={sidebarOpen ? 'Prestadores' : ''}
+                      />
+                    );
+                  })()}
                   {/* Project links for this instance */}
                   {projects.map((ep) => (
                     <button

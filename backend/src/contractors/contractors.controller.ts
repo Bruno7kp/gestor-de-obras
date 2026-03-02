@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -11,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ContractorsService } from './contractors.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { Roles } from '../auth/roles.decorator';
 import { HasPermission } from '../auth/permissions.decorator';
 import type { AuthenticatedRequest } from '../auth/auth.types';
@@ -31,6 +33,7 @@ interface CreateContractorBody {
   pixKey?: string;
   notes?: string;
   order?: number;
+  instanceId?: string;
 }
 
 type UpdateContractorBody = Partial<CreateContractorBody>;
@@ -39,7 +42,30 @@ type UpdateContractorBody = Partial<CreateContractorBody>;
 @UseGuards(AuthGuard('jwt'))
 @Roles('USER', 'ADMIN', 'SUPER_ADMIN')
 export class ContractorsController {
-  constructor(private readonly contractorsService: ContractorsService) {}
+  constructor(
+    private readonly contractorsService: ContractorsService,
+    private readonly prisma: PrismaService,
+  ) {}
+
+  /**
+   * Resolve effective instanceId. When body.instanceId is provided and differs
+   * from the user's home instance, verify cross-instance membership.
+   */
+  private async resolveInstanceId(
+    bodyInstanceId: string | undefined,
+    req: AuthenticatedRequest,
+  ): Promise<string> {
+    const effectiveId = bodyInstanceId || req.user.instanceId;
+    if (effectiveId !== req.user.instanceId) {
+      const count = await this.prisma.projectMember.count({
+        where: { userId: req.user.id, project: { instanceId: effectiveId } },
+      });
+      if (count === 0) {
+        throw new ForbiddenException('Sem acesso a esta instância');
+      }
+    }
+    return effectiveId;
+  }
 
   @Get()
   findAll(@Req() req: AuthenticatedRequest) {
@@ -51,10 +77,7 @@ export class ContractorsController {
     @Param('instanceId') instanceId: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.contractorsService.findAllByInstance(
-      instanceId,
-      req.user.id,
-    );
+    return this.contractorsService.findAllByInstance(instanceId, req.user.id);
   }
 
   @Get(':id')
@@ -64,13 +87,14 @@ export class ContractorsController {
 
   @Post()
   @HasPermission('workforce.edit')
-  create(
+  async create(
     @Body() body: CreateContractorBody,
     @Req() req: AuthenticatedRequest,
   ) {
+    const instanceId = await this.resolveInstanceId(body.instanceId, req);
     return this.contractorsService.create({
       ...body,
-      instanceId: req.user.instanceId,
+      instanceId,
       userId: req.user.id,
     });
   }
@@ -81,10 +105,7 @@ export class ContractorsController {
    */
   @Post('ensure')
   @HasPermission('workforce.edit')
-  ensure(
-    @Body() body: { name: string },
-    @Req() req: AuthenticatedRequest,
-  ) {
+  ensure(@Body() body: { name: string }, @Req() req: AuthenticatedRequest) {
     return this.contractorsService.findOrCreate(
       body.name,
       req.user.instanceId,
@@ -94,39 +115,43 @@ export class ContractorsController {
 
   @Patch('batch-reorder')
   @HasPermission('workforce.edit')
-  batchReorder(
-    @Body() body: { items: Array<{ id: string; order: number }> },
+  async batchReorder(
+    @Body()
+    body: { items: Array<{ id: string; order: number }>; instanceId?: string },
     @Req() req: AuthenticatedRequest,
   ) {
+    const instanceId = await this.resolveInstanceId(body.instanceId, req);
     return this.contractorsService.batchReorder(
       body.items,
-      req.user.instanceId,
+      instanceId,
       req.user.id,
     );
   }
 
   @Patch(':id')
   @HasPermission('workforce.edit')
-  update(
+  async update(
     @Param('id') id: string,
     @Body() body: UpdateContractorBody,
     @Req() req: AuthenticatedRequest,
   ) {
+    const instanceId = await this.resolveInstanceId(body.instanceId, req);
     return this.contractorsService.update({
       ...body,
       id,
-      instanceId: req.user.instanceId,
+      instanceId,
       userId: req.user.id,
     });
   }
 
   @Delete(':id')
   @HasPermission('workforce.edit')
-  remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    return this.contractorsService.remove(
-      id,
-      req.user.instanceId,
-      req.user.id,
-    );
+  async remove(
+    @Param('id') id: string,
+    @Body() body: { instanceId?: string },
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const instanceId = await this.resolveInstanceId(body?.instanceId, req);
+    return this.contractorsService.remove(id, instanceId, req.user.id);
   }
 }

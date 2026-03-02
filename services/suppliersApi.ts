@@ -33,7 +33,7 @@ export const suppliersApi = {
     return Array.isArray(data) ? data : [];
   },
 
-  async create(input: SupplierInput): Promise<Supplier> {
+  async create(input: SupplierInput & { instanceId?: string }): Promise<Supplier> {
     const response = await fetch(`${API_BASE}/suppliers`, {
       method: 'POST',
       headers: {
@@ -50,7 +50,7 @@ export const suppliersApi = {
     return response.json();
   },
 
-  async update(id: string, input: SupplierPatch): Promise<Supplier> {
+  async update(id: string, input: SupplierPatch & { instanceId?: string }): Promise<Supplier> {
     const response = await fetch(`${API_BASE}/suppliers/${id}`, {
       method: 'PATCH',
       headers: {
@@ -67,12 +67,12 @@ export const suppliersApi = {
     return response.json();
   },
 
-  async batchReorder(items: Array<{ id: string; order: number }>): Promise<void> {
+  async batchReorder(items: Array<{ id: string; order: number }>, instanceId?: string): Promise<void> {
     const response = await fetch(`${API_BASE}/suppliers/batch-reorder`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ items }),
+      body: JSON.stringify({ items, ...(instanceId && { instanceId }) }),
     });
 
     if (!response.ok) {
@@ -80,10 +80,14 @@ export const suppliersApi = {
     }
   },
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, instanceId?: string): Promise<void> {
     const response = await fetch(`${API_BASE}/suppliers/${id}`, {
       method: 'DELETE',
       credentials: 'include',
+      ...(instanceId && {
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ instanceId }),
+      }),
     });
 
     if (!response.ok) {

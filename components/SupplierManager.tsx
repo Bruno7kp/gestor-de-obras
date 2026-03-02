@@ -1,11 +1,12 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Project, Supplier } from '../types';
 import { 
   Truck, Search, Plus, Phone, Mail,
   Trash2, Edit2, GripVertical, Building2, Filter,
-  Boxes, Download, UploadCloud, X, Loader2
+  Boxes, Download, UploadCloud, X, Loader2, Globe
 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { SupplierModal } from './SupplierModal';
 import { ConfirmModal } from './ConfirmModal';
@@ -23,10 +24,49 @@ interface SupplierManagerProps {
   onUpdateSuppliers: (list: Supplier[]) => void;
 }
 
-export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, projects, onUpdateSuppliers }) => {
+export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers: homeSuppliers, projects, onUpdateSuppliers }) => {
   const { getLevel } = usePermissions();
-  const canEditSuppliers = getLevel('suppliers') === 'edit';
+  const [searchParams] = useSearchParams();
   const toast = useToast();
+
+  // Cross-instance support
+  const externalInstanceId = searchParams.get('instanceId') || undefined;
+  const externalInstanceName = searchParams.get('instanceName') || undefined;
+  const isExternal = !!externalInstanceId;
+
+  const [externalSuppliers, setExternalSuppliers] = useState<Supplier[]>([]);
+  const [externalLoading, setExternalLoading] = useState(false);
+
+  const loadExternalSuppliers = useCallback(async () => {
+    if (!externalInstanceId) return;
+    setExternalLoading(true);
+    try {
+      const list = await suppliersApi.listByInstance(externalInstanceId);
+      setExternalSuppliers(list);
+    } catch {
+      setExternalSuppliers([]);
+      toast.error('Falha ao carregar fornecedores da instância externa');
+    } finally {
+      setExternalLoading(false);
+    }
+  }, [externalInstanceId]);
+
+  useEffect(() => {
+    if (isExternal) loadExternalSuppliers();
+  }, [isExternal, loadExternalSuppliers]);
+
+  const suppliers = isExternal ? externalSuppliers : homeSuppliers;
+  const externalCanEdit = searchParams.get('canEdit') === '1';
+  const canEditSuppliers = isExternal ? externalCanEdit : getLevel('suppliers') === 'edit';
+
+  // Unified update: routes to external state or home state
+  const updateSuppliers = useCallback((list: Supplier[]) => {
+    if (isExternal) {
+      setExternalSuppliers(list);
+    } else {
+      onUpdateSuppliers(list);
+    }
+  }, [isExternal, onUpdateSuppliers]);
   const [search, setSearch] = useState('');
   const supplierFilterKey = 'suppliers_filter';
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | Supplier['category']>(() => {
@@ -157,14 +197,14 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, pro
       items.splice(result.destination.index, 0, reorderedItem);
       // Fixed: Casting item to Supplier to satisfy "Spread types may only be created from object types" check
       const updated = items.map((item, index) => ({ ...(item as Supplier), order: index }));
-      onUpdateSuppliers(updated);
+      updateSuppliers(updated);
       const changed = updated.filter((item) => item.order !== previous.find((p) => p.id === item.id)?.order);
 
       try {
-        await suppliersApi.batchReorder(changed.map((item) => ({ id: item.id, order: item.order })));
+        await suppliersApi.batchReorder(changed.map((item) => ({ id: item.id, order: item.order })), externalInstanceId);
       } catch (error) {
         console.error('Erro ao reordenar fornecedores:', error);
-        onUpdateSuppliers(previous);
+        updateSuppliers(previous);
       }
     }
   };
@@ -172,13 +212,13 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, pro
   const handleDelete = async (id: string) => {
     setConfirmDeleteId(null);
     const previous = suppliers;
-    onUpdateSuppliers(suppliers.filter(s => s.id !== id));
+    updateSuppliers(suppliers.filter(s => s.id !== id));
     try {
-      await suppliersApi.remove(id);
+      await suppliersApi.remove(id, externalInstanceId);
       toast.success('Fornecedor removido com sucesso.');
     } catch (error) {
       console.error('Erro ao remover fornecedor:', error);
-      onUpdateSuppliers(previous);
+      updateSuppliers(previous);
       toast.error('Erro ao remover fornecedor.');
     }
   };
@@ -189,13 +229,13 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, pro
       const targetId = editingSupplier.id;
       const previous = suppliers;
       const updatedList = suppliers.map(s => s.id === targetId ? { ...s, ...data, rating: s.rating ?? 0 } : s);
-      onUpdateSuppliers(updatedList);
+      updateSuppliers(updatedList);
       try {
-        const updated = await suppliersApi.update(targetId, { ...data, rating: editingSupplier.rating ?? 0 });
-        onUpdateSuppliers(updatedList.map((item) => (item.id === targetId ? updated : item)));
+        const updated = await suppliersApi.update(targetId, { ...data, rating: editingSupplier.rating ?? 0, instanceId: externalInstanceId });
+        updateSuppliers(updatedList.map((item) => (item.id === targetId ? updated : item)));
       } catch (error) {
         console.error('Erro ao atualizar fornecedor:', error);
-        onUpdateSuppliers(previous);
+        updateSuppliers(previous);
       }
     } else {
       // Fix: Simplified assignment and removed redundant casting
@@ -212,7 +252,7 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, pro
         order: suppliers.length,
       };
       const nextSuppliers = [...suppliers, newSupplier];
-      onUpdateSuppliers(nextSuppliers);
+      updateSuppliers(nextSuppliers);
       try {
         const created = await suppliersApi.create({
           name: newSupplier.name,
@@ -224,8 +264,9 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, pro
           rating: 0,
           notes: newSupplier.notes,
           order: newSupplier.order,
+          instanceId: externalInstanceId,
         });
-        onUpdateSuppliers(nextSuppliers.map((item) => (item.id === newSupplier.id ? created : item)));
+        updateSuppliers(nextSuppliers.map((item) => (item.id === newSupplier.id ? created : item)));
       } catch (error) {
         console.error('Erro ao criar fornecedor:', error);
       }
@@ -258,12 +299,15 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, pro
             rating: 0,
             notes: supplier.notes,
             order: suppliers.length + index,
+            instanceId: externalInstanceId,
           }),
         ),
       );
 
-      const refreshed = await suppliersApi.list();
-      onUpdateSuppliers(refreshed);
+      const refreshed = externalInstanceId
+        ? await suppliersApi.listByInstance(externalInstanceId)
+        : await suppliersApi.list();
+      updateSuppliers(refreshed);
       toast.success(`${result.suppliers.length} fornecedor(es) importado(s) com sucesso.`);
 
       if (result.errors.length > 0) {
@@ -308,8 +352,15 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, pro
         {/* HEADER */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <div>
-            <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">Gestão de Fornecedores</h1>
-            <p className="text-slate-500 dark:text-slate-400 font-medium">Parceiros comerciais e base de compras.</p>
+            <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">
+              Gestão de Fornecedores
+              {isExternal && externalInstanceName && (
+                <span className="text-lg text-amber-600 dark:text-amber-400 ml-2">— {externalInstanceName}</span>
+              )}
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400 font-medium">
+              Parceiros comerciais e base de compras.
+            </p>
           </div>
           <div className="flex items-center gap-2">
             {canEditSuppliers && (
@@ -326,6 +377,22 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers, pro
             </button>
           </div>
         </div>
+
+        {isExternal && externalInstanceName && (
+          <div className="flex items-center gap-3 px-5 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl">
+            <Globe size={16} className="text-amber-600 dark:text-amber-400 shrink-0" />
+            <div className="flex-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-400">
+                Fornecedores da instância: {externalInstanceName}
+              </p>
+              <p className="text-[9px] text-amber-600/70 dark:text-amber-400/70 font-medium mt-0.5">
+                {canEditSuppliers
+                  ? 'Você tem permissão para editar os fornecedores desta instância.'
+                  : 'Visualização dos fornecedores de outra empresa (somente leitura).'}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* STATS GRID + SEARCH & FILTERS */}
         <div className="flex flex-wrap items-stretch gap-3">

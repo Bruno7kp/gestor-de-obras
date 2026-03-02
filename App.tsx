@@ -207,9 +207,21 @@ const App: React.FC = () => {
     [externalProjects],
   );
 
+  const location = useLocation();
+
   const isActiveExternal = useMemo(
-    () => !!activeProjectId && externalProjectIds.has(activeProjectId),
-    [activeProjectId, externalProjectIds],
+    () => {
+      // External project open
+      if (activeProjectId && externalProjectIds.has(activeProjectId)) return true;
+      // External instance page (suppliers, contractors, stock, etc.)
+      const params = new URLSearchParams(location.search);
+      if (params.get('instanceId')) {
+        const externalPaths = ['/app/suppliers', '/app/contractors', '/app/global-stock', '/app/traceability', '/app/stock-log'];
+        return externalPaths.some(p => location.pathname.startsWith(p));
+      }
+      return false;
+    },
+    [activeProjectId, externalProjectIds, location.pathname, location.search],
   );
 
   // Projects without the externally-loaded ones (they only show in "Compartilhado")
@@ -228,7 +240,6 @@ const App: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('promeasure_theme') === 'dark');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const location = useLocation();
   const navigate = useNavigate();
   const [isClosingMeasurement, setIsClosingMeasurement] = useState(false);
   const [unreadNotificationsByProject, setUnreadNotificationsByProject] = useState<Record<string, number>>({});
