@@ -144,7 +144,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const NavItem = ({ active, onClick, icon, label, badge, badgeCount, variant }: any) => {
     const activeClass = variant === 'shared'
-      ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 shadow-lg'
+      ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
       : 'bg-indigo-600 text-white shadow-lg';
     const badgeActiveClass = variant === 'shared'
       ? 'bg-emerald-200/60 dark:bg-emerald-800/40 text-emerald-700 dark:text-emerald-300'
