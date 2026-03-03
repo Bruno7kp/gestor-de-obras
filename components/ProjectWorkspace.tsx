@@ -661,6 +661,14 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     return treeService.flattenTree(processed, allIds);
   }, [displayData.items, project.bdi]);
 
+  const printStats = useMemo(() => {
+    const wbsPrintItems = displayData.items.filter(i => i.scope !== 'quantitativo');
+    if (viewingMeasurementId === 'current') {
+      return treeService.calculateBasicStats(wbsPrintItems, project.bdi, project);
+    }
+    return treeService.calculateBasicStats(wbsPrintItems, project.bdi);
+  }, [displayData.items, viewingMeasurementId, project.bdi, project]);
+
   const isHistoryMode = viewingMeasurementId !== 'current';
 
   const laborContractsTabKey = `labor_contracts_last_tab_${project.id}`;
@@ -1532,7 +1540,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                 companyCnpj={project.companyCnpj}
                 data={flattenedPrintData}
                 expenses={project.expenses}
-                stats={currentStats}
+                stats={printStats}
               />
             )}
             {tab === 'expenses' && (
