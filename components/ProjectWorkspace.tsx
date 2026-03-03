@@ -1441,7 +1441,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     </div>
                   </div>
                 )}
-                {tab === 'wbs' && <WbsView project={{ ...project, items: displayData.items.filter(i => i.scope !== 'quantitativo') }} onUpdateProject={handleWbsUpdateProject} onOpenModal={handleOpenModal} isReadOnly={displayData.isReadOnly} />}
+                {tab === 'wbs' && <WbsView project={{ ...project, items: displayData.items.filter(i => i.scope !== 'quantitativo'), ...(viewingMeasurementId === 'current' ? {} : { contractTotalOverride: undefined, currentTotalOverride: undefined }) }} onUpdateProject={handleWbsUpdateProject} onOpenModal={handleOpenModal} isReadOnly={displayData.isReadOnly} />}
                 {tab === 'blueprint' && <BlueprintView project={{ ...project, items: displayData.items.filter(i => i.scope === 'quantitativo') }} onUpdateProject={handleBlueprintUpdateProject} onOpenModal={handleOpenModal} isReadOnly={displayData.isReadOnly} />}
                 {tab === 'stats' && <StatsView project={{ ...project, items: displayData.items.filter(i => i.scope !== 'quantitativo') }} />}
                 {tab === 'expenses' && (

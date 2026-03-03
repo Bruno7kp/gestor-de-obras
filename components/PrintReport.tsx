@@ -31,11 +31,7 @@ export const PrintReport: React.FC<PrintReportProps> = ({ project, companyName, 
 
   const currencySymbol = theme.currencySymbol || 'R$';
 
-  const finalStats = {
-    ...stats,
-    contract: project.contractTotalOverride ?? stats.contract,
-    current: project.currentTotalOverride ?? stats.current,
-  };
+  const finalStats = stats;
 
   const dynamicStyles = `
     @media print {
