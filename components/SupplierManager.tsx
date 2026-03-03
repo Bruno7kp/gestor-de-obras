@@ -5,7 +5,7 @@ import {
   Truck, Search, Plus, Phone, Mail,
   Trash2, Edit2, GripVertical, Building2, Filter,
   Boxes, Download, UploadCloud, X, Loader2, Globe,
-  List, Table2, CreditCard
+  List, Table2, CreditCard, DollarSign, Copy, Check
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
@@ -79,6 +79,7 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers: hom
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [paymentModalSupplier, setPaymentModalSupplier] = useState<Supplier | null>(null);
   const [supplierSuppliesModal, setSupplierSuppliesModal] = useState<Supplier | null>(null);
   const [projectsForSupplies, setProjectsForSupplies] = useState<Project[]>(projects);
   const [isLoadingSuppliesProjects, setIsLoadingSuppliesProjects] = useState(false);
@@ -496,6 +497,13 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers: hom
                           
                           <div className="flex items-center gap-2">
                              <button
+                               onClick={() => setPaymentModalSupplier(supplier)}
+                               className="p-3 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                               title="Dados de pagamento"
+                             >
+                               <DollarSign size={18} />
+                             </button>
+                             <button
                                onClick={() => openSupplierSuppliesModal(supplier)}
                                className="p-3 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
                                title="Ver compras vinculadas"
@@ -555,7 +563,7 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers: hom
                       <th className="px-6 py-4">Contato</th>
                       <th className="px-6 py-4">Dados Bancários</th>
                       <th className="px-6 py-4">Observações</th>
-                      {canEditSuppliers && <th className="px-6 py-4 text-center">Ações</th>}
+                      <th className="px-6 py-4 text-center">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -639,6 +647,13 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers: hom
                           <td className="px-6 py-4 text-center">
                             <div className="flex items-center justify-center gap-2">
                               <button
+                                onClick={() => setPaymentModalSupplier(supplier)}
+                                className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg transition-all"
+                                title="Dados de pagamento"
+                              >
+                                <DollarSign size={16} />
+                              </button>
+                              <button
                                 onClick={() => openSupplierSuppliesModal(supplier)}
                                 className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-all"
                                 title="Ver compras vinculadas"
@@ -658,6 +673,26 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers: hom
                                 title="Excluir"
                               >
                                 <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        )}
+                        {!canEditSuppliers && (
+                          <td className="px-6 py-4 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => setPaymentModalSupplier(supplier)}
+                                className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg transition-all"
+                                title="Dados de pagamento"
+                              >
+                                <DollarSign size={16} />
+                              </button>
+                              <button
+                                onClick={() => openSupplierSuppliesModal(supplier)}
+                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-all"
+                                title="Ver compras vinculadas"
+                              >
+                                <Boxes size={16} />
                               </button>
                             </div>
                           </td>
@@ -689,6 +724,17 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers: hom
         onConfirm={() => confirmDeleteId && handleDelete(confirmDeleteId)}
         onCancel={() => setConfirmDeleteId(null)}
       />
+
+      {paymentModalSupplier && (
+        <PaymentDataModal
+          name={paymentModalSupplier.name}
+          bankName={paymentModalSupplier.bankName}
+          bankAgency={paymentModalSupplier.bankAgency}
+          bankAccount={paymentModalSupplier.bankAccount}
+          pixKey={paymentModalSupplier.pixKey}
+          onClose={() => setPaymentModalSupplier(null)}
+        />
+      )}
 
       {supplierSuppliesModal && (
         <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={() => setSupplierSuppliesModal(null)}>
@@ -776,6 +822,72 @@ const StatCard = ({ label, value, icon, color }: any) => {
       <div className="leading-tight">
         <p className="text-sm font-black text-slate-800 dark:text-white">{value}</p>
         <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{label}</p>
+      </div>
+    </div>
+  );
+};
+
+const PaymentDataModal = ({ name, bankName, bankAgency, bankAccount, pixKey, onClose }: {
+  name: string;
+  bankName?: string;
+  bankAgency?: string;
+  bankAccount?: string;
+  pixKey?: string;
+  onClose: () => void;
+}) => {
+  const [copied, setCopied] = React.useState<string | null>(null);
+  const copyToClipboard = (value: string, field: string) => {
+    navigator.clipboard.writeText(value);
+    setCopied(field);
+    setTimeout(() => setCopied(null), 1500);
+  };
+  const hasAny = !!(bankName || bankAgency || bankAccount || pixKey);
+  const fields = [
+    { label: 'Banco', value: bankName, key: 'bank' },
+    { label: 'Agência', value: bankAgency, key: 'agency' },
+    { label: 'Conta', value: bankAccount, key: 'account' },
+    { label: 'Chave PIX', value: pixKey, key: 'pix' },
+  ];
+  return (
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
+      <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-2xl"><DollarSign size={22} /></div>
+            <div>
+              <h2 className="text-lg font-black dark:text-white tracking-tight">Dados de Pagamento</h2>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{name}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-rose-500 transition-colors"><X size={20} /></button>
+        </div>
+        <div className="p-8">
+          {!hasAny ? (
+            <div className="py-8 text-center">
+              <CreditCard size={40} className="mx-auto text-slate-200 dark:text-slate-700 mb-3" />
+              <p className="text-sm font-bold text-slate-400">Nenhum dado de pagamento cadastrado</p>
+              <p className="text-[10px] text-slate-400 mt-1">Edite o cadastro para adicionar dados bancários.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {fields.map(f => f.value ? (
+                <div key={f.key} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
+                  <div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{f.label}</p>
+                    <p className="text-sm font-black text-slate-700 dark:text-slate-200 mt-0.5">{f.value}</p>
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard(f.value!, f.key)}
+                    className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-xl transition-all"
+                    title="Copiar"
+                  >
+                    {copied === f.key ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} />}
+                  </button>
+                </div>
+              ) : null)}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

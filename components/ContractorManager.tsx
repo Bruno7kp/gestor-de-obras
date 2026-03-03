@@ -6,7 +6,7 @@ import {
   Building2, MapPin, FileText,
   Phone, Mail, User, Trash2, Edit2, 
   CreditCard, Briefcase, CheckCircle2, XCircle,
-  X, Landmark, Globe
+  X, Landmark, Globe, DollarSign, Copy, Check
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { ConfirmModal } from './ConfirmModal';
@@ -66,6 +66,7 @@ export const ContractorManager: React.FC<ContractorManagerProps> = ({ contractor
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingContractor, setEditingContractor] = useState<Contractor | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [paymentModalContractor, setPaymentModalContractor] = useState<Contractor | null>(null);
 
   const filteredContractors = useMemo(() => {
     return contractors.filter(c =>
@@ -282,7 +283,7 @@ export const ContractorManager: React.FC<ContractorManagerProps> = ({ contractor
                     <th className="px-6 py-4">Especialidade</th>
                     <th className="px-6 py-4">Contato</th>
                     <th className="px-6 py-4">Status</th>
-                    {canEdit && <th className="px-6 py-4 text-center">Ações</th>}
+                    <th className="px-6 py-4 text-center">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -363,26 +364,35 @@ export const ContractorManager: React.FC<ContractorManagerProps> = ({ contractor
                           </span>
                         </div>
                       </td>
-                      {canEdit && (
                         <td className="px-6 py-4 text-center">
                           <div className="flex items-center justify-center gap-2">
-                            <button 
-                              onClick={() => { setEditingContractor(contractor); setIsModalOpen(true); }}
-                              className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-all"
-                              title="Editar"
+                            <button
+                              onClick={() => setPaymentModalContractor(contractor)}
+                              className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg transition-all"
+                              title="Dados de pagamento"
                             >
-                              <Edit2 size={16} />
+                              <DollarSign size={16} />
                             </button>
-                            <button 
-                              onClick={() => setConfirmDeleteId(contractor.id)}
-                              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-all"
-                              title="Excluir"
-                            >
-                              <Trash2 size={16} />
-                            </button>
+                            {canEdit && (
+                              <button 
+                                onClick={() => { setEditingContractor(contractor); setIsModalOpen(true); }}
+                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-all"
+                                title="Editar"
+                              >
+                                <Edit2 size={16} />
+                              </button>
+                            )}
+                            {canEdit && (
+                              <button 
+                                onClick={() => setConfirmDeleteId(contractor.id)}
+                                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-all"
+                                title="Excluir"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
                           </div>
                         </td>
-                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -408,6 +418,83 @@ export const ContractorManager: React.FC<ContractorManagerProps> = ({ contractor
         onConfirm={() => confirmDeleteId && handleDelete(confirmDeleteId)}
         onCancel={() => setConfirmDeleteId(null)}
       />
+
+      {paymentModalContractor && (
+        <PaymentDataModal
+          name={paymentModalContractor.name}
+          bankName={paymentModalContractor.bankName}
+          bankAgency={paymentModalContractor.bankAgency}
+          bankAccount={paymentModalContractor.bankAccount}
+          pixKey={paymentModalContractor.pixKey}
+          onClose={() => setPaymentModalContractor(null)}
+        />
+      )}
+    </div>
+  );
+};
+
+const PaymentDataModal = ({ name, bankName, bankAgency, bankAccount, pixKey, onClose }: {
+  name: string;
+  bankName?: string;
+  bankAgency?: string;
+  bankAccount?: string;
+  pixKey?: string;
+  onClose: () => void;
+}) => {
+  const [copied, setCopied] = React.useState<string | null>(null);
+  const copyToClipboard = (value: string, field: string) => {
+    navigator.clipboard.writeText(value);
+    setCopied(field);
+    setTimeout(() => setCopied(null), 1500);
+  };
+  const hasAny = !!(bankName || bankAgency || bankAccount || pixKey);
+  const fields = [
+    { label: 'Banco', value: bankName, key: 'bank' },
+    { label: 'Agência', value: bankAgency, key: 'agency' },
+    { label: 'Conta', value: bankAccount, key: 'account' },
+    { label: 'Chave PIX', value: pixKey, key: 'pix' },
+  ];
+  return (
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
+      <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-2xl"><DollarSign size={22} /></div>
+            <div>
+              <h2 className="text-lg font-black dark:text-white tracking-tight">Dados de Pagamento</h2>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{name}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-rose-500 transition-colors"><X size={20} /></button>
+        </div>
+        <div className="p-8">
+          {!hasAny ? (
+            <div className="py-8 text-center">
+              <CreditCard size={40} className="mx-auto text-slate-200 dark:text-slate-700 mb-3" />
+              <p className="text-sm font-bold text-slate-400">Nenhum dado de pagamento cadastrado</p>
+              <p className="text-[10px] text-slate-400 mt-1">Edite o cadastro para adicionar dados bancários.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {fields.map(f => f.value ? (
+                <div key={f.key} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
+                  <div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{f.label}</p>
+                    <p className="text-sm font-black text-slate-700 dark:text-slate-200 mt-0.5">{f.value}</p>
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard(f.value!, f.key)}
+                    className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-xl transition-all"
+                    title="Copiar"
+                  >
+                    {copied === f.key ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} />}
+                  </button>
+                </div>
+              ) : null)}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
