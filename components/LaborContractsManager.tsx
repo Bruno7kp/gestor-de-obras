@@ -623,7 +623,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
                     </h3>
                     <div className="flex items-center gap-2 text-sm text-slate-500">
                       <User size={14} />
-                      <span className="font-bold">{associado?.nome || 'Associado não encontrado'}{associado?.contractor?.name ? ` (${associado.contractor.name})` : ''}</span>
+                      <span className="font-bold">{associado?.nome || 'Associado não encontrado'}{associado?.contractor?.name && associado.contractor.name !== associado.nome ? ` (${associado.contractor.name})` : ''}</span>
                       <span className="text-slate-300 mx-2">•</span>
                       <Calendar size={14} />
                       <span>{formatLocalDate(contract.dataInicio)}</span>
@@ -2053,7 +2053,7 @@ const TableContractRow = ({ contract, workforce, isReadOnly, onEdit, onDelete, o
         </div>
       </td>
       <td className="px-6 py-4">
-        <span className="text-xs font-bold text-slate-600 dark:text-slate-400">{associado?.nome || 'Sem associado'}{associado?.contractor?.name ? ` (${associado.contractor.name})` : ''}</span>
+        <span className="text-xs font-bold text-slate-600 dark:text-slate-400">{associado?.nome || 'Sem associado'}{associado?.contractor?.name && associado.contractor.name !== associado.nome ? ` (${associado.contractor.name})` : ''}</span>
       </td>
       <td className="px-6 py-4">
         <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase ${
