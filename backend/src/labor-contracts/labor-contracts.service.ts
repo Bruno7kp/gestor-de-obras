@@ -393,7 +393,7 @@ export class LaborContractsService {
 
   private async ensureWorkItem(id: string, projectId: string) {
     const item = await this.prisma.workItem.findFirst({
-      where: { id, projectId },
+      where: { id, projectId, scope: { not: 'quantitativo' } },
       select: { id: true },
     });
     if (!item) throw new NotFoundException('Item da EAP nao encontrado');

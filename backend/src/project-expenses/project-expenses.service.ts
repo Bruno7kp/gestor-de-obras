@@ -257,6 +257,24 @@ export class ProjectExpensesService {
     }
   }
 
+  private async ensureWbsLinkedWorkItem(
+    projectId: string,
+    linkedWorkItemId?: string | null,
+  ) {
+    if (!linkedWorkItemId) return;
+    const item = await this.prisma.workItem.findFirst({
+      where: {
+        id: linkedWorkItemId,
+        projectId,
+        scope: { not: 'quantitativo' },
+      },
+      select: { id: true },
+    });
+    if (!item) {
+      throw new NotFoundException('Item da EAP nao encontrado');
+    }
+  }
+
   async findAll(projectId: string, instanceId: string, userId?: string) {
     await this.ensureProject(projectId, instanceId, userId);
     return this.prisma.projectExpense.findMany({
@@ -482,6 +500,7 @@ export class ProjectExpensesService {
       input.userId,
       true,
     );
+    await this.ensureWbsLinkedWorkItem(input.projectId, input.linkedWorkItemId);
     const fallbackStatus: ExpenseStatus = input.isPaid ? 'PAID' : 'PENDING';
 
     const created = await this.prisma.projectExpense.create({
@@ -569,6 +588,10 @@ export class ProjectExpensesService {
     if (!existing) throw new NotFoundException('Despesa nao encontrada');
 
     await ensureProjectWritable(this.prisma, existing.projectId);
+
+    if (input.linkedWorkItemId !== undefined) {
+      await this.ensureWbsLinkedWorkItem(existing.projectId, input.linkedWorkItemId);
+    }
 
     // Guard: if this expense is synced from a MaterialForecast (same ID),
     // block editing forecast-controlled fields — only allow expense-exclusive fields

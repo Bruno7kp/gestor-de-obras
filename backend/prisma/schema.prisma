@@ -234,6 +234,7 @@ model Project {
   group                 ProjectGroup?         @relation(fields: [groupId], references: [id])
   members               ProjectMember[]
   items                 WorkItem[]
+  blueprintItems        BlueprintItem[]
   history               MeasurementSnapshot[]
   assets                ProjectAsset[]
   expenses              ProjectExpense[]
@@ -249,6 +250,39 @@ model Project {
   stockRequests         StockRequest[]
   createdBy             User?                 @relation("UserProjectsCreated", fields: [createdById], references: [id])
   updatedBy             User?                 @relation("UserProjectsUpdated", fields: [updatedById], references: [id])
+}
+
+model BlueprintItem {
+  id                   String         @id @default(uuid())
+  parentId             String?
+  name                 String
+  type                 String
+  wbs                  String
+  order                Int
+  unit                 String
+  cod                  String?
+  fonte                String?
+  contractQuantity     Float
+  unitPrice            Float
+  unitPriceNoBdi       Float
+  contractTotal        Float
+  previousQuantity     Float
+  previousTotal        Float
+  currentQuantity      Float
+  currentTotal         Float
+  currentPercentage    Float
+  accumulatedQuantity  Float
+  accumulatedTotal     Float
+  accumulatedPercentage Float
+  balanceQuantity      Float
+  balanceTotal         Float
+  projectId            String
+  project              Project        @relation(fields: [projectId], references: [id])
+  parent               BlueprintItem? @relation("BlueprintItemParent", fields: [parentId], references: [id])
+  children             BlueprintItem[] @relation("BlueprintItemParent")
+
+  @@index([projectId, order])
+  @@index([projectId, wbs])
 }
 
 model Notification {

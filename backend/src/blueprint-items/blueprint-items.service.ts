@@ -5,9 +5,8 @@ import {
   ensureProjectAccess,
   ensureProjectWritable,
 } from '../common/project-access.util';
-import { NotificationsService } from '../notifications/notifications.service';
 
-interface CreateWorkItemInput {
+interface CreateBlueprintItemInput {
   id?: string;
   projectId: string;
   instanceId: string;
@@ -15,7 +14,6 @@ interface CreateWorkItemInput {
   parentId?: string | null;
   name: string;
   type: string;
-  scope?: string;
   wbs?: string;
   order?: number;
   unit?: string;
@@ -37,16 +35,15 @@ interface CreateWorkItemInput {
   balanceTotal?: number;
 }
 
-interface UpdateWorkItemInput extends Partial<CreateWorkItemInput> {
+interface UpdateBlueprintItemInput extends Partial<CreateBlueprintItemInput> {
   id: string;
   userId?: string;
 }
 
 @Injectable()
-export class WorkItemsService {
+export class BlueprintItemsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly notificationsService: NotificationsService,
     private readonly auditService: AuditService,
   ) {}
 
@@ -56,6 +53,10 @@ export class WorkItemsService {
       chunks.push(items.slice(i, i + size));
     }
     return chunks;
+  }
+
+  private blueprintModel(client: unknown = this.prisma) {
+    return (client as { blueprintItem: any }).blueprintItem;
   }
 
   private async ensureProject(
@@ -70,38 +71,24 @@ export class WorkItemsService {
     }
   }
 
-  async findAll(
-    projectId: string,
-    instanceId: string,
-    userId?: string,
-    scope?: string,
-  ) {
+  async findAll(projectId: string, instanceId: string, userId?: string) {
     await this.ensureProject(projectId, instanceId, userId);
-    const where: { projectId: string; scope?: string | { not: string } } = {
-      projectId,
-      scope: scope === 'wbs' ? 'wbs' : { not: 'quantitativo' },
-    };
-    return this.prisma.workItem.findMany({
-      where,
+    return this.blueprintModel().findMany({
+      where: { projectId },
       orderBy: { order: 'asc' },
     });
   }
 
-  async create(input: CreateWorkItemInput) {
-    await this.ensureProject(
-      input.projectId,
-      input.instanceId,
-      input.userId,
-      true,
-    );
-    const created = await this.prisma.workItem.create({
+  async create(input: CreateBlueprintItemInput) {
+    await this.ensureProject(input.projectId, input.instanceId, input.userId, true);
+
+    const created = await this.blueprintModel().create({
       data: {
         id: input.id,
         projectId: input.projectId,
         parentId: input.parentId ?? null,
         name: input.name,
         type: input.type,
-        scope: 'wbs',
         wbs: input.wbs || '',
         order: input.order ?? 0,
         unit: input.unit || 'un',
@@ -121,7 +108,6 @@ export class WorkItemsService {
         accumulatedPercentage: input.accumulatedPercentage ?? 0,
         balanceQuantity: input.balanceQuantity ?? 0,
         balanceTotal: input.balanceTotal ?? 0,
-        createdById: input.userId ?? null,
       },
     });
 
@@ -130,7 +116,7 @@ export class WorkItemsService {
       userId: input.userId,
       projectId: input.projectId,
       action: 'CREATE',
-      model: 'WorkItem',
+      model: 'BlueprintItem',
       entityId: created.id,
       after: created as Record<string, unknown>,
     });
@@ -140,62 +126,46 @@ export class WorkItemsService {
 
   async replaceAll(
     projectId: string,
-    items: Array<Omit<CreateWorkItemInput, 'instanceId'>>,
+    items: Array<Omit<CreateBlueprintItemInput, 'instanceId'>>,
     instanceId: string,
     userId?: string,
-    scope?: string,
-  ): Promise<{ created: number }> {
+  ) {
     await this.ensureProject(projectId, instanceId, userId, true);
 
-    const effectiveScope = 'wbs';
-    // Prepare data for bulk insert
-    const createData = items.map((i) => ({
-      id: i.id,
-      projectId: projectId,
-      parentId: i.parentId ?? null,
-      name: i.name,
-      type: i.type,
-      scope: effectiveScope,
-      wbs: i.wbs || '',
-      order: i.order ?? 0,
-      unit: i.unit || 'un',
-      cod: i.cod ?? null,
-      fonte: i.fonte ?? null,
-      contractQuantity: i.contractQuantity ?? 0,
-      unitPrice: i.unitPrice ?? 0,
-      unitPriceNoBdi: i.unitPriceNoBdi ?? 0,
-      contractTotal: i.contractTotal ?? 0,
-      previousQuantity: i.previousQuantity ?? 0,
-      previousTotal: i.previousTotal ?? 0,
-      currentQuantity: i.currentQuantity ?? 0,
-      currentTotal: i.currentTotal ?? 0,
-      currentPercentage: i.currentPercentage ?? 0,
-      accumulatedQuantity: i.accumulatedQuantity ?? 0,
-      accumulatedTotal: i.accumulatedTotal ?? 0,
-      accumulatedPercentage: i.accumulatedPercentage ?? 0,
-      balanceQuantity: i.balanceQuantity ?? 0,
-      balanceTotal: i.balanceTotal ?? 0,
+    const createData = items.map((item) => ({
+      id: item.id,
+      projectId,
+      parentId: item.parentId ?? null,
+      name: item.name,
+      type: item.type,
+      wbs: item.wbs || '',
+      order: item.order ?? 0,
+      unit: item.unit || 'un',
+      cod: item.cod ?? null,
+      fonte: item.fonte ?? null,
+      contractQuantity: item.contractQuantity ?? 0,
+      unitPrice: item.unitPrice ?? 0,
+      unitPriceNoBdi: item.unitPriceNoBdi ?? 0,
+      contractTotal: item.contractTotal ?? 0,
+      previousQuantity: item.previousQuantity ?? 0,
+      previousTotal: item.previousTotal ?? 0,
+      currentQuantity: item.currentQuantity ?? 0,
+      currentTotal: item.currentTotal ?? 0,
+      currentPercentage: item.currentPercentage ?? 0,
+      accumulatedQuantity: item.accumulatedQuantity ?? 0,
+      accumulatedTotal: item.accumulatedTotal ?? 0,
+      accumulatedPercentage: item.accumulatedPercentage ?? 0,
+      balanceQuantity: item.balanceQuantity ?? 0,
+      balanceTotal: item.balanceTotal ?? 0,
     }));
 
     const chunks = this.chunkItems(createData, 200);
-    const scopeFilter = { projectId, scope: effectiveScope };
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.laborContractWorkItem.deleteMany({
-        where: { workItem: scopeFilter },
-      });
-      await tx.laborContract.updateMany({
-        where: { projectId, linkedWorkItem: { scope: effectiveScope } },
-        data: { linkedWorkItemId: null },
-      });
-      await tx.workItemResponsibility.deleteMany({
-        where: { workItem: scopeFilter },
-      });
-      await tx.workItem.deleteMany({ where: scopeFilter });
-
+      await this.blueprintModel(tx).deleteMany({ where: { projectId } });
       for (const chunk of chunks) {
         if (chunk.length === 0) continue;
-        await tx.workItem.createMany({ data: chunk });
+        await this.blueprintModel(tx).createMany({ data: chunk });
       }
     });
 
@@ -204,12 +174,11 @@ export class WorkItemsService {
       userId,
       projectId,
       action: 'CREATE',
-      model: 'WorkItem',
+      model: 'BlueprintItem',
       entityId: projectId,
       metadata: {
         batch: true,
         operation: 'replaceAll',
-        scope: effectiveScope,
         count: items.length,
       },
     });
@@ -219,69 +188,54 @@ export class WorkItemsService {
 
   async batchInsert(
     projectId: string,
-    items: Array<Omit<CreateWorkItemInput, 'instanceId'>>,
+    items: Array<Omit<CreateBlueprintItemInput, 'instanceId'>>,
     replaceFlag: boolean,
     instanceId: string,
     userId?: string,
-    scope?: string,
-  ): Promise<{ created: number }> {
+  ) {
     await this.ensureProject(projectId, instanceId, userId, true);
 
-    const effectiveScope = 'wbs';
-    const createData = items.map((i) => ({
-      id: i.id,
-      projectId: projectId,
-      parentId: i.parentId ?? null,
-      name: i.name,
-      type: i.type,
-      scope: effectiveScope,
-      wbs: i.wbs || '',
-      order: i.order ?? 0,
-      unit: i.unit || 'un',
-      cod: i.cod ?? null,
-      fonte: i.fonte ?? null,
-      contractQuantity: i.contractQuantity ?? 0,
-      unitPrice: i.unitPrice ?? 0,
-      unitPriceNoBdi: i.unitPriceNoBdi ?? 0,
-      contractTotal: i.contractTotal ?? 0,
-      previousQuantity: i.previousQuantity ?? 0,
-      previousTotal: i.previousTotal ?? 0,
-      currentQuantity: i.currentQuantity ?? 0,
-      currentTotal: i.currentTotal ?? 0,
-      currentPercentage: i.currentPercentage ?? 0,
-      accumulatedQuantity: i.accumulatedQuantity ?? 0,
-      accumulatedTotal: i.accumulatedTotal ?? 0,
-      accumulatedPercentage: i.accumulatedPercentage ?? 0,
-      balanceQuantity: i.balanceQuantity ?? 0,
-      balanceTotal: i.balanceTotal ?? 0,
+    const createData = items.map((item) => ({
+      id: item.id,
+      projectId,
+      parentId: item.parentId ?? null,
+      name: item.name,
+      type: item.type,
+      wbs: item.wbs || '',
+      order: item.order ?? 0,
+      unit: item.unit || 'un',
+      cod: item.cod ?? null,
+      fonte: item.fonte ?? null,
+      contractQuantity: item.contractQuantity ?? 0,
+      unitPrice: item.unitPrice ?? 0,
+      unitPriceNoBdi: item.unitPriceNoBdi ?? 0,
+      contractTotal: item.contractTotal ?? 0,
+      previousQuantity: item.previousQuantity ?? 0,
+      previousTotal: item.previousTotal ?? 0,
+      currentQuantity: item.currentQuantity ?? 0,
+      currentTotal: item.currentTotal ?? 0,
+      currentPercentage: item.currentPercentage ?? 0,
+      accumulatedQuantity: item.accumulatedQuantity ?? 0,
+      accumulatedTotal: item.accumulatedTotal ?? 0,
+      accumulatedPercentage: item.accumulatedPercentage ?? 0,
+      balanceQuantity: item.balanceQuantity ?? 0,
+      balanceTotal: item.balanceTotal ?? 0,
     }));
 
     const chunks = this.chunkItems(createData, 200);
 
     if (replaceFlag) {
-      const scopeFilter = { projectId, scope: effectiveScope };
       await this.prisma.$transaction(async (tx) => {
-        await tx.laborContractWorkItem.deleteMany({
-          where: { workItem: scopeFilter },
-        });
-        await tx.laborContract.updateMany({
-          where: { projectId, linkedWorkItem: { scope: effectiveScope } },
-          data: { linkedWorkItemId: null },
-        });
-        await tx.workItemResponsibility.deleteMany({
-          where: { workItem: scopeFilter },
-        });
-        await tx.workItem.deleteMany({ where: scopeFilter });
+        await this.blueprintModel(tx).deleteMany({ where: { projectId } });
         for (const chunk of chunks) {
           if (chunk.length === 0) continue;
-          await tx.workItem.createMany({ data: chunk });
+          await this.blueprintModel(tx).createMany({ data: chunk });
         }
       });
     } else {
-      // Only insert provided batch
       for (const chunk of chunks) {
         if (chunk.length === 0) continue;
-        await this.prisma.workItem.createMany({ data: chunk });
+        await this.blueprintModel().createMany({ data: chunk });
       }
     }
 
@@ -290,12 +244,11 @@ export class WorkItemsService {
       userId,
       projectId,
       action: 'CREATE',
-      model: 'WorkItem',
+      model: 'BlueprintItem',
       entityId: projectId,
       metadata: {
         batch: true,
         operation: replaceFlag ? 'batchInsertReplace' : 'batchInsert',
-        scope: effectiveScope,
         count: items.length,
       },
     });
@@ -305,7 +258,7 @@ export class WorkItemsService {
 
   async batchUpdate(
     projectId: string,
-    updates: UpdateWorkItemInput[],
+    updates: UpdateBlueprintItemInput[],
     instanceId: string,
     userId?: string,
     operation?: string,
@@ -314,24 +267,23 @@ export class WorkItemsService {
 
     await this.ensureProject(projectId, instanceId, userId, true);
 
-    // Load all items being updated in a single query
-    const ids = updates.map((u) => u.id);
-    const existingItems = await this.prisma.workItem.findMany({
+    const ids = updates.map((update) => update.id);
+    const existingItems = await this.blueprintModel().findMany({
       where: { id: { in: ids }, projectId },
     });
 
-    const existingMap = new Map(existingItems.map((item) => [item.id, item]));
+    const existingMap = new Map<string, any>(
+      existingItems.map((item: any) => [item.id, item] as const),
+    );
 
-    // Build update operations
     const txOps = updates
-      .filter((u) => existingMap.has(u.id))
+      .filter((update) => existingMap.has(update.id))
       .map((input) => {
-        const existing = existingMap.get(input.id)!;
-        return this.prisma.workItem.update({
+        const existing = existingMap.get(input.id) as any;
+        return this.blueprintModel().update({
           where: { id: input.id },
           data: {
-            parentId:
-              input.parentId === undefined ? existing.parentId : input.parentId,
+            parentId: input.parentId === undefined ? existing.parentId : input.parentId,
             name: input.name ?? existing.name,
             type: input.type ?? existing.type,
             wbs: input.wbs ?? existing.wbs,
@@ -339,59 +291,46 @@ export class WorkItemsService {
             unit: input.unit ?? existing.unit,
             cod: input.cod ?? existing.cod,
             fonte: input.fonte ?? existing.fonte,
-            contractQuantity:
-              input.contractQuantity ?? existing.contractQuantity,
+            contractQuantity: input.contractQuantity ?? existing.contractQuantity,
             unitPrice: input.unitPrice ?? existing.unitPrice,
             unitPriceNoBdi: input.unitPriceNoBdi ?? existing.unitPriceNoBdi,
             contractTotal: input.contractTotal ?? existing.contractTotal,
-            previousQuantity:
-              input.previousQuantity ?? existing.previousQuantity,
+            previousQuantity: input.previousQuantity ?? existing.previousQuantity,
             previousTotal: input.previousTotal ?? existing.previousTotal,
             currentQuantity: input.currentQuantity ?? existing.currentQuantity,
             currentTotal: input.currentTotal ?? existing.currentTotal,
-            currentPercentage:
-              input.currentPercentage ?? existing.currentPercentage,
-            accumulatedQuantity:
-              input.accumulatedQuantity ?? existing.accumulatedQuantity,
-            accumulatedTotal:
-              input.accumulatedTotal ?? existing.accumulatedTotal,
+            currentPercentage: input.currentPercentage ?? existing.currentPercentage,
+            accumulatedQuantity: input.accumulatedQuantity ?? existing.accumulatedQuantity,
+            accumulatedTotal: input.accumulatedTotal ?? existing.accumulatedTotal,
             accumulatedPercentage:
               input.accumulatedPercentage ?? existing.accumulatedPercentage,
             balanceQuantity: input.balanceQuantity ?? existing.balanceQuantity,
             balanceTotal: input.balanceTotal ?? existing.balanceTotal,
-            updatedById: userId ?? null,
           },
         });
       });
 
-    // Execute all updates in a single transaction (chunked to avoid parameter limits)
     const chunks = this.chunkItems(txOps, 50);
-    const results: Array<{
-      id: string;
-      wbs: string;
-      name: string;
-      type: string;
-    }> = [];
+    const results: Array<{ id: string; wbs: string; name: string; type: string }> = [];
+
     for (const chunk of chunks) {
       const chunkResults = await this.prisma.$transaction(chunk);
       results.push(
-        ...chunkResults.map((r) => ({
-          id: r.id,
-          wbs: r.wbs,
-          name: r.name,
-          type: r.type,
+        ...chunkResults.map((item) => ({
+          id: item.id,
+          wbs: item.wbs,
+          name: item.name,
+          type: item.type,
         })),
       );
     }
 
-    // Single summary audit log for the entire batch
-    // Throttle cellEdit operations (max 1 log per 2 minutes per project)
     const auditInput = {
       instanceId,
       userId,
       projectId,
       action: 'UPDATE' as const,
-      model: 'WorkItem',
+      model: 'BlueprintItem',
       entityId: projectId,
       metadata: {
         batch: true,
@@ -407,57 +346,19 @@ export class WorkItemsService {
       void this.auditService.log(auditInput);
     }
 
-    // Detect completion crossings and emit notifications
-    for (const input of updates) {
-      const existing = existingMap.get(input.id);
-      if (!existing || existing.type !== 'item') continue;
-      const nextAccumulated =
-        input.accumulatedPercentage ?? existing.accumulatedPercentage;
-      if (existing.accumulatedPercentage < 100 && nextAccumulated >= 100) {
-        const updated = results.find((r) => r.id === input.id);
-        if (!updated) continue;
-
-        void this.notificationsService
-          .emit({
-            instanceId,
-            projectId,
-            category: 'PROGRESS',
-            eventType: 'WORKITEM_COMPLETED',
-            priority: 'normal',
-            title: `Marco de Execução: ${updated.wbs}`,
-            body: `O serviço "${updated.name}" foi concluído fisicamente (100% acumulado).`,
-            dedupeKey: `workitem:${updated.id}:COMPLETED`,
-            permissionCodes: [
-              'wbs.view',
-              'wbs.edit',
-              'planning.view',
-              'planning.edit',
-            ],
-            includeProjectMembers: true,
-            metadata: {
-              workItemId: updated.id,
-              wbs: updated.wbs,
-            },
-          })
-          .catch(() => undefined);
-
-      }
-    }
-
     return results;
   }
 
-  async update(input: UpdateWorkItemInput) {
-    let existing = await this.prisma.workItem.findFirst({
+  async update(input: UpdateBlueprintItemInput) {
+    let existing = await this.blueprintModel().findFirst({
       where: {
         id: input.id,
         project: { instanceId: input.instanceId },
       },
     });
 
-    // Fallback: check cross-instance project membership
     if (!existing && input.userId) {
-      const item = await this.prisma.workItem.findFirst({
+      const item = await this.blueprintModel().findFirst({
         where: { id: input.id },
         include: { project: { select: { id: true } } },
       });
@@ -469,18 +370,14 @@ export class WorkItemsService {
       }
     }
 
-    if (!existing) throw new NotFoundException('Item nao encontrado');
+    if (!existing) throw new NotFoundException('Item de quantitativo nao encontrado');
 
     await ensureProjectWritable(this.prisma, existing.projectId);
 
-    const nextAccumulatedPercentage =
-      input.accumulatedPercentage ?? existing.accumulatedPercentage;
-
-    const updated = await this.prisma.workItem.update({
+    const updated = await this.blueprintModel().update({
       where: { id: input.id },
       data: {
-        parentId:
-          input.parentId === undefined ? existing.parentId : input.parentId,
+        parentId: input.parentId === undefined ? existing.parentId : input.parentId,
         name: input.name ?? existing.name,
         type: input.type ?? existing.type,
         wbs: input.wbs ?? existing.wbs,
@@ -496,16 +393,13 @@ export class WorkItemsService {
         previousTotal: input.previousTotal ?? existing.previousTotal,
         currentQuantity: input.currentQuantity ?? existing.currentQuantity,
         currentTotal: input.currentTotal ?? existing.currentTotal,
-        currentPercentage:
-          input.currentPercentage ?? existing.currentPercentage,
-        accumulatedQuantity:
-          input.accumulatedQuantity ?? existing.accumulatedQuantity,
+        currentPercentage: input.currentPercentage ?? existing.currentPercentage,
+        accumulatedQuantity: input.accumulatedQuantity ?? existing.accumulatedQuantity,
         accumulatedTotal: input.accumulatedTotal ?? existing.accumulatedTotal,
         accumulatedPercentage:
           input.accumulatedPercentage ?? existing.accumulatedPercentage,
         balanceQuantity: input.balanceQuantity ?? existing.balanceQuantity,
         balanceTotal: input.balanceTotal ?? existing.balanceTotal,
-        updatedById: input.userId ?? null,
       },
     });
 
@@ -514,50 +408,16 @@ export class WorkItemsService {
       userId: input.userId,
       projectId: existing.projectId,
       action: 'UPDATE',
-      model: 'WorkItem',
+      model: 'BlueprintItem',
       entityId: input.id,
       before: existing as Record<string, unknown>,
       after: updated as Record<string, unknown>,
     });
 
-    const crossedCompletion =
-      existing.type === 'item' &&
-      existing.accumulatedPercentage < 100 &&
-      nextAccumulatedPercentage >= 100;
-
-    if (crossedCompletion && input.instanceId) {
-      void this.notificationsService
-        .emit({
-          instanceId: input.instanceId,
-          projectId: updated.projectId,
-          category: 'PROGRESS',
-          eventType: 'WORKITEM_COMPLETED',
-          priority: 'normal',
-          title: `Marco de Execução: ${updated.wbs}`,
-          body: `O serviço "${updated.name}" foi concluído fisicamente (100% acumulado).`,
-          dedupeKey: `workitem:${updated.id}:COMPLETED`,
-          permissionCodes: [
-            'wbs.view',
-            'wbs.edit',
-            'planning.view',
-            'planning.edit',
-          ],
-          includeProjectMembers: true,
-          metadata: {
-            workItemId: updated.id,
-            wbs: updated.wbs,
-          },
-        })
-        .catch(() => undefined);
-    }
-
     return updated;
   }
 
-  private collectDescendants(
-    items: { id: string; parentId: string | null }[],
-    id: string,
-  ) {
+  private collectDescendants(items: { id: string; parentId: string | null }[], id: string) {
     const ids = new Set<string>([id]);
     let changed = true;
 
@@ -575,14 +435,13 @@ export class WorkItemsService {
   }
 
   async remove(id: string, instanceId: string, userId?: string) {
-    let target = await this.prisma.workItem.findFirst({
+    let target = await this.blueprintModel().findFirst({
       where: { id, project: { instanceId } },
       select: { id: true, projectId: true },
     });
 
-    // Fallback: check cross-instance project membership
     if (!target && userId) {
-      const item = await this.prisma.workItem.findFirst({
+      const item = await this.blueprintModel().findFirst({
         where: { id },
         select: { id: true, projectId: true },
       });
@@ -594,22 +453,18 @@ export class WorkItemsService {
       }
     }
 
-    if (!target) throw new NotFoundException('Item nao encontrado');
+    if (!target) throw new NotFoundException('Item de quantitativo nao encontrado');
 
     await ensureProjectWritable(this.prisma, target.projectId);
 
-    const allItems = await this.prisma.workItem.findMany({
+    const allItems = await this.blueprintModel().findMany({
       where: { projectId: target.projectId },
       select: { id: true, parentId: true },
     });
 
     const ids = this.collectDescendants(allItems, id);
 
-    await this.prisma.workItemResponsibility.deleteMany({
-      where: { workItemId: { in: ids } },
-    });
-
-    await this.prisma.workItem.deleteMany({
+    await this.blueprintModel().deleteMany({
       where: { id: { in: ids } },
     });
 
@@ -618,7 +473,7 @@ export class WorkItemsService {
       userId,
       projectId: target.projectId,
       action: 'DELETE',
-      model: 'WorkItem',
+      model: 'BlueprintItem',
       entityId: id,
       before: target as Record<string, unknown>,
       metadata: { deletedIds: ids },

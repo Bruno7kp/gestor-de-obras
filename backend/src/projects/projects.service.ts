@@ -210,6 +210,7 @@ export class ProjectsService {
       where: {
         projectId: { in: projects.map((project) => project.id) },
         parentId: null,
+        scope: { not: 'quantitativo' },
       },
       _sum: {
         contractTotal: true,
@@ -332,7 +333,8 @@ export class ProjectsService {
     let project = await this.prisma.project.findFirst({
       where: { id, instanceId },
       include: {
-        items: true,
+        items: { where: { scope: { not: 'quantitativo' } } },
+        blueprintItems: true,
         history: {
           orderBy: { measurementNumber: 'desc' },
         },
@@ -433,7 +435,8 @@ export class ProjectsService {
       project = await this.prisma.project.findFirst({
         where: { id, members: { some: { userId } } },
         include: {
-          items: true,
+          items: { where: { scope: { not: 'quantitativo' } } },
+          blueprintItems: true,
           history: {
             orderBy: { measurementNumber: 'desc' },
           },
@@ -840,6 +843,7 @@ export class ProjectsService {
     });
 
     await this.prisma.workItem.deleteMany({ where: { projectId: id } });
+    await this.prisma.blueprintItem.deleteMany({ where: { projectId: id } });
     await this.prisma.projectExpense.deleteMany({ where: { projectId: id } });
     await this.prisma.measurementSnapshot.deleteMany({
       where: { projectId: id },
@@ -1038,7 +1042,8 @@ export class ProjectsService {
     const project = await this.prisma.project.findUnique({
       where: { id: projectId },
       include: {
-        items: true,
+        items: { where: { scope: { not: 'quantitativo' } } },
+        blueprintItems: true,
         history: {
           orderBy: { measurementNumber: 'desc' },
         },

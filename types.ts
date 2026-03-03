@@ -131,6 +131,7 @@ export interface MeasurementSnapshot {
   measurementNumber: number;
   date: string;
   items: WorkItem[];
+  blueprintItems?: WorkItem[];
   totals: {
     contract: number;
     period: number;
@@ -665,6 +666,7 @@ export interface Project {
   referenceDate: string;
   logo: string | null;
   items: WorkItem[];
+  blueprintItems: WorkItem[];
   history: MeasurementSnapshot[];
   theme: PDFTheme;
   bdi: number;

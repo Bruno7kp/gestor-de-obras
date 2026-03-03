@@ -16,6 +16,7 @@ export const projectService = {
     referenceDate: new Date().toLocaleDateString('pt-BR'),
     logo: null,
     items: [],
+    blueprintItems: [],
     history: [],
     theme: { ...DEFAULT_THEME },
     bdi: 25,
@@ -52,12 +53,14 @@ export const projectService = {
 
   closeMeasurement: (project: Project): Project => {
     try {
-      const wbsItems = project.items.filter(item => item.scope !== 'quantitativo');
+      const wbsItems = project.items;
+      const blueprintItems = project.blueprintItems || [];
       const stats = treeService.calculateBasicStats(wbsItems, project.bdi);
       const snapshot: MeasurementSnapshot = {
         measurementNumber: project.measurementNumber,
         date: new Date().toLocaleDateString('pt-BR'),
         items: JSON.parse(JSON.stringify(wbsItems)),
+        blueprintItems: JSON.parse(JSON.stringify(blueprintItems)),
         totals: {
           contract: stats.contract,
           period: stats.current,
@@ -95,6 +98,7 @@ export const projectService = {
         ...project,
         measurementNumber: project.measurementNumber + 1,
         items: rotatedItems,
+        blueprintItems,
         history: [snapshot, ...(project.history || [])],
         referenceDate: new Date().toLocaleDateString('pt-BR')
       };
@@ -109,18 +113,14 @@ export const projectService = {
     const [latestSnapshot, ...remainingHistory] = project.history;
 
     const snapshotWbsItems = JSON.parse(JSON.stringify(latestSnapshot.items)) as Project['items'];
-    const snapshotWbsById = new Map(snapshotWbsItems.map(item => [item.id, item] as const));
-    const quantitativoItems = project.items.filter(item => item.scope === 'quantitativo');
-    const restoredWbsItems = snapshotWbsItems.filter(item => item.scope !== 'quantitativo');
+    const snapshotBlueprintItems = JSON.parse(JSON.stringify(latestSnapshot.blueprintItems || project.blueprintItems || [])) as Project['blueprintItems'];
 
     return {
       ...project,
       measurementNumber: latestSnapshot.measurementNumber,
       referenceDate: latestSnapshot.date,
-      items: [
-        ...restoredWbsItems,
-        ...quantitativoItems.filter(item => !snapshotWbsById.has(item.id)),
-      ],
+      items: snapshotWbsItems,
+      blueprintItems: snapshotBlueprintItems,
       history: remainingHistory
     };
   },

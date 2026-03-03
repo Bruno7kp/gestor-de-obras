@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect, useRef, useLayoutEffect, useCallba
 import { Project, WorkItem, ItemType } from '../types';
 import { treeService } from '../services/treeService';
 import { financial } from '../utils/math';
-import { workItemsApi } from '../services/workItemsApi';
+import { blueprintItemsApi } from '../services/blueprintItemsApi';
 import { excelService, ImportResult } from '../services/excelService';
 import { usePermissions } from '../hooks/usePermissions';
 import { 
@@ -37,8 +37,8 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
   const lastEditedIdRef = useRef<string | null>(null);
 
   // --- Local items state (optimistic, mirrors WbsView pattern) ---
-  const [localItems, setLocalItems] = useState<WorkItem[]>(project.items);
-  const localItemsRef = useRef<WorkItem[]>(project.items);
+  const [localItems, setLocalItems] = useState<WorkItem[]>(project.blueprintItems || []);
+  const localItemsRef = useRef<WorkItem[]>(project.blueprintItems || []);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -53,9 +53,9 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
 
   // --- Sync local state from parent ---
   useEffect(() => {
-    localItemsRef.current = project.items;
-    setLocalItems(project.items);
-  }, [project.id, project.items]);
+    localItemsRef.current = project.blueprintItems || [];
+    setLocalItems(project.blueprintItems || []);
+  }, [project.id, project.blueprintItems]);
 
   useEffect(() => {
     localStorage.setItem(`exp_blueprint_${project.id}`, JSON.stringify(Array.from(expandedIds)));
@@ -87,7 +87,7 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
     const parent = scrollParentRef.current;
     if (!parent) return;
     parent.scrollTop = scrollTopRef.current;
-  }, [project.items]);
+  }, [project.blueprintItems]);
 
   useLayoutEffect(() => {
     const lastId = lastEditedIdRef.current;
@@ -98,7 +98,7 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
       row.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
     lastEditedIdRef.current = null;
-  }, [project.items]);
+  }, [project.blueprintItems]);
 
   const getScrollSnapshot = () => {
     const page = scrollParentRef.current;
@@ -146,7 +146,7 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
   const updateItemsState = (items: WorkItem[]) => {
     preserveScroll(() => {
       updateLocalItems(items);
-      onUpdateProject({ items });
+      onUpdateProject({ blueprintItems: items });
     });
   };
 
@@ -161,7 +161,7 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
     pendingUpdatesRef.current = new Map();
     const snapshot = getScrollSnapshot();
     try {
-      await workItemsApi.batchUpdate(project.id, updates, 'cellEdit');
+      await blueprintItemsApi.batchUpdate(project.id, updates, 'cellEdit');
     } catch (error) {
       console.error('Erro ao salvar itens:', error);
     } finally {
@@ -176,7 +176,7 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
       if (pending.size > 0) {
         const updates = Array.from(pending.entries()).map(([id, patch]) => ({ id, ...patch }));
         pendingUpdatesRef.current = new Map();
-        void workItemsApi.batchUpdate(project.id, updates, 'cellEdit');
+        void blueprintItemsApi.batchUpdate(project.id, updates, 'cellEdit');
       }
     };
   }, [project.id]);
@@ -191,7 +191,7 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
   const syncItemsBulk = async (updates: { id: string; patch: Partial<WorkItem> }[], operation?: string) => {
     const snapshot = getScrollSnapshot();
     try {
-      await workItemsApi.batchUpdate(
+      await blueprintItemsApi.batchUpdate(
         project.id,
         updates.map(u => ({ id: u.id, ...u.patch })),
         operation,
@@ -318,12 +318,12 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
       let sent = 0;
       for (let i = 0; i < sorted.length; i += CHUNK_SIZE) {
         const chunk = sorted.slice(i, i + CHUNK_SIZE);
-        await workItemsApi.batch(project.id, chunk, i === 0, 'quantitativo');
+        await blueprintItemsApi.batch(project.id, chunk, i === 0);
         sent += chunk.length;
         setImportProgress({ sent, total: sorted.length });
       }
 
-      onUpdateProject({ items: importSummary.items });
+      onUpdateProject({ blueprintItems: importSummary.items });
       setImportSummary(null);
     } catch (error) {
       console.error('Erro ao importar quantitativos:', error);
@@ -422,7 +422,7 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
     const nextItems = localItemsRef.current.filter(item => !idsToRemove.has(item.id));
     updateItemsState(nextItems);
     try {
-      await workItemsApi.remove(id);
+      await blueprintItemsApi.remove(id);
     } catch (error) {
       console.error('Erro ao remover item:', error);
     }

@@ -11,6 +11,7 @@ import { ProjectsModule } from './projects/projects.module';
 import { ProjectGroupsModule } from './project-groups/project-groups.module';
 import { ProjectMembersModule } from './project-members/project-members.module';
 import { WorkItemsModule } from './work-items/work-items.module';
+import { BlueprintItemsModule } from './blueprint-items/blueprint-items.module';
 import { ProjectExpensesModule } from './project-expenses/project-expenses.module';
 import { PlanningModule } from './planning/planning.module';
 import { JournalModule } from './journal/journal.module';
@@ -45,6 +46,7 @@ import { AuditModule } from './audit/audit.module';
     ProjectGroupsModule,
     ProjectMembersModule,
     WorkItemsModule,
+    BlueprintItemsModule,
     ProjectExpensesModule,
     PlanningModule,
     JournalModule,

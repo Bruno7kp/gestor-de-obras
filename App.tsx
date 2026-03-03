@@ -7,6 +7,7 @@ import { biddingService } from './services/biddingService';
 import { projectsApi } from './services/projectsApi';
 import { notificationsApi } from './services/notificationsApi';
 import { workItemsApi } from './services/workItemsApi';
+import { blueprintItemsApi } from './services/blueprintItemsApi';
 import { measurementSnapshotsApi } from './services/measurementSnapshotsApi';
 import type { GlobalSettings, Project, Supplier, Contractor, UserNotification } from './types';
 
@@ -458,7 +459,7 @@ const App: React.FC = () => {
       }
 
       try {
-        const wbsItems = updated.items.filter(item => item.scope !== 'quantitativo');
+        const wbsItems = updated.items;
         await workItemsApi.batchUpdate(
           activeProject.id,
           wbsItems.map(item => ({
@@ -482,6 +483,12 @@ const App: React.FC = () => {
             balanceTotal: item.balanceTotal,
           })),
           'closeMeasurement',
+        );
+
+        await blueprintItemsApi.batch(
+          activeProject.id,
+          updated.blueprintItems || [],
+          true,
         );
       } catch (error) {
         console.error('Erro ao atualizar itens apos fechamento:', error);

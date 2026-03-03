@@ -15,6 +15,12 @@ const normalizeExpenses = (expenses: ProjectExpense[] | undefined) =>
     status: expense.status || (expense.isPaid ? 'PAID' : 'PENDING'),
   }));
 
+const normalizeBlueprintItems = (items: any[] | undefined) =>
+  (items ?? []).map((item) => ({
+    ...item,
+    scope: 'quantitativo' as const,
+  }));
+
 const normalizeWorkforce = (workforce: any[] | undefined): WorkforceMember[] =>
   (workforce ?? []).map((member) => ({
     id: member.id,
@@ -103,6 +109,7 @@ export const normalizeProject = (project: any): Project => {
     measurementNumber: snapshot.measurementNumber,
     date: snapshot.date,
     items: (snapshot.items ?? snapshot.itemsSnapshot ?? []).filter((item: any) => item?.scope !== 'quantitativo'),
+    blueprintItems: normalizeBlueprintItems(snapshot.blueprintItems),
     totals: snapshot.totals ?? {},
   })).sort((a, b) => (b.measurementNumber ?? 0) - (a.measurementNumber ?? 0));
 
@@ -124,7 +131,8 @@ export const normalizeProject = (project: any): Project => {
     measurementNumber: project.measurementNumber ?? 1,
     referenceDate: project.referenceDate ?? new Date().toLocaleDateString('pt-BR'),
     logo: project.logo ?? null,
-    items: project.items ?? [],
+    items: (project.items ?? []).filter((item: any) => item?.scope !== 'quantitativo'),
+    blueprintItems: normalizeBlueprintItems(project.blueprintItems),
     history,
     theme: normalizeTheme(project.theme),
     bdi: project.bdi ?? 25,

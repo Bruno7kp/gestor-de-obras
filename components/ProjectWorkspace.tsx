@@ -38,6 +38,7 @@ import { financial } from '../utils/math';
 import { uiPreferences } from '../utils/uiPreferences';
 import { expenseService } from '../services/expenseService';
 import { workItemsApi } from '../services/workItemsApi';
+import { blueprintItemsApi } from '../services/blueprintItemsApi';
 import { projectExpensesApi } from '../services/projectExpensesApi';
 import { planningApi } from '../services/planningApi';
 import { projectAssetsApi } from '../services/projectAssetsApi';
@@ -622,7 +623,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     }
   };
 
-  const wbsItems = useMemo(() => project.items.filter(i => i.scope !== 'quantitativo'), [project.items]);
+  const wbsItems = useMemo(() => project.items, [project.items]);
+  const blueprintItems = useMemo(() => project.blueprintItems || [], [project.blueprintItems]);
 
   const currentStats = useMemo(() =>
     treeService.calculateBasicStats(wbsItems, project.bdi, project),
@@ -638,15 +640,23 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     if (viewingMeasurementId === 'current') {
       return {
         items: project.items,
+        blueprintItems: project.blueprintItems || [],
         isReadOnly: !canEditProject || isProjectArchived,
         label: `Medição Nº ${project.measurementNumber}`,
         date: project.referenceDate,
       };
     }
     const snapshot = project.history?.find(h => h.measurementNumber === viewingMeasurementId);
-    if (snapshot) return { items: snapshot.items, isReadOnly: true, label: `Medição Nº ${snapshot.measurementNumber}`, date: snapshot.date };
+    if (snapshot) return {
+      items: snapshot.items,
+      blueprintItems: snapshot.blueprintItems || [],
+      isReadOnly: true,
+      label: `Medição Nº ${snapshot.measurementNumber}`,
+      date: snapshot.date,
+    };
     return {
       items: project.items,
+      blueprintItems: project.blueprintItems || [],
       isReadOnly: !canEditProject || isProjectArchived,
       label: 'Erro',
       date: '',
@@ -654,7 +664,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   }, [project, viewingMeasurementId, canEditProject, isProjectArchived]);
 
   const flattenedPrintData = useMemo(() => {
-    const wbsPrintItems = displayData.items.filter(i => i.scope !== 'quantitativo');
+    const wbsPrintItems = displayData.items;
     const tree = treeService.buildTree<WorkItem>(wbsPrintItems);
     const processed = tree.map((root, idx) => treeService.processRecursive(root, '', idx, project.bdi));
     const allIds = new Set<string>(wbsPrintItems.map(i => i.id));
@@ -662,7 +672,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   }, [displayData.items, project.bdi]);
 
   const printStats = useMemo(() => {
-    const wbsPrintItems = displayData.items.filter(i => i.scope !== 'quantitativo');
+    const wbsPrintItems = displayData.items;
     if (viewingMeasurementId === 'current') {
       return treeService.calculateBasicStats(wbsPrintItems, project.bdi, project);
     }
@@ -703,31 +713,29 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
   const activeScope: 'wbs' | 'quantitativo' = tab === 'blueprint' ? 'quantitativo' : 'wbs';
 
-  // Scope-aware update wrappers: prevent one view from wiping items of the other scope
   const handleWbsUpdateProject = useCallback((data: Partial<Project>) => {
-    if (data.items) {
-      const quantitativoItems = project.items.filter(i => i.scope === 'quantitativo');
-      onUpdateProject({ ...data, items: [...data.items, ...quantitativoItems] });
-    } else {
-      onUpdateProject(data);
-    }
-  }, [project.items, onUpdateProject]);
+    onUpdateProject(data);
+  }, [onUpdateProject]);
 
   const handleBlueprintUpdateProject = useCallback((data: Partial<Project>) => {
-    if (data.items) {
-      const wbsItems = project.items.filter(i => i.scope !== 'quantitativo');
-      onUpdateProject({ ...data, items: [...wbsItems, ...data.items] });
-    } else {
-      onUpdateProject(data);
-    }
-  }, [project.items, onUpdateProject]);
+    onUpdateProject(data);
+  }, [onUpdateProject]);
 
   const handleSaveWorkItem = async (data: Partial<WorkItem>) => {
+    const activeItems = activeScope === 'quantitativo' ? blueprintItems : project.items;
+    const setItems = (nextItems: WorkItem[]) => {
+      if (activeScope === 'quantitativo') {
+        onUpdateProject({ blueprintItems: nextItems });
+      } else {
+        onUpdateProject({ items: nextItems });
+      }
+    };
+
     if (editingItem) {
       const updated = { ...editingItem, ...data } as WorkItem;
-      onUpdateProject({ items: project.items.map(it => it.id === editingItem.id ? updated : it) });
+      setItems(activeItems.map((it) => (it.id === editingItem.id ? updated : it)));
       try {
-        await workItemsApi.update(editingItem.id, {
+        const payload = {
           parentId: updated.parentId,
           name: updated.name,
           type: updated.type,
@@ -737,7 +745,12 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           contractQuantity: updated.contractQuantity,
           unitPrice: updated.unitPrice,
           unitPriceNoBdi: updated.unitPriceNoBdi,
-        });
+        };
+        if (activeScope === 'quantitativo') {
+          await blueprintItemsApi.update(editingItem.id, payload);
+        } else {
+          await workItemsApi.update(editingItem.id, payload);
+        }
       } catch (error) {
         console.error('Erro ao salvar item:', error);
       }
@@ -750,7 +763,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         type: resolvedType,
         scope: activeScope,
         wbs: '',
-        order: project.items.length,
+        order: activeItems.length,
         unit: resolvedType === 'category' ? '' : (data.unit || 'un'),
         cod: data.cod,
         fonte: data.fonte,
@@ -770,11 +783,14 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         balanceTotal: 0,
       };
       try {
-        const created = await workItemsApi.create(project.id, newItem);
-        onUpdateProject({ items: [...project.items, created] });
+        const created =
+          activeScope === 'quantitativo'
+            ? await blueprintItemsApi.create(project.id, newItem)
+            : await workItemsApi.create(project.id, newItem);
+        setItems([...activeItems, created]);
       } catch (error) {
         console.error('Erro ao criar item:', error);
-        onUpdateProject({ items: [...project.items, newItem] });
+        setItems([...activeItems, newItem]);
       }
     }
   };
@@ -1134,7 +1150,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         referenceDate: updated.referenceDate,
       });
 
-      const wbsItems = updated.items.filter(item => item.scope !== 'quantitativo');
+      const wbsItems = updated.items;
       await workItemsApi.batchUpdate(
         project.id,
         wbsItems.map(item => ({
@@ -1159,6 +1175,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         })),
         'reopenMeasurement',
       );
+
+      await blueprintItemsApi.batch(project.id, updated.blueprintItems || [], true);
     } catch (error) {
       console.error('Erro ao reabrir medição:', error);
       toast.error('Falha ao persistir a reabertura da medição.');
@@ -1441,9 +1459,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     </div>
                   </div>
                 )}
-                {tab === 'wbs' && <WbsView project={{ ...project, items: displayData.items.filter(i => i.scope !== 'quantitativo'), ...(viewingMeasurementId === 'current' ? {} : { contractTotalOverride: undefined, currentTotalOverride: undefined }) }} onUpdateProject={handleWbsUpdateProject} onOpenModal={handleOpenModal} isReadOnly={displayData.isReadOnly} />}
-                {tab === 'blueprint' && <BlueprintView project={{ ...project, items: displayData.items.filter(i => i.scope === 'quantitativo') }} onUpdateProject={handleBlueprintUpdateProject} onOpenModal={handleOpenModal} isReadOnly={displayData.isReadOnly} />}
-                {tab === 'stats' && <StatsView project={{ ...project, items: displayData.items.filter(i => i.scope !== 'quantitativo') }} />}
+                {tab === 'wbs' && <WbsView project={{ ...project, items: displayData.items, ...(viewingMeasurementId === 'current' ? {} : { contractTotalOverride: undefined, currentTotalOverride: undefined }) }} onUpdateProject={handleWbsUpdateProject} onOpenModal={handleOpenModal} isReadOnly={displayData.isReadOnly} />}
+                {tab === 'blueprint' && <BlueprintView project={{ ...project, blueprintItems: displayData.blueprintItems }} onUpdateProject={handleBlueprintUpdateProject} onOpenModal={handleOpenModal} isReadOnly={displayData.isReadOnly} />}
+                {tab === 'stats' && <StatsView project={{ ...project, items: displayData.items }} />}
                 {tab === 'expenses' && (
                   <ExpenseManager
                     project={project}
@@ -1454,8 +1472,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     onAddMany={handleExpenseAddMany}
                     onUpdate={handleExpenseUpdate}
                     onDelete={handleExpenseDelete}
-                    workItems={displayData.items.filter(i => i.scope !== 'quantitativo')}
-                    measuredValue={treeService.calculateBasicStats(displayData.items.filter(i => i.scope !== 'quantitativo'), project.bdi).current}
+                    workItems={displayData.items}
+                    measuredValue={treeService.calculateBasicStats(displayData.items, project.bdi).current}
                     onUpdateExpenses={handleExpensesReplace}
                     isReadOnly={displayData.isReadOnly}
                     onRequestPrintReport={handleRequestExpensePrint}
@@ -1469,8 +1487,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     onAddExpense={handleExpenseAdd}
                     onUpdateExpense={handleExpenseUpdate}
                     onRefreshExpenses={refreshExpenses}
-                    categories={displayData.items.filter(i => i.type === 'category' && i.scope !== 'quantitativo')}
-                    allWorkItems={displayData.items.filter(i => i.scope !== 'quantitativo')}
+                    categories={displayData.items.filter(i => i.type === 'category')}
+                    allWorkItems={displayData.items}
                     viewMode="supplies"
                     onRequestPrintReport={handleRequestSuppliesPrint}
                     isReadOnly={isHistoryMode}
@@ -1497,8 +1515,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     onAddExpense={handleExpenseAdd}
                     onUpdateExpense={handleExpenseUpdate}
                     onRefreshExpenses={refreshExpenses}
-                    categories={displayData.items.filter(i => i.type === 'category' && i.scope !== 'quantitativo')}
-                    allWorkItems={displayData.items.filter(i => i.scope !== 'quantitativo')}
+                    categories={displayData.items.filter(i => i.type === 'category')}
+                    allWorkItems={displayData.items}
                     fixedSubTab="tasks"
                     showSubTabs={false}
                     isReadOnly={isHistoryMode}
@@ -1514,8 +1532,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     onAddExpense={handleExpenseAdd}
                     onUpdateExpense={handleExpenseUpdate}
                     onRefreshExpenses={refreshExpenses}
-                    categories={displayData.items.filter(i => i.type === 'category' && i.scope !== 'quantitativo')}
-                    allWorkItems={displayData.items.filter(i => i.scope !== 'quantitativo')}
+                    categories={displayData.items.filter(i => i.type === 'category')}
+                    allWorkItems={displayData.items}
                     fixedSubTab="milestones"
                     showSubTabs={false}
                     isReadOnly={isHistoryMode}
@@ -1523,7 +1541,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     canEditModule={getLevel('schedule') === 'edit'}
                   />
                 )}
-                {tab === 'journal' && <JournalView project={project} onUpdateJournal={(j) => onUpdateProject({ journal: j })} allWorkItems={displayData.items.filter(i => i.scope !== 'quantitativo')} isReadOnly={displayData.isReadOnly} />}
+                {tab === 'journal' && <JournalView project={project} onUpdateJournal={(j) => onUpdateProject({ journal: j })} allWorkItems={displayData.items} isReadOnly={displayData.isReadOnly} />}
                 {tab === 'stock' && <SiteStockMovementView projectId={project.id} canEditModule={getLevel('stock') === 'edit'} isReadOnly={isHistoryMode || isProjectArchived} projectName={project.name} />}
                 {tab === 'documents' && <AssetManager assets={project.assets} onAdd={handleAssetAdd} onUpdate={handleAssetUpdate} onDelete={handleAssetDelete} isReadOnly={displayData.isReadOnly} />}
                 {tab === 'branding' && <BrandingView project={project} onUpdateProject={handleBrandingUpdate} isReadOnly={displayData.isReadOnly} />}
@@ -1562,7 +1580,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
             )}
           </div>
 
-          <WorkItemModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSaveWorkItem} editingItem={editingItem} type={modalType} initialParentId={targetParentId} categories={treeService.flattenTree(treeService.buildTree(displayData.items.filter(i => i.type === 'category' && (activeScope === 'quantitativo' ? i.scope === 'quantitativo' : i.scope !== 'quantitativo'))), new Set(displayData.items.map(i => i.id)))} projectBdi={project.bdi} context={activeScope} />
+          <WorkItemModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSaveWorkItem} editingItem={editingItem} type={modalType} initialParentId={targetParentId} categories={treeService.flattenTree(treeService.buildTree((activeScope === 'quantitativo' ? displayData.blueprintItems : displayData.items).filter(i => i.type === 'category')), new Set((activeScope === 'quantitativo' ? displayData.blueprintItems : displayData.items).map(i => i.id)))} projectBdi={project.bdi} context={activeScope} />
 
           {isExpensePrintModalOpen && (
             <div
