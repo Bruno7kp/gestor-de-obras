@@ -174,7 +174,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
     payment: LaborPayment,
     parentId: string | null,
     isPaid: boolean,
-    paymentProof?: string,
+    paymentProof?: string | null,
   ) => {
     const associado = workforce.find(w => w.id === contract.associadoId);
     const effectiveDate = payment.data || new Date().toISOString().split('T')[0];
@@ -198,7 +198,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
       amount: payment.valor,
       isPaid,
       status,
-      paymentProof: isPaid ? paymentProof : undefined,
+      paymentProof: isPaid ? (paymentProof ?? null) : undefined,
       linkedWorkItemId: primaryLinkedWorkItemId,
     };
   };
@@ -385,7 +385,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
   const handleSavePayment = async (
     contractId: string,
     payment: LaborPayment,
-    options: { isPaid: boolean; parentId: string | null; paymentProof?: string; isNew: boolean }
+    options: { isPaid: boolean; parentId: string | null; paymentProof?: string | null; isNew: boolean }
   ) => {
     if (isReadOnly) return;
     const contract = contracts.find(c => c.id === contractId);
@@ -999,7 +999,7 @@ const PaymentModal = ({
   const [newGroupName, setNewGroupName] = useState('');
   const isPaidLocked = !!existingExpense?.isPaid || existingExpense?.status === 'PAID';
   const [isPaid, setIsPaid] = useState<boolean>(isPaidLocked);
-  const [paymentProof, setPaymentProof] = useState<string | undefined>(
+  const [paymentProof, setPaymentProof] = useState<string | null | undefined>(
     existingExpense?.paymentProof || payment.comprovante
   );
   const [confirmPaidOpen, setConfirmPaidOpen] = useState(false);
@@ -1191,7 +1191,7 @@ const PaymentModal = ({
                 requiredStatus="PAID"
                 currentFile={paymentProof}
                 onUploadUrl={(url) => setPaymentProof(url)}
-                onRemove={() => setPaymentProof(undefined)}
+                onRemove={() => setPaymentProof(null)}
               />
             </div>
           )}

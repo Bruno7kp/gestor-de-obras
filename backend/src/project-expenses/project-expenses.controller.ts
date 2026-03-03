@@ -35,8 +35,8 @@ interface CreateExpenseBody {
   isPaid?: boolean;
   status?: ExpenseStatus;
   paymentDate?: string;
-  paymentProof?: string;
-  invoiceDoc?: string;
+  paymentProof?: string | null;
+  invoiceDoc?: string | null;
   deliveryDate?: string;
   discountValue?: number;
   discountPercentage?: number;

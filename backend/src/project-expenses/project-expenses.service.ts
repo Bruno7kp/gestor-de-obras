@@ -33,8 +33,8 @@ interface CreateExpenseInput {
   isPaid?: boolean;
   status?: ExpenseStatus;
   paymentDate?: string;
-  paymentProof?: string;
-  invoiceDoc?: string;
+  paymentProof?: string | null;
+  invoiceDoc?: string | null;
   deliveryDate?: string;
   discountValue?: number;
   discountPercentage?: number;
@@ -597,6 +597,16 @@ export class ProjectExpensesService {
     }
 
     const nextStatus = input.status ?? existing.status;
+    const hasPaymentProof = Object.prototype.hasOwnProperty.call(
+      input,
+      'paymentProof',
+    );
+    const hasInvoiceDoc = Object.prototype.hasOwnProperty.call(
+      input,
+      'invoiceDoc',
+    );
+    const previousPaymentProof = existing.paymentProof;
+    const previousInvoiceDoc = existing.invoiceDoc;
 
     const updated = await this.prisma.projectExpense.update({
       where: { id: input.id },
@@ -617,8 +627,10 @@ export class ProjectExpensesService {
         isPaid: input.isPaid ?? existing.isPaid,
         status: input.status ?? existing.status,
         paymentDate: input.paymentDate ?? existing.paymentDate,
-        paymentProof: input.paymentProof ?? existing.paymentProof,
-        invoiceDoc: input.invoiceDoc ?? existing.invoiceDoc,
+        paymentProof: hasPaymentProof
+          ? input.paymentProof || null
+          : existing.paymentProof,
+        invoiceDoc: hasInvoiceDoc ? input.invoiceDoc || null : existing.invoiceDoc,
         deliveryDate: input.deliveryDate ?? existing.deliveryDate,
         discountValue: input.discountValue ?? existing.discountValue,
         discountPercentage:
@@ -663,6 +675,11 @@ export class ProjectExpensesService {
         input.userId,
       ).catch(() => undefined);
     }
+
+    await this.cleanupUploadsIfOrphaned([
+      hasPaymentProof ? previousPaymentProof : null,
+      hasInvoiceDoc ? previousInvoiceDoc : null,
+    ]);
 
     return updated;
   }

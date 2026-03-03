@@ -496,7 +496,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                       requiredStatus="PAID"
                       currentFile={formData.paymentProof}
                       onUploadUrl={(url) => setFormData(prev => ({ ...prev, paymentProof: url }))}
-                      onRemove={() => setFormData(prev => ({ ...prev, paymentProof: undefined }))}
+                      onRemove={() => setFormData(prev => ({ ...prev, paymentProof: null }))}
                     />
                   )}
 
@@ -507,7 +507,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                       requiredStatusLabel={isRevenue ? 'Faturado' : isIncome ? 'Transferido' : undefined}
                       currentFile={formData.invoiceDoc}
                       onUploadUrl={(url) => setFormData(prev => ({ ...prev, invoiceDoc: url }))}
-                      onRemove={() => setFormData(prev => ({ ...prev, invoiceDoc: undefined }))}
+                      onRemove={() => setFormData(prev => ({ ...prev, invoiceDoc: null }))}
                     />
                   )}
 
