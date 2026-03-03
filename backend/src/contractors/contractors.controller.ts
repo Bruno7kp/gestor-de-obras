@@ -78,7 +78,11 @@ export class ContractorsController {
     @Param('instanceId') instanceId: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.contractorsService.findAllByInstance(instanceId, req.user.id);
+    return this.contractorsService.findAllByInstance(
+      instanceId,
+      req.user.id,
+      req.user.instanceId,
+    );
   }
 
   @Get(':id')

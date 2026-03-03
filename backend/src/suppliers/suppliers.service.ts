@@ -41,18 +41,25 @@ export class SuppliersService {
 
   /**
    * Returns suppliers for a given instance (read-only).
-   * Verifies the user has at least one project membership in that instance.
+   * For cross-instance access, verifies the user has at least one
+   * project membership in the target instance.
    */
-  async findAllByInstance(instanceId: string, userId: string) {
-    const membershipCount = await this.prisma.projectMember.count({
-      where: {
-        userId,
-        project: { instanceId },
-      },
-    });
+  async findAllByInstance(
+    instanceId: string,
+    userId: string,
+    homeInstanceId: string,
+  ) {
+    if (instanceId !== homeInstanceId) {
+      const membershipCount = await this.prisma.projectMember.count({
+        where: {
+          userId,
+          project: { instanceId },
+        },
+      });
 
-    if (membershipCount === 0) {
-      return [];
+      if (membershipCount === 0) {
+        return [];
+      }
     }
 
     return this.prisma.supplier.findMany({

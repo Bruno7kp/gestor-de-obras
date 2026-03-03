@@ -75,7 +75,11 @@ export class SuppliersController {
     @Param('instanceId') instanceId: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.suppliersService.findAllByInstance(instanceId, req.user.id);
+    return this.suppliersService.findAllByInstance(
+      instanceId,
+      req.user.id,
+      req.user.instanceId,
+    );
   }
 
   @Get(':id')
