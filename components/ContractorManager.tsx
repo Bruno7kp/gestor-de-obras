@@ -171,32 +171,32 @@ export const ContractorManager: React.FC<ContractorManagerProps> = ({ contractor
   };
 
   return (
-    <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-50 dark:bg-slate-950">
-      <header className="p-8 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
-        <div className="flex items-center justify-between mb-8">
+    <div className="flex-1 overflow-y-auto p-6 sm:p-12 animate-in fade-in duration-500 bg-slate-50 dark:bg-slate-950 custom-scrollbar">
+      <div className="max-w-6xl mx-auto space-y-10">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <div>
-            <h1 className="text-2xl font-black tracking-tight text-slate-800 dark:text-white uppercase">
-              Prestadores
+            <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">
+              Gestão de Prestadores
               {isExternal && externalInstanceName && (
                 <span className="text-lg text-amber-600 dark:text-amber-400 ml-2">— {externalInstanceName}</span>
               )}
             </h1>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-              Gestão de Prestadores de Serviço e Empreiteiros
+            <p className="text-slate-500 dark:text-slate-400 font-medium">
+              Prestadores de serviço, empreiteiros e contatos operacionais.
             </p>
           </div>
           {canEdit && (
-            <button 
+            <button
               onClick={() => { setEditingContractor(null); setIsModalOpen(true); }}
-              className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-indigo-500/20 hover:scale-105 active:scale-95 transition-all"
+              className="flex items-center gap-2 px-8 py-4 bg-indigo-600 text-white font-black uppercase tracking-widest text-[11px] rounded-2xl shadow-xl shadow-indigo-500/20 hover:scale-105 active:scale-95 transition-all"
             >
-              <Plus size={16} /> Novo Prestador
+              <Plus size={18} /> Novo Prestador
             </button>
           )}
         </div>
 
         {isExternal && externalInstanceName && (
-          <div className="flex items-center gap-3 px-5 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl mb-6">
+          <div className="flex items-center gap-3 px-5 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl">
             <Globe size={16} className="text-amber-600 dark:text-amber-400 shrink-0" />
             <div className="flex-1">
               <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-400">
@@ -211,51 +211,25 @@ export const ContractorManager: React.FC<ContractorManagerProps> = ({ contractor
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-700 flex items-center gap-4">
-            <div className="p-4 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-2xl">
-              <Building2 size={24} />
-            </div>
-            <div>
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Total Ativos</p>
-              <p className="text-2xl font-black text-slate-800 dark:text-white">{stats.active}</p>
-            </div>
-          </div>
-          <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-700 flex items-center gap-4">
-            <div className="p-4 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-2xl">
-              <Landmark size={24} />
-            </div>
-            <div>
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Cidades Atendidas</p>
-              <p className="text-2xl font-black text-slate-800 dark:text-white">{stats.cities}</p>
-            </div>
-          </div>
-          <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-700 flex items-center gap-4">
-            <div className="p-4 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-2xl">
-              <Briefcase size={24} />
-            </div>
-            <div>
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Total Cadastrados</p>
-              <p className="text-2xl font-black text-slate-800 dark:text-white">{stats.total}</p>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
-        <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-4">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <input 
-                type="text" 
-                placeholder="Pesquisar por nome, CNPJ ou cidade..."
-                className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-indigo-500 rounded-2xl text-xs font-bold outline-none transition-all dark:text-white"
+        <div className="flex flex-wrap items-stretch gap-3">
+          <StatCard label="Total Ativos" value={stats.active} icon={<Building2 size={16} />} color="indigo" />
+          <StatCard label="Cidades Atendidas" value={stats.cities} icon={<Landmark size={16} />} color="emerald" />
+          <StatCard label="Total Cadastrados" value={stats.total} icon={<Briefcase size={16} />} color="amber" />
+          <div className="ml-auto flex items-center gap-3 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div className="relative">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+              <input
+                type="text"
+                placeholder="Buscar prestador..."
+                className="pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-800 border-transparent focus:bg-white dark:focus:bg-slate-700 border-2 focus:border-indigo-500 rounded-xl outline-none transition-all text-xs font-bold w-56"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
           </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
 
           {filteredContractors.length === 0 ? (
             <div className="p-16 text-center">
@@ -429,6 +403,24 @@ export const ContractorManager: React.FC<ContractorManagerProps> = ({ contractor
           onClose={() => setPaymentModalContractor(null)}
         />
       )}
+    </div>
+  );
+};
+
+const StatCard = ({ label, value, icon, color }: any) => {
+  const colors: any = {
+    indigo: 'text-indigo-500',
+    amber: 'text-amber-500',
+    emerald: 'text-emerald-500',
+  };
+  const c = colors[color] ?? colors.indigo;
+  return (
+    <div className="flex items-center gap-2.5 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm shrink-0">
+      <div className={c}>{icon}</div>
+      <div className="leading-tight">
+        <p className="text-sm font-black text-slate-800 dark:text-white">{value}</p>
+        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{label}</p>
+      </div>
     </div>
   );
 };
