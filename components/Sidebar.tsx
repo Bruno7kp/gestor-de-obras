@@ -142,20 +142,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
     navigate('/login');
   };
 
-  const NavItem = ({ active, onClick, icon, label, badge, badgeCount }: any) => (
-    <button onClick={onClick} className={`w-full flex items-center gap-4 p-3.5 rounded-2xl transition-all relative ${active ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+  const NavItem = ({ active, onClick, icon, label, badge, badgeCount, variant }: any) => {
+    const activeClass = variant === 'shared'
+      ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 shadow-lg'
+      : 'bg-indigo-600 text-white shadow-lg';
+    const badgeActiveClass = variant === 'shared'
+      ? 'bg-emerald-200/60 dark:bg-emerald-800/40 text-emerald-700 dark:text-emerald-300'
+      : 'bg-white/20 text-white';
+    return (
+    <button onClick={onClick} className={`w-full flex items-center gap-4 p-3.5 rounded-2xl transition-all relative ${active ? activeClass : 'text-slate-500 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
       <div className="shrink-0">{icon}</div>
       {isOpen && <span className="text-[11px] font-black uppercase tracking-widest truncate">{label}</span>}
       {badge && <div className="absolute right-3 top-3 w-2 h-2 bg-rose-500 rounded-full animate-pulse border-2 border-white dark:border-slate-900" />}
       {!badge && badgeCount > 0 && (
         <span className={`absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center justify-center min-w-5 h-5 px-1 rounded-full text-[9px] font-black shadow-sm ${
-          active ? 'bg-white/20 text-white' : 'bg-rose-500 text-white'
+          active ? badgeActiveClass : 'bg-rose-500 text-white'
         }`}>
           {badgeCount > 99 ? '99+' : badgeCount}
         </span>
       )}
     </button>
-  );
+    );
+  };
 
   const ProjectNotificationBadge = ({ projectId }: { projectId: string }) => {
     const count = unreadNotificationsByProject[projectId] ?? 0;
@@ -275,20 +283,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <NavItem
                         active={location.pathname.startsWith('/app/global-stock') && new URLSearchParams(location.search).get('instanceId') === stockInst.instanceId}
                         onClick={() => { navigate(`/app/global-stock?instanceId=${stockInst.instanceId}&instanceName=${encodeURIComponent(stockInst.instanceName)}`); setMobileOpen(false); }}
-                        icon={<Warehouse size={sidebarOpen ? 16 : 18}/>}
+                        icon={<Warehouse size={sidebarOpen ? 14 : 16} className="text-emerald-500"/>}
                         label={sidebarOpen ? 'Estoque Global' : stockInst.instanceName}
+                        variant="shared"
                       />
                       <NavItem
                         active={location.pathname.startsWith('/app/traceability') && new URLSearchParams(location.search).get('instanceId') === stockInst.instanceId}
                         onClick={() => { navigate(`/app/traceability?instanceId=${stockInst.instanceId}&instanceName=${encodeURIComponent(stockInst.instanceName)}`); setMobileOpen(false); }}
-                        icon={<GitBranch size={sidebarOpen ? 16 : 18}/>}
+                        icon={<GitBranch size={sidebarOpen ? 14 : 16} className="text-emerald-500"/>}
                         label={sidebarOpen ? 'Logística' : ''}
+                        variant="shared"
                       />
                       <NavItem
                         active={location.pathname.startsWith('/app/stock-log') && new URLSearchParams(location.search).get('instanceId') === stockInst.instanceId}
                         onClick={() => { navigate(`/app/stock-log?instanceId=${stockInst.instanceId}&instanceName=${encodeURIComponent(stockInst.instanceName)}`); setMobileOpen(false); }}
-                        icon={<History size={sidebarOpen ? 16 : 18}/>}
+                        icon={<History size={sidebarOpen ? 14 : 16} className="text-emerald-500"/>}
                         label={sidebarOpen ? 'Movimentações' : ''}
+                        variant="shared"
                       />
                     </div>
                   )}
@@ -307,8 +318,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <NavItem
                         active={location.pathname.startsWith('/app/suppliers') && new URLSearchParams(location.search).get('instanceId') === instId}
                         onClick={() => { navigate(`/app/suppliers?instanceId=${instId}&instanceName=${encodeURIComponent(instanceName)}${hasSuppliersEdit ? '&canEdit=1' : ''}`); setMobileOpen(false); }}
-                        icon={<Truck size={sidebarOpen ? 16 : 18}/>}
+                        icon={<Truck size={sidebarOpen ? 14 : 16} className="text-emerald-500"/>}
                         label={sidebarOpen ? 'Fornecedores' : ''}
+                        variant="shared"
                       />
                     );
                   })()}
@@ -327,8 +339,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <NavItem
                         active={location.pathname.startsWith('/app/contractors') && new URLSearchParams(location.search).get('instanceId') === instId}
                         onClick={() => { navigate(`/app/contractors?instanceId=${instId}&instanceName=${encodeURIComponent(instanceName)}${hasWorkforceEdit ? '&canEdit=1' : ''}`); setMobileOpen(false); }}
-                        icon={<Users size={sidebarOpen ? 16 : 18}/>}
+                        icon={<Users size={sidebarOpen ? 14 : 16} className="text-emerald-500"/>}
                         label={sidebarOpen ? 'Prestadores' : ''}
+                        variant="shared"
                       />
                     );
                   })()}
