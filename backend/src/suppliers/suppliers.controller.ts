@@ -27,6 +27,10 @@ interface CreateSupplierBody {
   rating: number;
   notes?: string;
   order?: number;
+  bankName?: string;
+  bankAgency?: string;
+  bankAccount?: string;
+  pixKey?: string;
   instanceId?: string;
 }
 

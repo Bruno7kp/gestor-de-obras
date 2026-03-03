@@ -14,6 +14,10 @@ interface CreateSupplierInput {
   rating: number;
   notes?: string;
   order?: number;
+  bankName?: string;
+  bankAgency?: string;
+  bankAccount?: string;
+  pixKey?: string;
 }
 
 interface UpdateSupplierInput extends Partial<CreateSupplierInput> {
@@ -76,6 +80,10 @@ export class SuppliersService {
         rating: input.rating,
         notes: input.notes || '',
         order: input.order ?? 0,
+        bankName: input.bankName || '',
+        bankAgency: input.bankAgency || '',
+        bankAccount: input.bankAccount || '',
+        pixKey: input.pixKey ?? null,
         createdById: input.userId ?? null,
       },
     });
@@ -111,6 +119,10 @@ export class SuppliersService {
           rating: input.rating ?? existing.rating,
           notes: input.notes ?? existing.notes,
           order: input.order ?? existing.order,
+          bankName: input.bankName ?? existing.bankName,
+          bankAgency: input.bankAgency ?? existing.bankAgency,
+          bankAccount: input.bankAccount ?? existing.bankAccount,
+          pixKey: input.pixKey !== undefined ? (input.pixKey ?? null) : existing.pixKey,
           updatedById: input.userId ?? null,
         },
       })

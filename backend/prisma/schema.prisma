@@ -597,6 +597,10 @@ model Supplier {
   rating      Int
   notes       String
   order       Int
+  bankName    String   @default("")
+  bankAgency  String   @default("")
+  bankAccount String   @default("")
+  pixKey      String?
   instanceId  String
   instance    Instance @relation(fields: [instanceId], references: [id])
   createdBy   User?    @relation("UserSuppliersCreated", fields: [createdById], references: [id])

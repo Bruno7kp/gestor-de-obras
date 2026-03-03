@@ -384,7 +384,7 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
               <KpiCard label="Propostas Total" value={financial.formatBRL(stats.totalPipeline)} icon={<TrendingUp size={16}/>} color="indigo" />
               <KpiCard label="Contratos Ganhos" value={financial.formatBRL(stats.wonValue)} icon={<CheckCircle2 size={16}/>} color="emerald" />
               <KpiCard label="Em Aberto" value={financial.formatBRL(stats.openValue)} icon={<Clock size={16}/>} color="amber" />
-              <KpiCard label="Win Rate" value={`${stats.winRate.toFixed(1)}%`} icon={<Briefcase size={16}/>} color="blue" />
+              <KpiCard label="Taxa de Vitórias" value={`${stats.winRate.toFixed(1)}%`} icon={<Briefcase size={16}/>} color="blue" />
               <div className="flex items-center gap-3 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
                 <div className="relative">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
@@ -410,7 +410,7 @@ export const BiddingView: React.FC<BiddingViewProps> = ({
                       <div>
                         <div className="flex items-center gap-3">
                           <h3 className="text-base font-black dark:text-white uppercase tracking-tight">{b.clientName}</h3>
-                          <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${getStatusColor(b.status)}`}>{b.status}</span>
+                          <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${getStatusColor(b.status)}`}>{getStatusLabel(b.status)}</span>
                         </div>
                         <p className="text-xs text-slate-500 font-medium mt-1">{b.tenderNumber} • {b.object}</p>
                       </div>
@@ -693,5 +693,16 @@ const getStatusColor = (status: BiddingStatus) => {
     case 'SUBMITTED': return 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400';
     case 'DRAFTING': return 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400';
     default: return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400';
+  }
+};
+
+const getStatusLabel = (status: BiddingStatus) => {
+  switch(status) {
+    case 'PROSPECTING': return 'Prospecção';
+    case 'DRAFTING': return 'Em Elaboração';
+    case 'SUBMITTED': return 'Enviada';
+    case 'WON': return 'Ganha';
+    case 'LOST': return 'Perdida';
+    default: return status;
   }
 };

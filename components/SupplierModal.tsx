@@ -12,12 +12,13 @@ interface SupplierModalProps {
 
 export const SupplierModal: React.FC<SupplierModalProps> = ({ isOpen, onClose, onSave, supplier }) => {
   const [formData, setFormData] = useState<Partial<Supplier>>({
-    name: '', cnpj: '', category: 'Material', contactName: '', email: '', phone: '', notes: ''
+    name: '', cnpj: '', category: 'Material', contactName: '', email: '', phone: '', notes: '',
+    bankName: '', bankAgency: '', bankAccount: '', pixKey: ''
   });
 
   useEffect(() => {
     if (supplier) setFormData(supplier);
-    else setFormData({ name: '', cnpj: '', category: 'Material', contactName: '', email: '', phone: '', notes: '' });
+    else setFormData({ name: '', cnpj: '', category: 'Material', contactName: '', email: '', phone: '', notes: '', bankName: '', bankAgency: '', bankAccount: '', pixKey: '' });
   }, [supplier, isOpen]);
 
   if (!isOpen) return null;
@@ -82,6 +83,30 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({ isOpen, onClose, o
                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18}/>
                  <input className="w-full pl-12 pr-6 py-4 rounded-2xl border-2 border-slate-50 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm font-black outline-none focus:border-indigo-500 transition-all" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="comercial@empresa.com.br" />
                </div>
+            </div>
+          </div>
+
+          <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-700 space-y-6">
+            <h3 className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2">
+              <CreditCard size={14} /> Dados para Pagamento
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">Banco</label>
+                <input className="w-full px-4 py-3 bg-white dark:bg-slate-900 border-2 border-transparent focus:border-indigo-500 rounded-xl text-xs font-bold outline-none transition-all dark:text-white" value={formData.bankName ?? ''} onChange={e => setFormData({...formData, bankName: e.target.value})} placeholder="Itaú, Bradesco..." />
+              </div>
+              <div>
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">Agência</label>
+                <input className="w-full px-4 py-3 bg-white dark:bg-slate-900 border-2 border-transparent focus:border-indigo-500 rounded-xl text-xs font-bold outline-none transition-all dark:text-white" value={formData.bankAgency ?? ''} onChange={e => setFormData({...formData, bankAgency: e.target.value})} placeholder="0000" />
+              </div>
+              <div>
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">Conta</label>
+                <input className="w-full px-4 py-3 bg-white dark:bg-slate-900 border-2 border-transparent focus:border-indigo-500 rounded-xl text-xs font-bold outline-none transition-all dark:text-white" value={formData.bankAccount ?? ''} onChange={e => setFormData({...formData, bankAccount: e.target.value})} placeholder="00000-0" />
+              </div>
+            </div>
+            <div>
+              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">Chave PIX (Opcional)</label>
+              <input className="w-full px-4 py-3 bg-white dark:bg-slate-900 border-2 border-transparent focus:border-indigo-500 rounded-xl text-xs font-bold outline-none transition-all dark:text-white" value={formData.pixKey ?? ''} onChange={e => setFormData({...formData, pixKey: e.target.value})} placeholder="CNPJ, E-mail, Celular..." />
             </div>
           </div>
 
