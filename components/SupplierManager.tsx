@@ -561,7 +561,6 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers: hom
                       <th className="px-6 py-4">Nome / Razão Social</th>
                       <th className="px-6 py-4">Categoria</th>
                       <th className="px-6 py-4">Contato</th>
-                      <th className="px-6 py-4">Dados Bancários</th>
                       <th className="px-6 py-4">Observações</th>
                       <th className="px-6 py-4 text-center">Ações</th>
                     </tr>
@@ -608,30 +607,6 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers: hom
                               </div>
                             )}
                             {!supplier.contactName && !supplier.email && !supplier.phone && (
-                              <span className="text-[9px] text-slate-300 dark:text-slate-600 italic">—</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="space-y-1">
-                            {(supplier.bankName || supplier.bankAgency || supplier.bankAccount) ? (
-                              <>
-                                {supplier.bankName && (
-                                  <div className="text-[10px] font-bold text-slate-600 dark:text-slate-300">{supplier.bankName}</div>
-                                )}
-                                {(supplier.bankAgency || supplier.bankAccount) && (
-                                  <div className="text-[9px] font-bold text-slate-400">
-                                    {supplier.bankAgency && `Ag: ${supplier.bankAgency}`}{supplier.bankAgency && supplier.bankAccount && ' • '}{supplier.bankAccount && `Cc: ${supplier.bankAccount}`}
-                                  </div>
-                                )}
-                              </>
-                            ) : null}
-                            {supplier.pixKey && (
-                              <div className="flex items-center gap-1 text-[9px] font-bold text-emerald-600 dark:text-emerald-400">
-                                <CreditCard size={10} /> PIX: {supplier.pixKey}
-                              </div>
-                            )}
-                            {!supplier.bankName && !supplier.bankAgency && !supplier.bankAccount && !supplier.pixKey && (
                               <span className="text-[9px] text-slate-300 dark:text-slate-600 italic">—</span>
                             )}
                           </div>
