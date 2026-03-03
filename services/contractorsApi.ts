@@ -2,7 +2,7 @@ import type { Contractor } from '../types';
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL ?? '/api';
 
-type ContractorInput = Omit<Contractor, 'id'>;
+type ContractorInput = Partial<Omit<Contractor, 'id'>> & Pick<Contractor, 'name' | 'type'>;
 
 type ContractorPatch = Partial<Omit<Contractor, 'id'>>;
 

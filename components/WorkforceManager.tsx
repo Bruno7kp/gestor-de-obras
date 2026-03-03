@@ -14,7 +14,7 @@ import {
   LayoutGrid, Table
 } from 'lucide-react';
 
-const CARGO_OPTIONS = ['Engenheiro', 'Mestre', 'Encarregado', 'Eletricista', 'Encanador', 'Pedreiro', 'Servente', 'Carpinteiro'];
+const CARGO_OPTIONS = ['Carpinteiro', 'Eletricista', 'Encanador', 'Encarregado', 'Engenheiro', 'Mestre', 'Pedreiro', 'Pintor', 'Servente'];
 
 interface WorkforceManagerProps {
   project: Project;

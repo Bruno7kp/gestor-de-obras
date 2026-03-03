@@ -43,7 +43,7 @@ export interface WorkItem {
 }
 
 // --- GESTÃO DE MÃO DE OBRA ---
-export type WorkforceRole = 'Engenheiro' | 'Mestre' | 'Encarregado' | 'Eletricista' | 'Encanador' | 'Pedreiro' | 'Servente' | 'Carpinteiro';
+export type WorkforceRole = 'Carpinteiro' | 'Eletricista' | 'Encanador' | 'Encarregado' | 'Engenheiro' | 'Mestre' | 'Pedreiro' | 'Pintor' | 'Servente';
 
 export interface StaffDocument {
   id: string;
