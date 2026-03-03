@@ -1477,10 +1477,10 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     onUpdateProject={onUpdateProject}
                     onAddExpense={handleExpenseAdd}
                     onUpdateExpense={handleExpenseUpdate}
-                    isReadOnly={displayData.isReadOnly}
+                    isReadOnly={isHistoryMode || isProjectArchived || getLevel('workforce') !== 'edit'}
                   />
                 )}
-                {tab === 'workforce' && <WorkforceManager project={project} contractors={effectiveContractors} onUpdateProject={onUpdateProject} onContractorCreated={onContractorCreated} isReadOnly={displayData.isReadOnly} />}
+                {tab === 'workforce' && <WorkforceManager project={project} contractors={effectiveContractors} onUpdateProject={onUpdateProject} onContractorCreated={onContractorCreated} isReadOnly={isHistoryMode || isProjectArchived || getLevel('workforce') !== 'edit'} />}
                 {tab === 'planning' && (
                   <PlanningView
                     project={project}
