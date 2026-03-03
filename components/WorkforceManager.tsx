@@ -8,13 +8,12 @@ import { usePermissions } from '../hooks/usePermissions';
 import { ConfirmModal } from './ConfirmModal';
 import { useToast } from '../hooks/useToast';
 import { uiPreferences } from '../utils/uiPreferences';
+import { DEFAULT_AUTONOMOUS_CARGOS, mergeCargoOptions } from '../utils/cargoOptions';
 import { 
   Plus, Search, Trash2, Edit2, HardHat,
   X, UserCircle, Briefcase, User, ChevronDown, ChevronRight, Loader2,
   LayoutGrid, Table
 } from 'lucide-react';
-
-const CARGO_OPTIONS = ['Carpinteiro', 'Eletricista', 'Encanador', 'Encarregado', 'Engenheiro', 'Mestre', 'Pedreiro', 'Pintor', 'Servente'];
 
 interface WorkforceManagerProps {
   project: Project;
@@ -379,8 +378,12 @@ const MemberModal = ({ member, contractors, onClose, onSave, allWorkItems, proje
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newType, setNewType] = useState<'PJ' | 'Autônomo'>('PJ');
   const [newCargo, setNewCargo] = useState('');
+  const [showCargoDropdown, setShowCargoDropdown] = useState(false);
   const [newCpfCnpj, setNewCpfCnpj] = useState('');
   const [creatingContractor, setCreatingContractor] = useState(false);
+  const cargoInputRef = useRef<HTMLInputElement>(null);
+  const cargoDropdownRef = useRef<HTMLDivElement>(null);
+  const [cargoOptions, setCargoOptions] = useState<string[]>(DEFAULT_AUTONOMOUS_CARGOS);
 
   const workTree = useMemo(() => treeService.buildTree(allWorkItems), [allWorkItems]);
 
@@ -406,11 +409,41 @@ const MemberModal = ({ member, contractors, onClose, onSave, allWorkItems, proje
     );
   }, [contractors, contractorSearch]);
 
+  const cargoSuggestions = useMemo(() => {
+    if (!newCargo.trim()) return cargoOptions;
+    const query = newCargo.toLowerCase();
+    return cargoOptions.filter((option) => option.toLowerCase().includes(query));
+  }, [cargoOptions, newCargo]);
+
+  useEffect(() => {
+    let isMounted = true;
+    contractorsApi
+      .listCargoOptions(projectInstanceId || undefined)
+      .then((instanceCargos) => {
+        if (!isMounted) return;
+        setCargoOptions(
+          mergeCargoOptions([...DEFAULT_AUTONOMOUS_CARGOS, ...instanceCargos]),
+        );
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setCargoOptions(DEFAULT_AUTONOMOUS_CARGOS);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [projectInstanceId]);
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node) &&
           contractorInputRef.current && !contractorInputRef.current.contains(e.target as Node)) {
         setShowContractorDropdown(false);
+      }
+      if (cargoDropdownRef.current && !cargoDropdownRef.current.contains(e.target as Node) &&
+          cargoInputRef.current && !cargoInputRef.current.contains(e.target as Node)) {
+        setShowCargoDropdown(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -664,16 +697,40 @@ const MemberModal = ({ member, contractors, onClose, onSave, allWorkItems, proje
                       {newType === 'Autônomo' && (
                         <div>
                           <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Cargo</label>
-                          <select
-                            value={newCargo}
-                            onChange={(e) => setNewCargo(e.target.value)}
-                            className="w-full px-4 py-3 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 dark:text-white"
-                          >
-                            <option value="">Selecione o cargo</option>
-                            {CARGO_OPTIONS.map((r) => (
-                              <option key={r} value={r}>{r}</option>
-                            ))}
-                          </select>
+                          <div className="relative">
+                            <input
+                              ref={cargoInputRef}
+                              value={newCargo}
+                              onChange={(e) => {
+                                setNewCargo(e.target.value);
+                                setShowCargoDropdown(true);
+                              }}
+                              onFocus={() => setShowCargoDropdown(true)}
+                              className="w-full px-4 py-3 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 dark:text-white"
+                              placeholder="Digite ou selecione o cargo"
+                            />
+                            {showCargoDropdown && cargoSuggestions.length > 0 && (
+                              <div
+                                ref={cargoDropdownRef}
+                                className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-2xl shadow-xl max-h-48 overflow-y-auto"
+                              >
+                                {cargoSuggestions.map((option) => (
+                                  <button
+                                    key={option}
+                                    type="button"
+                                    className="w-full text-left px-4 py-2.5 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors text-xs font-bold text-slate-700 dark:text-slate-200"
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      setNewCargo(option);
+                                      setShowCargoDropdown(false);
+                                    }}
+                                  >
+                                    {option}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
                       <button

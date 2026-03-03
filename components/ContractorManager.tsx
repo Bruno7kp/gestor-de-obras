@@ -13,6 +13,7 @@ import { ConfirmModal } from './ConfirmModal';
 import { contractorsApi } from '../services/contractorsApi';
 import { usePermissions } from '../hooks/usePermissions';
 import { useToast } from '../hooks/useToast';
+import { DEFAULT_AUTONOMOUS_CARGOS, mergeCargoOptions } from '../utils/cargoOptions';
 
 interface ContractorManagerProps {
   contractors: Contractor[];
@@ -31,6 +32,7 @@ export const ContractorManager: React.FC<ContractorManagerProps> = ({ contractor
 
   const [externalContractors, setExternalContractors] = useState<Contractor[]>([]);
   const [externalLoading, setExternalLoading] = useState(false);
+  const [cargoOptions, setCargoOptions] = useState<string[]>(DEFAULT_AUTONOMOUS_CARGOS);
 
   const loadExternalContractors = useCallback(async () => {
     if (!externalInstanceId) return;
@@ -49,6 +51,23 @@ export const ContractorManager: React.FC<ContractorManagerProps> = ({ contractor
   useEffect(() => {
     if (isExternal) loadExternalContractors();
   }, [isExternal, loadExternalContractors]);
+
+  const loadCargoOptions = useCallback(async () => {
+    try {
+      const instanceCargos = await contractorsApi.listCargoOptions(
+        externalInstanceId || undefined,
+      );
+      setCargoOptions(
+        mergeCargoOptions([...DEFAULT_AUTONOMOUS_CARGOS, ...instanceCargos]),
+      );
+    } catch {
+      setCargoOptions(DEFAULT_AUTONOMOUS_CARGOS);
+    }
+  }, [externalInstanceId]);
+
+  useEffect(() => {
+    loadCargoOptions();
+  }, [loadCargoOptions]);
 
   const contractors = isExternal ? externalContractors : homeContractors;
   const externalCanEdit = searchParams.get('canEdit') === '1';
@@ -379,6 +398,7 @@ export const ContractorManager: React.FC<ContractorManagerProps> = ({ contractor
       {isModalOpen && (
         <ContractorModal
           contractor={editingContractor}
+          cargoOptions={cargoOptions}
           onClose={() => { setIsModalOpen(false); setEditingContractor(null); }}
           onSave={handleSave}
         />
@@ -495,11 +515,17 @@ const PaymentDataModal = ({ name, bankName, bankAgency, bankAccount, pixKey, onC
 
 interface ContractorModalProps {
   contractor: Contractor | null;
+  cargoOptions: string[];
   onClose: () => void;
   onSave: (data: Partial<Contractor>) => void;
 }
 
-const ContractorModal: React.FC<ContractorModalProps> = ({ contractor, onClose, onSave }) => {
+const ContractorModal: React.FC<ContractorModalProps> = ({
+  contractor,
+  cargoOptions,
+  onClose,
+  onSave,
+}) => {
   const [name, setName] = useState(contractor?.name ?? '');
   const [cnpj, setCnpj] = useState(contractor?.cnpj ?? '');
   const [type, setType] = useState<'PJ' | 'Autônomo'>(contractor?.type ?? 'PJ');
@@ -515,6 +541,31 @@ const ContractorModal: React.FC<ContractorModalProps> = ({ contractor, onClose, 
   const [bankAccount, setBankAccount] = useState(contractor?.bankAccount ?? '');
   const [pixKey, setPixKey] = useState(contractor?.pixKey ?? '');
   const [notes, setNotes] = useState(contractor?.notes ?? '');
+  const [showCargoDropdown, setShowCargoDropdown] = useState(false);
+  const cargoInputRef = React.useRef<HTMLInputElement>(null);
+  const cargoDropdownRef = React.useRef<HTMLDivElement>(null);
+
+  const cargoSuggestions = useMemo(() => {
+    if (!cargo.trim()) return cargoOptions;
+    const query = cargo.toLowerCase();
+    return cargoOptions.filter((option) => option.toLowerCase().includes(query));
+  }, [cargo, cargoOptions]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        cargoDropdownRef.current &&
+        !cargoDropdownRef.current.contains(event.target as Node) &&
+        cargoInputRef.current &&
+        !cargoInputRef.current.contains(event.target as Node)
+      ) {
+        setShowCargoDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -599,12 +650,40 @@ const ContractorModal: React.FC<ContractorModalProps> = ({ contractor, onClose, 
               <div className="grid grid-cols-1 gap-6">
                 <div className="space-y-2">
                   <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2">Cargo (Autônomo)</label>
-                  <select value={cargo} onChange={e => setCargo(e.target.value)} className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-indigo-500 rounded-2xl text-xs font-bold outline-none transition-all dark:text-white appearance-none">
-                    <option value="">Selecione o cargo</option>
-                    {['Carpinteiro', 'Eletricista', 'Encanador', 'Encarregado', 'Engenheiro', 'Mestre', 'Pedreiro', 'Pintor', 'Servente'].map(r => (
-                      <option key={r} value={r}>{r}</option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <input
+                      ref={cargoInputRef}
+                      value={cargo}
+                      onChange={e => {
+                        setCargo(e.target.value);
+                        setShowCargoDropdown(true);
+                      }}
+                      onFocus={() => setShowCargoDropdown(true)}
+                      className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-indigo-500 rounded-2xl text-xs font-bold outline-none transition-all dark:text-white"
+                      placeholder="Digite ou selecione o cargo"
+                    />
+                    {showCargoDropdown && cargoSuggestions.length > 0 && (
+                      <div
+                        ref={cargoDropdownRef}
+                        className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-2xl shadow-xl max-h-48 overflow-y-auto"
+                      >
+                        {cargoSuggestions.map((option) => (
+                          <button
+                            key={option}
+                            type="button"
+                            className="w-full text-left px-5 py-3 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors text-xs font-bold text-slate-700 dark:text-slate-200"
+                            onMouseDown={(event) => {
+                              event.preventDefault();
+                              setCargo(option);
+                              setShowCargoDropdown(false);
+                            }}
+                          >
+                            {option}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

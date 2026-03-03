@@ -46,6 +46,31 @@ export class ContractorsService {
     });
   }
 
+  async listUniqueCargos(instanceId: string): Promise<string[]> {
+    const contractors = await this.prisma.contractor.findMany({
+      where: {
+        instanceId,
+        type: 'Autônomo',
+        cargo: { not: null },
+      },
+      select: { cargo: true },
+    });
+
+    const seen = new Set<string>();
+    const cargos: string[] = [];
+
+    contractors.forEach((contractor) => {
+      const trimmed = contractor.cargo?.trim();
+      if (!trimmed) return;
+      const key = trimmed.toLocaleLowerCase('pt-BR');
+      if (seen.has(key)) return;
+      seen.add(key);
+      cargos.push(trimmed);
+    });
+
+    return cargos.sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }
+
   /**
    * Returns contractors for a given instance (read-only).
    * For cross-instance access, verifies the user has at least one

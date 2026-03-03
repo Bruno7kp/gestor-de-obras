@@ -73,6 +73,11 @@ export class ContractorsController {
     return this.contractorsService.findAll(req.user.instanceId);
   }
 
+  @Get('cargos')
+  listCargos(@Req() req: AuthenticatedRequest) {
+    return this.contractorsService.listUniqueCargos(req.user.instanceId);
+  }
+
   @Get('by-instance/:instanceId')
   findByInstance(
     @Param('instanceId') instanceId: string,
@@ -83,6 +88,20 @@ export class ContractorsController {
       req.user.id,
       req.user.instanceId,
     );
+  }
+
+  @Get('by-instance/:instanceId/cargos')
+  async listCargosByInstance(
+    @Param('instanceId') instanceId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const hasAccess = await this.prisma.projectMember.count({
+      where: { userId: req.user.id, project: { instanceId } },
+    });
+    if (instanceId !== req.user.instanceId && hasAccess === 0) {
+      throw new ForbiddenException('Sem acesso a esta instância');
+    }
+    return this.contractorsService.listUniqueCargos(instanceId);
   }
 
   @Get(':id')

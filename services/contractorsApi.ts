@@ -33,6 +33,24 @@ export const contractorsApi = {
     return Array.isArray(data) ? data : [];
   },
 
+  async listCargoOptions(instanceId?: string): Promise<string[]> {
+    const url = instanceId
+      ? `${API_BASE}/contractors/by-instance/${instanceId}/cargos`
+      : `${API_BASE}/contractors/cargos`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      credentials: 'include',
+    });
+
+    if (!response.ok) return [];
+
+    const data = await response.json();
+    return Array.isArray(data)
+      ? data.filter((value): value is string => typeof value === 'string')
+      : [];
+  },
+
   async create(input: ContractorInput & { instanceId?: string }): Promise<Contractor> {
     const response = await fetch(`${API_BASE}/contractors`, {
       method: 'POST',
