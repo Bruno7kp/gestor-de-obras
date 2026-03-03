@@ -51,7 +51,7 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
     const saved = localStorage.getItem(dashboardViewKey);
-    return saved === 'list' ? 'list' : 'grid';
+    return saved === 'grid' ? 'grid' : 'list';
   });
   const [lifecycleFilter, setLifecycleFilter] = useState<'active' | 'archived'>(() => {
     const saved = localStorage.getItem(dashboardLifecycleFilterKey);

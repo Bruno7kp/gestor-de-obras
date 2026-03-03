@@ -192,7 +192,33 @@ const DashboardGuard: React.FC<{ children: React.ReactElement }> = ({ children }
   return children;
 };
 
+const filterGroupsByVisibleProjects = <T extends { id: string; parentId?: string | null }>(
+  allGroups: T[],
+  visibleProjects: { groupId?: string | null }[],
+) => {
+  const groupById = new Map(allGroups.map((group) => [group.id, group]));
+  const visibleGroupIds = new Set<string>();
+
+  const includeGroupAndAncestors = (groupId: string) => {
+    let currentGroupId: string | null = groupId;
+
+    while (currentGroupId) {
+      if (visibleGroupIds.has(currentGroupId)) break;
+      visibleGroupIds.add(currentGroupId);
+      const currentGroup = groupById.get(currentGroupId);
+      currentGroupId = currentGroup?.parentId ?? null;
+    }
+  };
+
+  visibleProjects.forEach((project) => {
+    if (project.groupId) includeGroupAndAncestors(project.groupId);
+  });
+
+  return allGroups.filter((group) => visibleGroupIds.has(group.id));
+};
+
 const App: React.FC = () => {
+  const { canView } = usePermissions();
   const { 
     projects, biddings, groups, suppliers, contractors, activeProject, activeProjectId, setActiveProjectId, 
     globalSettings, setGlobalSettings, externalProjects,
@@ -242,6 +268,15 @@ const App: React.FC = () => {
   const activeExternalProjects = useMemo(
     () => externalProjects.filter((project) => !project.isArchived),
     [externalProjects],
+  );
+  const hasGeneralProjectsAccess = canView('projects_general');
+  const visibleSidebarGroups = useMemo(
+    () => hasGeneralProjectsAccess ? groups : filterGroupsByVisibleProjects(groups, activeOwnProjects),
+    [groups, activeOwnProjects, hasGeneralProjectsAccess],
+  );
+  const visibleDashboardGroups = useMemo(
+    () => hasGeneralProjectsAccess ? groups : filterGroupsByVisibleProjects(groups, ownProjects),
+    [groups, ownProjects, hasGeneralProjectsAccess],
   );
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('promeasure_theme') === 'dark');
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -495,7 +530,7 @@ const App: React.FC = () => {
       <Sidebar 
         isOpen={sidebarOpen} setIsOpen={setSidebarOpen}
         mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen}
-        projects={activeOwnProjects} groups={groups} activeProjectId={activeProjectId}
+        projects={activeOwnProjects} groups={visibleSidebarGroups} activeProjectId={activeProjectId}
         isActiveExternal={isActiveExternal}
         externalProjects={activeExternalProjects}
         onOpenProject={handleOpenProject} onCreateProject={handleCreateProject}
@@ -519,7 +554,7 @@ const App: React.FC = () => {
             element={<DashboardGuard>
               <DashboardView
                 projects={ownProjects}
-                groups={groups}
+                groups={visibleDashboardGroups}
                 externalProjects={externalProjects}
                 onOpenProject={handleOpenProject}
                 onCreateProject={handleCreateProject}
