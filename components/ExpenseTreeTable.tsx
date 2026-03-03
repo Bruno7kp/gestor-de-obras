@@ -30,6 +30,14 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
 }) => {
   const isRevenueTable = expenseType === 'revenue' || data.some(d => d.type === 'revenue');
   const isOtherTable = expenseType === 'other' || data.some(d => d.type === 'other');
+  const isSupplyLinkedExpense = (expense: ProjectExpense) =>
+    expense.type === 'material' &&
+    expense.itemType === 'item' &&
+    /^Pedido (Pendente|Pago|Entregue): /.test(expense.description);
+  const isLaborLinkedExpense = (expense: ProjectExpense) =>
+    expense.type === 'labor' &&
+    expense.itemType === 'item' &&
+    /^(Empreita|Diaria) M\.O\.: /.test(expense.description);
   const apiBase = (import.meta as any).env?.VITE_API_URL ?? '';
 
   const resolveUploadUrl = (url: string) => {
@@ -182,9 +190,10 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                               <button onClick={() => handleDownloadDoc(item.paymentProof!, `COMPR_${item.description}.pdf`)} className="p-1.5 text-blue-400 hover:text-blue-600 rounded-lg" title="Baixar Comprovante"><Download size={14} /></button>
                             )}
                             {(() => {
-                              const isSupplyLinked = item.type === 'material' && item.itemType === 'item' && /^Pedido (Pendente|Pago|Entregue): /.test(item.description);
-                              return isSupplyLinked
-                                ? <span className="p-1.5 text-amber-400" title="Controlado por Compras — exclua pelo planejamento"><Link2 size={14} /></span>
+                              const isSupplyLinked = isSupplyLinkedExpense(item);
+                              const isLaborLinked = isLaborLinkedExpense(item);
+                              return (isSupplyLinked || isLaborLinked)
+                                ? <span className="p-1.5 text-amber-400" title={isSupplyLinked ? 'Controlado por Compras — exclua por Compras/Planejamento' : 'Controlado por Mão de Obra — exclua pela aba Mão de Obra'}><Link2 size={14} /></span>
                                 : <button onClick={() => onDelete(item.id)} className="p-1.5 text-rose-300 hover:text-rose-600 rounded-lg" title="Excluir"><Trash2 size={14} /></button>;
                             })()}
                           </div>

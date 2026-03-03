@@ -656,9 +656,26 @@ export class LaborContractsService {
           where: { laborContractId: updated.id },
           select: { id: true, createdById: true },
         });
+        const incomingPaymentIds = new Set(
+          pagamentos.map((payment) => payment.id).filter(Boolean) as string[],
+        );
+        const removedPaymentIds = existingPayments
+          .map((payment) => payment.id)
+          .filter((paymentId) => !incomingPaymentIds.has(paymentId));
         const createdByMap = new Map(
           existingPayments.map((p) => [p.id, p.createdById] as const),
         );
+
+        if (removedPaymentIds.length) {
+          await prisma.projectExpense.deleteMany({
+            where: {
+              projectId: existing.projectId,
+              id: { in: removedPaymentIds },
+              type: 'labor',
+              itemType: 'item',
+            },
+          });
+        }
 
         await prisma.laborPayment.deleteMany({
           where: { laborContractId: updated.id },
@@ -683,6 +700,71 @@ export class LaborContractsService {
               };
             }),
           });
+        }
+      }
+
+      const paymentsForSync = await prisma.laborPayment.findMany({
+        where: { laborContractId: updated.id },
+        select: {
+          id: true,
+          data: true,
+          valor: true,
+          descricao: true,
+          comprovante: true,
+        },
+      });
+
+      if (paymentsForSync.length) {
+        const paymentIds = paymentsForSync.map((payment) => payment.id);
+        const linkedExpenses = await prisma.projectExpense.findMany({
+          where: {
+            projectId: existing.projectId,
+            id: { in: paymentIds },
+            type: 'labor',
+            itemType: 'item',
+          },
+          select: { id: true },
+        });
+
+        if (linkedExpenses.length) {
+          const paymentById = new Map(
+            paymentsForSync.map((payment) => [payment.id, payment] as const),
+          );
+          const associado = await prisma.workforceMember.findFirst({
+            where: { id: updated.associadoId, projectId: updated.projectId },
+            select: { nome: true, contractorId: true },
+          });
+          const prefix =
+            updated.tipo === 'empreita' ? 'Empreita M.O.' : 'Diaria M.O.';
+
+          await Promise.all(
+            linkedExpenses.map(async (expense) => {
+              const payment = paymentById.get(expense.id);
+              if (!payment) return;
+
+              await prisma.projectExpense.update({
+                where: { id: expense.id },
+                data: {
+                  type: 'labor',
+                  itemType: 'item',
+                  date: payment.data,
+                  paymentDate: payment.data,
+                  description: `${prefix}: ${updated.descricao} - ${payment.descricao || 'Pagamento'}`,
+                  entityName: associado?.nome || '',
+                  unit: 'serv',
+                  quantity: 1,
+                  unitPrice: payment.valor,
+                  amount: payment.valor,
+                  isPaid: true,
+                  status: 'PAID',
+                  paymentProof: payment.comprovante || null,
+                  linkedWorkItemId: updated.linkedWorkItemId,
+                  contractorId: associado?.contractorId || null,
+                  updatedById: input.userId ?? null,
+                },
+              });
+            }),
+          );
         }
       }
 
@@ -751,29 +833,136 @@ export class LaborContractsService {
     await ensureProjectWritable(this.prisma, existing.projectId);
 
     const paymentId = payment.id ?? randomUUID();
-    const currentPayment = await this.prisma.laborPayment.findFirst({
-      where: { id: paymentId, laborContractId: existing.id },
-      select: { id: true, createdById: true },
-    });
+    const previousStatus = existing.status;
 
-    if (currentPayment) {
-      await this.prisma.laborPayment.update({
-        where: { id: currentPayment.id },
+    const transactionResult = await this.prisma.$transaction(async (prisma) => {
+      const currentPayment = await prisma.laborPayment.findFirst({
+        where: { id: paymentId, laborContractId: existing.id },
+        select: { id: true, createdById: true },
+      });
+
+      if (currentPayment) {
+        await prisma.laborPayment.update({
+          where: { id: currentPayment.id },
+          data: {
+            data: payment.data,
+            valor: payment.valor,
+            descricao: payment.descricao,
+            comprovante: payment.comprovante || null,
+          },
+        });
+      } else {
+        await prisma.laborPayment.create({
+          data: {
+            id: paymentId,
+            data: payment.data,
+            valor: payment.valor,
+            descricao: payment.descricao,
+            comprovante: payment.comprovante || null,
+            laborContractId: existing.id,
+            createdById: payment.createdById ?? userId ?? null,
+          },
+        });
+      }
+
+      const allPayments = await prisma.laborPayment.findMany({
+        where: { laborContractId: existing.id },
+      });
+      const totals = this.getPaymentTotals(allPayments, existing.valorTotal);
+
+      const contractAfterTotals = await prisma.laborContract.update({
+        where: { id: existing.id },
         data: {
-          data: payment.data,
-          valor: payment.valor,
-          descricao: payment.descricao,
-          comprovante: payment.comprovante || null,
+          valorPago: totals.valorPago,
+          status: totals.status,
+        },
+        select: {
+          id: true,
+          tipo: true,
+          descricao: true,
+          associadoId: true,
+          linkedWorkItemId: true,
+          projectId: true,
         },
       });
 
+      const linkedExpense = await prisma.projectExpense.findFirst({
+        where: {
+          id: paymentId,
+          projectId: existing.projectId,
+          type: 'labor',
+          itemType: 'item',
+        },
+        select: { id: true },
+      });
+
+      if (linkedExpense) {
+        const associado = await prisma.workforceMember.findFirst({
+          where: {
+            id: contractAfterTotals.associadoId,
+            projectId: contractAfterTotals.projectId,
+          },
+          select: { nome: true, contractorId: true },
+        });
+        const prefix =
+          contractAfterTotals.tipo === 'empreita'
+            ? 'Empreita M.O.'
+            : 'Diaria M.O.';
+
+        await prisma.projectExpense.update({
+          where: { id: linkedExpense.id },
+          data: {
+            type: 'labor',
+            itemType: 'item',
+            date: payment.data,
+            paymentDate: payment.data,
+            paymentProof: payment.comprovante || null,
+            description: `${prefix}: ${contractAfterTotals.descricao} - ${payment.descricao || 'Pagamento'}`,
+            entityName: associado?.nome || '',
+            unit: 'serv',
+            quantity: 1,
+            unitPrice: payment.valor,
+            amount: payment.valor,
+            isPaid: true,
+            status: 'PAID',
+            linkedWorkItemId: contractAfterTotals.linkedWorkItemId,
+            contractorId: associado?.contractorId || null,
+            updatedById: userId ?? null,
+          },
+        });
+      }
+
+      const updated = await prisma.laborContract.findUnique({
+        where: { id: existing.id },
+        include: {
+          pagamentos: {
+            orderBy: { data: 'asc' },
+            include: {
+              createdBy: {
+                select: { id: true, name: true, profileImage: true },
+              },
+            },
+          },
+          linkedWorkItems: { select: { workItemId: true } },
+        },
+      });
+
+      return {
+        updated,
+        currentPayment,
+      };
+    });
+
+    const updated = transactionResult.updated;
+
+    if (transactionResult.currentPayment) {
       void this.auditService.log({
         instanceId,
         userId,
         projectId: existing.projectId,
         action: 'UPDATE',
         model: 'LaborPayment',
-        entityId: currentPayment.id,
+        entityId: transactionResult.currentPayment.id,
         after: {
           data: payment.data,
           valor: payment.valor,
@@ -781,18 +970,6 @@ export class LaborContractsService {
         } as Record<string, unknown>,
       });
     } else {
-      await this.prisma.laborPayment.create({
-        data: {
-          id: paymentId,
-          data: payment.data,
-          valor: payment.valor,
-          descricao: payment.descricao,
-          comprovante: payment.comprovante || null,
-          laborContractId: existing.id,
-          createdById: payment.createdById ?? userId ?? null,
-        },
-      });
-
       void this.auditService.log({
         instanceId,
         userId,
@@ -808,34 +985,6 @@ export class LaborContractsService {
         } as Record<string, unknown>,
       });
     }
-
-    const allPayments = await this.prisma.laborPayment.findMany({
-      where: { laborContractId: existing.id },
-    });
-    const totals = this.getPaymentTotals(allPayments, existing.valorTotal);
-
-    const previousStatus = existing.status;
-
-    await this.prisma.laborContract.update({
-      where: { id: existing.id },
-      data: {
-        valorPago: totals.valorPago,
-        status: totals.status,
-      },
-    });
-
-    const updated = await this.prisma.laborContract.findUnique({
-      where: { id: existing.id },
-      include: {
-        pagamentos: {
-          orderBy: { data: 'asc' },
-          include: {
-            createdBy: { select: { id: true, name: true, profileImage: true } },
-          },
-        },
-        linkedWorkItems: { select: { workItemId: true } },
-      },
-    });
 
     if (updated) {
       await this.emitLaborPaymentRecordedNotification(
@@ -887,18 +1036,33 @@ export class LaborContractsService {
 
     const payments = await this.prisma.laborPayment.findMany({
       where: { laborContractId: existing.id },
-      select: { comprovante: true },
+      select: { id: true, comprovante: true },
+    });
+
+    const paymentIds = payments.map((payment) => payment.id);
+
+    await this.prisma.$transaction(async (tx) => {
+      if (paymentIds.length) {
+        await tx.projectExpense.deleteMany({
+          where: {
+            projectId: existing.projectId,
+            id: { in: paymentIds },
+            type: 'labor',
+            itemType: 'item',
+          },
+        });
+      }
+
+      await tx.laborPayment.deleteMany({
+        where: { laborContractId: existing.id },
+      });
+      await tx.laborContractWorkItem.deleteMany({
+        where: { laborContractId: existing.id },
+      });
+      await tx.laborContract.delete({ where: { id: existing.id } });
     });
 
     await removeLocalUploads(payments.map((payment) => payment.comprovante));
-
-    await this.prisma.laborPayment.deleteMany({
-      where: { laborContractId: existing.id },
-    });
-    await this.prisma.laborContractWorkItem.deleteMany({
-      where: { laborContractId: existing.id },
-    });
-    await this.prisma.laborContract.delete({ where: { id: existing.id } });
 
     void this.auditService.log({
       instanceId,

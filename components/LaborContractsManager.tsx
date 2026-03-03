@@ -244,10 +244,20 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
     const updated = laborContractService.updateContract(normalizedContract);
     const exists = contracts.find(c => c.id === contract.id);
     const previous = contracts;
+    const previousExpenses = project.expenses;
+    const removedPaymentIds = exists
+      ? exists.pagamentos
+          .filter(existingPayment => !updated.pagamentos.some(nextPayment => nextPayment.id === existingPayment.id))
+          .map(payment => payment.id)
+      : [];
+    const removedPaymentIdSet = new Set(removedPaymentIds);
+    const nextExpenses = removedPaymentIdSet.size
+      ? previousExpenses.filter(expense => !removedPaymentIdSet.has(expense.id) && !(expense.parentId && removedPaymentIdSet.has(expense.parentId)))
+      : previousExpenses;
     const newContracts = exists
       ? contracts.map(c => c.id === contract.id ? updated : c)
       : [...contracts, updated];
-    onUpdateProject({ laborContracts: newContracts });
+    onUpdateProject({ laborContracts: newContracts, expenses: nextExpenses });
 
     try {
       if (exists) {
@@ -342,7 +352,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
       }
     } catch (error) {
       console.error('Erro ao salvar contrato:', error);
-      onUpdateProject({ laborContracts: previous });
+      onUpdateProject({ laborContracts: previous, expenses: previousExpenses });
       toast.error('Erro ao salvar contrato.');
     }
 
@@ -353,14 +363,20 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
   const removeContract = async (id: string) => {
     if (isReadOnly) return;
     setConfirmDeleteId(null);
+    const contractToRemove = contracts.find(c => c.id === id);
+    const paymentIdSet = new Set(contractToRemove?.pagamentos.map(payment => payment.id) ?? []);
     const previous = contracts;
-    onUpdateProject({ laborContracts: contracts.filter(c => c.id !== id) });
+    const previousExpenses = project.expenses;
+    const nextExpenses = paymentIdSet.size
+      ? previousExpenses.filter(expense => !paymentIdSet.has(expense.id) && !(expense.parentId && paymentIdSet.has(expense.parentId)))
+      : previousExpenses;
+    onUpdateProject({ laborContracts: contracts.filter(c => c.id !== id), expenses: nextExpenses });
     try {
       await laborContractsApi.remove(id);
       toast.success('Contrato removido com sucesso.');
     } catch (error) {
       console.error('Erro ao remover contrato:', error);
-      onUpdateProject({ laborContracts: previous });
+      onUpdateProject({ laborContracts: previous, expenses: previousExpenses });
       toast.error('Erro ao remover contrato.');
     }
   };

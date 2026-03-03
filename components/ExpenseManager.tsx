@@ -45,6 +45,12 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
     expense.type === 'material' &&
     expense.itemType === 'item' &&
     /^Pedido (Pendente|Pago|Entregue): /.test(expense.description);
+  const isLaborLinkedExpense = (expense: ProjectExpense) =>
+    expense.type === 'labor' &&
+    expense.itemType === 'item' &&
+    /^(Empreita|Diaria) M\.O\.: /.test(expense.description);
+  const isExternallyControlledExpense = (expense: ProjectExpense) =>
+    isSupplyLinkedExpense(expense) || isLaborLinkedExpense(expense);
 
   const expenseTabs: Array<ExpenseType | 'overview'> = ['overview', 'revenue', 'material', 'labor', 'other'];
   const expenseTabKey = `exp_fin_tab_${project.id}`;
@@ -246,6 +252,11 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
 
   const requestDeleteExpense = (id: string) => {
     if (!canEditFinancial) return;
+    const target = expenses.find(expense => expense.id === id);
+    if (target && isExternallyControlledExpense(target)) {
+      toast.warning(isSupplyLinkedExpense(target) ? 'Remoção controlada por compras.' : 'Remoção controlada por mão de obra.');
+      return;
+    }
     setConfirmDeleteId(id);
   };
 
@@ -692,6 +703,10 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
               if (!exp) return;
               if (isSupplyLinkedExpense(exp)) {
                 toast.warning('Status controlado por compras.');
+                return;
+              }
+              if (isLaborLinkedExpense(exp)) {
+                toast.warning('Status controlado por mão de obra.');
                 return;
               }
               onUpdate(id, { isPaid: !exp.isPaid, status: !exp.isPaid ? 'PAID' : 'PENDING' });

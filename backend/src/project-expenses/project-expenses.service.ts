@@ -576,6 +576,15 @@ export class ProjectExpensesService {
       where: { id: input.id },
       select: { id: true },
     });
+    const linkedLaborPayment = await this.prisma.laborPayment.findUnique({
+      where: { id: input.id },
+      select: {
+        id: true,
+        data: true,
+        comprovante: true,
+        laborContract: { select: { projectId: true } },
+      },
+    });
     if (linkedForecast) {
       // Strip forecast-synced fields to prevent manual overwrites
       delete input.description;
@@ -594,6 +603,23 @@ export class ProjectExpensesService {
       delete input.type;
       delete input.itemType;
       // paymentProof and invoiceDoc are editable from both sides
+    }
+    if (linkedLaborPayment) {
+      // Strip labor-synced fields to prevent manual overwrites from Financeiro
+      delete input.type;
+      delete input.itemType;
+      delete input.date;
+      delete input.description;
+      delete input.entityName;
+      delete input.unit;
+      delete input.quantity;
+      delete input.unitPrice;
+      delete input.amount;
+      delete input.isPaid;
+      delete input.status;
+      delete input.paymentDate;
+      delete input.linkedWorkItemId;
+      delete input.contractorId;
     }
 
     const nextStatus = input.status ?? existing.status;
@@ -674,6 +700,45 @@ export class ProjectExpensesService {
         },
         input.userId,
       ).catch(() => undefined);
+    }
+
+    if (linkedLaborPayment && hasPaymentProof) {
+      const laborPaymentBefore = {
+        id: linkedLaborPayment.id,
+        data: linkedLaborPayment.data,
+        comprovante: linkedLaborPayment.comprovante,
+      };
+
+      const laborPaymentUpdated = await this.prisma.laborPayment.update({
+        where: { id: linkedLaborPayment.id },
+        data: {
+          data: linkedLaborPayment.data,
+          comprovante: hasPaymentProof
+            ? input.paymentProof || null
+            : linkedLaborPayment.comprovante,
+        },
+        select: {
+          id: true,
+          data: true,
+          comprovante: true,
+        },
+      });
+
+      if (input.instanceId) {
+        void this.auditService.log({
+          instanceId: input.instanceId,
+          userId: input.userId,
+          projectId: linkedLaborPayment.laborContract.projectId,
+          action: 'UPDATE',
+          model: 'LaborPayment',
+          entityId: linkedLaborPayment.id,
+          before: laborPaymentBefore as Record<string, unknown>,
+          after: laborPaymentUpdated as Record<string, unknown>,
+          metadata: {
+            operation: 'syncFromProjectExpense',
+          } as Record<string, unknown>,
+        });
+      }
     }
 
     await this.cleanupUploadsIfOrphaned([
@@ -814,6 +879,16 @@ export class ProjectExpensesService {
     if (linkedForecasts.length > 0) {
       throw new ForbiddenException(
         `Não é possível excluir: ${linkedForecasts.length === 1 ? 'existe 1 item' : `existem ${linkedForecasts.length} itens`} controlado(s) por Compras nesta hierarquia. Remova-os primeiro em Compras.`,
+      );
+    }
+
+    const linkedLaborPayments = await this.prisma.laborPayment.findMany({
+      where: { id: { in: ids } },
+      select: { id: true },
+    });
+    if (linkedLaborPayments.length > 0) {
+      throw new ForbiddenException(
+        `Não é possível excluir: ${linkedLaborPayments.length === 1 ? 'existe 1 item' : `existem ${linkedLaborPayments.length} itens`} controlado(s) por Mão de Obra nesta hierarquia. Remova-os primeiro em Mão de Obra.`,
       );
     }
 

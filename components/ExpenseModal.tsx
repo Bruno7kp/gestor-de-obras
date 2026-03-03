@@ -254,6 +254,15 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
     formData.itemType === 'item' &&
     typeof formData.description === 'string' &&
     /^Pedido (Pendente|Pago|Entregue): /.test(formData.description);
+  const isLaborLinked =
+    formData.type === 'labor' &&
+    formData.itemType === 'item' &&
+    typeof formData.description === 'string' &&
+    /^(Empreita|Diaria) M\.O\.: /.test(formData.description);
+  const isExternallyControlled = isSupplyLinked || isLaborLinked;
+  const controlSourceLabel = isSupplyLinked ? 'Compras' : isLaborLinked ? 'Mão de Obra' : '';
+  const transferDateValue = isLabor ? (formData.paymentDate || '') : (formData.deliveryDate || '');
+  const isTransferDateLocked = isSupplyLinked || isLaborLinked;
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
@@ -272,11 +281,11 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
           <button onClick={onClose} className="p-2 text-slate-400 hover:bg-slate-100 rounded-xl transition-all"><X size={20} /></button>
         </div>
 
-        {isSupplyLinked && (
+        {isExternallyControlled && (
           <div className="mx-8 mt-4 flex items-center gap-3 px-5 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl">
             <Link2 size={16} className="text-amber-600 shrink-0" />
             <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-widest">
-              Item vinculado a Compras — campos controlados pelo planejamento são somente leitura.
+              {`Item vinculado a ${controlSourceLabel} — campos controlados são somente leitura.`}
             </p>
           </div>
         )}
@@ -319,15 +328,15 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                         className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-black uppercase outline-none focus:border-indigo-500 transition-all"
                         value={formData.status}
                         onChange={e => setFormData(prev => ({ ...prev, status: e.target.value as ExpenseStatus }))}
-                        disabled={isSupplyLinked}
+                        disabled={isExternallyControlled}
                       >
                         <option value="PENDING">{isRevenue ? 'Pendente' : isIncome ? 'Transferencia pendente' : 'Pendente'}</option>
                         {!isIncome && <option value="PAID">Pago / Liquidado</option>}
                         {!isLabor && <option value="DELIVERED">{isRevenue ? 'Faturado' : isIncome ? 'Transferido' : 'Entregue no Local'}</option>}
                       </select>
-                      {isSupplyLinked && (
+                      {isExternallyControlled && (
                         <p className="mt-2 text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest flex items-center gap-1">
-                          <Link2 size={10} /> Controlado por compras
+                          <Link2 size={10} /> {`Controlado por ${controlSourceLabel.toLowerCase()}`}
                         </p>
                       )}
                     </div>
@@ -336,7 +345,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
 
                 <div className="mb-6">
                   <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">Descrição do Lançamento</label>
-                  <input required className={`w-full px-6 py-4 rounded-2xl border-2 text-sm font-black outline-none transition-all ${isSupplyLinked ? 'border-amber-100 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-900/10 text-slate-500 cursor-not-allowed' : 'border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 focus:border-indigo-500'}`} value={formData.description} onChange={e => { if (!isSupplyLinked) setFormData(prev => ({ ...prev, description: e.target.value })); }} readOnly={isSupplyLinked} placeholder="Ex: Cimento CP-II 50kg" />
+                  <input required className={`w-full px-6 py-4 rounded-2xl border-2 text-sm font-black outline-none transition-all ${isExternallyControlled ? 'border-amber-100 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-900/10 text-slate-500 cursor-not-allowed' : 'border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 focus:border-indigo-500'}`} value={formData.description} onChange={e => { if (!isExternallyControlled) setFormData(prev => ({ ...prev, description: e.target.value })); }} readOnly={isExternallyControlled} placeholder="Ex: Cimento CP-II 50kg" />
                 </div>
 
                 {!isCategory && (
@@ -344,7 +353,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                     <div className="grid grid-cols-2 gap-6 mb-6">
                       <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">{isLabor ? 'Prestador' : 'Entidade / Fornecedor / MEI'}</label>
-                        {isSupplyLinked ? (
+                        {isExternallyControlled ? (
                           <input className="w-full px-6 py-4 rounded-2xl border-2 border-amber-100 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-900/10 text-sm font-black outline-none text-slate-500 cursor-not-allowed transition-all" value={formData.entityName} readOnly />
                         ) : (
                           <div className="relative">
@@ -396,7 +405,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                       </div>
                       <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest ml-1">Mês de Competência</label>
-                        <input type="date" className={`w-full px-6 py-4 rounded-2xl border-2 text-sm font-black outline-none transition-all dark:[color-scheme:dark] ${isSupplyLinked ? 'border-amber-100 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-900/10 text-slate-500 cursor-not-allowed' : 'border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 focus:border-indigo-500'}`} value={formData.date} onChange={e => { if (!isSupplyLinked) setFormData(prev => ({ ...prev, date: e.target.value })); }} readOnly={isSupplyLinked} />
+                        <input type="date" className={`w-full px-6 py-4 rounded-2xl border-2 text-sm font-black outline-none transition-all dark:[color-scheme:dark] ${isExternallyControlled ? 'border-amber-100 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-900/10 text-slate-500 cursor-not-allowed' : 'border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 focus:border-indigo-500'}`} value={formData.date} onChange={e => { if (!isExternallyControlled) setFormData(prev => ({ ...prev, date: e.target.value })); }} readOnly={isExternallyControlled} />
                       </div>
                     </div>
 
@@ -405,14 +414,14 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                         {!isOther && (
                           <div>
                             <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block text-center">Unidade</label>
-                            <input className={`w-full px-4 py-3 rounded-xl border text-xs font-black text-center uppercase outline-none ${isSupplyLinked ? 'bg-amber-50/50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800 text-slate-500 cursor-not-allowed' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500/20'}`} value={formData.unit} onChange={e => { if (!isSupplyLinked) setFormData(prev => ({ ...prev, unit: e.target.value })); }} readOnly={isSupplyLinked} />
+                            <input className={`w-full px-4 py-3 rounded-xl border text-xs font-black text-center uppercase outline-none ${isExternallyControlled ? 'bg-amber-50/50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800 text-slate-500 cursor-not-allowed' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500/20'}`} value={formData.unit} onChange={e => { if (!isExternallyControlled) setFormData(prev => ({ ...prev, unit: e.target.value })); }} readOnly={isExternallyControlled} />
                           </div>
                         )}
                         {!isOther && (
                           <div>
                             <div className="flex items-center justify-between mb-2">
                               <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Qtd</label>
-                              {!isSupplyLinked && (
+                              {!isExternallyControlled && (
                                 <div className="inline-flex items-center gap-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg py-0.5 px-0.5">
                                   <button
                                     type="button"
@@ -433,14 +442,14 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                                 </div>
                               )}
                             </div>
-                            <input inputMode="decimal" className={`w-full px-4 py-3 rounded-xl border text-xs font-black text-center outline-none ${isSupplyLinked ? 'bg-amber-50/50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800 text-slate-500 cursor-not-allowed' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500/20'}`} value={strQty} onChange={e => { if (!isSupplyLinked) handleNumericChange(e.target.value, setStrQty, 'qty'); }} readOnly={isSupplyLinked} />
+                            <input inputMode="decimal" className={`w-full px-4 py-3 rounded-xl border text-xs font-black text-center outline-none ${isExternallyControlled ? 'bg-amber-50/50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800 text-slate-500 cursor-not-allowed' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500/20'}`} value={strQty} onChange={e => { if (!isExternallyControlled) handleNumericChange(e.target.value, setStrQty, 'qty'); }} readOnly={isExternallyControlled} />
                           </div>
                         )}
                         <div>
                           <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block text-center">{isOther ? 'Valor' : 'Preço Unitário'}</label>
                           <div className="relative">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-300">R$</span>
-                            <input inputMode="decimal" className={`w-full pl-8 pr-4 py-3 rounded-xl border text-xs font-black text-right outline-none ${isSupplyLinked ? 'bg-amber-50/50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800 text-slate-500 cursor-not-allowed' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500/20'}`} value={strPrice} onChange={e => { if (!isSupplyLinked) handleNumericChange(e.target.value, setStrPrice, 'price'); }} readOnly={isSupplyLinked} />
+                            <input inputMode="decimal" className={`w-full pl-8 pr-4 py-3 rounded-xl border text-xs font-black text-right outline-none ${isExternallyControlled ? 'bg-amber-50/50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800 text-slate-500 cursor-not-allowed' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500/20'}`} value={strPrice} onChange={e => { if (!isExternallyControlled) handleNumericChange(e.target.value, setStrPrice, 'price'); }} readOnly={isExternallyControlled} />
                           </div>
                         </div>
                       </div>
@@ -449,11 +458,11 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                         <div className="col-span-2 grid grid-cols-2 gap-6">
                           <div>
                             <label className="text-[9px] font-black text-rose-500 uppercase mb-2 block text-center">Desconto (%)</label>
-                            <input inputMode="decimal" className={`w-full px-4 py-3 rounded-xl border text-xs font-black text-right outline-none ${isSupplyLinked ? 'bg-amber-50/50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800 text-slate-500 cursor-not-allowed' : 'bg-white dark:bg-slate-900 border-rose-100 dark:border-rose-900 text-rose-600'}`} value={strDiscountPercent} onChange={e => { if (!isSupplyLinked) handleNumericChange(e.target.value, setStrDiscountPercent, 'discountPct'); }} readOnly={isSupplyLinked} />
+                            <input inputMode="decimal" className={`w-full px-4 py-3 rounded-xl border text-xs font-black text-right outline-none ${isExternallyControlled ? 'bg-amber-50/50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800 text-slate-500 cursor-not-allowed' : 'bg-white dark:bg-slate-900 border-rose-100 dark:border-rose-900 text-rose-600'}`} value={strDiscountPercent} onChange={e => { if (!isExternallyControlled) handleNumericChange(e.target.value, setStrDiscountPercent, 'discountPct'); }} readOnly={isExternallyControlled} />
                           </div>
                           <div>
                             <label className="text-[9px] font-black text-rose-500 uppercase mb-2 block text-center">Desconto (R$)</label>
-                            <input inputMode="decimal" className={`w-full px-4 py-3 rounded-xl border text-xs font-black text-right outline-none ${isSupplyLinked ? 'bg-amber-50/50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800 text-slate-500 cursor-not-allowed' : 'bg-white dark:bg-slate-900 border-rose-100 dark:border-rose-900 text-rose-600'}`} value={strDiscountValue} onChange={e => { if (!isSupplyLinked) handleNumericChange(e.target.value, setStrDiscountValue, 'discountVal'); }} readOnly={isSupplyLinked} />
+                            <input inputMode="decimal" className={`w-full px-4 py-3 rounded-xl border text-xs font-black text-right outline-none ${isExternallyControlled ? 'bg-amber-50/50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800 text-slate-500 cursor-not-allowed' : 'bg-white dark:bg-slate-900 border-rose-100 dark:border-rose-900 text-rose-600'}`} value={strDiscountValue} onChange={e => { if (!isExternallyControlled) handleNumericChange(e.target.value, setStrDiscountValue, 'discountVal'); }} readOnly={isExternallyControlled} />
                           </div>
                         </div>
 
@@ -517,14 +526,22 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                     </label>
                     <input
                       type="date"
-                      className={`w-full px-5 py-4 rounded-2xl border-2 text-xs font-black outline-none transition-all shadow-sm dark:[color-scheme:dark] ${isSupplyLinked ? 'border-amber-100 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-900/10 text-slate-500 cursor-not-allowed' : 'border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-indigo-500'}`}
-                      value={formData.deliveryDate || ''}
-                      onChange={e => { if (!isSupplyLinked) setFormData(prev => ({ ...prev, deliveryDate: e.target.value })); }}
-                      readOnly={isSupplyLinked}
+                      className={`w-full px-5 py-4 rounded-2xl border-2 text-xs font-black outline-none transition-all shadow-sm dark:[color-scheme:dark] ${isTransferDateLocked ? 'border-amber-100 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-900/10 text-slate-500 cursor-not-allowed' : 'border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-indigo-500'}`}
+                      value={transferDateValue}
+                      onChange={e => {
+                        if (isTransferDateLocked) return;
+                        const value = e.target.value;
+                        if (isLabor) {
+                          setFormData(prev => ({ ...prev, paymentDate: value }));
+                        } else {
+                          setFormData(prev => ({ ...prev, deliveryDate: value }));
+                        }
+                      }}
+                      readOnly={isTransferDateLocked}
                     />
-                    {isSupplyLinked && (
+                    {isTransferDateLocked && (
                       <p className="mt-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                        <Link2 size={10} /> Controlado por compras
+                        <Link2 size={10} /> {`Controlado por ${controlSourceLabel.toLowerCase()}`}
                       </p>
                     )}
                   </div>
