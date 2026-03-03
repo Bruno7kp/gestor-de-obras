@@ -747,18 +747,18 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
              </div>
              <div className="flex items-center gap-1 p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm">
                <button
-                 onClick={() => setViewMode('grid')}
-                 className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-indigo-600'}`}
-                 title="Grade"
-               >
-                 <LayoutGrid size={16} />
-               </button>
-               <button
                  onClick={() => setViewMode('list')}
                  className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-indigo-600'}`}
                  title="Lista"
                >
                  <List size={16} />
+               </button>
+               <button
+                 onClick={() => setViewMode('grid')}
+                 className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-indigo-600'}`}
+                 title="Grade"
+               >
+                 <LayoutGrid size={16} />
                </button>
              </div>
           </div>

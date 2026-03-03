@@ -92,7 +92,7 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers: hom
   const VIEW_MODE_KEY = 'suppliers_view_mode';
   const [viewMode, setViewMode] = useState<SupplierViewMode>(() => {
     const saved = localStorage.getItem(VIEW_MODE_KEY);
-    return saved === 'list' || saved === 'table' ? saved : 'list';
+    return saved === 'list' || saved === 'table' ? saved : 'table';
   });
   const handleViewModeChange = (mode: SupplierViewMode) => {
     setViewMode(mode);
@@ -378,18 +378,18 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers: hom
           <div className="flex items-center gap-2">
             <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg">
               <button
-                onClick={() => handleViewModeChange('list')}
-                className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                title="Visualização em lista"
-              >
-                <List size={16} />
-              </button>
-              <button
                 onClick={() => handleViewModeChange('table')}
-                className={`p-2 rounded-md transition-all ${viewMode === 'table' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`p-2 rounded-md transition-all ${viewMode === 'table' ? 'bg-white dark:bg-indigo-500/25 text-indigo-600 dark:text-indigo-100 shadow-sm' : 'text-slate-400 dark:text-slate-300 hover:text-slate-600 dark:hover:text-white'}`}
                 title="Visualização em tabela"
               >
                 <Table2 size={16} />
+              </button>
+              <button
+                onClick={() => handleViewModeChange('list')}
+                className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-white dark:bg-indigo-500/25 text-indigo-600 dark:text-indigo-100 shadow-sm' : 'text-slate-400 dark:text-slate-300 hover:text-slate-600 dark:hover:text-white'}`}
+                title="Visualização em lista"
+              >
+                <List size={16} />
               </button>
             </div>
             {canEditSuppliers && (
@@ -438,12 +438,12 @@ export const SupplierManager: React.FC<SupplierManagerProps> = ({ suppliers: hom
                 onChange={e => setSearch(e.target.value)}
               />
             </div>
-            <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg shrink-0 overflow-x-auto no-scrollbar">
+            <div className="flex gap-2 shrink-0 overflow-x-auto no-scrollbar">
               {(['ALL', 'Material', 'Serviço', 'Locação'] as const).map(cat => (
                 <button
                   key={cat}
                   onClick={() => setCategoryFilter(cat)}
-                  className={`px-3 py-1.5 rounded-md text-[9px] font-black uppercase tracking-widest transition-all ${categoryFilter === cat ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${categoryFilter === cat ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700'}`}
                 >
                   {cat === 'ALL' ? 'Tudo' : cat}
                 </button>

@@ -52,7 +52,7 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
   const [viewMode, setViewMode] = useState<ContractViewMode>(() => {
     const saved = localStorage.getItem(VIEW_MODE_KEY);
     if (saved === 'detailed' || saved === 'grid' || saved === 'table' || saved === 'compact') return saved;
-    return 'compact';
+    return 'table';
   });
   const handleViewModeChange = (mode: ContractViewMode) => {
     setViewMode(mode);
@@ -535,6 +535,13 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
 
           <div className="flex gap-2">
             <button
+              onClick={() => handleViewModeChange('table')}
+              className={`p-2.5 rounded-xl transition-all ${viewMode === 'table' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600' : 'text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+              title="Tabela"
+            >
+              <Table size={18} />
+            </button>
+            <button
               onClick={() => handleViewModeChange('detailed')}
               className={`p-2.5 rounded-xl transition-all ${viewMode === 'detailed' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600' : 'text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
               title="Visualização Detalhada"
@@ -554,13 +561,6 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
               title="Cards"
             >
               <LayoutGrid size={18} />
-            </button>
-            <button
-              onClick={() => handleViewModeChange('table')}
-              className={`p-2.5 rounded-xl transition-all ${viewMode === 'table' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600' : 'text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-              title="Tabela"
-            >
-              <Table size={18} />
             </button>
           </div>
         </div>
@@ -607,17 +607,17 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
                     <div className="flex items-center gap-3 mb-2">
                       <span className={`px-3 py-1 rounded-xl text-[9px] font-black uppercase ${
                         contract.tipo === 'empreita'
-                          ? 'bg-indigo-50 dark:bg-indigo-900 text-indigo-600'
-                          : 'bg-emerald-50 dark:bg-emerald-900 text-emerald-600'
+                          ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/30 dark:text-indigo-100'
+                          : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/30 dark:text-emerald-100'
                       }`}>
                         {contract.tipo}
                       </span>
                       <span className={`px-3 py-1 rounded-xl text-[9px] font-black uppercase ${
                         contract.status === 'pago'
-                          ? 'bg-emerald-50 dark:bg-emerald-900 text-emerald-600'
+                          ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/30 dark:text-emerald-100'
                           : contract.status === 'parcial'
-                          ? 'bg-amber-50 dark:bg-amber-900 text-amber-600'
-                          : 'bg-rose-50 dark:bg-rose-900 text-rose-600'
+                          ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/30 dark:text-amber-100'
+                          : 'bg-rose-50 text-rose-700 dark:bg-rose-500/30 dark:text-rose-100'
                       }`}>
                         {contract.status}
                       </span>
@@ -1966,10 +1966,10 @@ const CompactContractItem = ({ contract, workforce, isReadOnly, onEdit, onDelete
             <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-tight truncate">{contract.descricao}</h4>
             <span className={`flex-shrink-0 px-2 py-0.5 rounded-lg text-[8px] font-black uppercase ${
               contract.status === 'pago'
-                ? 'bg-emerald-50 dark:bg-emerald-900 text-emerald-600'
+                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/30 dark:text-emerald-100'
                 : contract.status === 'parcial'
-                ? 'bg-amber-50 dark:bg-amber-900 text-amber-600'
-                : 'bg-rose-50 dark:bg-rose-900 text-rose-600'
+                ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/30 dark:text-amber-100'
+                : 'bg-rose-50 text-rose-700 dark:bg-rose-500/30 dark:text-rose-100'
             }`}>
               {contract.status}
             </span>
@@ -2008,16 +2008,16 @@ const GridContractCard = ({ contract, workforce, isReadOnly, resolveLinkedWorkIt
       <div className="flex justify-between items-start mb-4">
         <div className="flex items-center gap-2">
           <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase ${
-            contract.tipo === 'empreita' ? 'bg-indigo-50 dark:bg-indigo-900 text-indigo-600' : 'bg-emerald-50 dark:bg-emerald-900 text-emerald-600'
+            contract.tipo === 'empreita' ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/30 dark:text-indigo-100' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/30 dark:text-emerald-100'
           }`}>
             {contract.tipo}
           </span>
           <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase ${
             contract.status === 'pago'
-              ? 'bg-emerald-50 dark:bg-emerald-900 text-emerald-600'
+              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/30 dark:text-emerald-100'
               : contract.status === 'parcial'
-              ? 'bg-amber-50 dark:bg-amber-900 text-amber-600'
-              : 'bg-rose-50 dark:bg-rose-900 text-rose-600'
+              ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/30 dark:text-amber-100'
+              : 'bg-rose-50 text-rose-700 dark:bg-rose-500/30 dark:text-rose-100'
           }`}>
             {contract.status}
           </span>
@@ -2064,6 +2064,8 @@ const GridContractCard = ({ contract, workforce, isReadOnly, resolveLinkedWorkIt
 
 const TableContractRow = ({ contract, workforce, isReadOnly, onEdit, onDelete, onViewPayments }: any) => {
   const associado = workforce.find((w: any) => w.id === contract.associadoId);
+  const amountDue = contract.valorTotal - contract.valorPago;
+  const isAmountDueZero = Math.abs(amountDue) <= 0.01;
 
   return (
     <tr className="group hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
@@ -2080,7 +2082,7 @@ const TableContractRow = ({ contract, workforce, isReadOnly, onEdit, onDelete, o
       </td>
       <td className="px-6 py-4">
         <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase ${
-          contract.tipo === 'empreita' ? 'bg-indigo-50 dark:bg-indigo-900 text-indigo-600' : 'bg-emerald-50 dark:bg-emerald-900 text-emerald-600'
+          contract.tipo === 'empreita' ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/30 dark:text-indigo-100' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/30 dark:text-emerald-100'
         }`}>
           {contract.tipo}
         </span>
@@ -2091,16 +2093,16 @@ const TableContractRow = ({ contract, workforce, isReadOnly, onEdit, onDelete, o
       <td className="px-6 py-4 text-xs font-black text-emerald-600">
         R$ {contract.valorPago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
       </td>
-      <td className="px-6 py-4 text-xs font-black text-amber-600">
-        R$ {(contract.valorTotal - contract.valorPago).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+      <td className={`px-6 py-4 text-xs font-black ${isAmountDueZero ? 'text-slate-400' : 'text-amber-600'}`}>
+        R$ {amountDue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
       </td>
       <td className="px-6 py-4">
         <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase ${
           contract.status === 'pago'
-            ? 'bg-emerald-50 dark:bg-emerald-900 text-emerald-600'
+            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/30 dark:text-emerald-100'
             : contract.status === 'parcial'
-            ? 'bg-amber-50 dark:bg-amber-900 text-amber-600'
-            : 'bg-rose-50 dark:bg-rose-900 text-rose-600'
+            ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/30 dark:text-amber-100'
+            : 'bg-rose-50 text-rose-700 dark:bg-rose-500/30 dark:text-rose-100'
         }`}>
           {contract.status}
         </span>
