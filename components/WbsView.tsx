@@ -33,7 +33,6 @@ export const WbsView: React.FC<WbsViewProps> = ({
   const scrollTopRef = useRef(0);
   const tableScrollRef = useRef<HTMLDivElement | null>(null);
   const pendingScrollRestoreRef = useRef<{ pageTop: number; tableTop: number; tableLeft: number } | null>(null);
-  const lastEditedIdRef = useRef<string | null>(null);
   const suppressNextOverrideRef = useRef(false);
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -108,17 +107,6 @@ export const WbsView: React.FC<WbsViewProps> = ({
     const parent = scrollParentRef.current;
     if (!parent) return;
     parent.scrollTop = scrollTopRef.current;
-  }, [project.items]);
-
-  useLayoutEffect(() => {
-    const lastId = lastEditedIdRef.current;
-    if (!lastId || !tableScrollRef.current) return;
-
-    const row = tableScrollRef.current.querySelector(`[data-row-id="${lastId}"]`) as HTMLElement | null;
-    if (row) {
-      row.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-    }
-    lastEditedIdRef.current = null;
   }, [project.items]);
 
   const getScrollSnapshot = () => {
@@ -468,7 +456,6 @@ export const WbsView: React.FC<WbsViewProps> = ({
   // HANDLERS COM VALIDAÇÃO DE REGRA DE NEGÓCIO (CLAMPS)
   const updateItemQuantity = async (id: string, qty: number) => {
     if (isReadOnly) return;
-    lastEditedIdRef.current = id;
     const nextItems = localItemsRef.current.map(it => {
       if (it.id === id) {
         const maxPossible = Math.max(0, (it.contractQuantity || 0) - (it.previousQuantity || 0));
@@ -483,7 +470,6 @@ export const WbsView: React.FC<WbsViewProps> = ({
 
   const updateItemPercentage = async (id: string, pct: number) => {
     if (isReadOnly) return;
-    lastEditedIdRef.current = id;
     const nextItems = localItemsRef.current.map(it => {
       if (it.id === id) {
         const prevPct = it.contractQuantity > 0 ? (it.previousQuantity / it.contractQuantity) * 100 : 0;
@@ -597,7 +583,6 @@ export const WbsView: React.FC<WbsViewProps> = ({
           
           onUpdateTotal={async (id, total) => {
             if (isReadOnly) return;
-            lastEditedIdRef.current = id;
             const nextItems = localItemsRef.current.map(it => {
               if (it.id === id && it.contractQuantity > 0) {
                 const newUnitPrice = financial.truncate(total / it.contractQuantity);
@@ -614,7 +599,6 @@ export const WbsView: React.FC<WbsViewProps> = ({
           }}
           onUpdateCurrentTotal={async (id, total) => {
             if (isReadOnly) return;
-            lastEditedIdRef.current = id;
             const nextItems = localItemsRef.current.map(it => {
               if (it.id === id && it.currentQuantity > 0) {
                 const newUnitPrice = financial.truncate(total / it.currentQuantity);

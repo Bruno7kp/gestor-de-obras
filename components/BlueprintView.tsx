@@ -34,7 +34,6 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
   const scrollTopRef = useRef(0);
   const tableScrollRef = useRef<HTMLDivElement | null>(null);
   const pendingScrollRestoreRef = useRef<{ pageTop: number; tableTop: number; tableLeft: number } | null>(null);
-  const lastEditedIdRef = useRef<string | null>(null);
 
   // --- Local items state (optimistic, mirrors WbsView pattern) ---
   const [localItems, setLocalItems] = useState<WorkItem[]>(project.blueprintItems || []);
@@ -87,17 +86,6 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
     const parent = scrollParentRef.current;
     if (!parent) return;
     parent.scrollTop = scrollTopRef.current;
-  }, [project.blueprintItems]);
-
-  useLayoutEffect(() => {
-    const lastId = lastEditedIdRef.current;
-    if (!lastId || !tableScrollRef.current) return;
-
-    const row = tableScrollRef.current.querySelector(`[data-row-id="${lastId}"]`) as HTMLElement | null;
-    if (row) {
-      row.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-    }
-    lastEditedIdRef.current = null;
   }, [project.blueprintItems]);
 
   const getScrollSnapshot = () => {
@@ -361,7 +349,6 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
 
   const updateItemContractQuantity = async (id: string, qty: number) => {
     if (!canEditBlueprint) return;
-    lastEditedIdRef.current = id;
 
     const nextItems = localItemsRef.current.map(it => {
       if (it.id === id) {
@@ -388,7 +375,6 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
 
   const updateItemUnitPrice = async (id: string, price: number) => {
     if (!canEditBlueprint) return;
-    lastEditedIdRef.current = id;
 
     const nextItems = localItemsRef.current.map(it => {
       if (it.id === id) {
