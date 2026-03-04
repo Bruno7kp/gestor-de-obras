@@ -35,6 +35,11 @@ interface ExpenseManagerProps {
   onRequestPrintReport?: (dateStart?: string, dateEnd?: string) => void;
 }
 
+type FinancialDateFilter = {
+  dateStart: string;
+  dateEnd: string;
+};
+
 export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
   project, suppliers, contractors = [], expenses, onAdd, onAddMany, onUpdate, onDelete, workItems, measuredValue, onUpdateExpenses, isReadOnly, onRequestPrintReport
 }) => {
@@ -54,15 +59,34 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
 
   const expenseTabs: Array<ExpenseType | 'overview'> = ['overview', 'revenue', 'material', 'labor', 'other'];
   const expenseTabKey = `exp_fin_tab_${project.id}`;
+  const expenseDateFilterKey = `exp_fin_date_filter_${project.id}`;
   const [activeTab, setActiveTab] = useState<ExpenseType | 'overview'>(() => {
     const saved = uiPreferences.getString(expenseTabKey);
     return saved && expenseTabs.includes(saved as ExpenseType | 'overview')
       ? (saved as ExpenseType | 'overview')
       : 'overview';
   });
+
+  const getSavedDateFilter = (): FinancialDateFilter => {
+    const saved = uiPreferences.getString(expenseDateFilterKey);
+    if (!saved) {
+      return { dateStart: '', dateEnd: '' };
+    }
+
+    try {
+      const parsed = JSON.parse(saved) as Partial<FinancialDateFilter>;
+      return {
+        dateStart: typeof parsed.dateStart === 'string' ? parsed.dateStart : '',
+        dateEnd: typeof parsed.dateEnd === 'string' ? parsed.dateEnd : '',
+      };
+    } catch {
+      return { dateStart: '', dateEnd: '' };
+    }
+  };
+
   const [searchQuery, setSearchQuery] = useState('');
-  const [dateStart, setDateStart] = useState('');
-  const [dateEnd, setDateEnd] = useState('');
+  const [dateStart, setDateStart] = useState(() => getSavedDateFilter().dateStart);
+  const [dateEnd, setDateEnd] = useState(() => getSavedDateFilter().dateEnd);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => {
     const saved = localStorage.getItem(`exp_fin_${project.id}`);
     return saved ? new Set<string>(JSON.parse(saved)) : new Set<string>();
@@ -94,6 +118,19 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
   useEffect(() => {
     uiPreferences.setString(expenseTabKey, activeTab);
   }, [activeTab, expenseTabKey]);
+
+  useEffect(() => {
+    const savedDateFilter = getSavedDateFilter();
+    setDateStart(savedDateFilter.dateStart);
+    setDateEnd(savedDateFilter.dateEnd);
+  }, [project.id, expenseDateFilterKey]);
+
+  useEffect(() => {
+    uiPreferences.setString(
+      expenseDateFilterKey,
+      JSON.stringify({ dateStart, dateEnd }),
+    );
+  }, [dateStart, dateEnd, expenseDateFilterKey]);
 
   const isWithinRange = useCallback((date?: string) => {
     if (!dateStart && !dateEnd) return true;
