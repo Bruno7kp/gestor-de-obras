@@ -37,7 +37,7 @@ type ReportSection = {
 
 const TYPE_TITLE: Record<ExpenseType, string> = {
   labor: 'Mão de Obra',
-  material: 'Suprimentos',
+  material: 'Materiais',
   revenue: 'Entradas',
   other: 'Outros',
 };
