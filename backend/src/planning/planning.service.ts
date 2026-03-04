@@ -131,6 +131,71 @@ export class PlanningService {
     return normalized.length > 0 ? normalized : null;
   }
 
+  private isMaterialForecastIdConflict(error: unknown): boolean {
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError)) {
+      return false;
+    }
+
+    if (error.code !== 'P2002') {
+      return false;
+    }
+
+    const target = (error.meta as { target?: unknown } | undefined)?.target;
+    if (Array.isArray(target) && target.includes('id')) {
+      return true;
+    }
+
+    const driverFields = (
+      error.meta as {
+        driverAdapterError?: {
+          cause?: {
+            constraint?: {
+              fields?: unknown;
+            };
+          };
+        };
+      }
+    )?.driverAdapterError?.cause?.constraint?.fields;
+
+    return Array.isArray(driverFields) && driverFields.includes('id');
+  }
+
+  private buildCreateForecastData(
+    input: CreateForecastInput,
+    planningId: string,
+    forecastId?: string,
+  ): Prisma.MaterialForecastCreateInput {
+    return {
+      ...(forecastId ? { id: forecastId } : {}),
+      projectPlanning: { connect: { id: planningId } },
+      categoryId: input.categoryId ?? null,
+      description: input.description,
+      calculationMemory: input.calculationMemory ?? null,
+      unit: input.unit,
+      quantityNeeded: input.quantityNeeded,
+      unitPrice: input.unitPrice,
+      discountValue: input.discountValue ?? null,
+      discountPercentage: input.discountPercentage ?? null,
+      estimatedDate: input.estimatedDate,
+      purchaseDate: input.purchaseDate ?? null,
+      deliveryDate: input.deliveryDate ?? null,
+      status: input.status,
+      isPaid: input.isPaid,
+      isCleared: input.isCleared ?? false,
+      order: input.order ?? 0,
+      supplier: this.normalizeRelationId(input.supplierId)
+        ? { connect: { id: this.normalizeRelationId(input.supplierId) as string } }
+        : undefined,
+      supplyGroup: this.normalizeRelationId(input.supplyGroupId)
+        ? { connect: { id: this.normalizeRelationId(input.supplyGroupId) as string } }
+        : undefined,
+      paymentProof: input.paymentProof ?? null,
+      createdBy: input.userId ?? input.createdById
+        ? { connect: { id: (input.userId ?? input.createdById) as string } }
+        : undefined,
+    };
+  }
+
   private async emitSupplyOrderedNotification(input: {
     instanceId: string;
     projectId: string;
@@ -1417,32 +1482,10 @@ export class PlanningService {
     );
     const planning = await this.ensurePlanning(input.projectId);
 
-    const { created, syncedExpense } = await this.prisma.$transaction(
-      async (tx) => {
+    const tryCreateForecast = async (forecastId?: string) => {
+      return this.prisma.$transaction(async (tx) => {
         const forecast = await tx.materialForecast.create({
-          data: {
-            id: input.id,
-            projectPlanningId: planning.id,
-            categoryId: input.categoryId ?? null,
-            description: input.description,
-            calculationMemory: input.calculationMemory ?? null,
-            unit: input.unit,
-            quantityNeeded: input.quantityNeeded,
-            unitPrice: input.unitPrice,
-            discountValue: input.discountValue ?? null,
-            discountPercentage: input.discountPercentage ?? null,
-            estimatedDate: input.estimatedDate,
-            purchaseDate: input.purchaseDate ?? null,
-            deliveryDate: input.deliveryDate ?? null,
-            status: input.status,
-            isPaid: input.isPaid,
-            isCleared: input.isCleared ?? false,
-            order: input.order ?? 0,
-            supplierId: this.normalizeRelationId(input.supplierId),
-            supplyGroupId: this.normalizeRelationId(input.supplyGroupId),
-            paymentProof: input.paymentProof ?? null,
-            createdById: input.userId ?? input.createdById ?? null,
-          },
+          data: this.buildCreateForecastData(input, planning.id, forecastId),
         });
 
         const expense = await this.syncExpenseForForecast(
@@ -1451,8 +1494,22 @@ export class PlanningService {
           input.projectId,
         );
         return { created: forecast, syncedExpense: expense };
-      },
-    );
+      });
+    };
+
+    const requestedId = input.id?.trim() || undefined;
+
+    let created: Prisma.MaterialForecastUncheckedCreateInput & { id: string };
+    let syncedExpense: Record<string, unknown> | null;
+
+    try {
+      ({ created, syncedExpense } = await tryCreateForecast(requestedId));
+    } catch (error) {
+      if (!requestedId || !this.isMaterialForecastIdConflict(error)) {
+        throw error;
+      }
+      ({ created, syncedExpense } = await tryCreateForecast());
+    }
 
     const supplyGroupLabel = created.supplyGroupId
       ? (
