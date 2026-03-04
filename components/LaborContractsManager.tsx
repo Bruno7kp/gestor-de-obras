@@ -217,15 +217,71 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
     return date.toLocaleDateString('pt-BR');
   }
 
-  const handleDownloadProof = (url: string, name: string) => {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = name;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+  const apiBase = (import.meta as any).env?.VITE_API_URL ?? '';
+
+  const resolveUploadUrl = (url: string) => {
+    if (!url) return url;
+    if (/^https?:\/\//i.test(url)) return url;
+    if (url.startsWith('/uploads/')) {
+      const baseOrigin = new URL(apiBase || '/', window.location.origin).origin;
+      return `${baseOrigin}${url}`;
+    }
+    return url;
+  };
+
+  const sanitizeFilename = (value: string) =>
+    value
+      .replace(/[\\/:*?"<>|]+/g, '_')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const extensionFromContentType = (contentType: string | null) => {
+    if (!contentType) return null;
+    if (contentType.includes('pdf')) return 'pdf';
+    if (contentType.includes('png')) return 'png';
+    if (contentType.includes('jpeg') || contentType.includes('jpg')) return 'jpg';
+    if (contentType.includes('webp')) return 'webp';
+    if (contentType.includes('gif')) return 'gif';
+    return null;
+  };
+
+  const extensionFromUrl = (url: string) => {
+    try {
+      const pathname = new URL(url, window.location.origin).pathname;
+      const match = pathname.match(/\.([a-zA-Z0-9]+)$/);
+      return match?.[1]?.toLowerCase() ?? null;
+    } catch {
+      return null;
+    }
+  };
+
+  const buildDownloadName = (baseName: string, resolvedUrl: string, contentType: string | null) => {
+    const safeBase = sanitizeFilename(baseName) || 'comprovante';
+    const ext = extensionFromContentType(contentType) ?? extensionFromUrl(resolvedUrl) ?? 'pdf';
+    return `${safeBase}.${ext}`;
+  };
+
+  const handleDownloadProof = async (url: string, baseName: string) => {
+    const resolvedUrl = resolveUploadUrl(url);
+    try {
+      const response = await fetch(resolvedUrl, { credentials: 'include' });
+      if (!response.ok) {
+        throw new Error(`Falha ao baixar comprovante (${response.status})`);
+      }
+
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = buildDownloadName(baseName, resolvedUrl, response.headers.get('content-type'));
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      const win = window.open();
+      win?.document.write(`<iframe src="${resolvedUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+    }
   };
 
   const handleSave = async (
