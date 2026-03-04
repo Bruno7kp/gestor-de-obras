@@ -50,15 +50,50 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
     return url;
   };
 
-  const handleDownloadDoc = async (url: string, name: string) => {
+  const sanitizeFilename = (value: string) =>
+    value
+      .replace(/[\\/:*?"<>|]+/g, '_')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const extensionFromContentType = (contentType: string | null) => {
+    if (!contentType) return null;
+    if (contentType.includes('pdf')) return 'pdf';
+    if (contentType.includes('png')) return 'png';
+    if (contentType.includes('jpeg') || contentType.includes('jpg')) return 'jpg';
+    if (contentType.includes('webp')) return 'webp';
+    if (contentType.includes('gif')) return 'gif';
+    return null;
+  };
+
+  const extensionFromUrl = (url: string) => {
+    try {
+      const pathname = new URL(url, window.location.origin).pathname;
+      const match = pathname.match(/\.([a-zA-Z0-9]+)$/);
+      return match?.[1]?.toLowerCase() ?? null;
+    } catch {
+      return null;
+    }
+  };
+
+  const buildDownloadName = (baseName: string, resolvedUrl: string, contentType: string | null) => {
+    const safeBase = sanitizeFilename(baseName) || 'comprovante';
+    const ext = extensionFromContentType(contentType) ?? extensionFromUrl(resolvedUrl) ?? 'pdf';
+    return `${safeBase}.${ext}`;
+  };
+
+  const handleDownloadDoc = async (url: string, baseName: string) => {
     const resolvedUrl = resolveUploadUrl(url);
     try {
       const res = await fetch(resolvedUrl, { credentials: 'include' });
+      if (!res.ok) {
+        throw new Error(`Falha ao baixar documento (${res.status})`);
+      }
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = blobUrl;
-      link.download = name;
+      link.download = buildDownloadName(baseName, resolvedUrl, res.headers.get('content-type'));
       link.click();
       URL.revokeObjectURL(blobUrl);
     } catch {
@@ -184,10 +219,10 @@ export const ExpenseTreeTable: React.FC<ExpenseTreeTableProps> = ({
                           <div className="flex items-center justify-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
                             <button onClick={() => onEdit(item)} className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg" title="Editar"><Edit3 size={14} /></button>
                             {item.itemType === 'item' && item.invoiceDoc && (
-                              <button onClick={() => handleDownloadDoc(item.invoiceDoc!, `NF_${item.description}.pdf`)} className="p-1.5 text-emerald-400 hover:text-emerald-600 rounded-lg" title="Baixar Nota Fiscal"><Receipt size={14} /></button>
+                              <button onClick={() => handleDownloadDoc(item.invoiceDoc!, `NF_${item.description}`)} className="p-1.5 text-emerald-400 hover:text-emerald-600 rounded-lg" title="Baixar Nota Fiscal"><Receipt size={14} /></button>
                             )}
                             {item.itemType === 'item' && item.paymentProof && (
-                              <button onClick={() => handleDownloadDoc(item.paymentProof!, `COMPR_${item.description}.pdf`)} className="p-1.5 text-blue-400 hover:text-blue-600 rounded-lg" title="Baixar Comprovante"><Download size={14} /></button>
+                              <button onClick={() => handleDownloadDoc(item.paymentProof!, `COMPR_${item.description}`)} className="p-1.5 text-blue-400 hover:text-blue-600 rounded-lg" title="Baixar Comprovante"><Download size={14} /></button>
                             )}
                             {(() => {
                               const isSupplyLinked = isSupplyLinkedExpense(item);
