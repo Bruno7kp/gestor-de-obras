@@ -140,6 +140,74 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
     return true;
   }, [dateStart, dateEnd]);
 
+  const getPaymentSortDate = useCallback((expense: ProjectExpense) => {
+    const candidate = expense.paymentDate || expense.date || '';
+    return /^\d{4}-\d{2}-\d{2}$/.test(candidate) ? candidate : '';
+  }, []);
+
+  const sortExpensesByPaymentDate = useCallback((items: ProjectExpense[]) => {
+    const cloned = items.map(item => ({ ...item }));
+    const childrenByParent = new Map<string | null, ProjectExpense[]>();
+
+    cloned.forEach(item => {
+      const parentKey = item.parentId ?? null;
+      if (!childrenByParent.has(parentKey)) {
+        childrenByParent.set(parentKey, []);
+      }
+      childrenByParent.get(parentKey)!.push(item);
+    });
+
+    const sortKeyCache = new Map<string, string | null>();
+
+    const resolveSortKey = (expense: ProjectExpense): string | null => {
+      const cached = sortKeyCache.get(expense.id);
+      if (cached !== undefined) return cached;
+
+      if (expense.itemType === 'item') {
+        const key = getPaymentSortDate(expense) || null;
+        sortKeyCache.set(expense.id, key);
+        return key;
+      }
+
+      const children = childrenByParent.get(expense.id) || [];
+      let minKey: string | null = null;
+      children.forEach(child => {
+        const childKey = resolveSortKey(child);
+        if (!childKey) return;
+        if (!minKey || childKey < minKey) minKey = childKey;
+      });
+
+      sortKeyCache.set(expense.id, minKey);
+      return minKey;
+    };
+
+    cloned.forEach(resolveSortKey);
+
+    const compareSiblings = (a: ProjectExpense, b: ProjectExpense) => {
+      const keyA = sortKeyCache.get(a.id) || null;
+      const keyB = sortKeyCache.get(b.id) || null;
+
+      if (keyA && keyB && keyA !== keyB) return keyA.localeCompare(keyB);
+      if (keyA && !keyB) return -1;
+      if (!keyA && keyB) return 1;
+
+      const orderDiff = (a.order ?? 0) - (b.order ?? 0);
+      if (orderDiff !== 0) return orderDiff;
+      return a.description.localeCompare(b.description, 'pt-BR');
+    };
+
+    const assignSiblingOrder = (parentId: string | null) => {
+      const siblings = [...(childrenByParent.get(parentId) || [])].sort(compareSiblings);
+      siblings.forEach((sibling, index) => {
+        sibling.order = index;
+        assignSiblingOrder(sibling.id);
+      });
+    };
+
+    assignSiblingOrder(null);
+    return cloned;
+  }, [getPaymentSortDate]);
+
   const filteredItemsByDate = useMemo(() => (
     expenses.filter(expense => expense.itemType === 'item' && isWithinRange(expense.date))
   ), [expenses, isWithinRange]);
@@ -182,9 +250,11 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
       return scoped.filter(expense => allowedIds.has(expense.id));
     })();
 
-    const tree = treeService.buildTree(filtered);
+    const sortedByPaymentDate = sortExpensesByPaymentDate(filtered);
+
+    const tree = treeService.buildTree(sortedByPaymentDate);
     return tree.map((root, idx) => treeService.processExpensesRecursive(root as ProjectExpense, '', idx));
-  }, [expenses, activeTab, dateStart, dateEnd, isWithinRange]);
+  }, [expenses, activeTab, dateStart, dateEnd, isWithinRange, sortExpensesByPaymentDate]);
 
   const flattenedExpenses = useMemo(() =>
     treeService.flattenTree(currentExpenses, expandedIds)

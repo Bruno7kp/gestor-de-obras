@@ -186,6 +186,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const [expensePrintMode, setExpensePrintMode] = useState<ExpensePrintMode>('complete');
   const [expensePrintDateStart, setExpensePrintDateStart] = useState<string | undefined>(undefined);
   const [expensePrintDateEnd, setExpensePrintDateEnd] = useState<string | undefined>(undefined);
+  const [expensePrintShowGroups, setExpensePrintShowGroups] = useState(false);
   const [isSuppliesPrintModalOpen, setIsSuppliesPrintModalOpen] = useState(false);
   const [suppliesPrintMode, setSuppliesPrintMode] = useState<SuppliesPrintMode>('complete');
   const [suppliesPrintOnlyUnpaid, setSuppliesPrintOnlyUnpaid] = useState(false);
@@ -1570,6 +1571,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                 printMode={expensePrintMode}
                 dateStart={expensePrintDateStart}
                 dateEnd={expensePrintDateEnd}
+                showGroups={expensePrintShowGroups}
               />
             )}
             {(tab === 'planning' || tab === 'supplies' || tab === 'schedule') && (
@@ -1617,6 +1619,16 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     Só mão de obra
                   </button>
                 </div>
+
+                <label className="mt-4 flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={expensePrintShowGroups}
+                    onChange={(event) => setExpensePrintShowGroups(event.target.checked)}
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  Mostrar grupos?
+                </label>
 
                 <div className="mt-5 flex justify-end">
                   <button
