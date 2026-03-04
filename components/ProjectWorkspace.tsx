@@ -189,6 +189,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const [isSuppliesPrintModalOpen, setIsSuppliesPrintModalOpen] = useState(false);
   const [suppliesPrintMode, setSuppliesPrintMode] = useState<SuppliesPrintMode>('complete');
   const [suppliesPrintOnlyUnpaid, setSuppliesPrintOnlyUnpaid] = useState(false);
+  const [suppliesPrintShowSupplier, setSuppliesPrintShowSupplier] = useState(false);
 
   const tabsNavRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef<{ x: number; scrollLeft: number; moved: boolean } | null>(null);
@@ -1574,8 +1575,10 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
             {(tab === 'planning' || tab === 'supplies' || tab === 'schedule') && (
               <PrintPlanningReport
                 project={project}
+                suppliers={effectiveSuppliers}
                 printMode={suppliesPrintMode}
                 onlyUnpaid={suppliesPrintOnlyUnpaid}
+                showSupplier={suppliesPrintShowSupplier}
               />
             )}
           </div>
@@ -1668,6 +1671,16 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                   />
                   Exibir apenas NÃO PAGOS?
+                </label>
+
+                <label className="mt-3 flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={suppliesPrintShowSupplier}
+                    onChange={(event) => setSuppliesPrintShowSupplier(event.target.checked)}
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  Mostrar fornecedor?
                 </label>
 
                 <div className="mt-5 flex justify-end">

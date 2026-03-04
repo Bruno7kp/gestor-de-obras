@@ -1,20 +1,24 @@
 
 import React, { useMemo } from 'react';
-import { Project, DEFAULT_THEME } from '../types';
+import { Project, DEFAULT_THEME, Supplier } from '../types';
 import { financial } from '../utils/math';
 
 type SuppliesPrintMode = 'complete' | 'pending' | 'ordered';
 
 interface PrintPlanningReportProps {
   project: Project;
+  suppliers?: Supplier[];
   printMode?: SuppliesPrintMode;
   onlyUnpaid?: boolean;
+  showSupplier?: boolean;
 }
 
 export const PrintPlanningReport: React.FC<PrintPlanningReportProps> = ({
   project,
+  suppliers = [],
   printMode = 'complete',
   onlyUnpaid = false,
+  showSupplier = false,
 }) => {
   const forecastStatusLabel: Record<'pending' | 'ordered' | 'delivered', string> = {
     pending: 'Pendente',
@@ -123,6 +127,10 @@ export const PrintPlanningReport: React.FC<PrintPlanningReportProps> = ({
     };
   }, [reportForecasts]);
 
+  const suppliersById = useMemo(() => {
+    return new Map(suppliers.map((supplier) => [supplier.id, supplier.name]));
+  }, [suppliers]);
+
   return (
     <div className="print-report-area print-planning-area bg-white min-h-screen">
       <style dangerouslySetInnerHTML={{ __html: dynamicStyles }} />
@@ -164,7 +172,8 @@ export const PrintPlanningReport: React.FC<PrintPlanningReportProps> = ({
           <table className="planning-table">
             <thead>
               <tr className="bg-header">
-                <th style={{ width: '40%' }}>Material / Descrição</th>
+                <th style={{ width: showSupplier ? '32%' : '40%' }}>Material / Descrição</th>
+                {showSupplier && <th style={{ width: '18%' }}>Fornecedor</th>}
                 <th style={{ width: '10%' }}>Qtd</th>
                 <th style={{ width: '15%' }}>Unitário</th>
                 <th style={{ width: '15%' }}>Total</th>
@@ -176,6 +185,9 @@ export const PrintPlanningReport: React.FC<PrintPlanningReportProps> = ({
               {reportForecasts.map(f => (
                 <tr key={f.id}>
                   <td className="font-bold">{f.description}</td>
+                  {showSupplier && (
+                    <td className="text-center">{(f.supplierId && suppliersById.get(f.supplierId)) || 'Não definido (Spot)'}</td>
+                  )}
                   <td className="text-center">{financial.formatQuantity(f.quantityNeeded)} {f.unit}</td>
                   <td className="text-right">{financial.formatVisual(f.unitPrice, theme.currencySymbol)}</td>
                   <td className="text-right">{financial.formatVisual(calculateForecastNetTotal(f.quantityNeeded, f.unitPrice, f.discountValue || 0), theme.currencySymbol)}</td>
