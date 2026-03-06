@@ -160,6 +160,31 @@ export class PlanningService {
     return Array.isArray(driverFields) && driverFields.includes('id');
   }
 
+  private isSupplyGroupForeignKeyViolation(error: unknown): boolean {
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError)) {
+      return false;
+    }
+
+    if (error.code !== 'P2003') {
+      return false;
+    }
+
+    const fieldName = (
+      error.meta as {
+        field_name?: unknown;
+      }
+    )?.field_name;
+
+    if (typeof fieldName === 'string') {
+      return (
+        fieldName.includes('MaterialForecast_supplyGroupId_fkey') ||
+        fieldName.includes('supplyGroupId')
+      );
+    }
+
+    return false;
+  }
+
   private buildCreateForecastData(
     input: CreateForecastInput,
     planningId: string,
@@ -1194,72 +1219,109 @@ export class PlanningService {
 
     await this.ensurePlanningWritable(group.projectPlanningId);
 
-    const count = await this.prisma.materialForecast.count({
-      where: { supplyGroupId: groupId },
-    });
+    let syncedExpenses: Array<{
+      id: string;
+      expense: Record<string, unknown> | null;
+    }> = [];
 
-    const { syncedExpenses } = await this.prisma.$transaction(async (tx) => {
-      await tx.materialForecast.createMany({
-        data: items.map((item, index) => ({
-          ...(item.id ? { id: item.id } : {}),
-          projectPlanningId: group.projectPlanningId,
-          description: item.description,
-          unit: item.unit,
-          quantityNeeded: item.quantityNeeded,
-          unitPrice: item.unitPrice,
-          discountValue: item.discountValue ?? null,
-          discountPercentage: item.discountPercentage ?? null,
-          categoryId: item.categoryId ?? null,
-          estimatedDate: group.estimatedDate,
-          purchaseDate: group.purchaseDate,
-          deliveryDate: group.deliveryDate,
-          status: group.status,
-          isPaid: group.isPaid,
-          isCleared: group.isCleared,
-          order: item.order ?? count + index,
-          supplierId: group.supplierId,
-          paymentProof: group.paymentProof,
-          createdById: userId ?? null,
-          supplyGroupId: groupId,
-        })),
-      });
+    try {
+      const result = await this.prisma.$transaction(async (tx) => {
+        const groupInTx = await tx.supplyGroup.findUnique({
+          where: { id: groupId },
+          select: {
+            id: true,
+            projectPlanningId: true,
+            estimatedDate: true,
+            purchaseDate: true,
+            deliveryDate: true,
+            status: true,
+            isPaid: true,
+            isCleared: true,
+            supplierId: true,
+            paymentProof: true,
+          },
+        });
+
+        if (!groupInTx) {
+          throw new NotFoundException('Grupo de compras nao encontrado');
+        }
+
+        const count = await tx.materialForecast.count({
+          where: { supplyGroupId: groupId },
+        });
+
+        await tx.materialForecast.createMany({
+          data: items.map((item, index) => ({
+            ...(item.id ? { id: item.id } : {}),
+            projectPlanningId: groupInTx.projectPlanningId,
+            description: item.description,
+            unit: item.unit,
+            quantityNeeded: item.quantityNeeded,
+            unitPrice: item.unitPrice,
+            discountValue: item.discountValue ?? null,
+            discountPercentage: item.discountPercentage ?? null,
+            categoryId: item.categoryId ?? null,
+            estimatedDate: groupInTx.estimatedDate,
+            purchaseDate: groupInTx.purchaseDate,
+            deliveryDate: groupInTx.deliveryDate,
+            status: groupInTx.status,
+            isPaid: groupInTx.isPaid,
+            isCleared: groupInTx.isCleared,
+            order: item.order ?? count + index,
+            supplierId: groupInTx.supplierId,
+            paymentProof: groupInTx.paymentProof,
+            createdById: userId ?? null,
+            supplyGroupId: groupId,
+          })),
+        });
 
       // Sync expenses for newly added items if group is non-pending
-      let expenses: Array<{
+        let expenses: Array<{
         id: string;
         expense: Record<string, unknown> | null;
       }> = [];
-      if (group.status === 'ordered' || group.status === 'delivered') {
-        const newItemIds = items.filter((i) => i.id).map((i) => i.id!);
-        let newForecasts: Awaited<
-          ReturnType<typeof tx.materialForecast.findMany>
-        > = [];
-        if (newItemIds.length > 0) {
-          newForecasts = await tx.materialForecast.findMany({
-            where: { id: { in: newItemIds } },
-          });
-        } else {
-          // Items without explicit IDs: fetch all group forecasts beyond old count
-          const allForecasts = await tx.materialForecast.findMany({
-            where: { supplyGroupId: groupId },
-            orderBy: { order: 'asc' },
-          });
-          newForecasts = allForecasts.slice(count);
+        if (groupInTx.status === 'ordered' || groupInTx.status === 'delivered') {
+          const newItemIds = items.filter((i) => i.id).map((i) => i.id!);
+          let newForecasts: Awaited<
+            ReturnType<typeof tx.materialForecast.findMany>
+          > = [];
+          if (newItemIds.length > 0) {
+            newForecasts = await tx.materialForecast.findMany({
+              where: { id: { in: newItemIds } },
+            });
+          } else {
+            // Items without explicit IDs: fetch all group forecasts beyond old count
+            const allForecasts = await tx.materialForecast.findMany({
+              where: { supplyGroupId: groupId },
+              orderBy: { order: 'asc' },
+            });
+            newForecasts = allForecasts.slice(count);
+          }
+          if (newForecasts.length > 0) {
+            const projectId = await this.resolveProjectId(
+              tx,
+              groupInTx.projectPlanningId,
+            );
+            expenses = await this.syncExpensesForForecasts(
+              tx,
+              newForecasts,
+              projectId,
+            );
+          }
         }
-        if (newForecasts.length > 0) {
-          const projectId = await this.resolveProjectId(
-            tx,
-            group.projectPlanningId,
-          );
-          expenses = await this.syncExpensesForForecasts(
-            tx,
-            newForecasts,
-            projectId,
-          );
-        }
+
+        return { syncedExpenses: expenses };
+      });
+
+      syncedExpenses = result.syncedExpenses;
+    } catch (error) {
+      if (this.isSupplyGroupForeignKeyViolation(error)) {
+        throw new NotFoundException(
+          'Grupo de compras nao encontrado. Atualize a tela e tente novamente.',
+        );
       }
-      return { syncedExpenses: expenses };
-    });
+      throw error;
+    }
 
     const result = await this.prisma.supplyGroup.findUnique({
       where: { id: groupId },
@@ -1940,7 +2002,9 @@ export class PlanningService {
       isCleared: f.isCleared ?? false,
       order: f.order ?? 0,
       supplierId: f.supplierId ?? null,
-      supplyGroupId: f.supplyGroupId ?? null,
+      // replaceAll recreates only tasks/forecasts/milestones and clears groups,
+      // so group links from payload must be dropped to avoid FK violations.
+      supplyGroupId: null,
       paymentProof: f.paymentProof ?? null,
       createdById: f.createdById ?? null,
     }));
