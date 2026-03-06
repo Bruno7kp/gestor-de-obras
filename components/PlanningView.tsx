@@ -819,8 +819,12 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   const handleUpdateSupplyGroup = async (
     groupId: string,
     payload: Partial<Omit<SupplyGroup, 'id' | 'forecasts'>>,
+    options?: { closeEditor?: boolean; showToast?: boolean },
   ) => {
     if (!ensureCanEditPlanning()) return;
+
+    const closeEditor = options?.closeEditor ?? true;
+    const showToast = options?.showToast ?? true;
 
     try {
       const updatedGroup = await planningApi.updateSupplyGroup(groupId, payload);
@@ -833,11 +837,18 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
       // Expense sync is now handled atomically by the backend.
       // Just refresh forecasts to get the latest state.
       await refreshForecastsFromApi();
-      setEditingSupplyGroup(null);
-      toast.success('Grupo atualizado com sucesso.');
+      if (closeEditor) {
+        setEditingSupplyGroup(null);
+      }
+      if (showToast) {
+        toast.success('Grupo atualizado com sucesso.');
+      }
     } catch (error) {
       console.error('Erro ao atualizar grupo de compras:', error);
-      toast.error('Erro ao atualizar grupo de compras.');
+      if (showToast) {
+        toast.error('Erro ao atualizar grupo de compras.');
+      }
+      throw error;
     }
   };
 
@@ -1859,7 +1870,12 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
           financialCategories={financialCategories}
           group={editingSupplyGroup}
           onClose={() => setEditingSupplyGroup(null)}
-          onUpdate={(payload) => handleUpdateSupplyGroup(editingSupplyGroup.id, payload)}
+          onUpdate={(payload) =>
+            handleUpdateSupplyGroup(editingSupplyGroup.id, payload, {
+              closeEditor: false,
+              showToast: false,
+            })
+          }
           onDeleteGroup={() => setConfirmingDeleteSupplyGroup(editingSupplyGroup)}
           onSyncItemFinancialGroup={syncItemFinancialGroup}
         />
@@ -3661,57 +3677,65 @@ const SupplyGroupModal = ({
       return;
     }
 
-    await onUpdate({
-      title: title.trim() || null,
-      supplierId: supplierId || undefined,
-      estimatedDate,
-    });
+    try {
+      await onUpdate({
+        title: title.trim() || null,
+        supplierId: supplierId || undefined,
+        estimatedDate,
+      });
 
-    const originalIds = new Set((group.forecasts || []).map((forecast) => forecast.id));
-    const keepIds = new Set(cleanItems.map((item) => item.id).filter(Boolean) as string[]);
-    const removedIds = Array.from(originalIds).filter((id) => !keepIds.has(id));
+      const originalIds = new Set((group.forecasts || []).map((forecast) => forecast.id));
+      const keepIds = new Set(cleanItems.map((item) => item.id).filter(Boolean) as string[]);
+      const removedIds = Array.from(originalIds).filter((id) => !keepIds.has(id));
 
-    for (const removedId of removedIds) {
-      await planningApi.deleteForecast(removedId);
-    }
-
-    for (const item of cleanItems) {
-      if (item.id) {
-        await planningApi.updateForecast(item.id, {
-          description: item.description,
-          calculationMemory: item.calculationMemory,
-          unit: item.unit,
-          quantityNeeded: item.quantityNeeded,
-          unitPrice: item.unitPrice,
-          discountValue: item.discountValue,
-          discountPercentage: item.discountPercentage,
-          categoryId: item.categoryId,
-          supplierId: supplierId || undefined,
-          estimatedDate,
-        });
-        await onSyncItemFinancialGroup?.(
-          item.id,
-          item.categoryId || null,
-          item.description,
-        );
-        continue;
+      for (const removedId of removedIds) {
+        await planningApi.deleteForecast(removedId);
       }
 
-      await planningApi.addItemsToSupplyGroup(group.id, [
-        {
-          description: item.description,
-          calculationMemory: item.calculationMemory,
-          unit: item.unit,
-          quantityNeeded: item.quantityNeeded,
-          unitPrice: item.unitPrice,
-          discountValue: item.discountValue,
-          discountPercentage: item.discountPercentage,
-          categoryId: item.categoryId || null,
-        },
-      ]);
-    }
+      for (const item of cleanItems) {
+        if (item.id) {
+          await planningApi.updateForecast(item.id, {
+            description: item.description,
+            calculationMemory: item.calculationMemory,
+            unit: item.unit,
+            quantityNeeded: item.quantityNeeded,
+            unitPrice: item.unitPrice,
+            discountValue: item.discountValue,
+            discountPercentage: item.discountPercentage,
+            categoryId: item.categoryId,
+            supplierId: supplierId || undefined,
+            estimatedDate,
+          });
+          await onSyncItemFinancialGroup?.(
+            item.id,
+            item.categoryId || null,
+            item.description,
+          );
+          continue;
+        }
 
-    setSaving(false);
+        await planningApi.addItemsToSupplyGroup(group.id, [
+          {
+            description: item.description,
+            calculationMemory: item.calculationMemory,
+            unit: item.unit,
+            quantityNeeded: item.quantityNeeded,
+            unitPrice: item.unitPrice,
+            discountValue: item.discountValue,
+            discountPercentage: item.discountPercentage,
+            categoryId: item.categoryId || null,
+          },
+        ]);
+      }
+
+      toast.success('Insumos do grupo atualizados com sucesso.');
+      onClose();
+    } catch (error) {
+      console.error('Erro ao salvar grupo de compras:', error);
+      toast.error('Erro ao salvar alterações do grupo de compras.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const itemPendingRemoval = confirmingRemoveItemIndex !== null
