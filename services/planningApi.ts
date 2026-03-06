@@ -2,6 +2,35 @@ import type { MaterialForecast, Milestone, PlanningTask, SupplyGroup } from '../
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL ?? '/api';
 
+const readApiErrorMessage = async (
+  response: Response,
+  fallback: string,
+): Promise<string> => {
+  const raw = await response.text().catch(() => '');
+  if (!raw) return fallback;
+
+  try {
+    const parsed = JSON.parse(raw) as {
+      message?: string | string[];
+      error?: string;
+    };
+
+    if (Array.isArray(parsed.message) && parsed.message.length > 0) {
+      return parsed.message.join(' | ');
+    }
+    if (typeof parsed.message === 'string' && parsed.message.trim().length > 0) {
+      return parsed.message;
+    }
+    if (typeof parsed.error === 'string' && parsed.error.trim().length > 0) {
+      return parsed.error;
+    }
+  } catch {
+    // Ignore JSON parsing errors and fallback to raw text.
+  }
+
+  return raw;
+};
+
 export const planningApi = {
   async listTasks(projectId: string): Promise<PlanningTask[]> {
     const response = await fetch(`${API_BASE}/planning/tasks?projectId=${projectId}`, {
@@ -150,7 +179,7 @@ export const planningApi = {
     });
 
     if (!response.ok) {
-      throw new Error('Falha ao atualizar grupo de compras');
+      throw new Error(await readApiErrorMessage(response, 'Falha ao atualizar grupo de compras'));
     }
 
     return response.json();
@@ -264,7 +293,7 @@ export const planningApi = {
     });
 
     if (!response.ok) {
-      throw new Error('Falha ao atualizar previsao');
+      throw new Error(await readApiErrorMessage(response, 'Falha ao atualizar previsao'));
     }
 
     return response.json();
@@ -352,7 +381,7 @@ export const planningApi = {
     });
 
     if (!response.ok) {
-      throw new Error('Falha ao substituir planejamento');
+      throw new Error(await readApiErrorMessage(response, 'Falha ao substituir planejamento'));
     }
   },
 };

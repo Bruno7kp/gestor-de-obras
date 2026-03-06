@@ -1050,8 +1050,10 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
       }
     } catch (error) {
       console.error('Erro ao sincronizar planejamento:', error);
+      onUpdateProject({ planning: prevPlanning });
+      toast.error(error instanceof Error ? error.message : 'Erro ao sincronizar planejamento.');
     }
-  }, [project.id, project.planning, refreshExpenses]);
+  }, [project.id, project.planning, refreshExpenses, onUpdateProject, toast]);
 
   const handleUpdatePlanning = useCallback(async (nextPlanning: ProjectPlanning) => {
     onUpdateProject({ planning: nextPlanning });
