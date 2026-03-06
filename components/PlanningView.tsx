@@ -1878,6 +1878,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
           }
           onDeleteGroup={() => setConfirmingDeleteSupplyGroup(editingSupplyGroup)}
           onSyncItemFinancialGroup={syncItemFinancialGroup}
+          onRefreshData={refreshForecastsFromApi}
         />
       )}
 
@@ -3227,6 +3228,7 @@ const SupplyGroupModal = ({
   onUpdate,
   onDeleteGroup,
   onSyncItemFinancialGroup,
+  onRefreshData,
 }: {
   mode: 'create' | 'edit';
   projectId: string;
@@ -3260,6 +3262,7 @@ const SupplyGroupModal = ({
     categoryId: string | null,
     description: string,
   ) => Promise<void> | void;
+  onRefreshData?: () => Promise<void> | void;
 }) => {
   const toast = useToast();
   const [title, setTitle] = useState(group?.title || '');
@@ -3727,6 +3730,9 @@ const SupplyGroupModal = ({
           },
         ]);
       }
+
+      // Ensure parent table recalculates totals with latest group items.
+      await onRefreshData?.();
 
       toast.success('Insumos do grupo atualizados com sucesso.');
       onClose();
