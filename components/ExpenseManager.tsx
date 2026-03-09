@@ -145,7 +145,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
     return /^\d{4}-\d{2}-\d{2}$/.test(candidate) ? candidate : '';
   }, []);
 
-  const sortExpensesByPaymentDate = useCallback((items: ProjectExpense[]) => {
+  const sortExpensesByManualOrder = useCallback((items: ProjectExpense[]) => {
     const cloned = items.map(item => ({ ...item }));
     const childrenByParent = new Map<string | null, ProjectExpense[]>();
 
@@ -187,12 +187,14 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
       const keyA = sortKeyCache.get(a.id) || null;
       const keyB = sortKeyCache.get(b.id) || null;
 
+      const orderDiff = (a.order ?? 0) - (b.order ?? 0);
+      if (orderDiff !== 0) return orderDiff;
+
+      // Use payment date only as secondary tie-breaker.
       if (keyA && keyB && keyA !== keyB) return keyA.localeCompare(keyB);
       if (keyA && !keyB) return -1;
       if (!keyA && keyB) return 1;
 
-      const orderDiff = (a.order ?? 0) - (b.order ?? 0);
-      if (orderDiff !== 0) return orderDiff;
       return a.description.localeCompare(b.description, 'pt-BR');
     };
 
@@ -250,11 +252,14 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
       return scoped.filter(expense => allowedIds.has(expense.id));
     })();
 
-    const sortedByPaymentDate = sortExpensesByPaymentDate(filtered);
+    // Preserve manual drag-and-drop ordering for labor tab.
+    // Labor entries often have payment dates, and forced date sorting
+    // would immediately override user-defined order.
+    const sortedByManualOrder = sortExpensesByManualOrder(filtered);
 
-    const tree = treeService.buildTree(sortedByPaymentDate);
+    const tree = treeService.buildTree(sortedByManualOrder);
     return tree.map((root, idx) => treeService.processExpensesRecursive(root as ProjectExpense, '', idx));
-  }, [expenses, activeTab, dateStart, dateEnd, isWithinRange, sortExpensesByPaymentDate]);
+  }, [expenses, activeTab, dateStart, dateEnd, isWithinRange, sortExpensesByManualOrder]);
 
   const flattenedExpenses = useMemo(() =>
     treeService.flattenTree(currentExpenses, expandedIds)
