@@ -329,21 +329,28 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
     const targetItem = filteredData[targetIdx];
     if (!targetItem) return;
 
-    const nextItems = treeService.reorderItems<WorkItem>(localItemsRef.current, sourceId, targetItem.id, 'after');
-    updateItemsState(nextItems);
+    const prevItems = localItemsRef.current;
+    const prevById = new Map(prevItems.map(item => [item.id, item] as const));
+    const nextItems = treeService.reorderItems<WorkItem>(prevItems, sourceId, targetItem.id, 'after');
 
     const updates = nextItems
-      .map((item, index) => {
-        const original = localItemsRef.current.find(o => o.id === item.id);
-        if (original && original.order !== item.order) {
-          return { id: item.id, patch: { order: item.order } };
+      .map((item) => {
+        const original = prevById.get(item.id);
+        if (!original) return null;
+        if (original.order !== item.order || original.parentId !== item.parentId) {
+          return {
+            id: item.id,
+            patch: { order: item.order, parentId: item.parentId },
+          };
         }
         return null;
       })
       .filter(Boolean) as { id: string; patch: Partial<WorkItem> }[];
 
+    updateItemsState(nextItems);
+
     if (updates.length > 0) {
-      syncItemsBulk(updates, 'reorder');
+      void syncItemsBulk(updates, 'reorder');
     }
   };
 

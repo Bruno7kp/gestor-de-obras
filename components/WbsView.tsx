@@ -641,11 +641,12 @@ export const WbsView: React.FC<WbsViewProps> = ({
           onMoveManual={moveWorkItemInParent}
           onReorder={async (src, tgt, pos) => {
             if (isReadOnly) return;
-            const nextItems = treeService.reorderItems<WorkItem>(localItemsRef.current, src, tgt, pos);
-            updateItemsState(nextItems);
+            const prevItems = localItemsRef.current;
+            const prevById = new Map(prevItems.map(item => [item.id, item] as const));
+            const nextItems = treeService.reorderItems<WorkItem>(prevItems, src, tgt, pos);
             const updates = nextItems
               .map(item => {
-                const prev = localItemsRef.current.find(prevItem => prevItem.id === item.id);
+                const prev = prevById.get(item.id);
                 if (!prev) return null;
                 if (prev.order !== item.order || prev.parentId !== item.parentId) {
                   return { id: item.id, patch: { order: item.order, parentId: item.parentId } };
@@ -653,6 +654,8 @@ export const WbsView: React.FC<WbsViewProps> = ({
                 return null;
               })
               .filter(Boolean) as { id: string; patch: Partial<WorkItem> }[];
+
+            updateItemsState(nextItems);
 
             if (updates.length > 0) {
               await syncItemsBulk(updates, 'reorder');
