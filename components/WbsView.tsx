@@ -12,7 +12,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { useToast } from '../hooks/useToast';
 import { 
   Plus, Layers, Search, FileSpreadsheet, UploadCloud, Download, 
-  X, CheckCircle2, AlertCircle, Package, RefreshCw, Printer, Eraser
+  X, CheckCircle2, AlertCircle, Package, RefreshCw, Printer, Eraser, ChevronDown
 } from 'lucide-react';
 
 interface WbsViewProps {
@@ -42,6 +42,8 @@ export const WbsView: React.FC<WbsViewProps> = ({
   const [isRecalcModalOpen, setIsRecalcModalOpen] = useState(false);
   const [isRetroRecalcModalOpen, setIsRetroRecalcModalOpen] = useState(false);
   const [isRetroRecalcRunning, setIsRetroRecalcRunning] = useState(false);
+  const [isReprocessMenuOpen, setIsReprocessMenuOpen] = useState(false);
+  const reprocessMenuRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [localItems, setLocalItems] = useState<WorkItem[]>(project.items);
   const localItemsRef = useRef<WorkItem[]>(project.items);
@@ -96,6 +98,20 @@ export const WbsView: React.FC<WbsViewProps> = ({
     parent.addEventListener('scroll', handleScroll, { passive: true });
     return () => parent.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    if (!isReprocessMenuOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (reprocessMenuRef.current && !reprocessMenuRef.current.contains(target)) {
+        setIsReprocessMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isReprocessMenuOpen]);
 
 
   useLayoutEffect(() => {
@@ -523,29 +539,49 @@ export const WbsView: React.FC<WbsViewProps> = ({
           
           <div className="hidden sm:block w-px h-6 bg-slate-100 dark:bg-slate-800 mx-1" />
 
-          <button 
-            onClick={() => setIsRecalcModalOpen(true)}
-            onMouseDown={() => { suppressNextOverrideRef.current = true; }}
-            disabled={isReadOnly}
-            className="flex items-center gap-2 px-4 py-3 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-amber-600 hover:text-white transition-all disabled:opacity-30"
-            title="Recalcular todos os itens com base no BDI global"
-          >
-            <RefreshCw size={14} /> Recalcular Tudo
-          </button>
+          <div ref={reprocessMenuRef} className="relative">
+            <button
+              onClick={() => setIsReprocessMenuOpen(prev => !prev)}
+              disabled={isReadOnly || isRetroRecalcRunning}
+              className="flex items-center gap-2 px-4 py-3 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-amber-600 hover:text-white transition-all disabled:opacity-30"
+              title="Ações de reprocessamento da EAP"
+              type="button"
+            >
+              {isRetroRecalcRunning ? (
+                <div className="w-3.5 h-3.5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <RefreshCw size={14} />
+              )}
+              Reprocessar
+              <ChevronDown size={12} className={`${isReprocessMenuOpen ? 'rotate-180' : ''} transition-transform`} />
+            </button>
 
-          <button
-            onClick={() => setIsRetroRecalcModalOpen(true)}
-            disabled={isReadOnly || isRetroRecalcRunning}
-            className="flex items-center gap-2 px-4 py-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all disabled:opacity-30"
-            title="Reprocessar os valores derivados da EAP para corrigir centavos acumulados"
-          >
-            {isRetroRecalcRunning ? (
-              <div className="w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <RefreshCw size={14} />
+            {isReprocessMenuOpen && (
+              <div className="absolute left-0 top-full mt-2 w-72 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl z-20 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => {
+                    suppressNextOverrideRef.current = true;
+                    setIsReprocessMenuOpen(false);
+                    setIsRecalcModalOpen(true);
+                  }}
+                  className="w-full px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                >
+                  Recalcular Medição Atual
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsReprocessMenuOpen(false);
+                    setIsRetroRecalcModalOpen(true);
+                  }}
+                  className="w-full px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border-t border-slate-100 dark:border-slate-800"
+                >
+                  Saneamento Completo
+                </button>
+              </div>
             )}
-            Saneamento
-          </button>
+          </div>
 
           {hasMeasurement && (
             <button
