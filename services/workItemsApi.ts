@@ -181,6 +181,21 @@ export const workItemsApi = {
     return results;
   },
 
+  async recalculateProject(projectId: string, scope?: string): Promise<{ updated: number }> {
+    const response = await fetch(`${API_BASE}/work-items/recalculate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ projectId, scope }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Falha ao recalcular itens do projeto');
+    }
+
+    return response.json();
+  },
+
   async remove(id: string): Promise<void> {
     const response = await fetch(`${API_BASE}/work-items/${id}`, {
       method: 'DELETE',

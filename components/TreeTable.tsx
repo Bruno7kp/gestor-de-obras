@@ -163,6 +163,9 @@ export const TreeTable: React.FC<TreeTableProps> = ({
   const rootItems = data.filter(i => i.depth === 0);
   const totalContract = contractTotalOverride || financial.sum(rootItems.map(i => i.contractTotal));
   const totalCurrent = currentTotalOverride || financial.sum(rootItems.map(i => i.currentTotal));
+  const totalPrevious = financial.sum(rootItems.map(i => i.previousTotal));
+  const totalAccumulated = financial.sum(rootItems.map(i => i.accumulatedTotal));
+  const totalBalance = financial.truncate(totalContract - totalAccumulated);
 
   return (
     <div className="flex flex-col gap-4">
@@ -488,7 +491,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
 
                 {showPrevious && (
                   <td colSpan={2} className="p-4 border-r border-slate-800 dark:border-slate-900 text-right opacity-50 whitespace-nowrap">
-                    {financial.formatVisual(financial.sum(rootItems.map(i => i.previousTotal)), currencySymbol)}
+                    {financial.formatVisual(totalPrevious, currencySymbol)}
                   </td>
                 )}
 
@@ -513,7 +516,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                   <>
                     <td className="p-4 border-r border-slate-800 dark:border-slate-900"></td>
                     <td className="p-4 border-r border-slate-800 dark:border-slate-900 text-right text-emerald-400 text-base tracking-tighter whitespace-nowrap">
-                      {financial.formatVisual(financial.sum(rootItems.map(i => i.accumulatedTotal)), currencySymbol)}
+                      {financial.formatVisual(totalAccumulated, currencySymbol)}
                     </td>
                     <td className="p-4 border-r border-slate-800 dark:border-slate-900"></td>
                   </>
@@ -523,7 +526,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
                   <>
                     <td className="p-4 border-r border-slate-800 dark:border-slate-900"></td>
                     <td className="p-4 border-r border-slate-800 dark:border-slate-900 text-right text-rose-400 text-base tracking-tighter whitespace-nowrap">
-                      {financial.formatVisual(financial.sum(rootItems.map(i => i.balanceTotal)), currencySymbol)}
+                      {financial.formatVisual(totalBalance, currencySymbol)}
                     </td>
                   </>
                 )}

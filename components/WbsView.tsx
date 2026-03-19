@@ -40,6 +40,8 @@ export const WbsView: React.FC<WbsViewProps> = ({
   const [isImporting, setIsImporting] = useState(false);
   const [importSummary, setImportSummary] = useState<ImportResult | null>(null);
   const [isRecalcModalOpen, setIsRecalcModalOpen] = useState(false);
+  const [isRetroRecalcModalOpen, setIsRetroRecalcModalOpen] = useState(false);
+  const [isRetroRecalcRunning, setIsRetroRecalcRunning] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [localItems, setLocalItems] = useState<WorkItem[]>(project.items);
   const localItemsRef = useRef<WorkItem[]>(project.items);
@@ -416,6 +418,23 @@ export const WbsView: React.FC<WbsViewProps> = ({
     }
   };
 
+  const handleRetroRecalculate = async () => {
+    if (isReadOnly || isRetroRecalcRunning) return;
+
+    setIsRetroRecalcRunning(true);
+    try {
+      const result = await workItemsApi.recalculateProject(project.id, 'wbs');
+      const refreshedItems = await workItemsApi.list(project.id);
+      updateItemsState(refreshedItems);
+      toast.success(`Saneamento concluído: ${result.updated} itens recalculados.`);
+    } catch (error) {
+      console.error('Erro no saneamento retroativo da EAP:', error);
+      toast.error('Falha ao executar o saneamento retroativo da EAP.');
+    } finally {
+      setIsRetroRecalcRunning(false);
+    }
+  };
+
   const handleClearMeasurement = async () => {
     if (isReadOnly) return;
     const updates = localItemsRef.current
@@ -512,6 +531,20 @@ export const WbsView: React.FC<WbsViewProps> = ({
             title="Recalcular todos os itens com base no BDI global"
           >
             <RefreshCw size={14} /> Recalcular Tudo
+          </button>
+
+          <button
+            onClick={() => setIsRetroRecalcModalOpen(true)}
+            disabled={isReadOnly || isRetroRecalcRunning}
+            className="flex items-center gap-2 px-4 py-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all disabled:opacity-30"
+            title="Reprocessar os valores derivados da EAP para corrigir centavos acumulados"
+          >
+            {isRetroRecalcRunning ? (
+              <div className="w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <RefreshCw size={14} />
+            )}
+            Saneamento
           </button>
 
           {hasMeasurement && (
@@ -853,6 +886,74 @@ export const WbsView: React.FC<WbsViewProps> = ({
                 className="flex-1 py-3 rounded-xl bg-amber-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-700"
               >
                 Recalcular
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isRetroRecalcModalOpen && (
+        <div
+          className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300"
+          onClick={() => !isRetroRecalcRunning && setIsRetroRecalcModalOpen(false)}
+        >
+          <div
+            className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="px-8 pt-8 pb-4 flex items-center justify-between border-b border-slate-50 dark:border-slate-800 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 rounded-2xl">
+                  <RefreshCw size={22} />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Saneamento Retroativo</h2>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-300">Reprocessar acumulado e saldo</p>
+                </div>
+              </div>
+              <button
+                onClick={() => !isRetroRecalcRunning && setIsRetroRecalcModalOpen(false)}
+                className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
+                title="Fechar"
+                disabled={isRetroRecalcRunning}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-8 space-y-4">
+              <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                Isso recalcula toda a EAP no servidor usando as regras contábeis de fechamento (acumulado e saldo), corrigindo divergências históricas de centavos.
+              </p>
+              <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 rounded-2xl text-[11px] text-indigo-700 dark:text-indigo-300">
+                Recomendado executar ao migrar projetos antigos ou após mudanças de regra de cálculo.
+              </div>
+            </div>
+
+            <div className="px-8 pb-8 flex items-center gap-3">
+              <button
+                onClick={() => setIsRetroRecalcModalOpen(false)}
+                className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
+                disabled={isRetroRecalcRunning}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  await handleRetroRecalculate();
+                  setIsRetroRecalcModalOpen(false);
+                }}
+                className="flex-1 py-3 rounded-xl bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                disabled={isRetroRecalcRunning}
+              >
+                {isRetroRecalcRunning ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white/70 border-t-transparent rounded-full animate-spin" />
+                    Processando
+                  </>
+                ) : (
+                  'Executar Saneamento'
+                )}
               </button>
             </div>
           </div>

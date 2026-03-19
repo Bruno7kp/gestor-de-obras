@@ -70,6 +70,136 @@ export class WorkItemsService {
     }
   }
 
+  private asNumber(value: number | null | undefined): number {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return 0;
+    return value;
+  }
+
+  private truncate2(value: number): number {
+    return Math.floor((this.asNumber(value) + 0.0000000001) * 100) / 100;
+  }
+
+  private round2(value: number): number {
+    return Math.round((this.asNumber(value) + Number.EPSILON) * 100) / 100;
+  }
+
+  private deriveFields(
+    input: Partial<
+      Pick<
+        CreateWorkItemInput,
+        | 'type'
+        | 'contractQuantity'
+        | 'unitPrice'
+        | 'unitPriceNoBdi'
+        | 'contractTotal'
+        | 'previousQuantity'
+        | 'previousTotal'
+        | 'currentQuantity'
+        | 'currentTotal'
+        | 'currentPercentage'
+        | 'accumulatedQuantity'
+        | 'accumulatedTotal'
+        | 'balanceQuantity'
+        | 'balanceTotal'
+      >
+    >,
+  ) {
+    const type = input.type ?? 'item';
+
+    if (type === 'category') {
+      const contractTotal = this.truncate2(input.contractTotal ?? 0);
+      const previousTotal = this.truncate2(input.previousTotal ?? 0);
+      const currentTotal = this.truncate2(input.currentTotal ?? 0);
+      const accumulatedTotal = this.truncate2(previousTotal + currentTotal);
+      const accumulatedPercentage =
+        contractTotal > 0
+          ? this.round2((accumulatedTotal / contractTotal) * 100)
+          : 0;
+
+      return {
+        contractQuantity: this.round2(input.contractQuantity ?? 0),
+        previousQuantity: this.round2(input.previousQuantity ?? 0),
+        currentQuantity: this.round2(input.currentQuantity ?? 0),
+        accumulatedQuantity: this.round2(input.accumulatedQuantity ?? 0),
+        balanceQuantity: this.round2(input.balanceQuantity ?? 0),
+        contractTotal,
+        previousTotal,
+        currentTotal,
+        currentPercentage: this.round2(input.currentPercentage ?? 0),
+        accumulatedTotal,
+        accumulatedPercentage,
+        balanceTotal: this.truncate2(contractTotal - accumulatedTotal),
+      };
+    }
+
+    const contractQuantity = this.round2(input.contractQuantity ?? 0);
+    const previousQuantity = this.round2(input.previousQuantity ?? 0);
+    const currentQuantity = this.round2(input.currentQuantity ?? 0);
+    const unitPrice = this.truncate2(input.unitPrice ?? 0);
+
+    const contractTotal = this.truncate2(contractQuantity * unitPrice);
+    const previousTotal = this.truncate2(previousQuantity * unitPrice);
+    const currentTotal = this.truncate2(currentQuantity * unitPrice);
+    const accumulatedQuantity = this.round2(previousQuantity + currentQuantity);
+    const accumulatedTotal = this.truncate2(previousTotal + currentTotal);
+    const balanceQuantity = this.round2(contractQuantity - accumulatedQuantity);
+    const currentPercentage =
+      contractQuantity > 0
+        ? this.round2((currentQuantity / contractQuantity) * 100)
+        : 0;
+    const accumulatedPercentage =
+      contractTotal > 0
+        ? this.round2((accumulatedTotal / contractTotal) * 100)
+        : 0;
+
+    return {
+      contractQuantity,
+      previousQuantity,
+      currentQuantity,
+      accumulatedQuantity,
+      balanceQuantity,
+      contractTotal,
+      previousTotal,
+      currentTotal,
+      currentPercentage,
+      accumulatedTotal,
+      accumulatedPercentage,
+      balanceTotal: this.truncate2(contractTotal - accumulatedTotal),
+    };
+  }
+
+  private withDerivedValues(input: Partial<CreateWorkItemInput>) {
+    const derived = this.deriveFields(input);
+    return {
+      contractQuantity: derived.contractQuantity,
+      unitPrice: this.truncate2(input.unitPrice ?? 0),
+      unitPriceNoBdi: this.truncate2(input.unitPriceNoBdi ?? 0),
+      contractTotal: derived.contractTotal,
+      previousQuantity: derived.previousQuantity,
+      previousTotal: derived.previousTotal,
+      currentQuantity: derived.currentQuantity,
+      currentTotal: derived.currentTotal,
+      currentPercentage: derived.currentPercentage,
+      accumulatedQuantity: derived.accumulatedQuantity,
+      accumulatedTotal: derived.accumulatedTotal,
+      accumulatedPercentage: derived.accumulatedPercentage,
+      balanceQuantity: derived.balanceQuantity,
+      balanceTotal: derived.balanceTotal,
+    };
+  }
+
+  private sumFromChildren<T extends Record<string, unknown>>(
+    children: T[],
+    key: keyof T,
+  ) {
+    return this.truncate2(
+      children.reduce(
+        (acc, child) => acc + this.asNumber(child[key] as number | undefined),
+        0,
+      ),
+    );
+  }
+
   async findAll(
     projectId: string,
     instanceId: string,
@@ -94,6 +224,8 @@ export class WorkItemsService {
       input.userId,
       true,
     );
+    const derivedValues = this.withDerivedValues(input);
+
     const created = await this.prisma.workItem.create({
       data: {
         id: input.id,
@@ -107,20 +239,7 @@ export class WorkItemsService {
         unit: input.unit || 'un',
         cod: input.cod || null,
         fonte: input.fonte || null,
-        contractQuantity: input.contractQuantity ?? 0,
-        unitPrice: input.unitPrice ?? 0,
-        unitPriceNoBdi: input.unitPriceNoBdi ?? 0,
-        contractTotal: input.contractTotal ?? 0,
-        previousQuantity: input.previousQuantity ?? 0,
-        previousTotal: input.previousTotal ?? 0,
-        currentQuantity: input.currentQuantity ?? 0,
-        currentTotal: input.currentTotal ?? 0,
-        currentPercentage: input.currentPercentage ?? 0,
-        accumulatedQuantity: input.accumulatedQuantity ?? 0,
-        accumulatedTotal: input.accumulatedTotal ?? 0,
-        accumulatedPercentage: input.accumulatedPercentage ?? 0,
-        balanceQuantity: input.balanceQuantity ?? 0,
-        balanceTotal: input.balanceTotal ?? 0,
+        ...derivedValues,
         createdById: input.userId ?? null,
       },
     });
@@ -149,33 +268,23 @@ export class WorkItemsService {
 
     const effectiveScope = 'wbs';
     // Prepare data for bulk insert
-    const createData = items.map((i) => ({
-      id: i.id,
-      projectId: projectId,
-      parentId: i.parentId ?? null,
-      name: i.name,
-      type: i.type,
-      scope: effectiveScope,
-      wbs: i.wbs || '',
-      order: i.order ?? 0,
-      unit: i.unit || 'un',
-      cod: i.cod ?? null,
-      fonte: i.fonte ?? null,
-      contractQuantity: i.contractQuantity ?? 0,
-      unitPrice: i.unitPrice ?? 0,
-      unitPriceNoBdi: i.unitPriceNoBdi ?? 0,
-      contractTotal: i.contractTotal ?? 0,
-      previousQuantity: i.previousQuantity ?? 0,
-      previousTotal: i.previousTotal ?? 0,
-      currentQuantity: i.currentQuantity ?? 0,
-      currentTotal: i.currentTotal ?? 0,
-      currentPercentage: i.currentPercentage ?? 0,
-      accumulatedQuantity: i.accumulatedQuantity ?? 0,
-      accumulatedTotal: i.accumulatedTotal ?? 0,
-      accumulatedPercentage: i.accumulatedPercentage ?? 0,
-      balanceQuantity: i.balanceQuantity ?? 0,
-      balanceTotal: i.balanceTotal ?? 0,
-    }));
+    const createData = items.map((i) => {
+      const derivedValues = this.withDerivedValues(i);
+      return {
+        id: i.id,
+        projectId: projectId,
+        parentId: i.parentId ?? null,
+        name: i.name,
+        type: i.type,
+        scope: effectiveScope,
+        wbs: i.wbs || '',
+        order: i.order ?? 0,
+        unit: i.unit || 'un',
+        cod: i.cod ?? null,
+        fonte: i.fonte ?? null,
+        ...derivedValues,
+      };
+    });
 
     const chunks = this.chunkItems(createData, 200);
     const scopeFilter = { projectId, scope: effectiveScope };
@@ -228,33 +337,23 @@ export class WorkItemsService {
     await this.ensureProject(projectId, instanceId, userId, true);
 
     const effectiveScope = 'wbs';
-    const createData = items.map((i) => ({
-      id: i.id,
-      projectId: projectId,
-      parentId: i.parentId ?? null,
-      name: i.name,
-      type: i.type,
-      scope: effectiveScope,
-      wbs: i.wbs || '',
-      order: i.order ?? 0,
-      unit: i.unit || 'un',
-      cod: i.cod ?? null,
-      fonte: i.fonte ?? null,
-      contractQuantity: i.contractQuantity ?? 0,
-      unitPrice: i.unitPrice ?? 0,
-      unitPriceNoBdi: i.unitPriceNoBdi ?? 0,
-      contractTotal: i.contractTotal ?? 0,
-      previousQuantity: i.previousQuantity ?? 0,
-      previousTotal: i.previousTotal ?? 0,
-      currentQuantity: i.currentQuantity ?? 0,
-      currentTotal: i.currentTotal ?? 0,
-      currentPercentage: i.currentPercentage ?? 0,
-      accumulatedQuantity: i.accumulatedQuantity ?? 0,
-      accumulatedTotal: i.accumulatedTotal ?? 0,
-      accumulatedPercentage: i.accumulatedPercentage ?? 0,
-      balanceQuantity: i.balanceQuantity ?? 0,
-      balanceTotal: i.balanceTotal ?? 0,
-    }));
+    const createData = items.map((i) => {
+      const derivedValues = this.withDerivedValues(i);
+      return {
+        id: i.id,
+        projectId: projectId,
+        parentId: i.parentId ?? null,
+        name: i.name,
+        type: i.type,
+        scope: effectiveScope,
+        wbs: i.wbs || '',
+        order: i.order ?? 0,
+        unit: i.unit || 'un',
+        cod: i.cod ?? null,
+        fonte: i.fonte ?? null,
+        ...derivedValues,
+      };
+    });
 
     const chunks = this.chunkItems(createData, 200);
 
@@ -327,6 +426,27 @@ export class WorkItemsService {
       .filter((u) => existingMap.has(u.id))
       .map((input) => {
         const existing = existingMap.get(input.id)!;
+        const merged = {
+          ...existing,
+          ...input,
+        };
+        const derivedValues = this.withDerivedValues({
+          type: merged.type,
+          contractQuantity: merged.contractQuantity,
+          unitPrice: merged.unitPrice,
+          unitPriceNoBdi: merged.unitPriceNoBdi,
+          contractTotal: merged.contractTotal,
+          previousQuantity: merged.previousQuantity,
+          previousTotal: merged.previousTotal,
+          currentQuantity: merged.currentQuantity,
+          currentTotal: merged.currentTotal,
+          currentPercentage: merged.currentPercentage,
+          accumulatedQuantity: merged.accumulatedQuantity,
+          accumulatedTotal: merged.accumulatedTotal,
+          accumulatedPercentage: merged.accumulatedPercentage,
+          balanceQuantity: merged.balanceQuantity,
+          balanceTotal: merged.balanceTotal,
+        });
         return this.prisma.workItem.update({
           where: { id: input.id },
           data: {
@@ -339,26 +459,7 @@ export class WorkItemsService {
             unit: input.unit ?? existing.unit,
             cod: input.cod ?? existing.cod,
             fonte: input.fonte ?? existing.fonte,
-            contractQuantity:
-              input.contractQuantity ?? existing.contractQuantity,
-            unitPrice: input.unitPrice ?? existing.unitPrice,
-            unitPriceNoBdi: input.unitPriceNoBdi ?? existing.unitPriceNoBdi,
-            contractTotal: input.contractTotal ?? existing.contractTotal,
-            previousQuantity:
-              input.previousQuantity ?? existing.previousQuantity,
-            previousTotal: input.previousTotal ?? existing.previousTotal,
-            currentQuantity: input.currentQuantity ?? existing.currentQuantity,
-            currentTotal: input.currentTotal ?? existing.currentTotal,
-            currentPercentage:
-              input.currentPercentage ?? existing.currentPercentage,
-            accumulatedQuantity:
-              input.accumulatedQuantity ?? existing.accumulatedQuantity,
-            accumulatedTotal:
-              input.accumulatedTotal ?? existing.accumulatedTotal,
-            accumulatedPercentage:
-              input.accumulatedPercentage ?? existing.accumulatedPercentage,
-            balanceQuantity: input.balanceQuantity ?? existing.balanceQuantity,
-            balanceTotal: input.balanceTotal ?? existing.balanceTotal,
+            ...derivedValues,
             updatedById: userId ?? null,
           },
         });
@@ -476,6 +577,28 @@ export class WorkItemsService {
     const nextAccumulatedPercentage =
       input.accumulatedPercentage ?? existing.accumulatedPercentage;
 
+    const merged = {
+      ...existing,
+      ...input,
+    };
+    const derivedValues = this.withDerivedValues({
+      type: merged.type,
+      contractQuantity: merged.contractQuantity,
+      unitPrice: merged.unitPrice,
+      unitPriceNoBdi: merged.unitPriceNoBdi,
+      contractTotal: merged.contractTotal,
+      previousQuantity: merged.previousQuantity,
+      previousTotal: merged.previousTotal,
+      currentQuantity: merged.currentQuantity,
+      currentTotal: merged.currentTotal,
+      currentPercentage: merged.currentPercentage,
+      accumulatedQuantity: merged.accumulatedQuantity,
+      accumulatedTotal: merged.accumulatedTotal,
+      accumulatedPercentage: merged.accumulatedPercentage,
+      balanceQuantity: merged.balanceQuantity,
+      balanceTotal: merged.balanceTotal,
+    });
+
     const updated = await this.prisma.workItem.update({
       where: { id: input.id },
       data: {
@@ -488,23 +611,7 @@ export class WorkItemsService {
         unit: input.unit ?? existing.unit,
         cod: input.cod ?? existing.cod,
         fonte: input.fonte ?? existing.fonte,
-        contractQuantity: input.contractQuantity ?? existing.contractQuantity,
-        unitPrice: input.unitPrice ?? existing.unitPrice,
-        unitPriceNoBdi: input.unitPriceNoBdi ?? existing.unitPriceNoBdi,
-        contractTotal: input.contractTotal ?? existing.contractTotal,
-        previousQuantity: input.previousQuantity ?? existing.previousQuantity,
-        previousTotal: input.previousTotal ?? existing.previousTotal,
-        currentQuantity: input.currentQuantity ?? existing.currentQuantity,
-        currentTotal: input.currentTotal ?? existing.currentTotal,
-        currentPercentage:
-          input.currentPercentage ?? existing.currentPercentage,
-        accumulatedQuantity:
-          input.accumulatedQuantity ?? existing.accumulatedQuantity,
-        accumulatedTotal: input.accumulatedTotal ?? existing.accumulatedTotal,
-        accumulatedPercentage:
-          input.accumulatedPercentage ?? existing.accumulatedPercentage,
-        balanceQuantity: input.balanceQuantity ?? existing.balanceQuantity,
-        balanceTotal: input.balanceTotal ?? existing.balanceTotal,
+        ...derivedValues,
         updatedById: input.userId ?? null,
       },
     });
@@ -625,5 +732,158 @@ export class WorkItemsService {
     });
 
     return { deleted: ids.length };
+  }
+
+  async recalculateProject(
+    projectId: string,
+    instanceId: string,
+    userId?: string,
+    scope = 'wbs',
+  ): Promise<{ updated: number }> {
+    await this.ensureProject(projectId, instanceId, userId, true);
+
+    const items = await this.prisma.workItem.findMany({
+      where: {
+        projectId,
+        scope: scope === 'wbs' ? 'wbs' : { not: 'quantitativo' },
+      },
+      orderBy: { order: 'asc' },
+    });
+
+    if (items.length === 0) {
+      return { updated: 0 };
+    }
+
+    type MutableNode = (typeof items)[number] & { children: MutableNode[] };
+    const itemMap = new Map<string, MutableNode>();
+    const roots: MutableNode[] = [];
+
+    for (const item of items) {
+      itemMap.set(item.id, { ...item, children: [] });
+    }
+
+    for (const item of items) {
+      const node = itemMap.get(item.id)!;
+      if (item.parentId && itemMap.has(item.parentId)) {
+        itemMap.get(item.parentId)!.children.push(node);
+      } else {
+        roots.push(node);
+      }
+    }
+
+    const sortNodes = (nodes: MutableNode[]) => {
+      nodes.sort((a, b) => (a.order || 0) - (b.order || 0));
+      for (const child of nodes) {
+        if (child.children.length > 0) {
+          sortNodes(child.children);
+        }
+      }
+    };
+    sortNodes(roots);
+
+    const recalcNode = (node: MutableNode) => {
+      for (const child of node.children) {
+        recalcNode(child);
+      }
+
+      if (node.type === 'category') {
+        node.contractTotal = this.sumFromChildren(node.children, 'contractTotal');
+        node.previousTotal = this.sumFromChildren(node.children, 'previousTotal');
+        node.currentTotal = this.sumFromChildren(node.children, 'currentTotal');
+        node.accumulatedTotal = this.truncate2(
+          node.previousTotal + node.currentTotal,
+        );
+        node.balanceTotal = this.truncate2(
+          node.contractTotal - node.accumulatedTotal,
+        );
+        node.accumulatedPercentage =
+          node.contractTotal > 0
+            ? this.round2((node.accumulatedTotal / node.contractTotal) * 100)
+            : 0;
+        return;
+      }
+
+      const derivedValues = this.withDerivedValues({
+        type: node.type,
+        contractQuantity: node.contractQuantity,
+        unitPrice: node.unitPrice,
+        unitPriceNoBdi: node.unitPriceNoBdi,
+        contractTotal: node.contractTotal,
+        previousQuantity: node.previousQuantity,
+        previousTotal: node.previousTotal,
+        currentQuantity: node.currentQuantity,
+        currentTotal: node.currentTotal,
+        currentPercentage: node.currentPercentage,
+        accumulatedQuantity: node.accumulatedQuantity,
+        accumulatedTotal: node.accumulatedTotal,
+        accumulatedPercentage: node.accumulatedPercentage,
+        balanceQuantity: node.balanceQuantity,
+        balanceTotal: node.balanceTotal,
+      });
+      node.contractQuantity = derivedValues.contractQuantity;
+      node.unitPrice = derivedValues.unitPrice;
+      node.unitPriceNoBdi = derivedValues.unitPriceNoBdi;
+      node.contractTotal = derivedValues.contractTotal;
+      node.previousQuantity = derivedValues.previousQuantity;
+      node.previousTotal = derivedValues.previousTotal;
+      node.currentQuantity = derivedValues.currentQuantity;
+      node.currentTotal = derivedValues.currentTotal;
+      node.currentPercentage = derivedValues.currentPercentage;
+      node.accumulatedQuantity = derivedValues.accumulatedQuantity;
+      node.accumulatedTotal = derivedValues.accumulatedTotal;
+      node.accumulatedPercentage = derivedValues.accumulatedPercentage;
+      node.balanceQuantity = derivedValues.balanceQuantity;
+      node.balanceTotal = derivedValues.balanceTotal;
+    };
+
+    for (const root of roots) {
+      recalcNode(root);
+    }
+
+    const recalculated = Array.from(itemMap.values());
+    const txOps = recalculated.map((item) =>
+      this.prisma.workItem.update({
+        where: { id: item.id },
+        data: {
+          contractQuantity: item.contractQuantity,
+          unitPrice: item.unitPrice,
+          unitPriceNoBdi: item.unitPriceNoBdi,
+          contractTotal: item.contractTotal,
+          previousQuantity: item.previousQuantity,
+          previousTotal: item.previousTotal,
+          currentQuantity: item.currentQuantity,
+          currentTotal: item.currentTotal,
+          currentPercentage: item.currentPercentage,
+          accumulatedQuantity: item.accumulatedQuantity,
+          accumulatedTotal: item.accumulatedTotal,
+          accumulatedPercentage: item.accumulatedPercentage,
+          balanceQuantity: item.balanceQuantity,
+          balanceTotal: item.balanceTotal,
+          updatedById: userId ?? null,
+        },
+      }),
+    );
+
+    const chunks = this.chunkItems(txOps, 50);
+    for (const chunk of chunks) {
+      await this.prisma.$transaction(chunk);
+    }
+
+    void this.auditService.log({
+      instanceId,
+      userId,
+      projectId,
+      action: 'UPDATE',
+      model: 'WorkItem',
+      entityId: projectId,
+      metadata: {
+        batch: true,
+        operation: 'recalculateProject',
+        scope,
+        count: recalculated.length,
+      },
+    });
+
+    return { updated: recalculated.length };
   }
 }

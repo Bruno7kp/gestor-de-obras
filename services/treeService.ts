@@ -45,7 +45,7 @@ export const treeService = {
         node.previousTotal = financial.sum(node.children.map(c => c.previousTotal || 0));
         node.currentTotal = financial.sum(node.children.map(c => c.currentTotal || 0));
         node.accumulatedTotal = financial.sum(node.children.map(c => c.accumulatedTotal || 0));
-        node.balanceTotal = financial.sum(node.children.map(c => c.balanceTotal || 0));
+        node.balanceTotal = financial.truncate(node.contractTotal - node.accumulatedTotal);
         
         node.accumulatedPercentage = node.contractTotal > 0 
           ? financial.round((node.accumulatedTotal / node.contractTotal) * 100) 
@@ -62,10 +62,10 @@ export const treeService = {
       node.currentTotal = financial.truncate((node.currentQuantity || 0) * node.unitPrice);
       
       node.accumulatedQuantity = financial.round((node.previousQuantity || 0) + (node.currentQuantity || 0));
-      node.accumulatedTotal = financial.truncate(node.accumulatedQuantity * node.unitPrice);
+      node.accumulatedTotal = financial.truncate(node.previousTotal + node.currentTotal);
       
       node.balanceQuantity = financial.round((node.contractQuantity || 0) - node.accumulatedQuantity);
-      node.balanceTotal = financial.truncate(node.balanceQuantity * node.unitPrice);
+      node.balanceTotal = financial.truncate(node.contractTotal - node.accumulatedTotal);
       
       node.currentPercentage = (node.contractQuantity || 0) > 0 
         ? financial.round(((node.currentQuantity || 0) / node.contractQuantity) * 100) 
@@ -82,14 +82,18 @@ export const treeService = {
       if (item.type === 'category') return item;
       const bdiFactor = 1 + (bdi / 100);
       const newUnitPrice = financial.truncate((item.unitPriceNoBdi || 0) * bdiFactor);
+      const contractTotal = financial.truncate(newUnitPrice * (item.contractQuantity || 0));
+      const previousTotal = financial.truncate((item.previousQuantity || 0) * newUnitPrice);
+      const currentTotal = financial.truncate((item.currentQuantity || 0) * newUnitPrice);
+      const accumulatedTotal = financial.truncate(previousTotal + currentTotal);
       return {
         ...item,
         unitPrice: newUnitPrice,
-        contractTotal: financial.truncate(newUnitPrice * (item.contractQuantity || 0)),
-        previousTotal: financial.truncate((item.previousQuantity || 0) * newUnitPrice),
-        currentTotal: financial.truncate((item.currentQuantity || 0) * newUnitPrice),
-        accumulatedTotal: financial.truncate(((item.previousQuantity || 0) + (item.currentQuantity || 0)) * newUnitPrice),
-        balanceTotal: financial.truncate(((item.contractQuantity || 0) - ((item.previousQuantity || 0) + (item.currentQuantity || 0))) * newUnitPrice)
+        contractTotal,
+        previousTotal,
+        currentTotal,
+        accumulatedTotal,
+        balanceTotal: financial.truncate(contractTotal - accumulatedTotal)
       };
     });
   },

@@ -138,6 +138,20 @@ export class WorkItemsController {
     );
   }
 
+  @Post('recalculate')
+  @HasPermission('wbs.edit', 'blueprint.edit')
+  async recalculate(
+    @Body() body: { projectId: string; scope?: string },
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.workItemsService.recalculateProject(
+      body.projectId,
+      req.user.instanceId,
+      req.user.id,
+      body.scope,
+    );
+  }
+
   @Patch(':id')
   @HasPermission('wbs.edit', 'blueprint.edit')
   update(
