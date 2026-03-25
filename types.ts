@@ -396,6 +396,7 @@ export interface GlobalSettings {
   userName: string;
   language: 'pt-BR' | 'en-US';
   currencySymbol: string;
+  showProjectStockRequestsTab: boolean;
   certificates: CompanyCertificate[];
 }
 

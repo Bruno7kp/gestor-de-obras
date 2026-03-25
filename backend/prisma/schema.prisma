@@ -57,6 +57,7 @@ model GlobalSettings {
   userName            String
   language            String
   currencySymbol      String
+  showProjectStockRequestsTab Boolean     @default(false)
   instanceId          String              @unique
   instance            Instance            @relation(fields: [instanceId], references: [id])
   certificates        CompanyCertificate[]

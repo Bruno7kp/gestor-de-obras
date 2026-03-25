@@ -26,6 +26,7 @@ const INITIAL_SETTINGS: GlobalSettings = {
   userName: 'Usuário',
   language: 'pt-BR',
   currencySymbol: 'R$',
+  showProjectStockRequestsTab: false,
   certificates: []
 };
 

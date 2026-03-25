@@ -1546,7 +1546,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                   />
                 )}
                 {tab === 'journal' && <JournalView project={project} onUpdateJournal={(j) => onUpdateProject({ journal: j })} allWorkItems={displayData.items} isReadOnly={displayData.isReadOnly} />}
-                {tab === 'stock' && <SiteStockMovementView projectId={project.id} canEditModule={getLevel('stock') === 'edit'} isReadOnly={isHistoryMode || isProjectArchived} projectName={project.name} />}
+                {tab === 'stock' && <SiteStockMovementView projectId={project.id} canEditModule={getLevel('stock') === 'edit'} isReadOnly={isHistoryMode || isProjectArchived} projectName={project.name} showRequestsTab={globalSettings.showProjectStockRequestsTab} />}
                 {tab === 'documents' && <AssetManager assets={project.assets} onAdd={handleAssetAdd} onUpdate={handleAssetUpdate} onDelete={handleAssetDelete} isReadOnly={displayData.isReadOnly} />}
                 {tab === 'branding' && <BrandingView project={project} onUpdateProject={handleBrandingUpdate} isReadOnly={displayData.isReadOnly} />}
               </div>

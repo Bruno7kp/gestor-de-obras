@@ -19,6 +19,7 @@ interface SiteStockMovementViewProps {
   canEditModule: boolean;
   isReadOnly?: boolean;
   projectName?: string;
+  showRequestsTab?: boolean;
 }
 
 type TabKey = 'catalog' | 'requests' | 'history';
@@ -46,6 +47,7 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
   canEditModule,
   isReadOnly,
   projectName,
+  showRequestsTab = false,
 }) => {
   const toast = useToast();
   const canEdit = canEditModule && !isReadOnly;
@@ -144,6 +146,12 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
     };
     load();
   }, [loadCatalog, loadRequests, loadMovements, loadConsumptionSummary]);
+
+  useEffect(() => {
+    if (!showRequestsTab && tab === 'requests') {
+      setTab('history');
+    }
+  }, [showRequestsTab, tab]);
 
   /* ── derived data ── */
   const filteredCatalog = useMemo(() => {
@@ -280,7 +288,7 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
       <div className="flex flex-wrap gap-2">
         <TabBtn id="history" label="Consumo" icon={<History size={14} />} />
         <TabBtn id="catalog" label="Catálogo" icon={<Package size={14} />} />
-        <TabBtn id="requests" label="Retiradas" icon={<FileText size={14} />} badge={kpis.pendingCount} />
+        {showRequestsTab && <TabBtn id="requests" label="Retiradas" icon={<FileText size={14} />} badge={kpis.pendingCount} />}
       </div>
 
       {/* ═════════════ CATALOG TAB ═════════════ */}
@@ -388,7 +396,7 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
       )}
 
       {/* ═════════════ REQUESTS TAB ═════════════ */}
-      {tab === 'requests' && (
+      {showRequestsTab && tab === 'requests' && (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             {(['ALL', 'PENDING', 'APPROVED', 'PARTIALLY_DELIVERED', 'DELIVERED', 'REJECTED', 'CANCELLED'] as const).map((f) => (

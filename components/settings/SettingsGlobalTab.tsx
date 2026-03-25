@@ -1,5 +1,5 @@
 import React from 'react';
-import { Coins, ShieldCheck, Trash2 } from 'lucide-react';
+import { Coins, ShieldCheck, ToggleLeft, ToggleRight, Trash2, Package } from 'lucide-react';
 import type { GlobalSettings } from '../../types';
 
 interface SettingsGlobalTabProps {
@@ -50,6 +50,28 @@ export const SettingsGlobalTab: React.FC<SettingsGlobalTabProps> = ({ settings, 
       </section>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-2xl">
+              <Package size={24} />
+            </div>
+            <h3 className="font-black uppercase text-xs tracking-widest text-slate-800 dark:text-white">Retiradas no Estoque da Obra</h3>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
+            Controla a visibilidade da aba de retiradas no módulo de estoque das obras. Por padrão, ela permanece oculta.
+          </p>
+          <div className="pt-4 flex items-center justify-between border-t border-slate-100 dark:border-slate-800">
+            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">Visibilidade</span>
+            <button
+              onClick={() => onUpdate({ ...settings, showProjectStockRequestsTab: !settings.showProjectStockRequestsTab })}
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-colors ${settings.showProjectStockRequestsTab ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}
+            >
+              {settings.showProjectStockRequestsTab ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
+              {settings.showProjectStockRequestsTab ? 'Mostrando' : 'Oculta'}
+            </button>
+          </div>
+        </div>
+
         <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-2xl">

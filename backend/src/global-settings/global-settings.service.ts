@@ -10,6 +10,7 @@ interface UpdateGlobalSettingsInput {
   userName?: string;
   language?: string;
   currencySymbol?: string;
+  showProjectStockRequestsTab?: boolean;
 }
 
 interface CreateCertificateInput {
@@ -112,6 +113,7 @@ export class GlobalSettingsService {
         userName: 'Administrador',
         language: 'pt-BR',
         currencySymbol: 'R$',
+        showProjectStockRequestsTab: false,
       },
       include: { certificates: true },
     });
@@ -134,6 +136,9 @@ export class GlobalSettingsService {
           userName: input.userName ?? existing.userName,
           language: input.language ?? existing.language,
           currencySymbol: input.currencySymbol ?? existing.currencySymbol,
+          showProjectStockRequestsTab:
+            input.showProjectStockRequestsTab ??
+            existing.showProjectStockRequestsTab,
         },
         include: { certificates: true },
       })

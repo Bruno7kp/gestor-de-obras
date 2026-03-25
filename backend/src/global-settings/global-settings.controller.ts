@@ -20,6 +20,7 @@ interface UpdateGlobalSettingsBody {
   userName?: string;
   language?: string;
   currencySymbol?: string;
+  showProjectStockRequestsTab?: boolean;
 }
 
 interface CreateCertificateBody {

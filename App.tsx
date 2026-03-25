@@ -233,6 +233,7 @@ const App: React.FC = () => {
     userName: 'Usuário',
     language: 'pt-BR',
     currencySymbol: 'R$',
+    showProjectStockRequestsTab: false,
     certificates: []
   };
   const externalProjectIds = useMemo(

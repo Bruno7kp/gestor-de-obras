@@ -46,6 +46,7 @@ export const globalSettingsApi = {
       userName: data.userName ?? 'Administrador',
       language: data.language ?? 'pt-BR',
       currencySymbol: data.currencySymbol ?? 'R$',
+      showProjectStockRequestsTab: data.showProjectStockRequestsTab ?? false,
       certificates: (data.certificates ?? []).map(normalizeCertificate),
     };
   },
@@ -71,6 +72,7 @@ export const globalSettingsApi = {
       userName: data.userName ?? 'Administrador',
       language: data.language ?? 'pt-BR',
       currencySymbol: data.currencySymbol ?? 'R$',
+      showProjectStockRequestsTab: data.showProjectStockRequestsTab ?? false,
       certificates: (data.certificates ?? []).map(normalizeCertificate),
     };
   },
