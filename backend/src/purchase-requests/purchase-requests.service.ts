@@ -128,8 +128,8 @@ export class PurchaseRequestsService {
             projectId: stockRequest.projectId,
             category: 'STOCK',
             eventType: 'stock_request_approved',
-            title: `Requisição aprovada: ${stockRequest.itemName}`,
-            body: `Sua requisição de ${stockRequest.quantity} de "${stockRequest.itemName}" foi aprovada e aguarda envio`,
+            title: `Retirada aprovada: ${stockRequest.itemName}`,
+            body: `Sua retirada de ${stockRequest.quantity} de "${stockRequest.itemName}" foi aprovada e aguarda envio`,
             actorUserId: input.userId,
             specificUserIds: [stockRequest.requestedById],
           })
@@ -311,7 +311,7 @@ export class PurchaseRequestsService {
 
     // Notify financial users + requester + warehouse (if linked to stock request)
     const notifBody = request.stockRequest
-      ? `${request.quantity} de "${request.itemName}" disponíveis — requisição de "${request.stockRequest.project.name}" aguarda envio`
+      ? `${request.quantity} de "${request.itemName}" disponíveis — retirada de "${request.stockRequest.project.name}" aguarda envio`
       : `${request.quantity} de "${request.itemName}" entregues e registrados no estoque`;
 
     this.notificationsService

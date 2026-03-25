@@ -102,7 +102,7 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
       const data = await stockRequestApi.list({ projectId });
       setRequests(data);
     } catch {
-      toast.error('Erro ao carregar requisições');
+      toast.error('Erro ao carregar retiradas');
     }
   }, [projectId]);
 
@@ -183,10 +183,10 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
         notes: requestModal.notes || undefined,
       });
       setRequests((prev) => [created, ...prev]);
-      toast.success(`Requisição de ${requestModal.item.name} enviada ao almoxarifado`);
+      toast.success(`Retirada de ${requestModal.item.name} enviada ao almoxarifado`);
       setRequestModal(null);
     } catch (err: any) {
-      toast.error(err.message || 'Erro ao criar requisição');
+      toast.error(err.message || 'Erro ao criar retirada');
     } finally {
       setSubmitting(false);
     }
@@ -280,7 +280,7 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
       <div className="flex flex-wrap gap-2">
         <TabBtn id="history" label="Consumo" icon={<History size={14} />} />
         <TabBtn id="catalog" label="Catálogo" icon={<Package size={14} />} />
-        <TabBtn id="requests" label="Requisições" icon={<FileText size={14} />} badge={kpis.pendingCount} />
+        <TabBtn id="requests" label="Retiradas" icon={<FileText size={14} />} badge={kpis.pendingCount} />
       </div>
 
       {/* ═════════════ CATALOG TAB ═════════════ */}
@@ -412,7 +412,7 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
             <button
               onClick={loadRequests}
               className="ml-auto p-2 text-slate-400 hover:text-indigo-600 transition-all"
-              title="Atualizar requisições"
+              title="Atualizar retiradas"
             >
               <RefreshCw size={14} />
             </button>
@@ -425,7 +425,7 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
                   <FileText size={28} className="text-slate-300" />
                 </div>
                 <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">
-                  Nenhuma requisição {requestFilter !== 'ALL' ? STATUS_LABELS[requestFilter].toLowerCase() : ''}
+                  Nenhuma retirada {requestFilter !== 'ALL' ? STATUS_LABELS[requestFilter].toLowerCase() : ''}
                 </p>
               </div>
             ) : (
@@ -790,7 +790,7 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
                 )}
                 {requestModal.item.status === 'OUT_OF_STOCK' && (
                   <p className="text-[9px] text-rose-500 font-bold mt-1 flex items-center gap-1">
-                    <AlertTriangle size={10} /> Material esgotado — o almoxarifado receberá a requisição para providência
+                    <AlertTriangle size={10} /> Material esgotado — o almoxarifado receberá a retirada para providência
                   </p>
                 )}
               </div>
@@ -822,7 +822,7 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
                 className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
-                Enviar Requisição
+                Enviar Retirada
               </button>
             </div>
           </div>

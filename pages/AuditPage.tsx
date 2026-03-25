@@ -26,7 +26,7 @@ const MODEL_LABELS: Record<string, string> = {
   ProjectPlanning: 'Planejamento',
   MeasurementSnapshot: 'Medição',
   ProjectAsset: 'Documento',
-  StockRequest: 'Requisição',
+  StockRequest: 'Retirada',
   PurchaseRequest: 'Compra',
   StaffDocument: 'Documento de funcionário',
   WorkItemResponsibility: 'Responsabilidade',

@@ -127,7 +127,7 @@ const PurchaseFromRequestModal: React.FC<{
   const [qtyDecimals, setQtyDecimals] = useState(MIN_DECIMALS);
   const [quantity, setQuantity] = useState(() => financial.maskDecimal(String(Math.round(deficit * 100)), MIN_DECIMALS));
   const [notes, setNotes] = useState(
-    `Estoque insuficiente para requisição de ${request.project?.name ?? 'projeto'}.`,
+    `Estoque insuficiente para retirada de ${request.project?.name ?? 'projeto'}.`,
   );
   const parsedQty = financial.parseLocaleNumber(quantity);
 
@@ -326,7 +326,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
       (canWarehouse || canFinancial) ? purchaseRequestApi.list(undefined, externalInstanceId) : Promise.resolve([]),
     ]);
     if (srResult.status === 'fulfilled') setStockRequests(srResult.value);
-    else toast.error('Erro ao carregar requisições');
+    else toast.error('Erro ao carregar retiradas');
     if (prResult.status === 'fulfilled') setPurchaseRequests(prResult.value);
     else toast.error('Erro ao carregar solicitações de compra');
     setLoading(false);
@@ -431,7 +431,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
       const updated = await stockRequestApi.cancel(cancelStockReqConfirm.id, externalInstanceId);
       setStockRequests(prev => prev.map(r => r.id === cancelStockReqConfirm.id ? updated : r));
       setCancelStockReqConfirm(null);
-      toast.success(cancelStockReqConfirm.status === 'PENDING' ? 'Requisição recusada' : 'Envio cancelado');
+      toast.success(cancelStockReqConfirm.status === 'PENDING' ? 'Retirada recusada' : 'Envio cancelado');
     } catch (e: any) {
       toast.error(e.message);
     }
@@ -512,7 +512,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
 
   // -- Tab definitions
   const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
-    { key: 'requests', label: 'Requisições', icon: <ClipboardList size={14} /> },
+    { key: 'requests', label: 'Retiradas', icon: <ClipboardList size={14} /> },
     { key: 'purchases', label: 'Compras', icon: <ShoppingCart size={14} /> },
   ];
 
@@ -559,7 +559,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
             <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">
               Logística{externalInstanceName ? ` — ${externalInstanceName}` : ''}
             </h1>
-            <p className="text-slate-500 dark:text-slate-400 font-medium">Acompanhe requisições, compras e movimentações.</p>
+            <p className="text-slate-500 dark:text-slate-400 font-medium">Acompanhe retiradas, compras e movimentações.</p>
           </div>
           <div className="flex items-center gap-3">
             <button onClick={loadData} className="flex items-center gap-2 px-6 py-3 text-slate-500 hover:text-indigo-600 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm hover:shadow-md text-[10px] font-black uppercase tracking-widest transition-all">
@@ -582,7 +582,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
 
         {/* KPI GRID + TABS */}
         <div className="flex flex-wrap items-stretch gap-3">
-          <KpiCard label="Requisições Ativas" value={kpis.activeRequests} icon={<Truck size={16} />} color="blue" />
+          <KpiCard label="Retiradas Ativas" value={kpis.activeRequests} icon={<Truck size={16} />} color="blue" />
           <KpiCard label="Compras Ativas" value={kpis.activePurchases} icon={<ShoppingCart size={16} />} color="purple" />
           <div className="flex-1" />
           {/* Search + Date filter */}
@@ -640,10 +640,10 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
                 {/* Active Requests (Pending + Approved + Partially Delivered — unified) */}
                 <div>
                   <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4 px-1 flex items-center gap-2">
-                    <Truck size={14} /> Requisições ({activeRequests.length})
+                    <Truck size={14} /> Retiradas ({activeRequests.length})
                   </h2>
                   {activeRequests.length === 0 ? (
-                    <p className="text-center py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Nenhuma requisição ativa</p>
+                    <p className="text-center py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Nenhuma retirada ativa</p>
                   ) : (
                     <div className="space-y-3">
                       {activeRequests.map(r => {
@@ -734,7 +734,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
                                       <ShoppingCart size={14} /> Solicitar Compra
                                     </button>
                                   )}
-                                  <button onClick={() => setCancelStockReqConfirm(r)} className="p-2.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all" title={r.status === 'PENDING' ? 'Recusar requisição' : 'Cancelar envio'}>
+                                  <button onClick={() => setCancelStockReqConfirm(r)} className="p-2.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all" title={r.status === 'PENDING' ? 'Recusar retirada' : 'Cancelar envio'}>
                                     <X size={14} />
                                   </button>
                                 </div>
@@ -754,7 +754,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
                   </h2>
                   {filteredProcessed.length === 0 ? (
                     <p className="text-center py-8 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                      {histSearch ? 'Nenhum resultado encontrado' : 'Nenhuma requisição processada'}
+                      {histSearch ? 'Nenhum resultado encontrado' : 'Nenhuma retirada processada'}
                     </p>
                   ) : (
                     <div className="space-y-3">
@@ -972,10 +972,10 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
       {/* Cancel Stock Request Confirm */}
       <ConfirmModal
         isOpen={!!cancelStockReqConfirm}
-        title={cancelStockReqConfirm?.status === 'PENDING' ? 'Recusar requisição' : 'Cancelar envio'}
+        title={cancelStockReqConfirm?.status === 'PENDING' ? 'Recusar retirada' : 'Cancelar envio'}
         message={cancelStockReqConfirm
           ? cancelStockReqConfirm.status === 'PENDING'
-            ? `Recusar requisição de ${financial.formatQuantity(cancelStockReqConfirm.quantity)} ${cancelStockReqConfirm.globalStockItem?.unit ?? 'un'} de "${cancelStockReqConfirm.itemName}"? O material não será enviado.`
+            ? `Recusar retirada de ${financial.formatQuantity(cancelStockReqConfirm.quantity)} ${cancelStockReqConfirm.globalStockItem?.unit ?? 'un'} de "${cancelStockReqConfirm.itemName}"? O material não será enviado.`
             : `Cancelar o envio de "${cancelStockReqConfirm.itemName}"?${cancelStockReqConfirm.quantityDelivered > 0 ? ` Os ${financial.formatQuantity(cancelStockReqConfirm.quantityDelivered)} ${cancelStockReqConfirm.globalStockItem?.unit ?? 'un'} já enviados serão mantidos, mas o restante não será entregue.` : ' O material não será enviado.'}`
           : ''}
         confirmLabel={cancelStockReqConfirm?.status === 'PENDING' ? 'Recusar' : 'Cancelar envio'}
@@ -1032,7 +1032,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
               {canWarehouse && activeRequests.length > 0 && (
                 <section>
                   <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">
-                    <Truck size={14} /> Requisições de Material ({activeRequests.length})
+                    <Truck size={14} /> Retiradas de Material ({activeRequests.length})
                   </h4>
                   <div className="space-y-2">
                     {activeRequests.map(req => {

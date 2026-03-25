@@ -179,7 +179,7 @@ export const getNotificationSubtypeLabel = (subtype: NotificationSubtypeKey) => 
   if (subtype === 'DIARIO_ATUALIZADO') return 'Entrada atualizada';
   if (subtype === 'ARQUIVO_CRIADO') return 'Arquivo criado';
   if (subtype === 'ARQUIVO_ATUALIZADO') return 'Arquivo atualizado';
-  if (subtype === 'REQUISICAO_MATERIAL') return 'Requisição';
+  if (subtype === 'REQUISICAO_MATERIAL') return 'Retirada';
   if (subtype === 'REQUISICAO_APROVADA') return 'Aprovada';
   if (subtype === 'REQUISICAO_REJEITADA') return 'Rejeitada';
   if (subtype === 'COMPRA_SOLICITADA') return 'Compra solicitada';

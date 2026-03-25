@@ -18,7 +18,7 @@ export const stockRequestApi = {
       `${API_BASE}/stock-requests${qs ? `?${qs}` : ''}`,
       { method: 'GET', credentials: 'include' },
     );
-    if (!res.ok) throw new Error('Falha ao carregar requisições de material');
+    if (!res.ok) throw new Error('Falha ao carregar retiradas de material');
     return res.json();
   },
 
@@ -51,7 +51,7 @@ export const stockRequestApi = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || 'Falha ao aprovar requisição');
+      throw new Error(err.message || 'Falha ao aprovar retirada');
     }
     return res.json();
   },
@@ -68,7 +68,7 @@ export const stockRequestApi = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ rejectionReason, instanceId }),
     });
-    if (!res.ok) throw new Error('Falha ao rejeitar requisição');
+    if (!res.ok) throw new Error('Falha ao rejeitar retirada');
     return res.json();
   },
 

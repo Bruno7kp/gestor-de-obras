@@ -176,7 +176,7 @@ export class StockRequestsService {
         projectId: input.projectId,
         category: 'STOCK',
         eventType: 'stock_requested',
-        title: `Requisição de material: ${item.name}`,
+        title: `Retirada de material: ${item.name}`,
         body: `Obra "${project.name}" solicitou ${input.quantity} ${item.unit} de "${item.name}"`,
         actorUserId: input.userId,
         permissionCodes: [
@@ -196,10 +196,10 @@ export class StockRequestsService {
         requestedBy: { select: { id: true } },
       },
     });
-    if (!request) throw new NotFoundException('Requisição não encontrada');
+    if (!request) throw new NotFoundException('Retirada não encontrada');
     if (request.status !== 'PENDING') {
       throw new BadRequestException(
-        'Somente requisições pendentes podem ser aprovadas',
+        'Somente retiradas pendentes podem ser aprovadas',
       );
     }
 
@@ -241,8 +241,8 @@ export class StockRequestsService {
         projectId: request.projectId,
         category: 'STOCK',
         eventType: 'stock_request_approved',
-        title: `Requisição aprovada: ${request.itemName}`,
-        body: `Sua requisição de ${request.quantity} de "${request.itemName}" foi aprovada e aguarda envio`,
+        title: `Retirada aprovada: ${request.itemName}`,
+        body: `Sua retirada de ${request.quantity} de "${request.itemName}" foi aprovada e aguarda envio`,
         actorUserId: input.userId,
         specificUserIds: [request.requestedById],
       })
@@ -273,7 +273,7 @@ export class StockRequestsService {
         requestedBy: { select: { id: true } },
       },
     });
-    if (!request) throw new NotFoundException('Requisição não encontrada');
+    if (!request) throw new NotFoundException('Retirada não encontrada');
 
     const before = JSON.parse(JSON.stringify(request)) as Record<
       string,
@@ -297,8 +297,8 @@ export class StockRequestsService {
           projectId: request.projectId,
           category: 'STOCK',
           eventType: 'stock_request_approved',
-          title: `Requisição aprovada: ${request.itemName}`,
-          body: `Sua requisição de ${request.quantity} de "${request.itemName}" foi aprovada e aguarda envio`,
+          title: `Retirada aprovada: ${request.itemName}`,
+          body: `Sua retirada de ${request.quantity} de "${request.itemName}" foi aprovada e aguarda envio`,
           actorUserId: input.userId,
           specificUserIds: [request.requestedById],
         })
@@ -308,7 +308,7 @@ export class StockRequestsService {
       request.status !== 'PARTIALLY_DELIVERED'
     ) {
       throw new BadRequestException(
-        'Somente requisições pendentes, aprovadas ou parcialmente entregues podem receber envios',
+        'Somente retiradas pendentes, aprovadas ou parcialmente entregues podem receber envios',
       );
     }
 
@@ -390,7 +390,7 @@ export class StockRequestsService {
           stockRequestId: request.id,
           priority:
             freshItem && freshItem.currentQuantity <= 0 ? 'HIGH' : 'MEDIUM',
-          notes: `Compra para suprir requisição de "${request.project.name}" — faltam ${remainingAfter} ${request.globalStockItem.unit}`,
+          notes: `Compra para suprir retirada de "${request.project.name}" — faltam ${remainingAfter} ${request.globalStockItem.unit}`,
         },
       });
 
@@ -467,7 +467,7 @@ export class StockRequestsService {
     const request = await this.prisma.stockRequest.findFirst({
       where: { id: stockRequestId, instanceId },
     });
-    if (!request) throw new NotFoundException('Requisição não encontrada');
+    if (!request) throw new NotFoundException('Retirada não encontrada');
 
     return this.prisma.stockRequestDelivery.findMany({
       where: { stockRequestId },
@@ -488,7 +488,7 @@ export class StockRequestsService {
         requestedBy: { select: { id: true } },
       },
     });
-    if (!request) throw new NotFoundException('Requisição não encontrada');
+    if (!request) throw new NotFoundException('Retirada não encontrada');
 
     const before = JSON.parse(JSON.stringify(request)) as Record<
       string,
@@ -527,7 +527,7 @@ export class StockRequestsService {
           category: 'STOCK',
           eventType: 'stock_request_rejected',
           title: `Material rejeitado: ${request.itemName}`,
-          body: `Sua requisição de "${request.itemName}" foi rejeitada`,
+          body: `Sua retirada de "${request.itemName}" foi rejeitada`,
           actorUserId: input.userId,
           specificUserIds: [request.requestedById],
         })
@@ -540,7 +540,7 @@ export class StockRequestsService {
       request.status !== 'PARTIALLY_DELIVERED'
     ) {
       throw new BadRequestException(
-        'Somente requisições pendentes, aprovadas ou com entrega parcial podem ser canceladas',
+        'Somente retiradas pendentes, aprovadas ou com entrega parcial podem ser canceladas',
       );
     }
 
@@ -594,10 +594,10 @@ export class StockRequestsService {
         requestedBy: { select: { id: true } },
       },
     });
-    if (!request) throw new NotFoundException('Requisição não encontrada');
+    if (!request) throw new NotFoundException('Retirada não encontrada');
     if (request.status !== 'PENDING') {
       throw new BadRequestException(
-        'Somente requisições pendentes podem ser rejeitadas',
+        'Somente retiradas pendentes podem ser rejeitadas',
       );
     }
 
@@ -641,8 +641,8 @@ export class StockRequestsService {
         eventType: 'stock_request_rejected',
         title: `Material rejeitado: ${request.itemName}`,
         body: input.rejectionReason
-          ? `Requisição de "${request.itemName}" rejeitada: ${input.rejectionReason}`
-          : `Sua requisição de "${request.itemName}" foi rejeitada`,
+          ? `Retirada de "${request.itemName}" rejeitada: ${input.rejectionReason}`
+          : `Sua retirada de "${request.itemName}" foi rejeitada`,
         actorUserId: input.userId,
         specificUserIds: [request.requestedById],
       })
