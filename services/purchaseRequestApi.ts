@@ -52,6 +52,7 @@ export const purchaseRequestApi = {
     id: string,
     input: {
       invoiceNumber?: string;
+      invoiceDoc?: string;
       unitPrice: number;
       supplierId?: string;
       instanceId?: string;

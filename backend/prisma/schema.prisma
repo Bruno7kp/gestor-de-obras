@@ -877,6 +877,7 @@ model GlobalStockMovement {
   originDestination String            @default("Depósito Central")
   projectId         String?
   invoiceNumber     String?
+  invoiceDoc        String?
   supplierId        String?
   notes             String            @default("")
   createdAt         DateTime          @default(now())
@@ -905,6 +906,7 @@ model PurchaseRequest {
   orderedAt         DateTime?
   completedAt       DateTime?
   invoiceNumber     String?
+  invoiceDoc        String?
   unitPrice         Float?
   stockRequestId    String?
   createdAt         DateTime                @default(now())

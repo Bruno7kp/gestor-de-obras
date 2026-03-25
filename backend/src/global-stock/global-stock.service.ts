@@ -51,6 +51,7 @@ interface AddGlobalMovementInput {
   originDestination?: string;
   projectId?: string;
   invoiceNumber?: string;
+  invoiceDoc?: string;
   supplierId?: string;
   notes?: string;
   date?: string;
@@ -394,6 +395,7 @@ export class GlobalStockService {
           originDestination: input.originDestination ?? 'Depósito Central',
           projectId: input.projectId ?? null,
           invoiceNumber: input.invoiceNumber ?? null,
+          invoiceDoc: input.invoiceDoc ?? null,
           supplierId: input.supplierId ?? null,
           notes: input.notes ?? '',
           createdById: input.userId,
@@ -482,6 +484,7 @@ export class GlobalStockService {
     quantity: number;
     unitPrice: number;
     invoiceNumber?: string;
+    invoiceDoc?: string;
     supplierId?: string;
   }) {
     return this.addMovement({
@@ -492,6 +495,7 @@ export class GlobalStockService {
       quantity: params.quantity,
       unitPrice: params.unitPrice,
       invoiceNumber: params.invoiceNumber,
+      invoiceDoc: params.invoiceDoc,
       supplierId: params.supplierId,
       originDestination: 'Compra - NF',
       notes: params.invoiceNumber

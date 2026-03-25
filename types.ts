@@ -570,6 +570,7 @@ export interface GlobalStockMovement {
   originDestination: string;
   projectId: string | null;
   invoiceNumber: string | null;
+  invoiceDoc: string | null;
   supplierId: string | null;
   notes: string;
   createdAt?: string;
@@ -594,6 +595,7 @@ export interface PurchaseRequest {
   orderedAt: string | null;
   completedAt: string | null;
   invoiceNumber: string | null;
+  invoiceDoc: string | null;
   unitPrice: number | null;
   stockRequestId?: string | null;
   createdAt?: string;

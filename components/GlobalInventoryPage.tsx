@@ -9,6 +9,7 @@ import { useToast } from '../hooks/useToast';
 import { useCrossInstanceStock } from '../hooks/useCrossInstanceStock';
 import { globalStockApi } from '../services/globalStockApi';
 import { purchaseRequestApi } from '../services/purchaseRequestApi';
+import { uploadService } from '../services/uploadService';
 import { financial } from '../utils/math';
 import type { GlobalStockItem, GlobalStockMovement, Supplier, PriceHistoryEntry } from '../types';
 
@@ -139,14 +140,17 @@ const GlobalStockItemModal: React.FC<{
 const EntryModal: React.FC<{
   item: GlobalStockItem;
   suppliers: Supplier[];
-  onSave: (data: { quantity: number; unitPrice: number; invoiceNumber?: string; supplierId?: string; date?: string }) => void;
+  onSave: (data: { quantity: number; unitPrice: number; invoiceNumber?: string; invoiceDoc?: string; supplierId?: string; date?: string }) => void;
   onClose: () => void;
 }> = ({ item, suppliers, onSave, onClose }) => {
+  const toast = useToast();
   const [quantity, setQuantity] = useState('');
   const [unitPrice, setUnitPrice] = useState('');
   const [qtyDecimals, setQtyDecimals] = useState(MIN_DECIMALS);
   const [priceDecimals, setPriceDecimals] = useState(MIN_DECIMALS);
   const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [invoiceDoc, setInvoiceDoc] = useState<string | null>(null);
+  const [isUploadingInvoice, setIsUploadingInvoice] = useState(false);
   const [supplierId, setSupplierId] = useState(item.supplierId ?? '');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
 
@@ -156,6 +160,25 @@ const EntryModal: React.FC<{
   const previewAvg = previewQty > 0
     ? (item.currentQuantity * item.averagePrice + parsedQty * parsedPrice) / previewQty
     : item.averagePrice;
+
+  const handleInvoiceFile = async (file: File) => {
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) {
+      toast.warning('Arquivo muito grande. Limite de 3MB.');
+      return;
+    }
+
+    setIsUploadingInvoice(true);
+    try {
+      const uploaded = await uploadService.uploadFile(file);
+      setInvoiceDoc(uploaded.url);
+      toast.success('Nota fiscal anexada com sucesso');
+    } catch {
+      toast.error('Falha ao enviar nota fiscal');
+    } finally {
+      setIsUploadingInvoice(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
@@ -184,6 +207,29 @@ const EntryModal: React.FC<{
           <div>
             <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Nº Nota Fiscal</label>
             <input className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-indigo-500 rounded-xl outline-none transition-all text-sm font-bold" value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} placeholder="Ex: NF-001234" />
+          </div>
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Arquivo da Nota Fiscal (PDF/Imagem)</label>
+            {invoiceDoc ? (
+              <div className="flex items-center justify-between px-4 py-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 rounded-xl">
+                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300">Arquivo anexado</span>
+                <button type="button" onClick={() => setInvoiceDoc(null)} className="text-[10px] font-black uppercase tracking-widest text-rose-500 hover:text-rose-600 transition-all">Remover</button>
+              </div>
+            ) : (
+              <label className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl cursor-pointer hover:border-indigo-400 transition-all">
+                <FileText size={14} className="text-slate-400" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{isUploadingInvoice ? 'Enviando...' : 'Selecionar arquivo'}</span>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept="application/pdf,image/*"
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) void handleInvoiceFile(file);
+                  }}
+                />
+              </label>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -214,8 +260,8 @@ const EntryModal: React.FC<{
         <div className="px-8 py-5 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
           <button onClick={onClose} className="px-6 py-3 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 text-[10px] font-black uppercase tracking-widest transition-all">Cancelar</button>
           <button
-            onClick={() => onSave({ quantity: parsedQty, unitPrice: parsedPrice, invoiceNumber: invoiceNumber || undefined, supplierId: supplierId || undefined, date })}
-            disabled={!parsedQty || !parsedPrice}
+            onClick={() => onSave({ quantity: parsedQty, unitPrice: parsedPrice, invoiceNumber: invoiceNumber || undefined, invoiceDoc: invoiceDoc || undefined, supplierId: supplierId || undefined, date })}
+            disabled={!parsedQty || !parsedPrice || isUploadingInvoice}
             className="flex items-center gap-2 px-8 py-3 bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100"
           >
             <ArrowDownCircle size={16} /> Registrar Entrada
@@ -501,7 +547,7 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
     setDeleteConfirm(null);
   };
 
-  const handleEntry = async (data: { quantity: number; unitPrice: number; invoiceNumber?: string; supplierId?: string; date?: string }) => {
+  const handleEntry = async (data: { quantity: number; unitPrice: number; invoiceNumber?: string; invoiceDoc?: string; supplierId?: string; date?: string }) => {
     if (!entryModal.item) return;
     try {
       const updated = await globalStockApi.addMovement(entryModal.item.id, {
@@ -509,6 +555,7 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
         quantity: data.quantity,
         unitPrice: data.unitPrice,
         invoiceNumber: data.invoiceNumber,
+        invoiceDoc: data.invoiceDoc,
         supplierId: data.supplierId,
         date: data.date,
         originDestination: 'Entrada NF',
@@ -573,34 +620,36 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
         )}
 
         {/* HEADER */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-          <div>
-            <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">
-              Estoque Global
-              {isExternalInstance && externalInstanceName && (
-                <span className="text-lg text-amber-600 dark:text-amber-400 ml-2">— {externalInstanceName}</span>
+        <div className="space-y-4">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div>
+              <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">
+                Estoque Global
+                {isExternalInstance && externalInstanceName && (
+                  <span className="text-lg text-amber-600 dark:text-amber-400 ml-2">— {externalInstanceName}</span>
+                )}
+              </h1>
+              <p className="text-slate-500 dark:text-slate-400 font-medium">Controle de materiais centralizado por instância.</p>
+            </div>
+            <div className="flex items-center gap-3">
+              {(canWarehouseEdit || canFinancialEdit) && (
+                <button onClick={() => setItemModal({ open: true })} className="flex items-center gap-2 px-8 py-4 bg-indigo-600 text-white font-black uppercase tracking-widest text-[11px] rounded-2xl shadow-xl shadow-indigo-500/20 hover:scale-105 active:scale-95 transition-all">
+                  <Plus size={18} /> Novo Item
+                </button>
               )}
-            </h1>
-            <p className="text-slate-500 dark:text-slate-400 font-medium">Controle de materiais centralizado por instância.</p>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            {/* Mode toggle */}
-            {canWarehouse && canFinancial && (
-              <div className="flex bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                <button onClick={() => setMode('almoxarifado')} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'almoxarifado' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>
-                  Almoxarifado
-                </button>
-                <button onClick={() => setMode('financeiro')} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'financeiro' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>
-                  Financeiro
-                </button>
-              </div>
-            )}
-            {(canWarehouseEdit || canFinancialEdit) && (
-              <button onClick={() => setItemModal({ open: true })} className="flex items-center gap-2 px-8 py-4 bg-indigo-600 text-white font-black uppercase tracking-widest text-[11px] rounded-2xl shadow-xl shadow-indigo-500/20 hover:scale-105 active:scale-95 transition-all">
-                <Plus size={18} /> Novo Item
+
+          {canWarehouse && canFinancial && (
+            <div className="w-full flex bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+              <button onClick={() => setMode('almoxarifado')} className={`flex-1 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'almoxarifado' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>
+                Almoxarifado
               </button>
-            )}
-          </div>
+              <button onClick={() => setMode('financeiro')} className={`flex-1 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'financeiro' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>
+                Financeiro
+              </button>
+            </div>
+          )}
         </div>
 
         {/* KPI GRID + SEARCH */}

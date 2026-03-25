@@ -27,6 +27,7 @@ interface CreatePurchaseRequestBody {
 
 interface CompleteBody {
   invoiceNumber?: string;
+  invoiceDoc?: string;
   unitPrice: number;
   supplierId?: string;
 }
@@ -114,6 +115,7 @@ export class PurchaseRequestsController {
       instanceId,
       userId: req.user.id,
       invoiceNumber: body.invoiceNumber,
+      invoiceDoc: body.invoiceDoc,
       unitPrice: body.unitPrice,
       supplierId: body.supplierId,
     });

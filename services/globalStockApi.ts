@@ -116,6 +116,7 @@ export const globalStockApi = {
       originDestination?: string;
       projectId?: string;
       invoiceNumber?: string;
+      invoiceDoc?: string;
       supplierId?: string;
       notes?: string;
       date?: string;

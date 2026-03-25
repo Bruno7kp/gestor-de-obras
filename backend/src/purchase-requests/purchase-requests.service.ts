@@ -30,6 +30,7 @@ interface CompleteInput {
   instanceId: string;
   userId: string;
   invoiceNumber?: string;
+  invoiceDoc?: string;
   unitPrice: number;
   supplierId?: string;
 }
@@ -278,6 +279,7 @@ export class PurchaseRequestsService {
         status: 'COMPLETED',
         completedAt: new Date(),
         invoiceNumber: input.invoiceNumber ?? null,
+        invoiceDoc: input.invoiceDoc ?? null,
         unitPrice: input.unitPrice,
         processedById: input.userId,
       },
@@ -306,6 +308,7 @@ export class PurchaseRequestsService {
       quantity: request.quantity,
       unitPrice: input.unitPrice,
       invoiceNumber: input.invoiceNumber,
+      invoiceDoc: input.invoiceDoc,
       supplierId: input.supplierId,
     });
 

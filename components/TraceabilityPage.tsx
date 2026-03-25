@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import {
   Package, Search, ArrowDownCircle, ArrowUpCircle, AlertTriangle,
   ShoppingCart, ClipboardList, Truck, FileText,
-  Check, X, RefreshCw, DollarSign, Bell, User,
+  Check, X, RefreshCw, DollarSign, Bell, User, Download, Loader2,
   ChevronLeft, ChevronRight, Globe,
 } from 'lucide-react';
 import { Pagination } from './Pagination';
@@ -13,6 +13,7 @@ import { useToast } from '../hooks/useToast';
 import { stockRequestApi } from '../services/stockRequestApi';
 import { purchaseRequestApi } from '../services/purchaseRequestApi';
 import { suppliersApi } from '../services/suppliersApi';
+import { uploadService } from '../services/uploadService';
 import { financial } from '../utils/math';
 import { ConfirmModal } from './ConfirmModal';
 import type { StockRequest, PurchaseRequest, Supplier } from '../types';
@@ -40,13 +41,35 @@ const DecimalControls: React.FC<{ value: number; onChange: (v: number) => void }
 const CompleteModal: React.FC<{
   purchase: PurchaseRequest;
   suppliers: Supplier[];
-  onSave: (data: { unitPrice: number; invoiceNumber?: string; supplierId?: string }) => void;
+  onSave: (data: { unitPrice: number; invoiceNumber?: string; invoiceDoc?: string; supplierId?: string }) => void;
   onClose: () => void;
 }> = ({ purchase, suppliers, onSave, onClose }) => {
+  const toast = useToast();
   const [unitPrice, setUnitPrice] = useState('');
   const [priceDecimals, setPriceDecimals] = useState(MIN_DECIMALS);
   const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [invoiceDoc, setInvoiceDoc] = useState<string | null>(null);
+  const [isUploadingInvoice, setIsUploadingInvoice] = useState(false);
   const [supplierId, setSupplierId] = useState('');
+
+  const handleInvoiceFile = async (file: File) => {
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) {
+      toast.warning('Arquivo muito grande. Limite de 3MB.');
+      return;
+    }
+
+    setIsUploadingInvoice(true);
+    try {
+      const uploaded = await uploadService.uploadFile(file);
+      setInvoiceDoc(uploaded.url);
+      toast.success('Nota fiscal anexada com sucesso');
+    } catch {
+      toast.error('Falha ao enviar nota fiscal');
+    } finally {
+      setIsUploadingInvoice(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
@@ -70,6 +93,29 @@ const CompleteModal: React.FC<{
             <input className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-indigo-500 rounded-xl outline-none transition-all text-sm font-bold" value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} placeholder="Ex: NF-001234" />
           </div>
           <div>
+            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Arquivo da Nota Fiscal (PDF/Imagem)</label>
+            {invoiceDoc ? (
+              <div className="flex items-center justify-between px-4 py-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 rounded-xl">
+                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300">Arquivo anexado</span>
+                <button type="button" onClick={() => setInvoiceDoc(null)} className="text-[10px] font-black uppercase tracking-widest text-rose-500 hover:text-rose-600 transition-all">Remover</button>
+              </div>
+            ) : (
+              <label className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl cursor-pointer hover:border-indigo-400 transition-all">
+                {isUploadingInvoice ? <Loader2 size={14} className="animate-spin text-indigo-500" /> : <FileText size={14} className="text-slate-400" />}
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{isUploadingInvoice ? 'Enviando...' : 'Selecionar arquivo'}</span>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept="application/pdf,image/*"
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) void handleInvoiceFile(file);
+                  }}
+                />
+              </label>
+            )}
+          </div>
+          <div>
             <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Fornecedor</label>
             <select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-indigo-500 rounded-xl outline-none transition-all text-sm font-bold" value={supplierId} onChange={e => setSupplierId(e.target.value)}>
               <option value="">Nenhum</option>
@@ -80,8 +126,8 @@ const CompleteModal: React.FC<{
         <div className="px-8 py-5 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
           <button onClick={onClose} className="px-6 py-3 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 text-[10px] font-black uppercase tracking-widest transition-all">Cancelar</button>
           <button
-            onClick={() => onSave({ unitPrice: financial.parseLocaleNumber(unitPrice), invoiceNumber: invoiceNumber || undefined, supplierId: supplierId || undefined })}
-            disabled={!financial.parseLocaleNumber(unitPrice)}
+            onClick={() => onSave({ unitPrice: financial.parseLocaleNumber(unitPrice), invoiceNumber: invoiceNumber || undefined, invoiceDoc: invoiceDoc || undefined, supplierId: supplierId || undefined })}
+            disabled={!financial.parseLocaleNumber(unitPrice) || isUploadingInvoice}
             className="flex items-center gap-2 px-8 py-3 bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100"
           >
             <Check size={16} /> Confirmar
@@ -289,6 +335,7 @@ const DeliverModal: React.FC<{
 /* ------------------------------------------------------------------ */
 export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers }) => {
   const toast = useToast();
+  const apiBase = (import.meta as any).env?.VITE_API_URL ?? '';
   const [searchParams, setSearchParams] = useSearchParams();
   const externalInstanceId = searchParams.get('instanceId') || undefined;
   const externalInstanceName = searchParams.get('instanceName') || undefined;
@@ -486,7 +533,36 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
     }
   };
 
-  const handleComplete = async (data: { unitPrice: number; invoiceNumber?: string; supplierId?: string }) => {
+  const resolveUploadUrl = useCallback((url: string) => {
+    if (!url) return url;
+    if (/^https?:\/\//i.test(url)) return url;
+    if (url.startsWith('/uploads/')) {
+      const baseOrigin = new URL(apiBase || '/', window.location.origin).origin;
+      return `${baseOrigin}${url}`;
+    }
+    return url;
+  }, [apiBase]);
+
+  const handleDownloadInvoice = useCallback(async (url: string, itemName: string) => {
+    const resolvedUrl = resolveUploadUrl(url);
+    try {
+      const res = await fetch(resolvedUrl, { credentials: 'include' });
+      if (!res.ok) throw new Error('Falha ao baixar nota fiscal');
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const safeName = (itemName || 'nota-fiscal').replace(/[\\/:*?"<>|]+/g, '_').trim();
+      link.href = blobUrl;
+      link.download = `NF_${safeName}`;
+      link.click();
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      const win = window.open();
+      win?.document.write(`<iframe src="${resolvedUrl}" frameborder="0" style="border:0;top:0;left:0;bottom:0;right:0;width:100%;height:100%;" allowfullscreen></iframe>`);
+    }
+  }, [resolveUploadUrl]);
+
+  const handleComplete = async (data: { unitPrice: number; invoiceNumber?: string; invoiceDoc?: string; supplierId?: string }) => {
     if (!completeModal.purchase) return;
     try {
       const updated = await purchaseRequestApi.complete(completeModal.purchase.id, { ...data, instanceId: externalInstanceId });
@@ -511,9 +587,9 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
   };
 
   // -- Tab definitions
-  const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
-    { key: 'requests', label: 'Retiradas', icon: <ClipboardList size={14} /> },
-    { key: 'purchases', label: 'Compras', icon: <ShoppingCart size={14} /> },
+  const tabs: { key: Tab; label: string }[] = [
+    { key: 'requests', label: 'Retiradas' },
+    { key: 'purchases', label: 'Compras' },
   ];
 
   // -- Status styles
@@ -553,34 +629,48 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
           </div>
         )}
 
-        {/* HEADER */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-          <div>
-            <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">
-              Logística{externalInstanceName ? ` — ${externalInstanceName}` : ''}
-            </h1>
-            <p className="text-slate-500 dark:text-slate-400 font-medium">Acompanhe retiradas, compras e movimentações.</p>
+        {/* HEADER + TABS */}
+        <div className="space-y-3">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div>
+              <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">
+                Logística{externalInstanceName ? ` — ${externalInstanceName}` : ''}
+              </h1>
+              <p className="text-slate-500 dark:text-slate-400 font-medium">Acompanhe retiradas, compras e movimentações.</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button onClick={loadData} className="flex items-center gap-2 px-6 py-3 text-slate-500 hover:text-indigo-600 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm hover:shadow-md text-[10px] font-black uppercase tracking-widest transition-all">
+                <RefreshCw size={14} /> Atualizar
+              </button>
+              <button
+                onClick={() => setShowDrawer(true)}
+                className="relative flex items-center justify-center w-10 h-10 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm hover:shadow-md transition-all"
+                title="Notificações pendentes"
+              >
+                <Bell size={16} className="text-amber-500" />
+                {(activeRequests.length > 0 || activePurchases.length > 0) && (
+                  <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black shadow-lg">
+                    {activeRequests.length + activePurchases.length}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <button onClick={loadData} className="flex items-center gap-2 px-6 py-3 text-slate-500 hover:text-indigo-600 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm hover:shadow-md text-[10px] font-black uppercase tracking-widest transition-all">
-              <RefreshCw size={14} /> Atualizar
-            </button>
-            <button
-              onClick={() => setShowDrawer(true)}
-              className="relative flex items-center justify-center w-10 h-10 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm hover:shadow-md transition-all"
-              title="Notificações pendentes"
-            >
-              <Bell size={16} className="text-amber-500" />
-              {(activeRequests.length > 0 || activePurchases.length > 0) && (
-                <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black shadow-lg">
-                  {activeRequests.length + activePurchases.length}
-                </span>
-              )}
-            </button>
+
+          <div className="w-full flex bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            {tabs.map(t => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`flex-1 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === t.key ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                {t.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* KPI GRID + TABS */}
+        {/* KPI GRID */}
         <div className="flex flex-wrap items-stretch gap-3">
           <KpiCard label="Retiradas Ativas" value={kpis.activeRequests} icon={<Truck size={16} />} color="blue" />
           <KpiCard label="Compras Ativas" value={kpis.activePurchases} icon={<ShoppingCart size={16} />} color="purple" />
@@ -609,21 +699,6 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
               onDateStartChange={setHistDateStart}
               onDateEndChange={setHistDateEnd}
             />
-          </div>
-          <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            {tabs.map(t => (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className={`flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                  tab === t.key
-                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
-                    : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700'
-                }`}
-              >
-                {t.icon} {t.label}
-              </button>
-            ))}
           </div>
         </div>
 
@@ -907,7 +982,16 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
                                   </p>
                                 </div>
                               </div>
-                              <div className="text-right">
+                              <div className="text-right flex items-center justify-end gap-2">
+                                {p.invoiceDoc && (
+                                  <button
+                                    onClick={() => void handleDownloadInvoice(p.invoiceDoc!, p.itemName)}
+                                    className="p-2 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-all"
+                                    title="Baixar NF"
+                                  >
+                                    <Download size={13} />
+                                  </button>
+                                )}
                                 <p className="text-[9px] text-slate-400 font-bold">
                                   {p.completedAt ? new Date(p.completedAt).toLocaleDateString('pt-BR') : ''}
                                 </p>

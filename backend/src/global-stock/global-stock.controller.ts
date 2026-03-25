@@ -44,6 +44,7 @@ interface AddGlobalMovementBody {
   originDestination?: string;
   projectId?: string;
   invoiceNumber?: string;
+  invoiceDoc?: string;
   supplierId?: string;
   notes?: string;
   date?: string;
@@ -196,6 +197,7 @@ export class GlobalStockController {
       originDestination: body.originDestination,
       projectId: body.projectId,
       invoiceNumber: body.invoiceNumber,
+      invoiceDoc: body.invoiceDoc,
       supplierId: body.supplierId,
       notes: body.notes,
       date: body.date,
