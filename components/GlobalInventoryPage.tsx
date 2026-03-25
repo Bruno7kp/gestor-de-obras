@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Package, Plus, Search, ArrowDownCircle, ArrowUpCircle, AlertTriangle,
   ShoppingCart, FileText, Edit2, Trash2, ChevronDown, ChevronRight, ChevronLeft,
-  TrendingUp, RefreshCw, Boxes, DollarSign, ExternalLink, Globe,
+  TrendingUp, RefreshCw, Boxes, DollarSign, ExternalLink, Globe, Download,
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useToast } from '../hooks/useToast';
@@ -449,6 +449,7 @@ const KpiCard = ({ label, value, icon, color }: { label: string; value: string |
 /* ------------------------------------------------------------------ */
 export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppliers }) => {
   const toast = useToast();
+  const apiBase = (import.meta as any).env?.VITE_API_URL ?? '';
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -597,6 +598,35 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
     CRITICAL: { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-400', label: 'Crítico' },
     OUT_OF_STOCK: { bg: 'bg-rose-100 dark:bg-rose-900/30', text: 'text-rose-700 dark:text-rose-400', label: 'Sem estoque' },
   };
+
+  const resolveUploadUrl = useCallback((url: string) => {
+    if (!url) return url;
+    if (/^https?:\/\//i.test(url)) return url;
+    if (url.startsWith('/uploads/')) {
+      const baseOrigin = new URL(apiBase || '/', window.location.origin).origin;
+      return `${baseOrigin}${url}`;
+    }
+    return url;
+  }, [apiBase]);
+
+  const handleDownloadInvoice = useCallback(async (url: string, itemName: string) => {
+    const resolvedUrl = resolveUploadUrl(url);
+    try {
+      const res = await fetch(resolvedUrl, { credentials: 'include' });
+      if (!res.ok) throw new Error('Falha ao baixar nota fiscal');
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const safeName = (itemName || 'nota-fiscal').replace(/[\\/:*?"<>|]+/g, '_').trim();
+      link.href = blobUrl;
+      link.download = `NF_${safeName}`;
+      link.click();
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      const win = window.open();
+      win?.document.write(`<iframe src="${resolvedUrl}" frameborder="0" style="border:0;top:0;left:0;bottom:0;right:0;width:100%;height:100%;" allowfullscreen></iframe>`);
+    }
+  }, [resolveUploadUrl]);
 
   const showPrices = mode === 'financeiro' && canFinancial;
 
@@ -799,7 +829,21 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
                                     </p>
                                   </div>
                                 </div>
-                                <span className="text-[9px] text-slate-400 whitespace-nowrap">{new Date(m.date).toLocaleDateString('pt-BR')}</span>
+                                <div className="flex items-center gap-2">
+                                  {m.invoiceDoc && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        void handleDownloadInvoice(m.invoiceDoc, item.name);
+                                      }}
+                                      className="p-1.5 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-all"
+                                      title="Baixar NF"
+                                    >
+                                      <Download size={12} />
+                                    </button>
+                                  )}
+                                  <span className="text-[9px] text-slate-400 whitespace-nowrap">{new Date(m.date).toLocaleDateString('pt-BR')}</span>
+                                </div>
                               </div>
                             ))}
                           </div>

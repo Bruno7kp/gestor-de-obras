@@ -79,7 +79,7 @@ export class PurchaseRequestsService {
       where.status = status as Prisma.EnumPurchaseRequestStatusFilter;
     }
 
-    return this.prisma.purchaseRequest.findMany({
+    const requests = await this.prisma.purchaseRequest.findMany({
       where,
       include: this.requestInclude,
       orderBy: [
@@ -87,6 +87,68 @@ export class PurchaseRequestsService {
         { priority: 'desc' }, // HIGH priority first
         { date: 'desc' },
       ],
+    });
+
+    const missingInvoiceDocs = requests.filter(
+      (request) => !request.invoiceDoc && !!request.invoiceNumber,
+    );
+
+    if (missingInvoiceDocs.length === 0) {
+      return requests;
+    }
+
+    const itemIds = Array.from(
+      new Set(missingInvoiceDocs.map((request) => request.globalStockItemId)),
+    );
+    const invoiceNumbers = Array.from(
+      new Set(
+        missingInvoiceDocs
+          .map((request) => request.invoiceNumber)
+          .filter((value): value is string => !!value),
+      ),
+    );
+
+    const movementDocs = await this.prisma.globalStockMovement.findMany({
+      where: {
+        type: 'ENTRY',
+        globalStockItemId: { in: itemIds },
+        invoiceNumber: { in: invoiceNumbers },
+        invoiceDoc: { not: null },
+        globalStockItem: { instanceId },
+      },
+      select: {
+        globalStockItemId: true,
+        invoiceNumber: true,
+        invoiceDoc: true,
+        date: true,
+      },
+      orderBy: { date: 'desc' },
+    });
+
+    const docByKey = new Map<string, string>();
+    for (const movement of movementDocs) {
+      if (!movement.invoiceNumber || !movement.invoiceDoc) continue;
+      const key = `${movement.globalStockItemId}::${movement.invoiceNumber}`;
+      if (!docByKey.has(key)) {
+        docByKey.set(key, movement.invoiceDoc);
+      }
+    }
+
+    return requests.map((request) => {
+      if (request.invoiceDoc || !request.invoiceNumber) {
+        return request;
+      }
+
+      const key = `${request.globalStockItemId}::${request.invoiceNumber}`;
+      const recoveredDoc = docByKey.get(key);
+      if (!recoveredDoc) {
+        return request;
+      }
+
+      return {
+        ...request,
+        invoiceDoc: recoveredDoc,
+      };
     });
   }
 

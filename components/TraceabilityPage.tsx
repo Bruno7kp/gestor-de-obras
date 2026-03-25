@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Package, Search, ArrowDownCircle, ArrowUpCircle, AlertTriangle,
@@ -49,6 +49,7 @@ const CompleteModal: React.FC<{
   const [priceDecimals, setPriceDecimals] = useState(MIN_DECIMALS);
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [invoiceDoc, setInvoiceDoc] = useState<string | null>(null);
+  const invoiceDocRef = useRef<string | null>(null);
   const [isUploadingInvoice, setIsUploadingInvoice] = useState(false);
   const [supplierId, setSupplierId] = useState('');
 
@@ -63,6 +64,7 @@ const CompleteModal: React.FC<{
     try {
       const uploaded = await uploadService.uploadFile(file);
       setInvoiceDoc(uploaded.url);
+      invoiceDocRef.current = uploaded.url;
       toast.success('Nota fiscal anexada com sucesso');
     } catch {
       toast.error('Falha ao enviar nota fiscal');
@@ -97,7 +99,7 @@ const CompleteModal: React.FC<{
             {invoiceDoc ? (
               <div className="flex items-center justify-between px-4 py-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 rounded-xl">
                 <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300">Arquivo anexado</span>
-                <button type="button" onClick={() => setInvoiceDoc(null)} className="text-[10px] font-black uppercase tracking-widest text-rose-500 hover:text-rose-600 transition-all">Remover</button>
+                <button type="button" onClick={() => { setInvoiceDoc(null); invoiceDocRef.current = null; }} className="text-[10px] font-black uppercase tracking-widest text-rose-500 hover:text-rose-600 transition-all">Remover</button>
               </div>
             ) : (
               <label className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl cursor-pointer hover:border-indigo-400 transition-all">
@@ -126,7 +128,7 @@ const CompleteModal: React.FC<{
         <div className="px-8 py-5 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
           <button onClick={onClose} className="px-6 py-3 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 text-[10px] font-black uppercase tracking-widest transition-all">Cancelar</button>
           <button
-            onClick={() => onSave({ unitPrice: financial.parseLocaleNumber(unitPrice), invoiceNumber: invoiceNumber || undefined, invoiceDoc: invoiceDoc || undefined, supplierId: supplierId || undefined })}
+            onClick={() => onSave({ unitPrice: financial.parseLocaleNumber(unitPrice), invoiceNumber: invoiceNumber || undefined, invoiceDoc: invoiceDocRef.current || invoiceDoc || undefined, supplierId: supplierId || undefined })}
             disabled={!financial.parseLocaleNumber(unitPrice) || isUploadingInvoice}
             className="flex items-center gap-2 px-8 py-3 bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100"
           >
@@ -566,7 +568,13 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
     if (!completeModal.purchase) return;
     try {
       const updated = await purchaseRequestApi.complete(completeModal.purchase.id, { ...data, instanceId: externalInstanceId });
-      setPurchaseRequests(prev => prev.map(r => r.id === updated.id ? updated : r));
+      setPurchaseRequests(prev => prev.map(r => {
+        if (r.id !== updated.id) return r;
+        return {
+          ...updated,
+          invoiceDoc: updated.invoiceDoc ?? data.invoiceDoc ?? null,
+        };
+      }));
       setCompleteModal({ open: false });
       toast.success('Entrega confirmada — estoque atualizado');
     } catch (e: any) {
@@ -985,7 +993,9 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
                               <div className="text-right flex items-center justify-end gap-2">
                                 {p.invoiceDoc && (
                                   <button
-                                    onClick={() => void handleDownloadInvoice(p.invoiceDoc!, p.itemName)}
+                                    onClick={() => {
+                                      void handleDownloadInvoice(p.invoiceDoc, p.itemName);
+                                    }}
                                     className="p-2 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-all"
                                     title="Baixar NF"
                                   >
