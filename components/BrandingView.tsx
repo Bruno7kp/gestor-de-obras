@@ -192,7 +192,7 @@ export const BrandingView: React.FC<BrandingViewProps> = ({
           <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col gap-6">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 rounded-xl"><Percent size={20} /></div>
-              <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest">Taxa de BDI</h3>
+              <h3 className="text-md font-black text-slate-800 dark:text-white uppercase tracking-widest">Taxa de BDI</h3>
             </div>
             <div className="relative">
               <input 
@@ -215,7 +215,7 @@ export const BrandingView: React.FC<BrandingViewProps> = ({
           <div className="md:col-span-2 bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col gap-6">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 rounded-xl"><MapPin size={20} /></div>
-              <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest">Localização da Obra</h3>
+              <h3 className="text-md font-black text-slate-800 dark:text-white uppercase tracking-widest">Localização da Obra</h3>
             </div>
             <input 
               disabled={isReadOnly}

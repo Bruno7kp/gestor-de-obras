@@ -1052,7 +1052,7 @@ const FolderCard = ({ group, onOpen, onRename, onDelete, onMove, provided, canRe
         <button title="Excluir" onClick={e => { e.stopPropagation(); onDelete(); }} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"><Trash2 size={16}/></button>
       </div>
     </div>
-    <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tight truncate">{group.name}</h3>
+    <h3 className="text-md font-black text-slate-800 dark:text-white uppercase tracking-tight truncate">{group.name}</h3>
     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Diretório Estrutural</p>
   </div>
 );
@@ -1104,7 +1104,7 @@ const ProjectCard = ({ project, unreadCount, onOpen, onRename, onDelete, onMove,
           {canDelete && <button title="Excluir" onClick={e => { e.stopPropagation(); onDelete(); }} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"><Trash2 size={16}/></button>}
         </div>
       </div>
-      <h3 className="text-sm font-black text-slate-800 dark:text-white truncate uppercase tracking-tight">{project.name}</h3>
+      <h3 className="text-md font-black text-slate-800 dark:text-white truncate uppercase tracking-tight">{project.name}</h3>
       <div className="mt-6 space-y-2">
         <div className="flex justify-between items-end text-[8px] font-black uppercase tracking-widest text-slate-400">
            <span>Avanço Físico</span>
@@ -1141,7 +1141,7 @@ const FolderRow = ({ group, onOpen, onRename, onDelete, onMove, provided, canRen
       </div>
       <div className="min-w-0">
         <p className="text-[10px] font-black uppercase text-slate-400">Pasta</p>
-        <h3 className="text-sm font-black text-slate-800 dark:text-white truncate">{group.name}</h3>
+        <h3 className="text-md font-black text-slate-800 dark:text-white truncate">{group.name}</h3>
       </div>
     </div>
     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
@@ -1187,7 +1187,7 @@ const ProjectRow = ({ project, unreadCount, onOpen, onRename, onDelete, onMove, 
         </div>
         <div className="min-w-0">
           <p className="text-[10px] font-black uppercase text-slate-400">Obra</p>
-          <h3 className="text-sm font-black text-slate-800 dark:text-white truncate">{project.name}</h3>
+          <h3 className="text-md font-black text-slate-800 dark:text-white truncate">{project.name}</h3>
         </div>
       </div>
       <div className="flex items-center gap-4">
@@ -1277,7 +1277,7 @@ const ExternalProjectCard = ({ project, unreadCount, onOpen }: {
         Compartilhado
       </span>
     </div>
-    <h3 className="text-sm font-black text-slate-800 dark:text-white truncate uppercase tracking-tight">{project.projectName}</h3>
+    <h3 className="text-md font-black text-slate-800 dark:text-white truncate uppercase tracking-tight">{project.projectName}</h3>
     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">{project.companyName}</p>
     <p className="text-[9px] font-bold text-slate-400 mt-4">{project.instanceName}</p>
   </div>
@@ -1301,7 +1301,7 @@ const ExternalProjectRow = ({ project, unreadCount, onOpen }: {
       </div>
       <div className="min-w-0">
         <p className="text-[10px] font-black uppercase text-slate-400">Compartilhado</p>
-        <h3 className="text-sm font-black text-slate-800 dark:text-white truncate">{project.projectName}</h3>
+        <h3 className="text-md font-black text-slate-800 dark:text-white truncate">{project.projectName}</h3>
         <p className="text-[9px] font-bold text-slate-400 truncate">{project.instanceName}</p>
       </div>
     </div>

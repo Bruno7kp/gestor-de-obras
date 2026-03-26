@@ -2100,7 +2100,7 @@ const GridContractCard = ({ contract, workforce, isReadOnly, resolveLinkedWorkIt
           <button onClick={onDelete} disabled={isReadOnly} className={`p-1.5 transition-colors ${isReadOnly ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-rose-500'}`}><Trash2 size={12}/></button>
         </div>
       </div>
-      <h4 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tight mb-1 truncate">{contract.descricao}</h4>
+      <h4 className="text-md font-black text-slate-800 dark:text-white uppercase tracking-tight mb-1 truncate">{contract.descricao}</h4>
       <p className="text-[10px] text-slate-400 font-bold uppercase mb-1 truncate">{associado?.nome || 'Sem associado'}</p>
       {linkedItemLabel && (
         <p className="text-[9px] text-indigo-500 font-bold uppercase mb-3 truncate" title={linkedItemLabel}>{linkedItemLabel}</p>
@@ -2111,7 +2111,7 @@ const GridContractCard = ({ contract, workforce, isReadOnly, resolveLinkedWorkIt
         <div className="flex justify-between items-end">
           <div>
             <p className="text-[8px] font-black text-slate-400 uppercase">Valor Total</p>
-            <p className="text-sm font-black text-slate-800 dark:text-white">R$ {contract.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+            <p className="text-md font-black text-slate-800 dark:text-white">R$ {contract.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
           </div>
           <div className="text-right">
             <p className="text-[8px] font-black text-emerald-600 uppercase">Pago</p>
@@ -2236,7 +2236,7 @@ const PaymentsListModal = ({
           <div className="grid grid-cols-3 gap-3 my-5">
             <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-2xl">
               <p className="text-[8px] font-black text-slate-400 uppercase">Valor Total</p>
-              <p className="text-sm font-black text-slate-800 dark:text-white">
+              <p className="text-md font-black text-slate-800 dark:text-white">
                 R$ {contract.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </p>
             </div>

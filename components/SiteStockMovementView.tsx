@@ -248,38 +248,38 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
         <div className="flex-1 min-w-[140px] flex items-center gap-2.5 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
           <Warehouse size={16} className="text-indigo-500" />
           <div className="leading-tight">
-            <p className="text-sm font-black text-slate-800 dark:text-white">{kpis.catalogSize}</p>
-            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Catálogo</p>
+            <p className="text-md font-black text-slate-800 dark:text-white">{kpis.catalogSize}</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Catálogo</p>
           </div>
         </div>
         <div className="flex-1 min-w-[140px] flex items-center gap-2.5 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
           <Clock size={16} className="text-amber-500" />
           <div className="leading-tight">
-            <p className="text-sm font-black text-slate-800 dark:text-white">{kpis.pendingCount}</p>
-            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Pendentes</p>
+            <p className="text-md font-black text-slate-800 dark:text-white">{kpis.pendingCount}</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pendentes</p>
           </div>
         </div>
         <div className="flex-1 min-w-[140px] flex items-center gap-2.5 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
           <CheckCircle2 size={16} className="text-emerald-500" />
           <div className="leading-tight">
-            <p className="text-sm font-black text-slate-800 dark:text-white">{kpis.approvedCount}</p>
-            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Aprovadas</p>
+            <p className="text-md font-black text-slate-800 dark:text-white">{kpis.approvedCount}</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Aprovadas</p>
           </div>
         </div>
         {kpis.awaitingDelivery > 0 && (
           <div className="flex-1 min-w-[140px] flex items-center gap-2.5 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <Truck size={16} className="text-blue-500" />
             <div className="leading-tight">
-              <p className="text-sm font-black text-slate-800 dark:text-white">{kpis.awaitingDelivery}</p>
-              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Aguardando Envio</p>
+              <p className="text-md font-black text-slate-800 dark:text-white">{kpis.awaitingDelivery}</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Aguardando Envio</p>
             </div>
           </div>
         )}
         <div className="flex-1 min-w-[140px] flex items-center gap-2.5 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
           <Activity size={16} className="text-blue-500" />
           <div className="leading-tight">
-            <p className="text-sm font-black text-slate-800 dark:text-white">{kpis.totalMov}</p>
-            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Movimentos</p>
+            <p className="text-md font-black text-slate-800 dark:text-white">{kpis.totalMov}</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Movimentos</p>
           </div>
         </div>
       </div>

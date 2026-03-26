@@ -256,22 +256,22 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ projectId, canEdit
         <div className="flex-1 flex items-center gap-2.5 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
           <Boxes size={16} className="text-indigo-500" />
           <div className="leading-tight">
-            <p className="text-sm font-black text-slate-800 dark:text-white">{stockStats.totalItems}</p>
-            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Materiais</p>
+            <p className="text-md font-black text-slate-800 dark:text-white">{stockStats.totalItems}</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Materiais</p>
           </div>
         </div>
         <div className="flex-1 flex items-center gap-2.5 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
           <ArrowDownCircle size={16} className="text-rose-500" />
           <div className="leading-tight">
-            <p className="text-sm font-black text-slate-800 dark:text-white">{stockStats.totalExits}</p>
-            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Retiradas</p>
+            <p className="text-md font-black text-slate-800 dark:text-white">{stockStats.totalExits}</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Retiradas</p>
           </div>
         </div>
         <div className="flex-1 flex items-center gap-2.5 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
           <ArrowUpCircle size={16} className="text-emerald-500" />
           <div className="leading-tight">
-            <p className="text-sm font-black text-slate-800 dark:text-white">{stockStats.totalEntries}</p>
-            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Entradas</p>
+            <p className="text-md font-black text-slate-800 dark:text-white">{stockStats.totalEntries}</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Entradas</p>
           </div>
         </div>
         <div className="flex items-center gap-3 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">

@@ -101,7 +101,7 @@ export const CostLinkingView: React.FC<CostLinkingViewProps> = ({ project, onUpd
                          <div>
                             <div className="flex items-center gap-2">
                                <span className="text-[10px] font-black text-slate-400 font-mono">{item.wbs}</span>
-                               <h4 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tight leading-none">{item.name}</h4>
+                               <h4 className="text-md font-black text-slate-800 dark:text-white uppercase tracking-tight leading-none">{item.name}</h4>
                             </div>
                             <div className="flex items-center gap-3 mt-2">
                                <span className="text-[9px] font-bold text-slate-400 uppercase px-2 py-0.5 bg-slate-50 dark:bg-slate-800 rounded-full">{item.linkedCount} lançamentos vinculados</span>

@@ -124,8 +124,8 @@ export const StockLogPage: React.FC = () => {
           <div className="flex items-center gap-2.5 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <History size={16} className="text-indigo-500" />
             <div className="leading-tight">
-              <p className="text-sm font-black text-slate-800 dark:text-white">{movementsTotal}</p>
-              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Total Movimentações</p>
+              <p className="text-md font-black text-slate-800 dark:text-white">{movementsTotal}</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Movimentações</p>
             </div>
           </div>
           <div className="flex-1" />

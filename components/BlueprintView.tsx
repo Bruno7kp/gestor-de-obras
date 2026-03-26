@@ -440,24 +440,24 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
         <div className="flex-1 flex items-center gap-2.5 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
           <Calculator size={16} className="text-blue-500" />
           <div className="leading-tight">
-            <p className="text-sm font-black text-slate-800 dark:text-white">{localItems.filter(i => i.type === 'item').length}</p>
-            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Itens</p>
+            <p className="text-md font-black text-slate-800 dark:text-white">{localItems.filter(i => i.type === 'item').length}</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Itens</p>
           </div>
         </div>
         {showPrice && (
           <div className="flex-1 flex items-center gap-2.5 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <Coins size={16} className="text-indigo-500" />
             <div className="leading-tight">
-              <p className="text-sm font-black text-slate-800 dark:text-white whitespace-nowrap">{financial.formatVisual(averageValue, currencySymbol)}</p>
-              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Valor méd.</p>
+              <p className="text-md font-black text-slate-800 dark:text-white whitespace-nowrap">{financial.formatVisual(averageValue, currencySymbol)}</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Valor méd.</p>
             </div>
           </div>
         )}
         <div className="flex-1 flex items-center gap-2.5 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
           <Layers size={16} className="text-emerald-500" />
           <div className="leading-tight">
-            <p className="text-sm font-black text-slate-800 dark:text-white">{localItems.filter(i => i.type === 'category').length}</p>
-            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Categorias</p>
+            <p className="text-md font-black text-slate-800 dark:text-white">{localItems.filter(i => i.type === 'category').length}</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Categorias</p>
           </div>
         </div>
         <div className="flex items-center gap-2 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
