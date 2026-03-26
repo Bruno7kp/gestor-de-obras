@@ -723,9 +723,6 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
               <div className="space-y-8">
                 {/* Active Requests (Pending + Approved + Partially Delivered — unified) */}
                 <div>
-                  <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4 px-1 flex items-center gap-2">
-                    <Truck size={14} /> Retiradas ({activeRequests.length})
-                  </h2>
                   {activeRequests.length === 0 ? (
                     <p className="text-center py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Nenhuma retirada ativa</p>
                   ) : (
@@ -895,9 +892,6 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
               <div className="space-y-8">
                 {/* Active */}
                 <div>
-                  <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4 px-1 flex items-center gap-2">
-                    <ShoppingCart size={14} /> Solicitações de Compras ({activePurchases.length})
-                  </h2>
                   {activePurchases.length === 0 ? (
                     <p className="text-center py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Nenhuma compra ativa</p>
                   ) : (
