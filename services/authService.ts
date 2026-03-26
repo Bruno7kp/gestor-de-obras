@@ -14,7 +14,6 @@ export type AuthUser = {
 export type LoginInput = {
   email: string;
   password: string;
-  instanceId: string;
 };
 
 type LoginResponse = {

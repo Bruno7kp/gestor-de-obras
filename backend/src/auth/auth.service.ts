@@ -6,7 +6,6 @@ import { PrismaService } from '../prisma/prisma.service';
 interface LoginInput {
   email: string;
   password: string;
-  instanceId: string;
 }
 
 @Injectable()
@@ -47,26 +46,14 @@ export class AuthService {
   }
 
   async login(input: LoginInput) {
-    const instance = await this.prisma.instance.findFirst({
-      where: {
-        OR: [
-          { id: input.instanceId },
-          { name: { equals: input.instanceId, mode: 'insensitive' } },
-        ],
-      },
-    });
-
-    if (!instance) {
-      throw new UnauthorizedException('Credenciais invalidas');
-    }
-
+    // Procurar o usuário pelo email (único globalmente)
     const user = await this.prisma.user.findFirst({
       where: {
         email: input.email,
-        instanceId: instance.id,
       },
       include: {
         roles: { include: { role: true } },
+        instance: true,
       },
     });
 
@@ -84,8 +71,8 @@ export class AuthService {
 
     const payload = {
       sub: user.id,
-      instanceId: instance.id,
-      instanceName: instance.name,
+      instanceId: user.instanceId,
+      instanceName: user.instance.name,
       roles,
       permissions,
     };
@@ -97,8 +84,8 @@ export class AuthService {
         name: user.name,
         email: user.email,
         profileImage: user.profileImage,
-        instanceId: instance.id,
-        instanceName: instance.name,
+        instanceId: user.instanceId,
+        instanceName: user.instance.name,
         roles,
         permissions,
       },

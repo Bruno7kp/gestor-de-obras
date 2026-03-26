@@ -16,7 +16,6 @@ import { PrismaService } from '../prisma/prisma.service';
 interface LoginBody {
   email: string;
   password: string;
-  instanceId: string;
 }
 
 @Controller('auth')

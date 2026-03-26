@@ -7,7 +7,6 @@ export const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [instanceId, setInstanceId] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -16,7 +15,7 @@ export const LoginPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      await login({ email, password, instanceId });
+      await login({ email, password });
       navigate('/app', { replace: true });
     } catch (err) {
       setError('Nao foi possivel entrar. Verifique seus dados.');
@@ -31,7 +30,6 @@ export const LoginPage: React.FC = () => {
         <div className="mb-6 text-center">
           <p className="text-[11px] uppercase tracking-[0.4em] text-slate-400">Acesso</p>
           <h1 className="mt-2 text-3xl font-display font-semibold">Entrar no sistema</h1>
-          <p className="mt-2 text-sm text-slate-500 dark:text-slate-300">Use o código da sua empresa para autenticar.</p>
         </div>
 
         <form className="space-y-4" onSubmit={handleSubmit}>
@@ -54,17 +52,6 @@ export const LoginPage: React.FC = () => {
               onChange={(event) => setPassword(event.target.value)}
               type="password"
               placeholder="••••••••"
-              required
-            />
-          </div>
-          <div>
-            <label className="text-[11px] uppercase tracking-[0.3em] text-slate-400">Identificador da empresa</label>
-            <input
-              className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none dark:border-slate-800 dark:bg-slate-950/60 dark:text-white dark:placeholder:text-slate-500"
-              value={instanceId}
-              onChange={(event) => setInstanceId(event.target.value)}
-              type="text"
-              placeholder="EMPRESA X"
               required
             />
           </div>
