@@ -632,7 +632,7 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
 
   return (
     <div className="flex-1 overflow-y-auto p-6 sm:p-12 animate-in fade-in duration-500 bg-slate-50 dark:bg-slate-950 custom-scrollbar">
-      <div className="max-w-6xl mx-auto space-y-10">
+      <div className="max-w-6xl mx-auto space-y-5">
 
         {/* EXTERNAL INSTANCE BANNER */}
         {isExternalInstance && externalInstanceName && (
@@ -670,16 +670,6 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
             </div>
           </div>
 
-          {canWarehouse && canFinancial && (
-            <div className="w-full flex bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-              <button onClick={() => setMode('almoxarifado')} className={`flex-1 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'almoxarifado' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>
-                Almoxarifado
-              </button>
-              <button onClick={() => setMode('financeiro')} className={`flex-1 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'financeiro' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>
-                Financeiro
-              </button>
-            </div>
-          )}
         </div>
 
         {/* KPI GRID + SEARCH */}
@@ -705,6 +695,18 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
             </button>
           </div>
         </div>
+
+        {/* MODE TABS */}
+        {canWarehouse && canFinancial && (
+          <div className="w-full flex bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <button onClick={() => setMode('almoxarifado')} className={`flex-1 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'almoxarifado' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>
+              Almoxarifado
+            </button>
+            <button onClick={() => setMode('financeiro')} className={`flex-1 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'financeiro' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>
+              Financeiro
+            </button>
+          </div>
+        )}
 
         {/* ITEM TABLE */}
         {loading ? (

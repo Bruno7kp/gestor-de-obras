@@ -625,7 +625,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
 
   return (
     <div className="flex-1 overflow-y-auto p-6 sm:p-12 animate-in fade-in duration-500 bg-slate-50 dark:bg-slate-950 custom-scrollbar">
-      <div className="max-w-6xl mx-auto space-y-10">
+      <div className="max-w-6xl mx-auto space-y-5">
 
         {/* EXTERNAL INSTANCE BANNER */}
         {externalInstanceId && (
@@ -637,7 +637,7 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
           </div>
         )}
 
-        {/* HEADER + TABS */}
+        {/* HEADER */}
         <div className="space-y-3">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div>
@@ -663,18 +663,6 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
                 )}
               </button>
             </div>
-          </div>
-
-          <div className="w-full flex bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            {tabs.map(t => (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className={`flex-1 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === t.key ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
-              >
-                {t.label}
-              </button>
-            ))}
           </div>
         </div>
 
@@ -708,6 +696,19 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
               onDateEndChange={setHistDateEnd}
             />
           </div>
+        </div>
+
+        {/* TABS */}
+        <div className="w-full flex bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          {tabs.map(t => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`flex-1 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === t.key ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
 
         {/* TAB CONTENT */}
