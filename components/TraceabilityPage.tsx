@@ -668,8 +668,8 @@ export const TraceabilityPage: React.FC<TraceabilityPageProps> = ({ suppliers })
 
         {/* KPI GRID */}
         <div className="flex flex-wrap items-stretch gap-3">
-          <KpiCard label="Retiradas Ativas" value={kpis.activeRequests} icon={<Truck size={16} />} color="blue" />
-          <KpiCard label="Compras Ativas" value={kpis.activePurchases} icon={<ShoppingCart size={16} />} color="purple" />
+          <KpiCard label="Retiradas Pendentes" value={kpis.activeRequests} icon={<Truck size={16} />} color="blue" />
+          <KpiCard label="Compras Pendentes" value={kpis.activePurchases} icon={<ShoppingCart size={16} />} color="purple" />
           <div className="flex-1" />
           {/* Search + Date filter */}
           <div className="flex items-center gap-2 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
