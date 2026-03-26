@@ -787,9 +787,11 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
                         )}
                         {(canWarehouseEdit || canFinancialEdit) && (
                           <>
-                            <button onClick={() => setPurchaseModal({ open: true, item })} className="p-2 bg-slate-50 dark:bg-slate-800 text-purple-600 hover:text-purple-700 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-all" title="Solicitar Compra">
-                              <ShoppingCart size={15} />
-                            </button>
+                            {(mode !== 'financeiro') && (
+                              <button onClick={() => setPurchaseModal({ open: true, item })} className="p-2 bg-slate-50 dark:bg-slate-800 text-purple-600 hover:text-purple-700 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-all" title="Solicitar Compra">
+                                <ShoppingCart size={15} />
+                              </button>
+                            )}
                             <button onClick={() => setItemModal({ open: true, item })} className="p-2 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-all" title="Editar">
                               <Edit2 size={15} />
                             </button>
