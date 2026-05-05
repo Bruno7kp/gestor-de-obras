@@ -763,7 +763,9 @@ export const LaborContractsManager: React.FC<LaborContractsManagerProps> = ({
                   <div className="bg-amber-50 dark:bg-amber-900/20 p-4 rounded-2xl">
                     <p className="text-[9px] font-black text-amber-600 uppercase mb-1">A Pagar</p>
                     <p className="text-xl font-black text-amber-600">
-                      R$ {(contract.valorTotal - contract.valorPago).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                      {contract.tipo === 'diaria'
+                        ? '-'
+                        : `R$ ${(contract.valorTotal - contract.valorPago).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`}
                     </p>
                   </div>
                 </div>
@@ -2056,8 +2058,12 @@ const CompactContractItem = ({ contract, workforce, isReadOnly, onEdit, onDelete
         <div className="text-right flex-shrink-0 w-36">
           <p className="text-xs font-black text-slate-700 dark:text-slate-300">R$ {contract.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
           <p className="text-[9px] font-bold text-emerald-600 uppercase">Pago: R$ {contract.valorPago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-          {(contract.valorTotal - contract.valorPago) > 0.01 && (
-            <p className="text-[9px] font-bold text-amber-600 uppercase">A pagar: R$ {(contract.valorTotal - contract.valorPago).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+          {contract.tipo === 'diaria' ? (
+            <p className="text-[9px] font-bold text-amber-600 uppercase">A pagar: -</p>
+          ) : (
+            (contract.valorTotal - contract.valorPago) > 0.01 && (
+              <p className="text-[9px] font-bold text-amber-600 uppercase">A pagar: R$ {(contract.valorTotal - contract.valorPago).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+            )
           )}
         </div>
       </div>
@@ -2122,7 +2128,9 @@ const GridContractCard = ({ contract, workforce, isReadOnly, resolveLinkedWorkIt
           <div className="h-full bg-indigo-500 transition-all" style={{ width: `${Math.min(progress, 100)}%` }} />
         </div>
         <div className="flex justify-between items-center">
-          {(contract.valorTotal - contract.valorPago) > 0.01 ? (
+          {contract.tipo === 'diaria' ? (
+            <p className="text-[9px] font-bold text-amber-600 uppercase">A pagar: -</p>
+          ) : (contract.valorTotal - contract.valorPago) > 0.01 ? (
             <p className="text-[9px] font-bold text-amber-600 uppercase">A pagar: R$ {(contract.valorTotal - contract.valorPago).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
           ) : (
             <span />
@@ -2165,8 +2173,8 @@ const TableContractRow = ({ contract, workforce, isReadOnly, onEdit, onDelete, o
       <td className="px-6 py-4 text-xs font-black text-emerald-600">
         R$ {contract.valorPago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
       </td>
-      <td className={`px-6 py-4 text-xs font-black ${isAmountDueZero ? 'text-slate-400' : 'text-amber-600'}`}>
-        R$ {amountDue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+      <td className={`px-6 py-4 text-xs font-black ${contract.tipo === 'diaria' || isAmountDueZero ? 'text-slate-400' : 'text-amber-600'}`}>
+        {contract.tipo === 'diaria' ? '-' : `R$ ${amountDue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
       </td>
       <td className="px-6 py-4">
         <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase ${
@@ -2249,7 +2257,9 @@ const PaymentsListModal = ({
             <div className="bg-amber-50 dark:bg-amber-900/20 p-3 rounded-2xl">
               <p className="text-[8px] font-black text-amber-600 uppercase">A Pagar</p>
               <p className="text-sm font-black text-amber-600">
-                R$ {(contract.valorTotal - contract.valorPago).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                {contract.tipo === 'diaria'
+                  ? '-'
+                  : `R$ ${(contract.valorTotal - contract.valorPago).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
               </p>
             </div>
           </div>
