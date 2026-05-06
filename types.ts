@@ -251,6 +251,18 @@ export interface SupplyGroup {
   forecasts?: MaterialForecast[];
 }
 
+export interface SupplyBoleto {
+  id: string;
+  description: string;
+  amountDue: number;
+  dueDate: string;
+  attachmentUrl?: string | null;
+  createdById?: string;
+  createdBy?: Pick<UserAccount, 'id' | 'name' | 'profileImage'> | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Milestone {
   id: string;
   title: string;
@@ -261,6 +273,7 @@ export interface Milestone {
 export interface ProjectPlanning {
   tasks: PlanningTask[];
   forecasts: MaterialForecast[];
+  boletos?: SupplyBoleto[];
   milestones: Milestone[];
   schedule?: {
     [workItemId: string]: {

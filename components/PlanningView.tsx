@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Project, PlanningTask, MaterialForecast, Milestone, WorkItem, TaskStatus, ProjectPlanning, ProjectExpense, Supplier, SupplyGroup } from '../types';
+import { Project, PlanningTask, MaterialForecast, Milestone, WorkItem, TaskStatus, ProjectPlanning, ProjectExpense, Supplier, SupplyGroup, SupplyBoleto } from '../types';
 import { planningApi } from '../services/planningApi';
 import { planningService } from '../services/planningService';
 import { excelService } from '../services/excelService';
@@ -159,6 +159,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   const planningSubTabs: Array<'tasks' | 'forecast' | 'milestones'> = ['tasks', 'forecast', 'milestones'];
   const planningTabKey = `planning_subtab_${project.id}`;
   const suppliesStatusKey = `supplies_status_${project.id}`;
+  const suppliesInnerTabKey = `supplies_inner_tab_${project.id}`;
   const supplyGroupsExpandedKey = `supplies_groups_expanded_${project.id}`;
   const isSuppliesView = viewMode === 'supplies';
 
@@ -212,12 +213,25 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   const [isAddingMilestone, setIsAddingMilestone] = useState(false);
 
   const [forecastSearch, setForecastSearch] = useState('');
+  const [suppliesInnerTab, setSuppliesInnerTab] = useState<'compras' | 'boletos'>(() => {
+    const saved = uiPreferences.getString(suppliesInnerTabKey);
+    return saved === 'boletos' ? 'boletos' : 'compras';
+  });
   const [forecastStatusFilter, setForecastStatusFilter] = useState<'pending' | 'ordered' | 'delivered'>(() => {
     const saved = uiPreferences.getString(suppliesStatusKey);
     return saved === 'pending' || saved === 'ordered' || saved === 'delivered' ? saved : 'pending';
   });
   
   const planning = project.planning;
+  const [boletos, setBoletos] = useState<SupplyBoleto[]>(project.planning.boletos || []);
+  const [isLoadingBoletos, setIsLoadingBoletos] = useState(false);
+  const [isAddingBoleto, setIsAddingBoleto] = useState(false);
+  const [editingBoleto, setEditingBoleto] = useState<SupplyBoleto | null>(null);
+  const [deletingBoleto, setDeletingBoleto] = useState<SupplyBoleto | null>(null);
+
+  useEffect(() => {
+    setBoletos(project.planning.boletos || []);
+  }, [project.id, project.planning.boletos]);
 
   const getInitials = (name?: string | null) => {
     if (!name) return '';
@@ -268,6 +282,11 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     if (!isSuppliesView) return;
     uiPreferences.setString(suppliesStatusKey, forecastStatusFilter);
   }, [forecastStatusFilter, isSuppliesView, suppliesStatusKey]);
+
+  useEffect(() => {
+    if (!isSuppliesView) return;
+    uiPreferences.setString(suppliesInnerTabKey, suppliesInnerTab);
+  }, [isSuppliesView, suppliesInnerTab, suppliesInnerTabKey]);
 
   useEffect(() => {
     if (!isSuppliesView) return;
@@ -988,6 +1007,83 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     win?.document.write(`<iframe src="${proof}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
   };
 
+  const loadBoletos = async () => {
+    if (!isSuppliesView) return;
+    setIsLoadingBoletos(true);
+    try {
+      const data = await planningApi.listBoletos(project.id);
+      setBoletos(data);
+    } catch (error) {
+      console.error('Erro ao carregar boletos:', error);
+      toast.error('Erro ao carregar boletos.');
+    } finally {
+      setIsLoadingBoletos(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isSuppliesView) return;
+    let active = true;
+    setIsLoadingBoletos(true);
+    planningApi
+      .listBoletos(project.id)
+      .then((data) => {
+        if (!active) return;
+        setBoletos(data);
+      })
+      .catch((error) => {
+        if (!active) return;
+        console.error('Erro ao carregar boletos:', error);
+        toast.error('Erro ao carregar boletos.');
+      })
+      .finally(() => {
+        if (!active) return;
+        setIsLoadingBoletos(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isSuppliesView, project.id]);
+
+  const handleSaveBoleto = async (payload: {
+    description: string;
+    amountDue: number;
+    dueDate: string;
+    attachmentUrl?: string | null;
+  }) => {
+    if (!ensureCanEditPlanning()) return;
+    try {
+      if (editingBoleto) {
+        await planningApi.updateBoleto(editingBoleto.id, payload);
+        toast.success('Boleto atualizado com sucesso.');
+      } else {
+        await planningApi.createBoleto(project.id, payload);
+        toast.success('Boleto cadastrado com sucesso.');
+      }
+      setIsAddingBoleto(false);
+      setEditingBoleto(null);
+      await loadBoletos();
+      await onRefreshExpenses?.();
+    } catch (error) {
+      console.error('Erro ao salvar boleto:', error);
+      toast.error('Erro ao salvar boleto.');
+    }
+  };
+
+  const handleDeleteBoleto = async (boleto: SupplyBoleto) => {
+    if (!ensureCanEditPlanning()) return;
+    try {
+      await planningApi.deleteBoleto(boleto.id);
+      setDeletingBoleto(null);
+      toast.success('Boleto removido com sucesso.');
+      await loadBoletos();
+    } catch (error) {
+      console.error('Erro ao remover boleto:', error);
+      toast.error('Erro ao remover boleto.');
+    }
+  };
+
   const [isImportingPlan, setIsImportingPlan] = useState(false);
 
   const handleImportPlanning = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1197,12 +1293,13 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                <ForecastKpi label="Efetivado/Local" value={forecastStats.effective} icon={<CheckCircle2 size={20}/>} color="emerald" sub="Lançado no financeiro" />
              </div>
 
+             {suppliesInnerTab === 'compras' ? (
              <div className="bg-white dark:bg-slate-900 p-8 rounded-[3.5rem] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto custom-scrollbar">
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-6">
                     <div className="flex flex-wrap items-center bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl gap-1">
                       <ProcurementStep 
-                        active={forecastStatusFilter === 'pending'} 
+                        active={suppliesInnerTab === 'compras' && forecastStatusFilter === 'pending'} 
                         onClick={() => setForecastStatusFilter('pending')}
                         label="A Comprar"
                         count={forecastStats.countPending}
@@ -1211,7 +1308,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                       />
                       <ArrowRight size={14} className="text-slate-300 mx-1 hidden sm:block"/>
                       <ProcurementStep 
-                        active={forecastStatusFilter === 'ordered'} 
+                        active={suppliesInnerTab === 'compras' && forecastStatusFilter === 'ordered'} 
                         onClick={() => setForecastStatusFilter('ordered')}
                         label="Pedidos de Compra"
                         count={forecastStats.countOrdered}
@@ -1220,13 +1317,25 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                       />
                       <ArrowRight size={14} className="text-slate-300 mx-1 hidden sm:block"/>
                       <ProcurementStep 
-                        active={forecastStatusFilter === 'delivered'} 
+                        active={suppliesInnerTab === 'compras' && forecastStatusFilter === 'delivered'} 
                         onClick={() => setForecastStatusFilter('delivered')}
                         label="Recebidos (Local)"
                         count={forecastStats.countDelivered}
                         icon={<Truck size={14}/>}
                         color="emerald"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setSuppliesInnerTab('boletos')}
+                        className={`ml-3 flex items-center gap-2 px-6 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                          suppliesInnerTab === 'boletos'
+                            ? 'bg-slate-700 text-white shadow-lg'
+                            : 'text-slate-400 hover:text-slate-600'
+                        }`}
+                      >
+                        <ReceiptText size={14} />
+                        Boletos
+                      </button>
                     </div>
 
                     <div className="flex flex-wrap items-center justify-end ml-auto gap-2">
@@ -1803,6 +1912,119 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                   )}
                 </div>
             </div>
+            ) : (
+              <div className="bg-white dark:bg-slate-900 p-8 rounded-[3.5rem] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-6">
+                  <div className="flex flex-wrap items-center bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl gap-1">
+                    <ProcurementStep
+                      active={suppliesInnerTab === 'compras' && forecastStatusFilter === 'pending'}
+                      onClick={() => { setForecastStatusFilter('pending'); setSuppliesInnerTab('compras'); }}
+                      label="A Comprar"
+                      count={forecastStats.countPending}
+                      icon={<ShoppingCart size={14}/>}
+                      color="amber"
+                    />
+                    <ArrowRight size={14} className="text-slate-300 mx-1 hidden sm:block"/>
+                    <ProcurementStep
+                      active={suppliesInnerTab === 'compras' && forecastStatusFilter === 'ordered'}
+                      onClick={() => { setForecastStatusFilter('ordered'); setSuppliesInnerTab('compras'); }}
+                      label="Pedidos de Compra"
+                      count={forecastStats.countOrdered}
+                      icon={<Clock size={14}/>}
+                      color="blue"
+                    />
+                    <ArrowRight size={14} className="text-slate-300 mx-1 hidden sm:block"/>
+                    <ProcurementStep
+                      active={suppliesInnerTab === 'compras' && forecastStatusFilter === 'delivered'}
+                      onClick={() => { setForecastStatusFilter('delivered'); setSuppliesInnerTab('compras'); }}
+                      label="Recebidos (Local)"
+                      count={forecastStats.countDelivered}
+                      icon={<Truck size={14}/>}
+                      color="emerald"
+                    />
+                    <button
+                      type="button"
+                      className="ml-3 flex items-center gap-2 px-6 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all bg-slate-700 text-white shadow-lg"
+                    >
+                      <ReceiptText size={14} />
+                      Boletos
+                    </button>
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => {
+                        if (!ensureCanEditPlanning()) return;
+                        setIsAddingBoleto(true);
+                      }}
+                      className="inline-flex items-center gap-2 whitespace-nowrap px-5 py-3 bg-indigo-600 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg hover:scale-105 transition-transform"
+                    >
+                      <Plus size={16} /> Novo Boleto
+                    </button>
+                  </div>
+                </div>
+                {isLoadingBoletos ? (
+                  <div className="py-20 flex items-center justify-center gap-2 text-slate-400 text-sm">
+                    <Loader2 size={16} className="animate-spin" /> Carregando boletos...
+                  </div>
+                ) : boletos.length === 0 ? (
+                  <div className="py-24 flex flex-col items-center justify-center text-slate-300 opacity-50">
+                    <ReceiptText size={64} className="mb-4" />
+                    <p className="text-xs font-black uppercase tracking-[0.2em]">Sem boletos cadastrados</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto custom-scrollbar">
+                    <table className="w-full text-left border-separate border-spacing-y-3">
+                      <thead>
+                        <tr className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 text-center">
+                          <th className="pb-2 pl-4 text-left">Descrição</th>
+                          <th className="pb-2">Valor a Pagar</th>
+                          <th className="pb-2">Vencimento</th>
+                          <th className="pb-2">Anexo</th>
+                          <th className="pb-2 text-right pr-4">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-center">
+                        {boletos.map((boleto) => {
+                          const daysToDue = planningService.getUrgencyLevel(boleto.dueDate);
+                          return (
+                            <tr key={boleto.id} className="group/row border border-slate-100 dark:border-slate-800 rounded-3xl bg-white dark:bg-slate-900 hover:shadow-md transition-all">
+                              <td className="py-6 px-4 text-left rounded-l-3xl">
+                                <div className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase">{boleto.description}</div>
+                              </td>
+                              <td className="py-6">
+                                <span className="text-sm font-black text-amber-600">
+                                  {financial.formatVisual(boleto.amountDue || 0, project.theme?.currencySymbol)}
+                                </span>
+                              </td>
+                              <td className="py-6">
+                                <span className={`text-[10px] font-black uppercase tracking-widest ${daysToDue === 'urgent' ? 'text-rose-500' : daysToDue === 'warning' ? 'text-amber-500' : 'text-slate-500'}`}>
+                                  {financial.formatDate(boleto.dueDate)}
+                                </span>
+                              </td>
+                              <td className="py-6">
+                                {boleto.attachmentUrl ? (
+                                  <button onClick={() => handleViewProof(boleto.attachmentUrl!)} className="p-2 text-emerald-500 hover:bg-emerald-50 rounded-xl" title="Visualizar boleto">
+                                    <Download size={16} />
+                                  </button>
+                                ) : (
+                                  <span className="text-[9px] font-black text-slate-300 uppercase">Sem anexo</span>
+                                )}
+                              </td>
+                              <td className="py-6 text-right pr-6 rounded-r-3xl">
+                                <div className="flex items-center justify-end gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                                  <button onClick={() => setEditingBoleto(boleto)} className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-xl" title="Editar"><Edit2 size={18}/></button>
+                                  <button onClick={() => setDeletingBoleto(boleto)} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl" title="Excluir"><Trash2 size={18}/></button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </DragDropContext>
@@ -1835,6 +2057,17 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
             setIsAddingForecast(false);
             setEditingForecast(null);
           }}
+        />
+      )}
+
+      {(isAddingBoleto || editingBoleto) && (
+        <BoletoModal
+          boleto={editingBoleto}
+          onClose={() => {
+            setIsAddingBoleto(false);
+            setEditingBoleto(null);
+          }}
+          onSave={handleSaveBoleto}
         />
       )}
 
@@ -1891,6 +2124,17 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
         variant="danger"
         onConfirm={() => confirmingDeleteSupplyGroup && handleDeleteSupplyGroup(confirmingDeleteSupplyGroup.id)}
         onCancel={() => setConfirmingDeleteSupplyGroup(null)}
+      />
+
+      <ConfirmModal
+        isOpen={!!deletingBoleto}
+        title="Remover Boleto"
+        message={`Deseja remover o boleto "${deletingBoleto?.description || ''}"?`}
+        confirmLabel="Remover"
+        cancelLabel="Cancelar"
+        variant="danger"
+        onConfirm={() => deletingBoleto && handleDeleteBoleto(deletingBoleto)}
+        onCancel={() => setDeletingBoleto(null)}
       />
 
       {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO */}
@@ -2282,6 +2526,97 @@ const SupplyGroupClearanceModal = ({
             className="flex-[2] py-3 rounded-2xl bg-emerald-600 text-white font-black uppercase text-[10px] tracking-widest"
           >
             Confirmar Baixa
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const BoletoModal = ({
+  boleto,
+  onClose,
+  onSave,
+}: {
+  boleto?: SupplyBoleto | null;
+  onClose: () => void;
+  onSave: (payload: {
+    description: string;
+    amountDue: number;
+    dueDate: string;
+    attachmentUrl?: string | null;
+  }) => void | Promise<void>;
+}) => {
+  const [description, setDescription] = useState(boleto?.description || '');
+  const [amountDue, setAmountDue] = useState(
+    financial.formatVisual(boleto?.amountDue || 0, '').trim(),
+  );
+  const [dueDate, setDueDate] = useState(
+    boleto?.dueDate?.split('T')[0] || new Date().toISOString().split('T')[0],
+  );
+  const [attachmentUrl, setAttachmentUrl] = useState<string | undefined>(
+    boleto?.attachmentUrl || undefined,
+  );
+  const toast = useToast();
+
+  const submit = async () => {
+    const parsedAmount = financial.parseLocaleNumber(amountDue);
+    if (!description.trim()) return toast.warning('Informe a descrição do boleto.');
+    if (!parsedAmount || parsedAmount <= 0) {
+      return toast.warning('Informe um valor válido para o boleto.');
+    }
+    if (!dueDate) return toast.warning('Informe a data de vencimento.');
+
+    await onSave({
+      description: description.trim(),
+      amountDue: parsedAmount,
+      dueDate,
+      attachmentUrl: attachmentUrl || null,
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-[2200] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
+      <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-[2.5rem] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-8 md:p-10" onClick={(event) => event.stopPropagation()}>
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h2 className="text-2xl font-black tracking-tight text-slate-800 dark:text-white">{boleto ? 'Editar Boleto' : 'Novo Boleto'}</h2>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Cadastro financeiro de boletos</p>
+          </div>
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600"><X size={20} /></button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="md:col-span-2 space-y-2">
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Descrição</label>
+            <input value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Ex: Boleto fornecedor cimento" className="w-full px-4 py-3 rounded-2xl border-2 border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-bold outline-none focus:border-indigo-500 transition-all" />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Valor a Pagar</label>
+            <input value={amountDue} onChange={(event) => setAmountDue(financial.maskCurrency(event.target.value))} placeholder="0,00" className="w-full px-4 py-3 rounded-2xl border-2 border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-bold outline-none focus:border-indigo-500 transition-all" />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Data de Vencimento</label>
+            <input type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} className="w-full px-4 py-3 rounded-2xl border-2 border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-bold outline-none focus:border-indigo-500 transition-all" />
+          </div>
+
+          <div className="md:col-span-2">
+            <ExpenseAttachmentZone
+              label="Anexo do Boleto"
+              currentFile={attachmentUrl}
+              onUploadUrl={(url) => setAttachmentUrl(url)}
+              onRemove={() => setAttachmentUrl(undefined)}
+              accept="application/pdf,image/*"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-3 mt-8">
+          <button onClick={onClose} className="px-5 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-500">Cancelar</button>
+          <button onClick={() => void submit()} className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:scale-105 transition-transform">
+            <Save size={14} /> {boleto ? 'Salvar Alterações' : 'Cadastrar Boleto'}
           </button>
         </div>
       </div>

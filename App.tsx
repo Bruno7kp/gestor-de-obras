@@ -6,6 +6,7 @@ import { projectService } from './services/projectService';
 import { biddingService } from './services/biddingService';
 import { projectsApi } from './services/projectsApi';
 import { notificationsApi } from './services/notificationsApi';
+import { planningApi } from './services/planningApi';
 import { workItemsApi } from './services/workItemsApi';
 import { blueprintItemsApi } from './services/blueprintItemsApi';
 import { measurementSnapshotsApi } from './services/measurementSnapshotsApi';
@@ -288,6 +289,7 @@ const App: React.FC = () => {
   const [unreadNotificationsByProject, setUnreadNotificationsByProject] = useState<Record<string, number>>({});
   const [projectNotifications, setProjectNotifications] = useState<UserNotification[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [didRunBoletoScan, setDidRunBoletoScan] = useState(false);
 
   const allVisibleProjectIds = useMemo(() => {
     const ids = Array.from(new Set([...projects.map((project) => project.id), ...externalProjects.map((project) => project.projectId)]));
@@ -317,6 +319,17 @@ const App: React.FC = () => {
     localStorage.setItem('promeasure_theme', isDarkMode ? 'dark' : 'light');
     document.documentElement.classList.toggle('dark', isDarkMode);
   }, [isDarkMode]);
+
+  useEffect(() => {
+    const canFinancial =
+      canView('global_stock_financial') || canView('financial_flow');
+    if (!canFinancial || didRunBoletoScan) return;
+
+    setDidRunBoletoScan(true);
+    void planningApi.scanDueSoonBoletos().catch(() => {
+      // non-blocking: notifications refresh naturally in next polling cycle
+    });
+  }, [canView, didRunBoletoScan]);
 
   const handleOpenProject = useCallback((id: string) => {
     setActiveProjectId(id);

@@ -98,6 +98,7 @@ model User {
   createdJournalEntries JournalEntry[] @relation("UserJournalEntries")
   createdStockMovements StockMovement[] @relation("UserStockMovements")
   createdPlanningTasks PlanningTask[] @relation("UserPlanningTasks")
+  createdSupplyBoletos SupplyBoleto[] @relation("UserSupplyBoletos")
   createdGlobalStockMovements GlobalStockMovement[] @relation("UserGlobalStockMovements")
   purchaseRequestsCreated PurchaseRequest[] @relation("UserPurchaseRequestsCreated")
   purchaseRequestsProcessed PurchaseRequest[] @relation("UserPurchaseRequestsProcessed")
@@ -508,8 +509,26 @@ model ProjectPlanning {
   project   Project @relation(fields: [projectId], references: [id])
   tasks     PlanningTask[]
   forecasts MaterialForecast[]
+  boletos SupplyBoleto[]
   supplyGroups SupplyGroup[]
   milestones Milestone[]
+}
+
+model SupplyBoleto {
+  id                String   @id @default(uuid())
+  description       String
+  amountDue         Float
+  dueDate           String
+  attachmentUrl     String?
+  createdById       String?
+  projectPlanningId String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  projectPlanning   ProjectPlanning @relation(fields: [projectPlanningId], references: [id], onDelete: Cascade)
+  createdBy         User?           @relation("UserSupplyBoletos", fields: [createdById], references: [id])
+
+  @@index([projectPlanningId, dueDate])
 }
 
 model PlanningTask {

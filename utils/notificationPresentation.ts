@@ -123,6 +123,7 @@ export const getNotificationType = (notification: UserNotification): Notificatio
 export const getNotificationSubtype = (notification: UserNotification): NotificationSubtypeKey => {
   if (notification.eventType === 'SUPPLY_ORDERED') return 'COMPRA';
   if (notification.eventType === 'EXPENSE_PAID') return 'PAGAMENTO';
+  if (notification.eventType === 'BILL_DUE_SOON') return 'PAGAMENTO';
   if (notification.eventType === 'EXPENSE_DELIVERED') return 'ENTREGA';
   if (notification.eventType === 'MATERIAL_ON_SITE_CONFIRMED') return 'NO_LOCAL';
   if (notification.eventType === 'LABOR_CONTRACT_CREATED') return 'CONTRATO_CRIADO';

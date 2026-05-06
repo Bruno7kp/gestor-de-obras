@@ -1,4 +1,10 @@
-import type { MaterialForecast, Milestone, PlanningTask, SupplyGroup } from '../types';
+import type {
+  MaterialForecast,
+  Milestone,
+  PlanningTask,
+  SupplyBoleto,
+  SupplyGroup,
+} from '../types';
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL ?? '/api';
 
@@ -120,6 +126,97 @@ export const planningApi = {
 
     const data = await response.json();
     return Array.isArray(data) ? data : [];
+  },
+
+  async listBoletos(projectId: string): Promise<SupplyBoleto[]> {
+    const response = await fetch(`${API_BASE}/planning/boletos?projectId=${projectId}`, {
+      method: 'GET',
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error('Falha ao carregar boletos');
+    }
+
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  },
+
+  async createBoleto(
+    projectId: string,
+    boleto: {
+      description: string;
+      amountDue: number;
+      dueDate: string;
+      attachmentUrl?: string | null;
+    },
+  ): Promise<SupplyBoleto> {
+    const response = await fetch(`${API_BASE}/planning/boletos`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        ...boleto,
+        projectId,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Falha ao criar boleto');
+    }
+
+    return response.json();
+  },
+
+  async updateBoleto(
+    id: string,
+    input: Partial<{
+      description: string;
+      amountDue: number;
+      dueDate: string;
+      attachmentUrl?: string | null;
+    }>,
+  ): Promise<SupplyBoleto> {
+    const response = await fetch(`${API_BASE}/planning/boletos/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(input),
+    });
+
+    if (!response.ok) {
+      throw new Error(await readApiErrorMessage(response, 'Falha ao atualizar boleto'));
+    }
+
+    return response.json();
+  },
+
+  async deleteBoleto(id: string): Promise<void> {
+    const response = await fetch(`${API_BASE}/planning/boletos/${id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error('Falha ao remover boleto');
+    }
+  },
+
+  async scanDueSoonBoletos(): Promise<{ scanned: number; dueSoon: number }> {
+    const response = await fetch(`${API_BASE}/planning/boletos/scan-due-soon`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error('Falha ao verificar boletos próximos do vencimento');
+    }
+
+    return response.json();
   },
 
   async createSupplyGroup(

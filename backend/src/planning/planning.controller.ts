@@ -114,6 +114,16 @@ interface CreateMilestoneBody {
 
 type UpdateMilestoneBody = Partial<CreateMilestoneBody>;
 
+interface CreateBoletoBody {
+  projectId: string;
+  description: string;
+  amountDue: number;
+  dueDate: string;
+  attachmentUrl?: string | null;
+}
+
+type UpdateBoletoBody = Partial<Omit<CreateBoletoBody, 'projectId'>>;
+
 @Controller('planning')
 @UseGuards(AuthGuard('jwt'))
 @Roles('USER', 'ADMIN', 'SUPER_ADMIN')
@@ -186,6 +196,70 @@ export class PlanningController {
   ) {
     return this.planningService.listSupplyGroups(
       projectId,
+      req.user.instanceId,
+      req.user.id,
+    );
+  }
+
+  @Get('boletos')
+  listBoletos(
+    @Query('projectId') projectId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.planningService.listBoletos(
+      projectId,
+      req.user.instanceId,
+      req.user.id,
+    );
+  }
+
+  @Post('boletos')
+  @HasPermission('planning.edit')
+  createBoleto(
+    @Body() body: CreateBoletoBody,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.planningService.createBoleto({
+      ...body,
+      instanceId: req.user.instanceId,
+      userId: req.user.id,
+    });
+  }
+
+  @Patch('boletos/:id')
+  @HasPermission('planning.edit')
+  updateBoleto(
+    @Param('id') id: string,
+    @Body() body: UpdateBoletoBody,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.planningService.updateBoleto(
+      id,
+      req.user.instanceId,
+      body,
+      req.user.id,
+    );
+  }
+
+  @Delete('boletos/:id')
+  @HasPermission('planning.edit')
+  deleteBoleto(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.planningService.deleteBoleto(
+      id,
+      req.user.instanceId,
+      req.user.id,
+    );
+  }
+
+  @Post('boletos/scan-due-soon')
+  @HasPermission(
+    'global_stock_financial.view',
+    'global_stock_financial.edit',
+    'supplies.view',
+    'supplies.edit',
+  )
+  scanDueSoonBoletos(@Req() req: AuthenticatedRequest) {
+    return this.planningService.scanDueSoonBoletos(
       req.user.instanceId,
       req.user.id,
     );

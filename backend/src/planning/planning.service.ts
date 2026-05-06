@@ -117,6 +117,20 @@ interface CreateMilestoneInput {
   isCompleted: boolean;
 }
 
+interface CreateBoletoInput {
+  projectId: string;
+  instanceId: string;
+  userId?: string;
+  description: string;
+  amountDue: number;
+  dueDate: string;
+  attachmentUrl?: string | null;
+}
+
+type UpdateBoletoInput = Partial<
+  Omit<CreateBoletoInput, 'projectId' | 'instanceId' | 'userId'>
+>;
+
 @Injectable()
 export class PlanningService {
   constructor(
@@ -354,6 +368,54 @@ export class PlanningService {
         newStatus: input.newStatus,
       },
     });
+  }
+
+  private daysUntilDate(dateIso: string): number {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const target = new Date(dateIso);
+    target.setHours(0, 0, 0, 0);
+    const diffMs = target.getTime() - today.getTime();
+    return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  }
+
+  private async emitDueSoonBoletoNotifications(
+    instanceId: string,
+    userId: string | undefined,
+    boletos: Array<{
+      id: string;
+      description: string;
+      amountDue: number;
+      dueDate: string;
+      projectPlanning: { projectId: string };
+    }>,
+  ) {
+    const dueSoon = boletos.filter(
+      (boleto) => this.daysUntilDate(boleto.dueDate) === 3 && boleto.amountDue > 0,
+    );
+
+    await Promise.all(
+      dueSoon.map((boleto) =>
+        this.notificationsService.emit({
+          instanceId,
+          projectId: boleto.projectPlanning.projectId,
+          actorUserId: userId,
+          category: 'FINANCIAL',
+          eventType: 'BILL_DUE_SOON',
+          priority: 'high',
+          title: 'Boleto Próximo do Vencimento',
+          body: `${boleto.description} vence em 3 dias (${boleto.dueDate}).`,
+          dedupeKey: `boleto:${boleto.id}:due-soon:${boleto.dueDate}`,
+          permissionCodes: ['global_stock_financial.view', 'global_stock_financial.edit'],
+          includeProjectMembers: true,
+          metadata: {
+            boletoId: boleto.id,
+            dueDate: boleto.dueDate,
+            amountDue: boleto.amountDue,
+          },
+        }),
+      ),
+    );
   }
 
   private async canRemoveUpload(url?: string | null) {
@@ -921,6 +983,213 @@ export class PlanningService {
         },
       },
     });
+  }
+
+  async listBoletos(projectId: string, instanceId: string, userId?: string) {
+    await this.ensureProject(projectId, instanceId, userId);
+    const planning = await this.ensurePlanning(projectId);
+    const boletos = await this.prisma.supplyBoleto.findMany({
+      where: { projectPlanningId: planning.id },
+      include: {
+        createdBy: {
+          select: { id: true, name: true, profileImage: true },
+        },
+      },
+      orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
+    });
+
+    await this.emitDueSoonBoletoNotifications(
+      instanceId,
+      userId,
+      boletos.map((item) => ({
+        id: item.id,
+        description: item.description,
+        amountDue: item.amountDue,
+        dueDate: item.dueDate,
+        projectPlanning: { projectId },
+      })),
+    );
+
+    return boletos;
+  }
+
+  async createBoleto(input: CreateBoletoInput) {
+    await this.ensureProject(input.projectId, input.instanceId, input.userId, true);
+    const planning = await this.ensurePlanning(input.projectId);
+    const created = await this.prisma.supplyBoleto.create({
+      data: {
+        projectPlanningId: planning.id,
+        description: input.description,
+        amountDue: input.amountDue,
+        dueDate: input.dueDate,
+        attachmentUrl: input.attachmentUrl ?? null,
+        createdById: input.userId ?? null,
+      },
+      include: {
+        createdBy: {
+          select: { id: true, name: true, profileImage: true },
+        },
+      },
+    });
+
+    await this.emitDueSoonBoletoNotifications(input.instanceId, input.userId, [
+      {
+        id: created.id,
+        description: created.description,
+        amountDue: created.amountDue,
+        dueDate: created.dueDate,
+        projectPlanning: { projectId: input.projectId },
+      },
+    ]);
+
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      userId: input.userId,
+      projectId: input.projectId,
+      action: 'CREATE',
+      model: 'SupplyBoleto',
+      entityId: created.id,
+      after: created as Record<string, unknown>,
+    });
+
+    return created;
+  }
+
+  async updateBoleto(
+    id: string,
+    instanceId: string,
+    data: UpdateBoletoInput,
+    userId?: string,
+  ) {
+    let boleto = await this.prisma.supplyBoleto.findFirst({
+      where: { id, projectPlanning: { project: { instanceId } } },
+      include: { projectPlanning: { select: { projectId: true } } },
+    });
+    if (!boleto && userId) {
+      boleto = await this.prisma.supplyBoleto.findFirst({
+        where: {
+          id,
+          projectPlanning: { project: { members: { some: { userId } } } },
+        },
+        include: { projectPlanning: { select: { projectId: true } } },
+      });
+    }
+    if (!boleto) throw new NotFoundException('Boleto nao encontrado');
+
+    await this.ensurePlanningWritable(boleto.projectPlanningId);
+
+    const previousAttachment = boleto.attachmentUrl;
+    const updated = await this.prisma.supplyBoleto.update({
+      where: { id },
+      data: {
+        description: data.description ?? boleto.description,
+        amountDue: data.amountDue ?? boleto.amountDue,
+        dueDate: data.dueDate ?? boleto.dueDate,
+        attachmentUrl:
+          data.attachmentUrl === undefined ? boleto.attachmentUrl : data.attachmentUrl,
+      },
+      include: {
+        createdBy: {
+          select: { id: true, name: true, profileImage: true },
+        },
+      },
+    });
+
+    if (
+      previousAttachment &&
+      previousAttachment !== updated.attachmentUrl &&
+      isLocalUpload(previousAttachment)
+    ) {
+      await removeLocalUpload(previousAttachment);
+    }
+
+    await this.emitDueSoonBoletoNotifications(instanceId, userId, [
+      {
+        id: updated.id,
+        description: updated.description,
+        amountDue: updated.amountDue,
+        dueDate: updated.dueDate,
+        projectPlanning: { projectId: boleto.projectPlanning.projectId },
+      },
+    ]);
+
+    void this.auditService.log({
+      instanceId,
+      userId,
+      projectId: boleto.projectPlanning.projectId,
+      action: 'UPDATE',
+      model: 'SupplyBoleto',
+      entityId: id,
+      before: boleto as Record<string, unknown>,
+      after: updated as Record<string, unknown>,
+    });
+
+    return updated;
+  }
+
+  async deleteBoleto(id: string, instanceId: string, userId?: string) {
+    let boleto = await this.prisma.supplyBoleto.findFirst({
+      where: { id, projectPlanning: { project: { instanceId } } },
+      include: { projectPlanning: { select: { projectId: true } } },
+    });
+    if (!boleto && userId) {
+      boleto = await this.prisma.supplyBoleto.findFirst({
+        where: {
+          id,
+          projectPlanning: { project: { members: { some: { userId } } } },
+        },
+        include: { projectPlanning: { select: { projectId: true } } },
+      });
+    }
+    if (!boleto) throw new NotFoundException('Boleto nao encontrado');
+
+    await this.ensurePlanningWritable(boleto.projectPlanningId);
+    await this.prisma.supplyBoleto.delete({ where: { id } });
+
+    if (boleto.attachmentUrl && isLocalUpload(boleto.attachmentUrl)) {
+      await removeLocalUpload(boleto.attachmentUrl);
+    }
+
+    void this.auditService.log({
+      instanceId,
+      userId,
+      projectId: boleto.projectPlanning.projectId,
+      action: 'DELETE',
+      model: 'SupplyBoleto',
+      entityId: id,
+      before: boleto as Record<string, unknown>,
+    });
+  }
+
+  async scanDueSoonBoletos(instanceId: string, userId?: string) {
+    const boletos = await this.prisma.supplyBoleto.findMany({
+      where: {
+        amountDue: { gt: 0 },
+        projectPlanning: {
+          project: {
+            instanceId,
+          },
+        },
+      },
+      select: {
+        id: true,
+        description: true,
+        amountDue: true,
+        dueDate: true,
+        projectPlanning: {
+          select: {
+            projectId: true,
+          },
+        },
+      },
+    });
+
+    await this.emitDueSoonBoletoNotifications(instanceId, userId, boletos);
+
+    return {
+      scanned: boletos.length,
+      dueSoon: boletos.filter((item) => this.daysUntilDate(item.dueDate) === 3).length,
+    };
   }
 
   async createSupplyGroup(input: CreateSupplyGroupInput) {

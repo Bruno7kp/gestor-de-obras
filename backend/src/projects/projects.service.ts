@@ -385,6 +385,13 @@ export class ProjectsService {
                 },
               },
             },
+            boletos: {
+              include: {
+                createdBy: {
+                  select: { id: true, name: true, profileImage: true },
+                },
+              },
+            },
             milestones: true,
           },
         },
@@ -483,6 +490,13 @@ export class ProjectsService {
                 },
               },
               forecasts: {
+                include: {
+                  createdBy: {
+                    select: { id: true, name: true, profileImage: true },
+                  },
+                },
+              },
+              boletos: {
                 include: {
                   createdBy: {
                     select: { id: true, name: true, profileImage: true },
@@ -749,7 +763,7 @@ export class ProjectsService {
       );
     }
 
-    const [assets, expenses, forecasts, journalEntries, workforce, payments] =
+    const [assets, expenses, forecasts, boletos, journalEntries, workforce, payments] =
       await Promise.all([
         this.prisma.projectAsset.findMany({
           where: { projectId: id },
@@ -762,6 +776,10 @@ export class ProjectsService {
         this.prisma.materialForecast.findMany({
           where: { projectPlanning: { projectId: id } },
           select: { paymentProof: true },
+        }),
+        this.prisma.supplyBoleto.findMany({
+          where: { projectPlanning: { projectId: id } },
+          select: { attachmentUrl: true },
         }),
         this.prisma.journalEntry.findMany({
           where: { projectJournal: { projectId: id } },
@@ -793,6 +811,7 @@ export class ProjectsService {
     await removeLocalUploads(
       forecasts.map((forecast) => forecast.paymentProof),
     );
+    await removeLocalUploads(boletos.map((boleto) => boleto.attachmentUrl));
     await removeLocalUploads(
       journalEntries.flatMap((entry) => entry.photoUrls ?? []),
     );
@@ -866,6 +885,9 @@ export class ProjectsService {
         where: { projectPlanningId: planning.id },
       });
       await this.prisma.milestone.deleteMany({
+        where: { projectPlanningId: planning.id },
+      });
+      await this.prisma.supplyBoleto.deleteMany({
         where: { projectPlanningId: planning.id },
       });
       await this.prisma.projectPlanning.delete({ where: { id: planning.id } });
@@ -1088,6 +1110,13 @@ export class ProjectsService {
               },
             },
             forecasts: {
+              include: {
+                createdBy: {
+                  select: { id: true, name: true, profileImage: true },
+                },
+              },
+            },
+            boletos: {
               include: {
                 createdBy: {
                   select: { id: true, name: true, profileImage: true },
