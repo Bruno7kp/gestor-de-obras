@@ -371,11 +371,18 @@ export class PlanningService {
   }
 
   private daysUntilDate(dateIso: string): number {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const target = new Date(dateIso);
-    target.setHours(0, 0, 0, 0);
-    const diffMs = target.getTime() - today.getTime();
+    const todayInSaoPaulo = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Sao_Paulo',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+
+    const [ty, tm, td] = todayInSaoPaulo.split('-').map(Number);
+    const [yy, mm, dd] = dateIso.split('T')[0].split('-').map(Number);
+    const todayUtc = Date.UTC(ty, (tm || 1) - 1, td || 1);
+    const targetUtc = Date.UTC(yy || 0, (mm || 1) - 1, dd || 1);
+    const diffMs = targetUtc - todayUtc;
     return Math.floor(diffMs / (1000 * 60 * 60 * 24));
   }
 
@@ -390,9 +397,16 @@ export class PlanningService {
       projectPlanning: { projectId: string };
     }>,
   ) {
-    const dueSoon = boletos.filter(
-      (boleto) => this.daysUntilDate(boleto.dueDate) === 3 && boleto.amountDue > 0,
-    );
+    const todayInSaoPaulo = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Sao_Paulo',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+    const dueSoon = boletos.filter((boleto) => {
+      const daysUntil = this.daysUntilDate(boleto.dueDate);
+      return daysUntil >= 0 && daysUntil <= 3 && boleto.amountDue > 0;
+    });
 
     await Promise.all(
       dueSoon.map((boleto) =>
@@ -404,8 +418,8 @@ export class PlanningService {
           eventType: 'BILL_DUE_SOON',
           priority: 'high',
           title: 'Boleto Próximo do Vencimento',
-          body: `${boleto.description} vence em 3 dias (${boleto.dueDate}).`,
-          dedupeKey: `boleto:${boleto.id}:due-soon:${boleto.dueDate}`,
+          body: `${boleto.description} está próximo do vencimento (${boleto.dueDate}).`,
+          dedupeKey: `boleto:${boleto.id}:due-soon:${todayInSaoPaulo}`,
           permissionCodes: ['global_stock_financial.view', 'global_stock_financial.edit'],
           includeProjectMembers: true,
           metadata: {
@@ -1188,7 +1202,10 @@ export class PlanningService {
 
     return {
       scanned: boletos.length,
-      dueSoon: boletos.filter((item) => this.daysUntilDate(item.dueDate) === 3).length,
+      dueSoon: boletos.filter((item) => {
+        const daysUntil = this.daysUntilDate(item.dueDate);
+        return daysUntil >= 0 && daysUntil <= 3;
+      }).length,
     };
   }
 
