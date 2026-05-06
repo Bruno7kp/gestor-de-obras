@@ -420,7 +420,7 @@ export class PlanningService {
           title: 'Boleto Próximo do Vencimento',
           body: `${boleto.description} está próximo do vencimento (${boleto.dueDate}).`,
           dedupeKey: `boleto:${boleto.id}:due-soon:${todayInSaoPaulo}`,
-          permissionCodes: ['global_stock_financial.view', 'global_stock_financial.edit'],
+          permissionCodes: ['supplies.view', 'supplies.edit'],
           includeProjectMembers: true,
           metadata: {
             boletoId: boleto.id,
