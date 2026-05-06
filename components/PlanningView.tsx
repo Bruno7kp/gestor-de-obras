@@ -1334,7 +1334,10 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                         }`}
                       >
                         <ReceiptText size={14} />
-                        Boletos
+                        <span>Boletos</span>
+                        <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-black ${suppliesInnerTab === 'boletos' ? 'bg-white/20' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>
+                          {boletos.length}
+                        </span>
                       </button>
                     </div>
 
@@ -1947,7 +1950,10 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                       className="ml-3 flex items-center gap-2 px-6 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all bg-slate-700 text-white shadow-lg"
                     >
                       <ReceiptText size={14} />
-                      Boletos
+                      <span>Boletos</span>
+                      <span className="px-1.5 py-0.5 rounded-md text-[8px] font-black bg-white/20">
+                        {boletos.length}
+                      </span>
                     </button>
                   </div>
                   <div className="flex justify-end">
