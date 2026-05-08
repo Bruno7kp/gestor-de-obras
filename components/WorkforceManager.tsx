@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Project, WorkforceMember, WorkItem, Contractor } from '../types';
+import { financial } from '../utils/math';
 import { workforceApi } from '../services/workforceApi';
 import { contractorsApi } from '../services/contractorsApi';
 import { treeService } from '../services/treeService';
@@ -64,13 +65,14 @@ export const WorkforceManager: React.FC<WorkforceManagerProps> = ({ project, con
     );
 
     return laborContracts.reduce<Record<string, number>>((acc, contract) => {
-      const paidTotal = (contract.pagamentos || []).reduce((sum, payment) => {
-        if (!paidExpenseIds.has(payment.id)) return sum;
-        return sum + (payment.valor || 0);
-      }, 0);
+      const paidTotal = financial.sum(
+        (contract.pagamentos || [])
+          .filter(payment => paidExpenseIds.has(payment.id))
+          .map(payment => payment.valor || 0),
+      );
 
       if (paidTotal > 0) {
-        acc[contract.associadoId] = (acc[contract.associadoId] || 0) + paidTotal;
+        acc[contract.associadoId] = financial.sum([acc[contract.associadoId] || 0, paidTotal]);
       }
 
       return acc;

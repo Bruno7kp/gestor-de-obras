@@ -1,4 +1,5 @@
 import { LaborContract, LaborPayment, LaborContractType, LaborPaymentStatus } from '../types';
+import { financial } from '../utils/math';
 
 export const laborContractService = {
   
@@ -29,7 +30,7 @@ export const laborContractService = {
   },
 
   calculateTotalPaid(pagamentos: LaborPayment[]): number {
-    return pagamentos.reduce((sum, p) => sum + p.valor, 0);
+    return financial.sum(pagamentos.map(p => p.valor));
   },
 
   calculateStatus(valorTotal: number, valorPago: number): LaborPaymentStatus {
@@ -53,8 +54,8 @@ export const laborContractService = {
     const empreitas = contracts.filter(c => c.tipo === 'empreita').length;
     const diarias = contracts.filter(c => c.tipo === 'diaria').length;
     const pendentes = contracts.filter(c => c.status === 'pendente').length;
-    const valorTotalGeral = contracts.reduce((sum, c) => sum + c.valorTotal, 0);
-    const valorPagoGeral = contracts.reduce((sum, c) => sum + c.valorPago, 0);
+    const valorTotalGeral = financial.sum(contracts.map(c => c.valorTotal));
+    const valorPagoGeral = financial.sum(contracts.map(c => c.valorPago));
     const saldo = valorTotalGeral - valorPagoGeral;
 
     return {

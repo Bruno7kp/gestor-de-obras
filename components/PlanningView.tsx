@@ -485,20 +485,17 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     const totalList = isSuppliesView
       ? list.filter(f => f.status === 'pending')
       : list.filter(f => !f.isCleared);
-    const total = totalList
-      .reduce((acc, f) => acc + getForecastNetTotal(f), 0);
-    
+    const total = financial.sum(totalList.map(f => getForecastNetTotal(f)));
+
     const countPending = list.filter(f => f.status === 'pending').length;
     const countOrdered = list.filter(f => f.status === 'ordered').length;
     const countDelivered = list.filter(f => f.status === 'delivered').length;
     const countEffective = list.filter(f => f.status !== 'pending').length;
 
-    const pending = list
-      .filter(f => f.status === 'ordered' && !f.isPaid)
-      .reduce((acc, f) => acc + getForecastNetTotal(f), 0);
-    const ordered = list.filter(f => f.status === 'ordered').reduce((acc, f) => acc + getForecastNetTotal(f), 0);
-    const delivered = list.filter(f => f.status === 'delivered').reduce((acc, f) => acc + getForecastNetTotal(f), 0);
-    const effective = list.filter(f => f.status !== 'pending').reduce((acc, f) => acc + getForecastNetTotal(f), 0);
+    const pending = financial.sum(list.filter(f => f.status === 'ordered' && !f.isPaid).map(f => getForecastNetTotal(f)));
+    const ordered = financial.sum(list.filter(f => f.status === 'ordered').map(f => getForecastNetTotal(f)));
+    const delivered = financial.sum(list.filter(f => f.status === 'delivered').map(f => getForecastNetTotal(f)));
+    const effective = financial.sum(list.filter(f => f.status !== 'pending').map(f => getForecastNetTotal(f)));
     
     return { total, pending, ordered, delivered, effective, countPending, countOrdered, countDelivered, countEffective };
   }, [planning.forecasts, isSuppliesView]);
@@ -1713,7 +1710,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                         const group = row.group;
                         const groupSupplier = suppliers.find((s) => s.id === group.supplierId);
                         const isExpanded = !!expandedSupplyGroups[row.groupId];
-                        const groupTotal = row.forecasts.reduce((acc, item) => acc + getForecastNetTotal(item), 0);
+                        const groupTotal = financial.sum(row.forecasts.map(item => getForecastNetTotal(item)));
 
                         return (
                           <React.Fragment key={`group-${row.groupId}`}>
@@ -3684,7 +3681,7 @@ const SupplyGroupModal = ({
   };
 
   const totalAmount = useMemo(
-    () => items.reduce((acc, item) => acc + getRowTotal(item), 0),
+    () => financial.sum(items.map(item => getRowTotal(item))),
     [items],
   );
 

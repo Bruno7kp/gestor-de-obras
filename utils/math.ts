@@ -169,11 +169,12 @@ export const financial = {
   },
 
   /**
-   * Soma de precisão: Soma os valores e trunca o resultado final.
+   * Soma de precisão: converte cada valor para centavos inteiros, soma e converte de volta.
+   * Evita acúmulo de erros de ponto flutuante ao somar muitos valores monetários.
    */
   sum: (values: number[]): number => {
-    const total = values.reduce((acc, val) => acc + (val || 0), 0);
-    return financial.truncate(total);
+    const totalCents = values.reduce((acc, val) => acc + Math.round((val || 0) * 100), 0);
+    return totalCents / 100;
   },
 
   /**

@@ -108,16 +108,14 @@ export const PrintPlanningReport: React.FC<PrintPlanningReportProps> = ({
   }, [project.planning.forecasts, printMode, onlyUnpaid]);
 
   const totals = useMemo(() => {
-    const total = reportForecasts.reduce(
-      (acc, forecast) => acc + calculateForecastNetTotal(forecast.quantityNeeded, forecast.unitPrice, forecast.discountValue || 0),
-      0,
+    const total = financial.sum(
+      reportForecasts.map(forecast => calculateForecastNetTotal(forecast.quantityNeeded, forecast.unitPrice, forecast.discountValue || 0)),
     );
-    const totalPaid = reportForecasts
-      .filter((forecast) => forecast.isPaid)
-      .reduce(
-        (acc, forecast) => acc + calculateForecastNetTotal(forecast.quantityNeeded, forecast.unitPrice, forecast.discountValue || 0),
-        0,
-      );
+    const totalPaid = financial.sum(
+      reportForecasts
+        .filter((forecast) => forecast.isPaid)
+        .map(forecast => calculateForecastNetTotal(forecast.quantityNeeded, forecast.unitPrice, forecast.discountValue || 0)),
+    );
 
     return {
       total,
