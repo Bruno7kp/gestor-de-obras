@@ -66,7 +66,8 @@ export const projectService = {
           period: stats.current,
           accumulated: stats.accumulated,
           progress: stats.progress
-        }
+        },
+        roundingAdjustment: project.roundingAdjustment ?? 0,
       };
 
       const rotatedWbsById = new Map(
@@ -100,7 +101,7 @@ export const projectService = {
         items: rotatedItems,
         blueprintItems,
         history: [snapshot, ...(project.history || [])],
-        referenceDate: new Date().toLocaleDateString('pt-BR')
+        referenceDate: new Date().toLocaleDateString('pt-BR'),
       };
     } catch (error) {
       console.error("Erro crítico ao rotacionar medição:", error);

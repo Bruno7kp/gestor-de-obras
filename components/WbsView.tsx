@@ -735,6 +735,7 @@ export const WbsView: React.FC<WbsViewProps> = ({
           currencySymbol={project.theme?.currencySymbol || 'R$'}
           contractTotalOverride={localContractOverride}
           currentTotalOverride={localCurrentOverride}
+          roundingAdjustment={project.roundingAdjustment ?? 0}
         />
       </div>
 

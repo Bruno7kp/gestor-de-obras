@@ -37,6 +37,7 @@ interface UpdateProjectInput {
   groupId?: string | null;
   contractTotalOverride?: number | null;
   currentTotalOverride?: number | null;
+  roundingAdjustment?: number | null;
   order?: number;
   theme?: {
     fontFamily?: string;
@@ -719,6 +720,10 @@ export class ProjectsService {
           input.currentTotalOverride !== undefined
             ? input.currentTotalOverride
             : existing.currentTotalOverride,
+        roundingAdjustment:
+          input.roundingAdjustment !== undefined
+            ? input.roundingAdjustment
+            : existing.roundingAdjustment,
         strict: input.config?.strict ?? existing.strict,
         printCards: input.config?.printCards ?? existing.printCards,
         printSubtotals: input.config?.printSubtotals ?? existing.printSubtotals,

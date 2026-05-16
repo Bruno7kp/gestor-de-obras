@@ -149,6 +149,7 @@ export const normalizeProject = (project: any): Project => {
     stockItems: project.stockItems ?? [],
     contractTotalOverride: project.contractTotalOverride ?? null,
     currentTotalOverride: project.currentTotalOverride ?? null,
+    roundingAdjustment: project.roundingAdjustment ?? 0,
     config,
   } as Project;
 };

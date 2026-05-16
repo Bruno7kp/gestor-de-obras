@@ -138,6 +138,7 @@ export interface MeasurementSnapshot {
     accumulated: number;
     progress: number;
   };
+  roundingAdjustment?: number;
 }
 
 // --- DOCUMENTOS E ATIVOS ---
@@ -695,6 +696,7 @@ export interface Project {
   stockItems: StockItem[];
   contractTotalOverride?: number;
   currentTotalOverride?: number;
+  roundingAdjustment?: number;
   config: {
     strict: boolean;
     printCards: boolean;

@@ -21,6 +21,7 @@ export const measurementSnapshotsApi = {
           date: snap.date,
           items: snap.items ?? snap.itemsSnapshot ?? [],
           totals: snap.totals ?? {},
+          roundingAdjustment: snap.roundingAdjustment ?? 0,
         }))
       : [];
   },
@@ -38,6 +39,7 @@ export const measurementSnapshotsApi = {
         date: snapshot.date,
         itemsSnapshot: snapshot.items,
         totals: snapshot.totals,
+        roundingAdjustment: snapshot.roundingAdjustment ?? 0,
       }),
     });
 

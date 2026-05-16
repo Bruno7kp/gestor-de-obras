@@ -22,6 +22,7 @@ interface CreateSnapshotBody {
   date: string;
   itemsSnapshot: unknown;
   totals: unknown;
+  roundingAdjustment?: number;
 }
 
 type UpdateSnapshotBody = Partial<CreateSnapshotBody>;

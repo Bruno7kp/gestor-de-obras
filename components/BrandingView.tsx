@@ -7,9 +7,9 @@ import { projectsApi } from '../services/projectsApi';
 import { financial } from '../utils/math';
 import { usePermissions } from '../hooks/usePermissions';
 import { useToast } from '../hooks/useToast';
-import { 
-  Percent, MapPin, Upload, 
-  Image as ImageIcon, Trash2, FileText, 
+import {
+  Percent, MapPin, Upload, SlidersHorizontal,
+  Image as ImageIcon, Trash2, FileText,
   CheckCircle2, Building2, Palette, Settings2,
   ToggleRight, ToggleLeft, Cpu, Globe, CreditCard, Archive, RotateCcw, AlertTriangle
 } from 'lucide-react';
@@ -30,6 +30,7 @@ export const BrandingView: React.FC<BrandingViewProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [strBdi, setStrBdi] = useState(financial.formatVisual(project.bdi || 0, '').trim());
+  const [strRoundingAdj, setStrRoundingAdj] = useState(financial.formatVisual(project.roundingAdjustment ?? 0, '').trim());
   const [lifecycleAction, setLifecycleAction] = useState<'archive' | 'reactivate' | null>(null);
   const [lifecycleNameInput, setLifecycleNameInput] = useState('');
   const [lifecycleSubmitting, setLifecycleSubmitting] = useState(false);
@@ -37,6 +38,10 @@ export const BrandingView: React.FC<BrandingViewProps> = ({
   useEffect(() => {
     setStrBdi(financial.formatVisual(project.bdi || 0, '').trim());
   }, [project.bdi]);
+
+  useEffect(() => {
+    setStrRoundingAdj(financial.formatVisual(project.roundingAdjustment ?? 0, '').trim());
+  }, [project.roundingAdjustment]);
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -187,7 +192,7 @@ export const BrandingView: React.FC<BrandingViewProps> = ({
           <h2 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Engenharia & Localização</h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* TAXA DE BDI */}
           <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col gap-6">
             <div className="flex items-center gap-3">
@@ -195,19 +200,50 @@ export const BrandingView: React.FC<BrandingViewProps> = ({
               <h3 className="text-md font-black text-slate-800 dark:text-white uppercase tracking-widest">Taxa de BDI</h3>
             </div>
             <div className="relative">
-              <input 
+              <input
                 disabled={isReadOnly}
                 type="text"
                 inputMode="decimal"
-                className="w-full px-6 py-4 rounded-2xl border-2 border-slate-50 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-3xl font-black focus:border-emerald-500 outline-none pr-16 dark:text-slate-100 transition-all" 
+                className="w-full px-6 py-4 rounded-2xl border-2 border-slate-50 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-3xl font-black focus:border-emerald-500 outline-none pr-16 dark:text-slate-100 transition-all"
                 value={strBdi}
                 onChange={(e) => {
                   const masked = financial.maskCurrency(e.target.value);
                   setStrBdi(masked);
                   onUpdateProject({ bdi: financial.parseLocaleNumber(masked) || 0 });
-                }} 
+                }}
               />
               <span className="absolute right-6 top-1/2 -translate-y-1/2 text-xl font-black text-slate-300">%</span>
+            </div>
+          </div>
+
+          {/* AJUSTE DE ARREDONDAMENTO */}
+          <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col gap-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-amber-50 dark:bg-amber-900/30 text-amber-600 rounded-xl"><SlidersHorizontal size={20} /></div>
+              <div>
+                <h3 className="text-md font-black text-slate-800 dark:text-white uppercase tracking-widest">Ajuste Acumulado</h3>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 font-medium">congelado na ATA</p>
+              </div>
+            </div>
+            <div className="relative">
+              <input
+                disabled={isReadOnly}
+                type="text"
+                inputMode="decimal"
+                className="w-full px-6 py-4 rounded-2xl border-2 border-slate-50 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-3xl font-black focus:border-amber-500 outline-none dark:text-slate-100 transition-all"
+                value={strRoundingAdj}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  if (/^-?[\d.,]*$/.test(raw) || raw === '-') {
+                    setStrRoundingAdj(raw);
+                  }
+                }}
+                onBlur={() => {
+                  const parsed = financial.parseLocaleNumber(strRoundingAdj);
+                  setStrRoundingAdj(financial.formatVisual(parsed, '').trim());
+                  onUpdateProject({ roundingAdjustment: parsed });
+                }}
+              />
             </div>
           </div>
 

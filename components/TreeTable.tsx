@@ -45,6 +45,7 @@ interface TreeTableProps {
   currencySymbol?: string;
   contractTotalOverride?: number;
   currentTotalOverride?: number;
+  roundingAdjustment?: number;
   onScrollContainer?: (el: HTMLDivElement | null) => void;
 }
 
@@ -71,6 +72,7 @@ export const TreeTable: React.FC<TreeTableProps> = ({
   currencySymbol = 'R$',
   contractTotalOverride,
   currentTotalOverride,
+  roundingAdjustment = 0,
   onScrollContainer
 }) => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -164,8 +166,9 @@ export const TreeTable: React.FC<TreeTableProps> = ({
   const totalContract = contractTotalOverride || financial.sum(rootItems.map(i => i.contractTotal));
   const totalCurrent = currentTotalOverride || financial.sum(rootItems.map(i => i.currentTotal));
   const totalPrevious = financial.sum(rootItems.map(i => i.previousTotal));
-  const totalAccumulated = financial.sum(rootItems.map(i => i.accumulatedTotal));
-  const totalBalance = financial.truncate(totalContract - totalAccumulated);
+  const rawAccumulated = financial.sum(rootItems.map(i => i.accumulatedTotal));
+  const totalAccumulated = financial.truncate(rawAccumulated + roundingAdjustment);
+  const totalBalance = financial.truncate(totalContract - rawAccumulated);
 
   return (
     <div className="flex flex-col gap-4">

@@ -655,6 +655,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
       isReadOnly: true,
       label: `Medição Nº ${snapshot.measurementNumber}`,
       date: snapshot.date,
+      roundingAdjustment: snapshot.roundingAdjustment ?? 0,
     };
     return {
       items: project.items,
@@ -675,11 +676,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
   const printStats = useMemo(() => {
     const wbsPrintItems = displayData.items;
-    if (viewingMeasurementId === 'current') {
-      return treeService.calculateBasicStats(wbsPrintItems, project.bdi, project);
-    }
-    return treeService.calculateBasicStats(wbsPrintItems, project.bdi);
-  }, [displayData.items, viewingMeasurementId, project.bdi, project]);
+    const base = viewingMeasurementId === 'current'
+      ? treeService.calculateBasicStats(wbsPrintItems, project.bdi, project)
+      : treeService.calculateBasicStats(wbsPrintItems, project.bdi);
+    const adj = displayData.roundingAdjustment ?? project.roundingAdjustment ?? 0;
+    if (adj === 0) return base;
+    return { ...base, accumulated: financial.truncate(base.accumulated + adj) };
+  }, [displayData.items, displayData.roundingAdjustment, viewingMeasurementId, project.bdi, project]);
 
   const isHistoryMode = viewingMeasurementId !== 'current';
 
@@ -1463,7 +1466,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     </div>
                   </div>
                 )}
-                {tab === 'wbs' && <WbsView project={{ ...project, items: displayData.items, ...(viewingMeasurementId === 'current' ? {} : { contractTotalOverride: undefined, currentTotalOverride: undefined }) }} onUpdateProject={handleWbsUpdateProject} onOpenModal={handleOpenModal} isReadOnly={displayData.isReadOnly} />}
+                {tab === 'wbs' && <WbsView project={{ ...project, items: displayData.items, ...(viewingMeasurementId === 'current' ? {} : { contractTotalOverride: undefined, currentTotalOverride: undefined, roundingAdjustment: displayData.roundingAdjustment ?? 0 }) }} onUpdateProject={handleWbsUpdateProject} onOpenModal={handleOpenModal} isReadOnly={displayData.isReadOnly} />}
                 {tab === 'blueprint' && <BlueprintView project={{ ...project, blueprintItems: displayData.blueprintItems }} onUpdateProject={handleBlueprintUpdateProject} onOpenModal={handleOpenModal} isReadOnly={displayData.isReadOnly} />}
                 {tab === 'stats' && <StatsView project={{ ...project, items: displayData.items }} />}
                 {tab === 'expenses' && (

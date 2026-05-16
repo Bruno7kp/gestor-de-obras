@@ -15,6 +15,7 @@ interface CreateSnapshotInput {
   date: string;
   itemsSnapshot: unknown;
   totals: unknown;
+  roundingAdjustment?: number;
 }
 
 interface UpdateSnapshotInput extends Partial<CreateSnapshotInput> {
@@ -76,6 +77,7 @@ export class MeasurementSnapshotsService {
           date: input.date,
           itemsSnapshot: input.itemsSnapshot as Prisma.InputJsonValue,
           totals: input.totals as Prisma.InputJsonValue,
+          roundingAdjustment: input.roundingAdjustment ?? 0,
           createdById: input.userId ?? null,
         },
       })
@@ -120,6 +122,10 @@ export class MeasurementSnapshotsService {
           itemsSnapshot: (input.itemsSnapshot ??
             existing.itemsSnapshot) as Prisma.InputJsonValue,
           totals: (input.totals ?? existing.totals) as Prisma.InputJsonValue,
+          roundingAdjustment:
+            input.roundingAdjustment !== undefined
+              ? input.roundingAdjustment
+              : existing.roundingAdjustment,
         },
       })
       .then((updated) => {

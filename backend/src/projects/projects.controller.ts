@@ -40,6 +40,7 @@ interface UpdateProjectBody {
   groupId?: string | null;
   contractTotalOverride?: number | null;
   currentTotalOverride?: number | null;
+  roundingAdjustment?: number | null;
   order?: number;
   theme?: {
     fontFamily?: string;
@@ -128,6 +129,7 @@ export class ProjectsController {
     @Body() body: UpdateProjectBody,
     @Req() req: AuthenticatedRequest,
   ) {
+    console.log('[PATCH projects] roundingAdjustment:', body.roundingAdjustment);
     return this.projectsService.update({
       ...body,
       id,
