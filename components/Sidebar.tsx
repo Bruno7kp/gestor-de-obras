@@ -1,7 +1,7 @@
 
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, Cog, PlusCircle, Briefcase, Sun, Moon, Menu, HardHat, Users, Folder, ChevronRight, ChevronLeft, ChevronDown, Landmark, Truck, Shield, User, LogOut, ChevronUp, Lock, Globe, Warehouse, GitBranch, History } from 'lucide-react';
+import { Home, Cog, PlusCircle, Briefcase, Sun, Moon, Menu, HardHat, Users, Folder, ChevronRight, ChevronLeft, ChevronDown, Landmark, Truck, Shield, User, LogOut, ChevronUp, Lock, Globe, Warehouse, GitBranch, History, Receipt } from 'lucide-react';
 import { Project, ProjectGroup, CompanyCertificate, ExternalProject } from '../types';
 import { biddingService } from '../services/biddingService';
 import { stockRequestApi } from '../services/stockRequestApi';
@@ -532,6 +532,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onClick={() => { navigate('/app/stock-log'); setMobileOpen(false); }}
                   icon={<History size={18}/>}
                   label="Movimentações"
+                />
+              )}
+              {canView('supplies') && (
+                <NavItem
+                  active={location.pathname.startsWith('/app/boletos')}
+                  onClick={() => { navigate('/app/boletos'); setMobileOpen(false); }}
+                  icon={<Receipt size={18}/>}
+                  label="Boletos"
                 />
               )}
 

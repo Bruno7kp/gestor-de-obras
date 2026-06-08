@@ -142,6 +142,30 @@ export const planningApi = {
     return Array.isArray(data) ? data : [];
   },
 
+  async listAllBoletos(params?: {
+    skip?: number;
+    take?: number;
+    isPaid?: boolean;
+    projectId?: string;
+  }): Promise<{ boletos: SupplyBoleto[]; total: number }> {
+    const q = new URLSearchParams();
+    if (params?.skip != null) q.set('skip', String(params.skip));
+    if (params?.take != null) q.set('take', String(params.take));
+    if (params?.isPaid !== undefined) q.set('isPaid', String(params.isPaid));
+    if (params?.projectId) q.set('projectId', params.projectId);
+
+    const response = await fetch(`${API_BASE}/planning/boletos/all?${q.toString()}`, {
+      method: 'GET',
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error('Falha ao carregar boletos');
+    }
+
+    return response.json();
+  },
+
   async createBoleto(
     projectId: string,
     boleto: {
@@ -177,6 +201,7 @@ export const planningApi = {
       amountDue: number;
       dueDate: string;
       attachmentUrl?: string | null;
+      isPaid?: boolean;
     }>,
   ): Promise<SupplyBoleto> {
     const response = await fetch(`${API_BASE}/planning/boletos/${id}`, {

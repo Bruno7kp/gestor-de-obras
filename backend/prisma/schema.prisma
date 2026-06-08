@@ -522,6 +522,7 @@ model SupplyBoleto {
   amountDue         Float
   dueDate           String
   attachmentUrl     String?
+  isPaid            Boolean  @default(false)
   createdById       String?
   projectPlanningId String
   createdAt         DateTime @default(now())

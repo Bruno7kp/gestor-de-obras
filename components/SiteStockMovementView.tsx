@@ -184,17 +184,35 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
 
     try {
       setSubmitting(true);
-      const created = await stockRequestApi.create({
-        projectId,
-        globalStockItemId: requestModal.item.id,
-        quantity: qty,
-        notes: requestModal.notes || undefined,
-      });
-      setRequests((prev) => [created, ...prev]);
-      toast.success(`Retirada de ${requestModal.item.name} enviada ao almoxarifado`);
+      if (showRequestsTab) {
+        const created = await stockRequestApi.create({
+          projectId,
+          globalStockItemId: requestModal.item.id,
+          quantity: qty,
+          notes: requestModal.notes || undefined,
+        });
+        setRequests((prev) => [created, ...prev]);
+        toast.success(`Retirada de ${requestModal.item.name} enviada ao almoxarifado`);
+      } else {
+        await globalStockApi.addMovement(requestModal.item.id, {
+          type: 'EXIT',
+          quantity: qty,
+          projectId,
+          originDestination: projectName || 'Obra',
+          notes: requestModal.notes || undefined,
+        });
+        setCatalog(prev => prev.map(i =>
+          i.id === requestModal.item.id
+            ? { ...i, currentQuantity: Math.max(0, i.currentQuantity - qty) }
+            : i
+        ));
+        toast.success(`${qty} ${requestModal.item.unit} de ${requestModal.item.name} retirado(s) do estoque`);
+        void loadMovements(0);
+        void loadConsumptionSummary();
+      }
       setRequestModal(null);
     } catch (err: any) {
-      toast.error(err.message || 'Erro ao criar retirada');
+      toast.error(err.message || 'Erro ao processar retirada');
     } finally {
       setSubmitting(false);
     }
@@ -383,7 +401,7 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
                           onClick={() => setRequestModal({ item, quantity: '', notes: '' })}
                           className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20"
                         >
-                          <Send size={12} /> Solicitar
+                          <Send size={12} /> {showRequestsTab ? 'Solicitar' : 'Retirar'}
                         </button>
                       )}
                     </div>
@@ -752,7 +770,7 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-2xl w-full max-w-md overflow-hidden">
             <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="text-lg font-black text-slate-800 dark:text-white">Solicitar Material</h3>
+              <h3 className="text-lg font-black text-slate-800 dark:text-white">{showRequestsTab ? 'Solicitar Material' : 'Retirar do Estoque'}</h3>
               <p className="text-xs text-slate-400 font-medium mt-1">
                 {requestModal.item.name} ({requestModal.item.unit})
               </p>
@@ -793,12 +811,12 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
                 />
                 {financial.parseLocaleNumber(requestModal.quantity) > requestModal.item.currentQuantity && requestModal.item.currentQuantity > 0 && (
                   <p className="text-[9px] text-amber-500 font-bold mt-1 flex items-center gap-1">
-                    <AlertTriangle size={10} /> Quantidade excede o estoque disponível — o almoxarifado decidirá se atende
+                    <AlertTriangle size={10} /> {showRequestsTab ? 'Quantidade excede o estoque disponível — o almoxarifado decidirá se atende' : 'Quantidade excede o estoque disponível'}
                   </p>
                 )}
                 {requestModal.item.status === 'OUT_OF_STOCK' && (
                   <p className="text-[9px] text-rose-500 font-bold mt-1 flex items-center gap-1">
-                    <AlertTriangle size={10} /> Material esgotado — o almoxarifado receberá a retirada para providência
+                    <AlertTriangle size={10} /> {showRequestsTab ? 'Material esgotado — o almoxarifado receberá a retirada para providência' : 'Material esgotado'}
                   </p>
                 )}
               </div>
@@ -830,7 +848,7 @@ export const SiteStockMovementView: React.FC<SiteStockMovementViewProps> = ({
                 className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
-                Enviar Retirada
+                {showRequestsTab ? 'Enviar Retirada' : 'Confirmar Retirada'}
               </button>
             </div>
           </div>

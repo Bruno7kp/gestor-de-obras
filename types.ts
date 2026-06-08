@@ -258,10 +258,12 @@ export interface SupplyBoleto {
   amountDue: number;
   dueDate: string;
   attachmentUrl?: string | null;
+  isPaid: boolean;
   createdById?: string;
   createdBy?: Pick<UserAccount, 'id' | 'name' | 'profileImage'> | null;
   createdAt?: string;
   updatedAt?: string;
+  projectPlanning?: { projectId: string; project?: { id: string; name: string } };
 }
 
 export interface Milestone {

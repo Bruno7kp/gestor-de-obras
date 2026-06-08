@@ -120,6 +120,7 @@ interface CreateBoletoBody {
   amountDue: number;
   dueDate: string;
   attachmentUrl?: string | null;
+  isPaid?: boolean;
 }
 
 type UpdateBoletoBody = Partial<Omit<CreateBoletoBody, 'projectId'>>;
@@ -198,6 +199,23 @@ export class PlanningController {
       projectId,
       req.user.instanceId,
       req.user.id,
+    );
+  }
+
+  @Get('boletos/all')
+  listAllBoletos(
+    @Query('skip') skip: string,
+    @Query('take') take: string,
+    @Query('isPaid') isPaid: string,
+    @Query('projectId') projectId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.planningService.listAllBoletos(
+      req.user.instanceId,
+      skip ? parseInt(skip, 10) : 0,
+      take ? parseInt(take, 10) : 20,
+      isPaid === 'true' ? true : isPaid === 'false' ? false : undefined,
+      projectId || undefined,
     );
   }
 

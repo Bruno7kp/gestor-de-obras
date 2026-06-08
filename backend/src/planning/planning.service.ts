@@ -125,6 +125,7 @@ interface CreateBoletoInput {
   amountDue: number;
   dueDate: string;
   attachmentUrl?: string | null;
+  isPaid?: boolean;
 }
 
 type UpdateBoletoInput = Partial<
@@ -1027,6 +1028,32 @@ export class PlanningService {
     return boletos;
   }
 
+  async listAllBoletos(
+    instanceId: string,
+    skip = 0,
+    take = 20,
+    isPaid?: boolean,
+    projectId?: string,
+  ) {
+    const where: any = { projectPlanning: { project: { instanceId } } };
+    if (isPaid !== undefined) where.isPaid = isPaid;
+    if (projectId) where.projectPlanning = { project: { instanceId, id: projectId } };
+    const [boletos, total] = await this.prisma.$transaction([
+      this.prisma.supplyBoleto.findMany({
+        where,
+        include: {
+          createdBy: { select: { id: true, name: true, profileImage: true } },
+          projectPlanning: { select: { projectId: true, project: { select: { id: true, name: true } } } },
+        },
+        orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
+        skip,
+        take,
+      }),
+      this.prisma.supplyBoleto.count({ where }),
+    ]);
+    return { boletos, total };
+  }
+
   async createBoleto(input: CreateBoletoInput) {
     await this.ensureProject(input.projectId, input.instanceId, input.userId, true);
     const planning = await this.ensurePlanning(input.projectId);
@@ -1101,6 +1128,7 @@ export class PlanningService {
         dueDate: data.dueDate ?? boleto.dueDate,
         attachmentUrl:
           data.attachmentUrl === undefined ? boleto.attachmentUrl : data.attachmentUrl,
+        ...(data.isPaid !== undefined ? { isPaid: data.isPaid } : {}),
       },
       include: {
         createdBy: {

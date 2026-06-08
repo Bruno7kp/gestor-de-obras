@@ -1081,6 +1081,18 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     }
   };
 
+  const handleToggleBoleto = async (boleto: SupplyBoleto) => {
+    if (!ensureCanEditPlanning()) return;
+    const newPaid = !boleto.isPaid;
+    setBoletos(prev => prev.map(b => b.id === boleto.id ? { ...b, isPaid: newPaid } : b));
+    try {
+      await planningApi.updateBoleto(boleto.id, { isPaid: newPaid });
+    } catch (error) {
+      setBoletos(prev => prev.map(b => b.id === boleto.id ? { ...b, isPaid: boleto.isPaid } : b));
+      toast.error('Erro ao atualizar boleto.');
+    }
+  };
+
   const [isImportingPlan, setIsImportingPlan] = useState(false);
 
   const handleImportPlanning = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1983,6 +1995,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                           <th className="pb-2">Valor a Pagar</th>
                           <th className="pb-2">Vencimento</th>
                           <th className="pb-2">Anexo</th>
+                          <th className="pb-2">Pago</th>
                           <th className="pb-2 text-right pr-4">Ações</th>
                         </tr>
                       </thead>
@@ -1990,17 +2003,17 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                         {boletos.map((boleto) => {
                           const daysToDue = planningService.getUrgencyLevel(boleto.dueDate);
                           return (
-                            <tr key={boleto.id} className="group/row border border-slate-100 dark:border-slate-800 rounded-3xl bg-white dark:bg-slate-900 hover:shadow-md transition-all">
+                            <tr key={boleto.id} className={`group/row border rounded-3xl hover:shadow-md transition-all ${boleto.isPaid ? 'border-emerald-100 dark:border-emerald-900/40 bg-emerald-50/50 dark:bg-emerald-900/10' : 'border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900'}`}>
                               <td className="py-6 px-4 text-left rounded-l-3xl">
-                                <div className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase">{boleto.description}</div>
+                                <div className={`text-sm font-black uppercase ${boleto.isPaid ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200'}`}>{boleto.description}</div>
                               </td>
                               <td className="py-6">
-                                <span className="text-sm font-black text-amber-600">
+                                <span className={`text-sm font-black ${boleto.isPaid ? 'line-through text-slate-400' : 'text-amber-600'}`}>
                                   {financial.formatVisual(boleto.amountDue || 0, project.theme?.currencySymbol)}
                                 </span>
                               </td>
                               <td className="py-6">
-                                <span className={`text-[10px] font-black uppercase tracking-widest ${daysToDue === 'urgent' ? 'text-rose-500' : daysToDue === 'warning' ? 'text-amber-500' : 'text-slate-500'}`}>
+                                <span className={`text-[10px] font-black uppercase tracking-widest ${boleto.isPaid ? 'text-slate-400' : daysToDue === 'urgent' ? 'text-rose-500' : daysToDue === 'warning' ? 'text-amber-500' : 'text-slate-500'}`}>
                                   {financial.formatDate(boleto.dueDate)}
                                 </span>
                               </td>
@@ -2012,6 +2025,15 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                 ) : (
                                   <span className="text-[9px] font-black text-slate-300 uppercase">Sem anexo</span>
                                 )}
+                              </td>
+                              <td className="py-6">
+                                <button
+                                  onClick={() => handleToggleBoleto(boleto)}
+                                  className={`w-7 h-7 rounded-full border-2 flex items-center justify-center mx-auto transition-all ${boleto.isPaid ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 dark:border-slate-600 hover:border-emerald-400'}`}
+                                  title={boleto.isPaid ? 'Marcar como não pago' : 'Marcar como pago'}
+                                >
+                                  {boleto.isPaid && <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                                </button>
                               </td>
                               <td className="py-6 text-right pr-6 rounded-r-3xl">
                                 <div className="flex items-center justify-end gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity">

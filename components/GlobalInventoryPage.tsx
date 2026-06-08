@@ -198,7 +198,7 @@ const EntryModal: React.FC<{
             </div>
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Preço Unit. *</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Preço Unit.</label>
                 <DecimalControls value={priceDecimals} onChange={d => { setPriceDecimals(d); setUnitPrice(prev => prev ? financial.maskDecimal(prev.replace(/\D/g, ''), d) : prev); }} />
               </div>
               <input type="text" inputMode="decimal" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-indigo-500 rounded-xl outline-none transition-all text-sm font-bold" value={unitPrice} onChange={e => setUnitPrice(financial.maskDecimal(e.target.value, priceDecimals))} />
@@ -261,7 +261,7 @@ const EntryModal: React.FC<{
           <button onClick={onClose} className="px-6 py-3 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 text-[10px] font-black uppercase tracking-widest transition-all">Cancelar</button>
           <button
             onClick={() => onSave({ quantity: parsedQty, unitPrice: parsedPrice, invoiceNumber: invoiceNumber || undefined, invoiceDoc: invoiceDoc || undefined, supplierId: supplierId || undefined, date })}
-            disabled={!parsedQty || !parsedPrice || isUploadingInvoice}
+            disabled={!parsedQty || isUploadingInvoice}
             className="flex items-center gap-2 px-8 py-3 bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100"
           >
             <ArrowDownCircle size={16} /> Registrar Entrada
@@ -479,6 +479,7 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
   const [items, setItems] = useState<GlobalStockItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'NORMAL' | 'CRITICAL' | 'OUT_OF_STOCK'>('ALL');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [movements, setMovements] = useState<Record<string, GlobalStockMovement[]>>({});
   const [movementTotals, setMovementTotals] = useState<Record<string, number>>({});
@@ -505,10 +506,16 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
   useEffect(() => { loadItems(); }, [loadItems]);
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return items;
-    const q = search.toLowerCase();
-    return items.filter(i => i.name.toLowerCase().includes(q));
-  }, [items, search]);
+    let result = items;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(i => i.name.toLowerCase().includes(q));
+    }
+    if (statusFilter !== 'ALL') {
+      result = result.filter(i => i.status === statusFilter);
+    }
+    return result;
+  }, [items, search, statusFilter]);
 
   const kpis = useMemo(() => {
     const totalItems = items.length;
@@ -681,6 +688,17 @@ export const GlobalInventoryPage: React.FC<GlobalInventoryPageProps> = ({ suppli
           )}
           <div className="flex-1" />
           <div className="flex items-center gap-3 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <select
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value as typeof statusFilter)}
+              className="py-2 bg-slate-100 dark:bg-slate-800 border-transparent focus:bg-white dark:focus:bg-slate-700 border-2 focus:border-indigo-500 rounded-xl outline-none transition-all text-xs font-bold text-slate-600 dark:text-slate-300 cursor-pointer pr-2 pl-2"
+            >
+              <option value="ALL">Todos</option>
+              <option value="NORMAL">Normal</option>
+              <option value="CRITICAL">Crítico</option>
+              <option value="OUT_OF_STOCK">Sem estoque</option>
+            </select>
+            <div className="w-px h-5 bg-slate-200 dark:bg-slate-700" />
             <div className="relative">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
               <input
