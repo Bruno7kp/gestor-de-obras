@@ -138,7 +138,10 @@ export class WorkItemsService {
     const unitPrice = this.truncate2(input.unitPrice ?? 0);
 
     const contractTotal = this.truncate2(contractQuantity * unitPrice);
-    const previousTotal = this.truncate2(previousQuantity * unitPrice);
+    // previousTotal é um acumulador congelado no fechamento (Σ dos totais
+    // truncados de cada período). Reconstruí-lo de previousQuantity × unitPrice
+    // reintroduz erro de arredondamento e adiciona/some centavos no acumulado.
+    const previousTotal = this.truncate2(input.previousTotal ?? 0);
     const currentTotal = this.truncate2(currentQuantity * unitPrice);
     const accumulatedQuantity = this.round2(previousQuantity + currentQuantity);
     const accumulatedTotal = this.truncate2(previousTotal + currentTotal);

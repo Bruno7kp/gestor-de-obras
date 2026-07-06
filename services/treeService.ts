@@ -58,7 +58,11 @@ export const treeService = {
       node.unitPrice = financial.truncate((node.unitPriceNoBdi || 0) * bdiFactor);
       node.contractTotal = financial.truncate(node.unitPrice * (node.contractQuantity || 0));
       
-      node.previousTotal = financial.truncate((node.previousQuantity || 0) * node.unitPrice);
+      // previousTotal é um acumulador congelado no fechamento da medição
+      // (Σ dos totais já truncados de cada período). Reconstruí-lo a partir de
+      // previousQuantity × unitPrice reintroduz erro de arredondamento
+      // (truncate(a·p)+truncate(b·p) ≠ truncate((a+b)·p)) e adiciona/some centavos.
+      node.previousTotal = financial.truncate(node.previousTotal || 0);
       node.currentTotal = financial.truncate((node.currentQuantity || 0) * node.unitPrice);
       
       node.accumulatedQuantity = financial.round((node.previousQuantity || 0) + (node.currentQuantity || 0));
@@ -83,7 +87,8 @@ export const treeService = {
       const bdiFactor = 1 + (bdi / 100);
       const newUnitPrice = financial.truncate((item.unitPriceNoBdi || 0) * bdiFactor);
       const contractTotal = financial.truncate(newUnitPrice * (item.contractQuantity || 0));
-      const previousTotal = financial.truncate((item.previousQuantity || 0) * newUnitPrice);
+      // previousTotal é acumulador congelado; nunca reconstruir da quantidade.
+      const previousTotal = financial.truncate(item.previousTotal || 0);
       const currentTotal = financial.truncate((item.currentQuantity || 0) * newUnitPrice);
       const accumulatedTotal = financial.truncate(previousTotal + currentTotal);
       return {
