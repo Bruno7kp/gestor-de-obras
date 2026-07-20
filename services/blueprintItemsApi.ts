@@ -29,7 +29,7 @@ type BlueprintItemPayload = {
   balanceTotal?: number;
 };
 
-const toPayload = (item: WorkItem, projectId: string): BlueprintItemPayload => ({
+export const toBlueprintPayload = (item: WorkItem, projectId: string): BlueprintItemPayload => ({
   id: item.id,
   projectId,
   parentId: item.parentId ?? null,
@@ -83,7 +83,7 @@ export const blueprintItemsApi = {
         'Content-Type': 'application/json',
       },
       credentials: 'include',
-      body: JSON.stringify(toPayload(item, projectId)),
+      body: JSON.stringify(toBlueprintPayload(item, projectId)),
     });
 
     if (!response.ok) {
@@ -98,7 +98,7 @@ export const blueprintItemsApi = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ projectId, items: items.map((item) => toPayload(item, projectId)), replace: replaceFlag }),
+      body: JSON.stringify({ projectId, items: items.map((item) => toBlueprintPayload(item, projectId)), replace: replaceFlag }),
     });
 
     if (!response.ok) {

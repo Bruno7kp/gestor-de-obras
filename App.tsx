@@ -7,9 +7,8 @@ import { biddingService } from './services/biddingService';
 import { projectsApi } from './services/projectsApi';
 import { notificationsApi } from './services/notificationsApi';
 import { planningApi } from './services/planningApi';
-import { workItemsApi } from './services/workItemsApi';
-import { blueprintItemsApi } from './services/blueprintItemsApi';
-import { measurementSnapshotsApi } from './services/measurementSnapshotsApi';
+import { toBlueprintPayload } from './services/blueprintItemsApi';
+import { useToast } from './hooks/useToast';
 import type { GlobalSettings, Project, Supplier, Contractor, UserNotification } from './types';
 
 import { Sidebar } from './components/Sidebar';
@@ -287,6 +286,8 @@ const App: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const [isClosingMeasurement, setIsClosingMeasurement] = useState(false);
+  const isClosingMeasurementRef = useRef(false);
+  const toast = useToast();
   const [unreadNotificationsByProject, setUnreadNotificationsByProject] = useState<Record<string, number>>({});
   const [projectNotifications, setProjectNotifications] = useState<UserNotification[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
@@ -448,70 +449,65 @@ const App: React.FC = () => {
   }, [refreshActiveProjectNotifications]);
 
   const handleCloseMeasurement = useCallback(async () => {
-    if (!activeProject || isClosingMeasurement) return;
+    // A trava precisa ser um ref: dois cliques no mesmo ciclo de render leem
+    // o mesmo valor de estado e ambos passariam pela checagem.
+    if (!activeProject || isClosingMeasurementRef.current) return;
+    isClosingMeasurementRef.current = true;
     setIsClosingMeasurement(true);
 
     try {
       const updated = projectService.closeMeasurement(activeProject);
+      const snapshot = updated.history?.[0];
+
+      if (!snapshot) {
+        throw new Error('Não foi possível montar a ATA da medição.');
+      }
+
+      // Uma chamada só: o backend grava ATA, número, rotação dos itens e
+      // quantitativo numa transação. Se falhar, nada foi gravado e refechar
+      // é seguro (o backend devolve a ATA existente em vez de duplicar).
+      const result = await projectsApi.closeMeasurement(activeProject.id, {
+        measurementNumber: snapshot.measurementNumber,
+        nextMeasurementNumber: updated.measurementNumber,
+        date: snapshot.date,
+        referenceDate: updated.referenceDate,
+        itemsSnapshot: snapshot.items,
+        totals: snapshot.totals,
+        roundingAdjustment: snapshot.roundingAdjustment ?? 0,
+        workItems: updated.items.map(item => ({
+          id: item.id,
+          previousQuantity: item.previousQuantity,
+          previousTotal: item.previousTotal,
+          currentQuantity: item.currentQuantity,
+          currentTotal: item.currentTotal,
+          currentPercentage: item.currentPercentage,
+          accumulatedQuantity: item.accumulatedQuantity,
+          accumulatedTotal: item.accumulatedTotal,
+          accumulatedPercentage: item.accumulatedPercentage,
+          balanceQuantity: item.balanceQuantity,
+          balanceTotal: item.balanceTotal,
+        })),
+        blueprintItems: (updated.blueprintItems || []).map(item =>
+          toBlueprintPayload(item, activeProject.id),
+        ),
+      });
+
+      // A tela só avança depois que o backend confirmou a gravação.
       updateActiveProject(updated);
 
-      const snapshot = updated.history?.[0];
-      if (snapshot) {
-        try {
-          await measurementSnapshotsApi.create(activeProject.id, snapshot);
-        } catch (error) {
-          console.error('Erro ao salvar snapshot:', error);
-        }
+      if (result.alreadyClosed) {
+        toast.warning(`A medição Nº ${snapshot.measurementNumber} já estava fechada.`);
+      } else {
+        toast.success(`Medição Nº ${snapshot.measurementNumber} fechada.`);
       }
-
-      try {
-        await projectsApi.update(activeProject.id, {
-          measurementNumber: updated.measurementNumber,
-          referenceDate: updated.referenceDate,
-        });
-      } catch (error) {
-        console.error('Erro ao atualizar medição do projeto:', error);
-      }
-
-      try {
-        const wbsItems = updated.items;
-        await workItemsApi.batchUpdate(
-          activeProject.id,
-          wbsItems.map(item => ({
-            id: item.id,
-            parentId: item.parentId,
-            order: item.order,
-            wbs: item.wbs,
-            contractQuantity: item.contractQuantity,
-            unitPrice: item.unitPrice,
-            unitPriceNoBdi: item.unitPriceNoBdi,
-            contractTotal: item.contractTotal,
-            previousQuantity: item.previousQuantity,
-            previousTotal: item.previousTotal,
-            currentQuantity: item.currentQuantity,
-            currentTotal: item.currentTotal,
-            currentPercentage: item.currentPercentage,
-            accumulatedQuantity: item.accumulatedQuantity,
-            accumulatedTotal: item.accumulatedTotal,
-            accumulatedPercentage: item.accumulatedPercentage,
-            balanceQuantity: item.balanceQuantity,
-            balanceTotal: item.balanceTotal,
-          })),
-          'closeMeasurement',
-        );
-
-        await blueprintItemsApi.batch(
-          activeProject.id,
-          updated.blueprintItems || [],
-          true,
-        );
-      } catch (error) {
-        console.error('Erro ao atualizar itens apos fechamento:', error);
-      }
+    } catch (error) {
+      console.error('Erro ao fechar medição:', error);
+      toast.error('Falha ao fechar a medição. Nada foi gravado, pode tentar de novo.');
     } finally {
+      isClosingMeasurementRef.current = false;
       setIsClosingMeasurement(false);
     }
-  }, [activeProject, isClosingMeasurement, updateActiveProject]);
+  }, [activeProject, updateActiveProject, toast]);
 
   const handleCreateProject = useCallback(async (groupId?: string | null) => {
     try {

@@ -26,6 +26,30 @@ interface CreateProjectBody {
   groupId?: string | null;
 }
 
+interface CloseMeasurementBody {
+  measurementNumber: number;
+  nextMeasurementNumber: number;
+  date: string;
+  referenceDate: string;
+  itemsSnapshot: unknown;
+  totals: unknown;
+  roundingAdjustment?: number;
+  workItems?: Array<{
+    id: string;
+    previousQuantity?: number;
+    previousTotal?: number;
+    currentQuantity?: number;
+    currentTotal?: number;
+    currentPercentage?: number;
+    accumulatedQuantity?: number;
+    accumulatedTotal?: number;
+    accumulatedPercentage?: number;
+    balanceQuantity?: number;
+    balanceTotal?: number;
+  }>;
+  blueprintItems?: Record<string, unknown>[];
+}
+
 interface UpdateProjectBody {
   name?: string;
   description?: string | null;
@@ -136,6 +160,29 @@ export class ProjectsController {
       instanceId: req.user.instanceId,
       userId: req.user.id,
       permissions: req.user.permissions || [],
+    });
+  }
+
+  @Post(':id/close-measurement')
+  closeMeasurement(
+    @Param('id') id: string,
+    @Body() body: CloseMeasurementBody,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.projectsService.closeMeasurement({
+      projectId: id,
+      instanceId: req.user.instanceId,
+      userId: req.user.id,
+      permissions: req.user.permissions || [],
+      measurementNumber: body.measurementNumber,
+      nextMeasurementNumber: body.nextMeasurementNumber,
+      date: body.date,
+      referenceDate: body.referenceDate,
+      itemsSnapshot: body.itemsSnapshot,
+      totals: body.totals,
+      roundingAdjustment: body.roundingAdjustment,
+      workItems: body.workItems,
+      blueprintItems: body.blueprintItems,
     });
   }
 

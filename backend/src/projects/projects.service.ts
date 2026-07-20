@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { removeLocalUpload, removeLocalUploads } from '../uploads/file.utils';
@@ -17,6 +18,38 @@ interface CreateProjectInput {
   groupId?: string | null;
   instanceId: string;
   userId?: string;
+}
+
+interface CloseMeasurementWorkItem {
+  id: string;
+  previousQuantity?: number;
+  previousTotal?: number;
+  currentQuantity?: number;
+  currentTotal?: number;
+  currentPercentage?: number;
+  accumulatedQuantity?: number;
+  accumulatedTotal?: number;
+  accumulatedPercentage?: number;
+  balanceQuantity?: number;
+  balanceTotal?: number;
+}
+
+interface CloseMeasurementInput {
+  projectId: string;
+  instanceId: string;
+  userId: string;
+  permissions: string[];
+  /** medição que está sendo fechada (vira o número da ATA) */
+  measurementNumber: number;
+  /** número do período que abre depois do fechamento */
+  nextMeasurementNumber: number;
+  date: string;
+  referenceDate: string;
+  itemsSnapshot: unknown;
+  totals: unknown;
+  roundingAdjustment?: number;
+  workItems?: CloseMeasurementWorkItem[];
+  blueprintItems?: Record<string, unknown>[];
 }
 
 interface UpdateProjectInput {
@@ -970,6 +1003,197 @@ export class ProjectsService {
           permissions: m.assignedRole.permissions.map((p) => p.permission.code),
         },
       }));
+  }
+
+  /**
+   * Fecha a medição inteira numa única transação: cria a ATA (snapshot),
+   * avança o número da medição, rotaciona os itens (atual -> anterior) e
+   * substitui o quantitativo. Ou tudo é gravado, ou nada é.
+   *
+   * O fluxo antigo fazia essas quatro etapas em chamadas separadas do cliente,
+   * e uma falha no meio deixava ATA emitida e número avançado com os itens
+   * ainda no período anterior, sem erro visível. Refechar nessa situação
+   * gerava uma segunda ATA do mesmo estado.
+   *
+   * Os valores continuam sendo calculados no cliente e enviados prontos: o
+   * backend usa o unitPrice persistido, que é zero em projetos legados, então
+   * recalcular aqui mudaria os números de obras antigas.
+   */
+  async closeMeasurement(input: CloseMeasurementInput) {
+    const canEdit = await this.canEditProject(
+      input.projectId,
+      input.userId,
+      input.permissions,
+    );
+
+    if (!canEdit) {
+      throw new ForbiddenException('Sem permissao para editar o projeto');
+    }
+
+    let project = await this.prisma.project.findFirst({
+      where: { id: input.projectId, instanceId: input.instanceId },
+    });
+
+    if (!project && input.userId) {
+      project = await this.prisma.project.findFirst({
+        where: {
+          id: input.projectId,
+          members: { some: { userId: input.userId } },
+        },
+      });
+    }
+
+    if (!project) throw new NotFoundException('Projeto nao encontrado');
+
+    if (project.isArchived) {
+      throw new ForbiddenException(
+        'Projeto arquivado. Reative a obra para permitir edicoes.',
+      );
+    }
+
+    // Idempotência: se a ATA dessa medição já existe, o fechamento já rodou.
+    // Devolve o que existe em vez de emitir uma segunda ATA do mesmo período.
+    const alreadyClosed = await this.prisma.measurementSnapshot.findFirst({
+      where: {
+        projectId: input.projectId,
+        measurementNumber: input.measurementNumber,
+      },
+    });
+
+    if (alreadyClosed) {
+      return {
+        snapshot: alreadyClosed,
+        alreadyClosed: true,
+        updatedItems: 0,
+      };
+    }
+
+    const workItems = input.workItems ?? [];
+    const blueprintItems = input.blueprintItems ?? [];
+
+    const result = await this.prisma.$transaction(
+      async (tx) => {
+        const snapshot = await tx.measurementSnapshot.create({
+          data: {
+            projectId: input.projectId,
+            measurementNumber: input.measurementNumber,
+            date: input.date,
+            itemsSnapshot: input.itemsSnapshot as Prisma.InputJsonValue,
+            totals: input.totals as Prisma.InputJsonValue,
+            roundingAdjustment: input.roundingAdjustment ?? 0,
+            createdById: input.userId ?? null,
+          },
+        });
+
+        await tx.project.update({
+          where: { id: input.projectId },
+          data: {
+            measurementNumber: input.nextMeasurementNumber,
+            referenceDate: input.referenceDate,
+          },
+        });
+
+        // Rotação em uma única instrução: 159 updates individuais dentro da
+        // transação são exatamente o que estourava o timeout no droplet.
+        if (workItems.length > 0) {
+          const rows = workItems.map(
+            (i) => Prisma.sql`(
+              ${i.id}::text,
+              ${i.previousQuantity ?? 0}::double precision,
+              ${i.previousTotal ?? 0}::double precision,
+              ${i.currentQuantity ?? 0}::double precision,
+              ${i.currentTotal ?? 0}::double precision,
+              ${i.currentPercentage ?? 0}::double precision,
+              ${i.accumulatedQuantity ?? 0}::double precision,
+              ${i.accumulatedTotal ?? 0}::double precision,
+              ${i.accumulatedPercentage ?? 0}::double precision,
+              ${i.balanceQuantity ?? 0}::double precision,
+              ${i.balanceTotal ?? 0}::double precision
+            )`,
+          );
+
+          await tx.$executeRaw`
+            UPDATE "WorkItem" w SET
+              "previousQuantity"     = v.prev_q,
+              "previousTotal"        = v.prev_t,
+              "currentQuantity"      = v.curr_q,
+              "currentTotal"         = v.curr_t,
+              "currentPercentage"    = v.curr_p,
+              "accumulatedQuantity"  = v.acc_q,
+              "accumulatedTotal"     = v.acc_t,
+              "accumulatedPercentage"= v.acc_p,
+              "balanceQuantity"      = v.bal_q,
+              "balanceTotal"         = v.bal_t
+            FROM (VALUES ${Prisma.join(rows)}) AS v(
+              id, prev_q, prev_t, curr_q, curr_t, curr_p,
+              acc_q, acc_t, acc_p, bal_q, bal_t
+            )
+            WHERE w.id = v.id AND w."projectId" = ${input.projectId}
+          `;
+        }
+
+        await tx.blueprintItem.deleteMany({
+          where: { projectId: input.projectId },
+        });
+
+        if (blueprintItems.length > 0) {
+          // Os mesmos defaults do batchInsert: o modelo exige wbs/order/unit e
+          // os Float como não-nulos, e um campo ausente derrubaria a transação
+          // inteira, fazendo o fechamento falhar por causa do quantitativo.
+          const num = (value: unknown) =>
+            typeof value === 'number' && Number.isFinite(value) ? value : 0;
+
+          await tx.blueprintItem.createMany({
+            data: blueprintItems.map((item) => ({
+              id: item.id as string | undefined,
+              projectId: input.projectId,
+              parentId: (item.parentId as string | null) ?? null,
+              name: (item.name as string) ?? '',
+              type: (item.type as string) ?? 'item',
+              wbs: (item.wbs as string) || '',
+              order: num(item.order),
+              unit: (item.unit as string) || 'un',
+              cod: (item.cod as string | null) ?? null,
+              fonte: (item.fonte as string | null) ?? null,
+              contractQuantity: num(item.contractQuantity),
+              unitPrice: num(item.unitPrice),
+              unitPriceNoBdi: num(item.unitPriceNoBdi),
+              contractTotal: num(item.contractTotal),
+              previousQuantity: num(item.previousQuantity),
+              previousTotal: num(item.previousTotal),
+              currentQuantity: num(item.currentQuantity),
+              currentTotal: num(item.currentTotal),
+              currentPercentage: num(item.currentPercentage),
+              accumulatedQuantity: num(item.accumulatedQuantity),
+              accumulatedTotal: num(item.accumulatedTotal),
+              accumulatedPercentage: num(item.accumulatedPercentage),
+              balanceQuantity: num(item.balanceQuantity),
+              balanceTotal: num(item.balanceTotal),
+            })),
+          });
+        }
+
+        return snapshot;
+      },
+      { timeout: 30000, maxWait: 15000 },
+    );
+
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      userId: input.userId,
+      projectId: input.projectId,
+      action: 'CREATE',
+      model: 'MeasurementSnapshot',
+      entityId: result.id,
+      metadata: {
+        operation: 'closeMeasurement',
+        measurementNumber: input.measurementNumber,
+        itemCount: workItems.length,
+        blueprintCount: blueprintItems.length,
+      },
+    });
+
+    return { snapshot: result, alreadyClosed: false, updatedItems: workItems.length };
   }
 
   async updateLifecycle(input: UpdateProjectLifecycleInput) {

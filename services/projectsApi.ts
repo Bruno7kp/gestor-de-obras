@@ -154,6 +154,21 @@ export const normalizeProject = (project: any): Project => {
   } as Project;
 };
 
+/** Campos de rotação enviados no fechamento da medição. */
+export interface CloseMeasurementWorkItem {
+  id: string;
+  previousQuantity?: number;
+  previousTotal?: number;
+  currentQuantity?: number;
+  currentTotal?: number;
+  currentPercentage?: number;
+  accumulatedQuantity?: number;
+  accumulatedTotal?: number;
+  accumulatedPercentage?: number;
+  balanceQuantity?: number;
+  balanceTotal?: number;
+}
+
 export const projectsApi = {
   async list(): Promise<Project[]> {
     const response = await fetch(`${API_BASE}/projects`, {
@@ -216,6 +231,43 @@ export const projectsApi = {
     }
 
     return normalizeProject(await response.json());
+  },
+
+  /**
+   * Fecha a medição inteira em uma chamada: o backend grava ATA, número da
+   * medição, rotação dos itens e quantitativo numa transação só.
+   * Se falhar, nada foi gravado e dá para tentar de novo sem gerar ATA duplicada.
+   */
+  async closeMeasurement(id: string, input: {
+    measurementNumber: number;
+    nextMeasurementNumber: number;
+    date: string;
+    referenceDate: string;
+    itemsSnapshot: unknown;
+    totals: unknown;
+    roundingAdjustment?: number;
+    workItems: CloseMeasurementWorkItem[];
+    blueprintItems: unknown[];
+  }): Promise<{ alreadyClosed: boolean; updatedItems: number }> {
+    const response = await fetch(`${API_BASE}/projects/${id}/close-measurement`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(input),
+    });
+
+    if (!response.ok) {
+      const detail = await response.text().catch(() => '');
+      throw new Error(detail || 'Falha ao fechar a medição');
+    }
+
+    const data = await response.json();
+    return {
+      alreadyClosed: Boolean(data?.alreadyClosed),
+      updatedItems: Number(data?.updatedItems ?? 0),
+    };
   },
 
   async remove(id: string): Promise<void> {
