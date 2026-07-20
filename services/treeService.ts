@@ -62,7 +62,12 @@ export const treeService = {
       // (Σ dos totais já truncados de cada período). Reconstruí-lo a partir de
       // previousQuantity × unitPrice reintroduz erro de arredondamento
       // (truncate(a·p)+truncate(b·p) ≠ truncate((a+b)·p)) e adiciona/some centavos.
-      node.previousTotal = financial.truncate(node.previousTotal || 0);
+      // Só que há projetos legados que nunca persistiram totais (colunas zeradas,
+      // só quantidades): neles o acumulado precisa ser recalculado, senão zera.
+      const storedPreviousTotal = node.previousTotal || 0;
+      node.previousTotal = storedPreviousTotal > 0
+        ? financial.truncate(storedPreviousTotal)
+        : financial.truncate((node.previousQuantity || 0) * node.unitPrice);
       node.currentTotal = financial.truncate((node.currentQuantity || 0) * node.unitPrice);
       
       node.accumulatedQuantity = financial.round((node.previousQuantity || 0) + (node.currentQuantity || 0));
@@ -87,8 +92,12 @@ export const treeService = {
       const bdiFactor = 1 + (bdi / 100);
       const newUnitPrice = financial.truncate((item.unitPriceNoBdi || 0) * bdiFactor);
       const contractTotal = financial.truncate(newUnitPrice * (item.contractQuantity || 0));
-      // previousTotal é acumulador congelado; nunca reconstruir da quantidade.
-      const previousTotal = financial.truncate(item.previousTotal || 0);
+      // previousTotal é acumulador congelado: confia no valor salvo quando existe,
+      // e só recalcula em projetos legados que nunca persistiram totais.
+      const storedPreviousTotal = item.previousTotal || 0;
+      const previousTotal = storedPreviousTotal > 0
+        ? financial.truncate(storedPreviousTotal)
+        : financial.truncate((item.previousQuantity || 0) * newUnitPrice);
       const currentTotal = financial.truncate((item.currentQuantity || 0) * newUnitPrice);
       const accumulatedTotal = financial.truncate(previousTotal + currentTotal);
       return {

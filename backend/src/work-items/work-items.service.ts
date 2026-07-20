@@ -141,7 +141,12 @@ export class WorkItemsService {
     // previousTotal é um acumulador congelado no fechamento (Σ dos totais
     // truncados de cada período). Reconstruí-lo de previousQuantity × unitPrice
     // reintroduz erro de arredondamento e adiciona/some centavos no acumulado.
-    const previousTotal = this.truncate2(input.previousTotal ?? 0);
+    // Projetos legados sem totais persistidos caem no cálculo por quantidade.
+    const storedPreviousTotal = this.asNumber(input.previousTotal ?? 0);
+    const previousTotal =
+      storedPreviousTotal > 0
+        ? this.truncate2(storedPreviousTotal)
+        : this.truncate2(previousQuantity * unitPrice);
     const currentTotal = this.truncate2(currentQuantity * unitPrice);
     const accumulatedQuantity = this.round2(previousQuantity + currentQuantity);
     const accumulatedTotal = this.truncate2(previousTotal + currentTotal);
