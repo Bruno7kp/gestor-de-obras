@@ -270,6 +270,33 @@ export const projectsApi = {
     };
   },
 
+  /**
+   * Reabre a última medição fechada numa chamada só: o backend apaga a ATA,
+   * reverte os itens (a partir do próprio itemsSnapshot da ATA) e o número da
+   * medição, numa transação. Idempotente: se a ATA já não existe, não erra.
+   */
+  async reopenMeasurement(id: string, measurementNumber: number): Promise<{ alreadyReopened: boolean; updatedItems: number }> {
+    const response = await fetch(`${API_BASE}/projects/${id}/reopen-measurement`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ measurementNumber }),
+    });
+
+    if (!response.ok) {
+      const detail = await response.text().catch(() => '');
+      throw new Error(detail || 'Falha ao reabrir a medição');
+    }
+
+    const data = await response.json();
+    return {
+      alreadyReopened: Boolean(data?.alreadyReopened),
+      updatedItems: Number(data?.updatedItems ?? 0),
+    };
+  },
+
   async remove(id: string): Promise<void> {
     const response = await fetch(`${API_BASE}/projects/${id}`, {
       method: 'DELETE',

@@ -1884,7 +1884,18 @@ export class PlanningService {
       if (!requestedId || !this.isMaterialForecastIdConflict(error)) {
         throw error;
       }
-      ({ created, syncedExpense } = await tryCreateForecast());
+      // The item with this client-generated id already exists — most likely
+      // a retried/duplicated create request for the same item. Treat this as
+      // an idempotent no-op and return the existing record instead of
+      // creating a second copy with a fresh id.
+      const existing = await this.prisma.materialForecast.findUnique({
+        where: { id: requestedId },
+      });
+      if (!existing) throw error;
+      created = existing as typeof created;
+      syncedExpense = (await this.prisma.projectExpense.findUnique({
+        where: { id: requestedId },
+      })) as Record<string, unknown> | null;
     }
 
     const supplyGroupLabel = created.supplyGroupId

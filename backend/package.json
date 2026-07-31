@@ -18,6 +18,8 @@
     "migrate:blueprint-cleanup": "ts-node scripts/migrate-blueprint-out-of-workitem.ts",
     "import:localstorage": "ts-node scripts/import-localstorage.ts",
     "fix:duplicate-expenses": "ts-node scripts/fix-duplicate-forecast-expenses.ts",
+    "dedupe:material-forecasts": "ts-node scripts/dedupe-material-forecasts.ts",
+    "reconcile:work-item-totals": "ts-node scripts/reconcile-work-item-totals.ts",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",

@@ -108,6 +108,7 @@ interface PlanningViewProps {
   project: Project;
   suppliers: Supplier[];
   onUpdatePlanning: (planning: ProjectPlanning) => void;
+  onPlanningReplaced?: (planning: ProjectPlanning) => void;
   onAddExpense: (expense: ProjectExpense) => void;
   onUpdateExpense: (id: string, data: Partial<ProjectExpense>) => void;
   onRefreshExpenses?: () => Promise<void>;
@@ -126,6 +127,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   project,
   suppliers,
   onUpdatePlanning,
+  onPlanningReplaced,
   onAddExpense,
   onUpdateExpense,
   onRefreshExpenses,
@@ -1113,7 +1115,11 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
         milestones: newPlanning.milestones,
       });
 
-      onUpdatePlanning(newPlanning);
+      // Backend is already fully replaced with newPlanning — just reflect it
+      // locally. Do NOT go through onUpdatePlanning here: it diffs against
+      // the pre-import local state and resends the same items via
+      // create/update, which is redundant and can duplicate them.
+      (onPlanningReplaced ?? onUpdatePlanning)(newPlanning);
     } catch (err) {
       console.error('Erro ao importar planejamento:', err);
       toast.error("Erro ao importar planejamento.");
@@ -1147,7 +1153,8 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-2 text-slate-400 hover:text-emerald-600 transition-colors"
+                  disabled={isImportingPlan}
+                  className="p-2 text-slate-400 hover:text-emerald-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   title="Importar Excel"
                 >
                   <UploadCloud size={16}/>
@@ -1175,7 +1182,8 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-2 text-slate-400 hover:text-emerald-600 transition-colors"
+                  disabled={isImportingPlan}
+                  className="p-2 text-slate-400 hover:text-emerald-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   title="Importar Excel"
                 >
                   <UploadCloud size={16}/>
@@ -1282,7 +1290,8 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                   </button>
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="p-2.5 text-slate-400 hover:text-emerald-600"
+                    disabled={isImportingPlan}
+                    className="p-2.5 text-slate-400 hover:text-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed"
                     title="Importar Excel"
                   >
                     <UploadCloud size={18} />
@@ -2767,6 +2776,8 @@ const deriveUnitPriceFromNetTotal = (
 
 // --- PREMIUM FORECAST MODAL (DARK) ---
 const ForecastModal = ({ onClose, onSave, projectId, allWorkItems, suppliers, expenses, forecasts, editingItem }: any) => {
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [data, setData] = useState({
     description: editingItem?.description || '',
     calculationMemory: editingItem?.calculationMemory || '',
@@ -3546,9 +3557,14 @@ const ForecastModal = ({ onClose, onSave, projectId, allWorkItems, suppliers, ex
            >
              Cancelar
            </button>
-           <button 
-            onClick={() => onSave(data)} 
-            disabled={!data.description} 
+           <button
+            onClick={() => {
+              if (savingRef.current) return;
+              savingRef.current = true;
+              setSaving(true);
+              onSave(data);
+            }}
+            disabled={!data.description || saving}
             className="flex-[2] py-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-[0_15px_35px_-10px_rgba(79,70,229,0.5)] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-30 disabled:cursor-not-allowed"
            >
              <Save size={20} /> {editingItem ? 'Atualizar Registro' : 'Confirmar Inclusão'}

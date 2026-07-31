@@ -43,7 +43,6 @@ import { projectExpensesApi } from '../services/projectExpensesApi';
 import { planningApi } from '../services/planningApi';
 import { projectAssetsApi } from '../services/projectAssetsApi';
 import { projectsApi } from '../services/projectsApi';
-import { measurementSnapshotsApi } from '../services/measurementSnapshotsApi';
 import { rolesApi } from '../services/rolesApi';
 import { usersApi } from '../services/usersApi';
 import { suppliersApi } from '../services/suppliersApi';
@@ -1058,10 +1057,26 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     }
   }, [project.id, project.planning, refreshExpenses, onUpdateProject, toast]);
 
-  const handleUpdatePlanning = useCallback(async (nextPlanning: ProjectPlanning) => {
+  const syncQueueRef = useRef(Promise.resolve());
+
+  const handleUpdatePlanning = useCallback((nextPlanning: ProjectPlanning) => {
     onUpdateProject({ planning: nextPlanning });
-    await syncPlanningEntities(nextPlanning);
+    // Chain onto any in-flight sync instead of firing a parallel one: two
+    // overlapping calls would both diff against the same stale prevPlanning
+    // and resend the same "new" items twice.
+    const next = syncQueueRef.current
+      .catch(() => undefined)
+      .then(() => syncPlanningEntities(nextPlanning));
+    syncQueueRef.current = next;
+    return next;
   }, [onUpdateProject, syncPlanningEntities]);
+
+  // Used after a full backend replace (Excel import), where the backend is
+  // already 100% consistent with nextPlanning — no diff/sync needed, and
+  // running one would just recreate what replace() already created.
+  const handlePlanningReplaced = useCallback((nextPlanning: ProjectPlanning) => {
+    onUpdateProject({ planning: nextPlanning });
+  }, [onUpdateProject]);
 
   const handleAssetAdd = useCallback(async (asset: ProjectAsset) => {
     const nextAssets = [...project.assets, asset];
@@ -1137,56 +1152,25 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
     setIsReopenInProgress(true);
 
-    const updated = projectService.reopenLatestMeasurement(project);
-    onUpdateProject(updated);
-    setViewingMeasurementId('current');
-    setIsReopenModalOpen(false);
-
     try {
-      const snapshots = await measurementSnapshotsApi.list(project.id);
-      const snapshotToDelete = snapshots.find(
-        (snapshot) => snapshot.measurementNumber === latestSnapshot.measurementNumber,
-      );
+      // Uma chamada só: o backend apaga a ATA, reverte os itens (a partir do
+      // itemsSnapshot da própria ATA) e o número da medição numa transação.
+      // A tela só avança depois que o backend confirmou a gravação.
+      const result = await projectsApi.reopenMeasurement(project.id, latestSnapshot.measurementNumber);
 
-      if (snapshotToDelete?.id) {
-        await measurementSnapshotsApi.remove(snapshotToDelete.id);
+      const updated = projectService.reopenLatestMeasurement(project);
+      onUpdateProject(updated);
+      setViewingMeasurementId('current');
+      setIsReopenModalOpen(false);
+
+      if (result.alreadyReopened) {
+        toast.warning(`A medição Nº ${latestSnapshot.measurementNumber} já estava reaberta.`);
+      } else {
+        toast.success(`Medição Nº ${latestSnapshot.measurementNumber} reaberta.`);
       }
-
-      await projectsApi.update(project.id, {
-        measurementNumber: updated.measurementNumber,
-        referenceDate: updated.referenceDate,
-      });
-
-      const wbsItems = updated.items;
-      await workItemsApi.batchUpdate(
-        project.id,
-        wbsItems.map(item => ({
-          id: item.id,
-          parentId: item.parentId,
-          order: item.order,
-          wbs: item.wbs,
-          contractQuantity: item.contractQuantity,
-          unitPrice: item.unitPrice,
-          unitPriceNoBdi: item.unitPriceNoBdi,
-          contractTotal: item.contractTotal,
-          previousQuantity: item.previousQuantity,
-          previousTotal: item.previousTotal,
-          currentQuantity: item.currentQuantity,
-          currentTotal: item.currentTotal,
-          currentPercentage: item.currentPercentage,
-          accumulatedQuantity: item.accumulatedQuantity,
-          accumulatedTotal: item.accumulatedTotal,
-          accumulatedPercentage: item.accumulatedPercentage,
-          balanceQuantity: item.balanceQuantity,
-          balanceTotal: item.balanceTotal,
-        })),
-        'reopenMeasurement',
-      );
-
-      await blueprintItemsApi.batch(project.id, updated.blueprintItems || [], true);
     } catch (error) {
       console.error('Erro ao reabrir medição:', error);
-      toast.error('Falha ao persistir a reabertura da medição.');
+      toast.error('Falha ao reabrir a medição. Nada foi alterado, pode tentar de novo.');
     } finally {
       setIsReopenInProgress(false);
     }
@@ -1491,6 +1475,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     project={project}
                     suppliers={effectiveSuppliers}
                     onUpdatePlanning={handleUpdatePlanning}
+                    onPlanningReplaced={handlePlanningReplaced}
                     onAddExpense={handleExpenseAdd}
                     onUpdateExpense={handleExpenseUpdate}
                     onRefreshExpenses={refreshExpenses}
@@ -1519,6 +1504,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     project={project}
                     suppliers={effectiveSuppliers}
                     onUpdatePlanning={handleUpdatePlanning}
+                    onPlanningReplaced={handlePlanningReplaced}
                     onAddExpense={handleExpenseAdd}
                     onUpdateExpense={handleExpenseUpdate}
                     onRefreshExpenses={refreshExpenses}
@@ -1536,6 +1522,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     project={project}
                     suppliers={effectiveSuppliers}
                     onUpdatePlanning={handleUpdatePlanning}
+                    onPlanningReplaced={handlePlanningReplaced}
                     onAddExpense={handleExpenseAdd}
                     onUpdateExpense={handleExpenseUpdate}
                     onRefreshExpenses={refreshExpenses}

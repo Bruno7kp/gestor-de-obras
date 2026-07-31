@@ -52,6 +52,30 @@ interface CloseMeasurementInput {
   blueprintItems?: Record<string, unknown>[];
 }
 
+interface ReopenMeasurementWorkItem {
+  id: string;
+  type?: string;
+  previousQuantity?: number;
+  previousTotal?: number;
+  currentQuantity?: number;
+  currentTotal?: number;
+  currentPercentage?: number;
+  accumulatedQuantity?: number;
+  accumulatedTotal?: number;
+  accumulatedPercentage?: number;
+  balanceQuantity?: number;
+  balanceTotal?: number;
+}
+
+interface ReopenMeasurementInput {
+  projectId: string;
+  instanceId: string;
+  userId: string;
+  permissions: string[];
+  /** medição (ATA) a reabrir — precisa ser a mais recente do projeto */
+  measurementNumber: number;
+}
+
 interface UpdateProjectInput {
   id: string;
   instanceId: string;
@@ -1194,6 +1218,133 @@ export class ProjectsService {
     });
 
     return { snapshot: result, alreadyClosed: false, updatedItems: workItems.length };
+  }
+
+  async reopenMeasurement(input: ReopenMeasurementInput) {
+    const canEdit = await this.canEditProject(
+      input.projectId,
+      input.userId,
+      input.permissions,
+    );
+
+    if (!canEdit) {
+      throw new ForbiddenException('Sem permissao para editar o projeto');
+    }
+
+    let project = await this.prisma.project.findFirst({
+      where: { id: input.projectId, instanceId: input.instanceId },
+    });
+
+    if (!project && input.userId) {
+      project = await this.prisma.project.findFirst({
+        where: {
+          id: input.projectId,
+          members: { some: { userId: input.userId } },
+        },
+      });
+    }
+
+    if (!project) throw new NotFoundException('Projeto nao encontrado');
+
+    if (project.isArchived) {
+      throw new ForbiddenException(
+        'Projeto arquivado. Reative a obra para permitir edicoes.',
+      );
+    }
+
+    // Idempotência: se a ATA já não existe, a reabertura já rodou (ou nunca
+    // existiu). Devolve sem erro em vez de falhar numa retentativa.
+    const snapshot = await this.prisma.measurementSnapshot.findFirst({
+      where: {
+        projectId: input.projectId,
+        measurementNumber: input.measurementNumber,
+      },
+    });
+
+    if (!snapshot) {
+      return { alreadyReopened: true, updatedItems: 0 };
+    }
+
+    // Só a medição mais recente pode ser reaberta, senão a numeração do
+    // histórico fica fora de ordem.
+    if (project.measurementNumber !== input.measurementNumber + 1) {
+      throw new ForbiddenException(
+        'So e possivel reabrir a medicao mais recente.',
+      );
+    }
+
+    const itemsSnapshot =
+      (snapshot.itemsSnapshot as unknown as ReopenMeasurementWorkItem[]) ?? [];
+    const workItems = itemsSnapshot.filter((i) => i.type !== 'category');
+
+    await this.prisma.$transaction(
+      async (tx) => {
+        if (workItems.length > 0) {
+          const rows = workItems.map(
+            (i) => Prisma.sql`(
+              ${i.id}::text,
+              ${i.previousQuantity ?? 0}::double precision,
+              ${i.previousTotal ?? 0}::double precision,
+              ${i.currentQuantity ?? 0}::double precision,
+              ${i.currentTotal ?? 0}::double precision,
+              ${i.currentPercentage ?? 0}::double precision,
+              ${i.accumulatedQuantity ?? 0}::double precision,
+              ${i.accumulatedTotal ?? 0}::double precision,
+              ${i.accumulatedPercentage ?? 0}::double precision,
+              ${i.balanceQuantity ?? 0}::double precision,
+              ${i.balanceTotal ?? 0}::double precision
+            )`,
+          );
+
+          await tx.$executeRaw`
+            UPDATE "WorkItem" w SET
+              "previousQuantity"     = v.prev_q,
+              "previousTotal"        = v.prev_t,
+              "currentQuantity"      = v.curr_q,
+              "currentTotal"         = v.curr_t,
+              "currentPercentage"    = v.curr_p,
+              "accumulatedQuantity"  = v.acc_q,
+              "accumulatedTotal"     = v.acc_t,
+              "accumulatedPercentage"= v.acc_p,
+              "balanceQuantity"      = v.bal_q,
+              "balanceTotal"         = v.bal_t
+            FROM (VALUES ${Prisma.join(rows)}) AS v(
+              id, prev_q, prev_t, curr_q, curr_t, curr_p,
+              acc_q, acc_t, acc_p, bal_q, bal_t
+            )
+            WHERE w.id = v.id AND w."projectId" = ${input.projectId}
+          `;
+        }
+
+        await tx.project.update({
+          where: { id: input.projectId },
+          data: {
+            measurementNumber: snapshot.measurementNumber,
+            referenceDate: snapshot.date,
+          },
+        });
+
+        await tx.measurementSnapshot.delete({ where: { id: snapshot.id } });
+      },
+      { timeout: 30000, maxWait: 15000 },
+    );
+
+    void this.auditService.log({
+      instanceId: input.instanceId,
+      userId: input.userId,
+      projectId: input.projectId,
+      action: 'DELETE',
+      model: 'MeasurementSnapshot',
+      entityId: snapshot.id,
+      before: snapshot as unknown as Record<string, unknown>,
+      metadata: {
+        operation: 'reopenMeasurement',
+        measurementNumber: input.measurementNumber,
+        itemCount: workItems.length,
+      },
+    });
+
+    return { alreadyReopened: false, updatedItems: workItems.length };
   }
 
   async updateLifecycle(input: UpdateProjectLifecycleInput) {

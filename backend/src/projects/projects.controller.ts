@@ -86,6 +86,10 @@ interface UpdateProjectBody {
   };
 }
 
+interface ReopenMeasurementBody {
+  measurementNumber: number;
+}
+
 interface UpdateProjectLifecycleBody {
   action: 'archive' | 'reactivate';
   projectNameConfirmation: string;
@@ -183,6 +187,21 @@ export class ProjectsController {
       roundingAdjustment: body.roundingAdjustment,
       workItems: body.workItems,
       blueprintItems: body.blueprintItems,
+    });
+  }
+
+  @Post(':id/reopen-measurement')
+  reopenMeasurement(
+    @Param('id') id: string,
+    @Body() body: ReopenMeasurementBody,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.projectsService.reopenMeasurement({
+      projectId: id,
+      instanceId: req.user.instanceId,
+      userId: req.user.id,
+      permissions: req.user.permissions || [],
+      measurementNumber: body.measurementNumber,
     });
   }
 

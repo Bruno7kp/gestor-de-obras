@@ -53,7 +53,12 @@ export const projectService = {
 
   closeMeasurement: (project: Project): Project => {
     try {
-      const wbsItems = project.items;
+      // currentTotal nunca é recalculado ao editar quantidade na tela de Medição
+      // (só currentQuantity/currentPercentage são persistidos ali, ver WbsView) —
+      // sem isso, o fechamento rotacionaria e gravaria a ATA com currentTotal cru
+      // (zerado ou desatualizado), perdendo o valor do período. Mesma conta do
+      // botão "Recalcular Medição Atual", aplicada automaticamente antes de fechar.
+      const wbsItems = treeService.forceRecalculate(project.items, project.bdi);
       const blueprintItems = project.blueprintItems || [];
       const stats = treeService.calculateBasicStats(wbsItems, project.bdi);
       const snapshot: MeasurementSnapshot = {
