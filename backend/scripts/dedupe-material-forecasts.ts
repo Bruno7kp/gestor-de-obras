@@ -39,6 +39,10 @@
  *   DRY_RUN=1 ts-node scripts/dedupe-material-forecasts.ts                # preview only
  *   ts-node scripts/dedupe-material-forecasts.ts                           # apply fixes
  *   PROJECT_ID=<uuid> DRY_RUN=1 ts-node scripts/dedupe-material-forecasts.ts  # scope to one project
+ *   FORCE_DEDUP_PROJECT_IDS=<uuid1>,<uuid2>  # confirmed "1 compra duplicada" for these
+ *     projects — treats quantity-fractioned groups as normal auto-fixable
+ *     duplicates too (keep 1, delete rest), instead of flagging for review.
+ *     Only set this after confirming with whoever entered the data.
  */
 import 'dotenv/config';
 import { PrismaClient, MaterialForecast, ProjectExpense } from '@prisma/client';
@@ -48,9 +52,16 @@ import { Pool } from 'pg';
 const DRY_RUN = process.env.DRY_RUN === '1' || process.env.DRY_RUN === 'true';
 const PROJECT_ID = process.env.PROJECT_ID;
 
+const FORCE_DEDUP_PROJECT_IDS = new Set(
+  process.env.FORCE_DEDUP_PROJECT_IDS
+    ? process.env.FORCE_DEDUP_PROJECT_IDS.split(',').map((s) => s.trim()).filter(Boolean)
+    : [],
+);
+
 // Below this many duplicate rows of a qty<=1 item, treat it as a normal
 // full-purchase duplicate (auto-fixable) rather than a possible
-// quantity-fractioned-into-clicks case.
+// quantity-fractioned-into-clicks case — unless the project is in
+// FORCE_DEDUP_PROJECT_IDS, confirmed to be a plain duplicate.
 const UNIT_CLICK_SUSPECT_THRESHOLD = 5;
 
 function normalizeMoney(value: number): number {
@@ -183,7 +194,11 @@ async function main() {
         continue;
       }
 
-      if (group[0].quantityNeeded <= 1 && group.length >= UNIT_CLICK_SUSPECT_THRESHOLD) {
+      if (
+        group[0].quantityNeeded <= 1 &&
+        group.length >= UNIT_CLICK_SUSPECT_THRESHOLD &&
+        !FORCE_DEDUP_PROJECT_IDS.has(project.id)
+      ) {
         totalFlaggedGroups++;
         console.log(
           `  [REVISAR MANUAL] "${group[0].description}" — ${group.length} linhas de` +
