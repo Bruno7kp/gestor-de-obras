@@ -265,7 +265,6 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
   return (
     <div
       className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
-      onClick={onClose}
     >
       <div
         className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col border border-gray-200 dark:border-slate-800"

@@ -319,7 +319,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ assets, onAdd, onUpd
       )}
 
       {renameAsset && (
-        <div className="fixed inset-0 z-[1800] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm" onClick={() => setRenameAsset(null)}>
+        <div className="fixed inset-0 z-[1800] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
           <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2rem] border border-slate-200 dark:border-slate-800 p-6 sm:p-8" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-black tracking-tight text-slate-800 dark:text-white">Editar Documento</h3>
@@ -398,7 +398,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ assets, onAdd, onUpd
       />
 
       {isUploadModalOpen && (
-        <div className="fixed inset-0 z-[1800] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm" onClick={resetUploadModal}>
+        <div className="fixed inset-0 z-[1800] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
           <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2rem] border border-slate-200 dark:border-slate-800 p-6 sm:p-8" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-black tracking-tight text-slate-800 dark:text-white">Novo Documento</h3>

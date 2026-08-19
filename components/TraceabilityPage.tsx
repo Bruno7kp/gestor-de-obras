@@ -74,7 +74,7 @@ const CompleteModal: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
       <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800">
           <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight">Confirmar Entrega</h3>
@@ -180,7 +180,7 @@ const PurchaseFromRequestModal: React.FC<{
   const parsedQty = financial.parseLocaleNumber(quantity);
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
       <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800">
           <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight">Solicitar Compra</h3>
@@ -246,7 +246,7 @@ const DeliverModal: React.FC<{
   const pctAfter = request.quantity > 0 ? Math.round((afterDelivery / request.quantity) * 100) : 0;
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
       <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800">
           <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight">Registrar Envio</h3>

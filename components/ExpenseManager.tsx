@@ -883,7 +883,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
 };
 
 const ExpenseImportReviewModal = ({ summary, onClose, onConfirm, isImporting, progress }: { summary: ExpenseImportResult, onClose: () => void, onConfirm: () => void, isImporting?: boolean, progress?: { sent: number; total: number } }) => (
-  <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
+  <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
     <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-[2.5rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col gap-6" onClick={e => e.stopPropagation()}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">

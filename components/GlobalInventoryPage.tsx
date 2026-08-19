@@ -61,7 +61,7 @@ const GlobalStockItemModal: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
       <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800">
           <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight">{item ? 'Editar Item' : 'Novo Item'}</h3>
@@ -181,7 +181,7 @@ const EntryModal: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
       <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800">
           <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight">Registrar Entrada (NF)</h3>
@@ -285,7 +285,7 @@ const PurchaseRequestModal: React.FC<{
   const parsedQty = financial.parseLocaleNumber(quantity);
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
       <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800">
           <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight">Solicitar Compra</h3>
@@ -348,7 +348,7 @@ const DeleteItemModal: React.FC<{
   const hasRelated = usage && (usage.movementsCount > 0 || usage.purchaseRequestsCount > 0 || usage.stockRequestsCount > 0);
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
       <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex items-start gap-4">
           <div className="p-3 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded-2xl shrink-0">

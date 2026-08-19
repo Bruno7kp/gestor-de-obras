@@ -70,7 +70,6 @@ export const ProjectDescriptionModal: React.FC<ProjectDescriptionModalProps> = (
       {/* Backdrop */}
       <div
         className="fixed inset-0 z-[3000] bg-black/40 backdrop-blur-sm animate-in fade-in duration-200"
-        onClick={onClose}
       />
 
       {/* Modal */}

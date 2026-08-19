@@ -2351,7 +2351,7 @@ const ClearanceModal = ({ forecast, currentInvoiceDoc, onClose, onConfirm }: any
   const [invoiceDoc, setInvoiceDoc] = useState<string | undefined>(currentInvoiceDoc);
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}>
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="bg-white dark:bg-[#0f111a] w-full max-w-xl rounded-[3rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col items-center relative overflow-hidden text-center" onClick={e => e.stopPropagation()}>
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-emerald-500/10 blur-[100px] pointer-events-none"></div>
 
@@ -2405,7 +2405,7 @@ const ConfirmSupplyGroupPurchaseModal = ({
   const [paymentProof, setPaymentProof] = useState<string | undefined>(group.paymentProof || undefined);
 
   return (
-    <div className="fixed inset-0 z-[2100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}>
+    <div className="fixed inset-0 z-[2100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="bg-white dark:bg-[#0f111a] w-full max-w-xl rounded-[2.5rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl" onClick={e => e.stopPropagation()}>
         <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-6">Efetivar Compra do Grupo</h2>
 
@@ -2480,7 +2480,7 @@ const SupplyGroupDocsModal = ({
   const [saving, setSaving] = useState(false);
 
   return (
-    <div className="fixed inset-0 z-[2100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}>
+    <div className="fixed inset-0 z-[2100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="bg-white dark:bg-[#0f111a] w-full max-w-xl rounded-[2.5rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl" onClick={e => e.stopPropagation()}>
         <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-3">Documentos do Grupo</h2>
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">Gerencie o comprovante de pagamento e a nota fiscal deste grupo.</p>
@@ -2540,7 +2540,7 @@ const SupplyGroupClearanceModal = ({
   const [invoiceDoc, setInvoiceDoc] = useState<string | undefined>(group.invoiceDoc || undefined);
 
   return (
-    <div className="fixed inset-0 z-[2100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}>
+    <div className="fixed inset-0 z-[2100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="bg-white dark:bg-[#0f111a] w-full max-w-xl rounded-[2.5rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl" onClick={e => e.stopPropagation()}>
         <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-3">Dar Baixa no Grupo</h2>
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">Anexe a nota fiscal para concluir a baixa do grupo.</p>
@@ -2610,7 +2610,7 @@ const BoletoModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[2200] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
+    <div className="fixed inset-0 z-[2200] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
       <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-[2.5rem] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-8 md:p-10" onClick={(event) => event.stopPropagation()}>
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -3175,7 +3175,7 @@ const ForecastModal = ({ onClose, onSave, projectId, allWorkItems, suppliers, ex
   };
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}>
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="bg-white dark:bg-[#0f111a] w-full max-w-4xl rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden max-h-[95vh] relative" onClick={e => e.stopPropagation()}>
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-indigo-500/5 blur-[120px] pointer-events-none"></div>
         
@@ -4126,7 +4126,7 @@ const SupplyGroupModal = ({
 
   return (
     <>
-    <div className="fixed inset-0 z-[2100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}>
+    <div className="fixed inset-0 z-[2100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="bg-white dark:bg-[#0f111a] w-full max-w-6xl rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden max-h-[92vh] flex flex-col" onClick={(event) => event.stopPropagation()}>
         <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -4567,7 +4567,7 @@ const ConvertForecastsToGroupModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[2200] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}>
+    <div className="fixed inset-0 z-[2200] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="bg-white dark:bg-[#0f111a] w-full max-w-2xl rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden" onClick={(event) => event.stopPropagation()}>
         <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
           <div>
@@ -4777,7 +4777,7 @@ const TaskModal = ({ task, initialStatus, onClose, onSave }: any) => {
   const [date, setDate] = useState(task?.dueDate?.split('T')[0] || new Date().toISOString().split('T')[0]);
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
       <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl" onClick={e => e.stopPropagation()}>
         <h2 className="text-xl font-black mb-6 dark:text-white uppercase tracking-tight">{task ? 'Editar Tarefa' : 'Nova Tarefa'}</h2>
         <div className="space-y-4">
@@ -4805,7 +4805,7 @@ const MilestoneModal = ({ milestone, onClose, onSave }: any) => {
   const [date, setDate] = useState(milestone?.date?.split('T')[0] || new Date().toISOString().split('T')[0]);
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
       <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl" onClick={e => e.stopPropagation()}>
         <h2 className="text-xl font-black mb-6 dark:text-white uppercase tracking-tight">{milestone ? 'Editar Meta' : 'Nova Meta'}</h2>
         <div className="space-y-4">
@@ -4870,7 +4870,7 @@ const ConfirmForecastModal = ({ forecast, onClose, onConfirm, financialCategorie
   };
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}>
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="bg-white dark:bg-[#0f111a] w-full max-w-2xl rounded-[3rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col items-center relative overflow-hidden text-center max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-indigo-500/10 blur-[100px] pointer-events-none"></div>
         

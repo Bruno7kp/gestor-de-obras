@@ -600,7 +600,7 @@ const MemberModal = ({ member, contractors, onClose, onSave, allWorkItems, proje
   };
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in" onClick={onClose}>
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
       <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-[3rem] p-10 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
          <h2 className="text-2xl font-black mb-8 dark:text-white uppercase tracking-tight">{member ? 'Editar Colaborador' : 'Novo Cadastro'}</h2>
          

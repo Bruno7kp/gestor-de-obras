@@ -356,7 +356,7 @@ export const BrandingView: React.FC<BrandingViewProps> = ({
       </section>
 
       {lifecycleAction && (
-        <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md" onClick={() => setLifecycleAction(null)}>
+        <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
           <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-black text-slate-800 dark:text-white tracking-tight">
               {lifecycleAction === 'archive' ? 'Encerrar obra' : 'Reativar obra'}
