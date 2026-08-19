@@ -232,7 +232,7 @@ export class PlanningController {
   }
 
   @Post('boletos')
-  @HasPermission('planning.edit')
+  @HasPermission('planning.edit', 'supplies.edit')
   createBoleto(
     @Body() body: CreateBoletoBody,
     @Req() req: AuthenticatedRequest,
@@ -245,7 +245,7 @@ export class PlanningController {
   }
 
   @Patch('boletos/:id')
-  @HasPermission('planning.edit')
+  @HasPermission('planning.edit', 'supplies.edit')
   updateBoleto(
     @Param('id') id: string,
     @Body() body: UpdateBoletoBody,
@@ -260,7 +260,7 @@ export class PlanningController {
   }
 
   @Delete('boletos/:id')
-  @HasPermission('planning.edit')
+  @HasPermission('planning.edit', 'supplies.edit')
   deleteBoleto(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.planningService.deleteBoleto(
       id,

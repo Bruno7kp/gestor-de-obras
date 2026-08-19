@@ -15,7 +15,7 @@ export const BoletosPage: React.FC = () => {
   const toast = useToast();
   const navigate = useNavigate();
   const { canEdit } = usePermissions();
-  const canEditPlanning = canEdit('planning');
+  const canEditPlanning = canEdit('planning') || canEdit('supplies');
 
   const [boletos, setBoletos] = useState<SupplyBoleto[]>([]);
   const [total, setTotal] = useState(0);
